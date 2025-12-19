@@ -2,7 +2,7 @@
 <html lang="dv" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Royal Graduation System (Final V5)</title>
+    <title>Royal Graduation System (Fixed V6)</title>
     <style>
         /* --- GLOBAL --- */
         body {
@@ -199,7 +199,6 @@
     </div>
 
 <script>
-    // --- AUTH ---
     function checkPassword() {
         if (document.getElementById('passInput').value.trim() === "7791550") {
             document.getElementById('loginOverlay').style.display = 'none';
@@ -220,7 +219,6 @@
         }
     }
 
-    // --- VARIABLES ---
     let tvWindow = null;
     let students = [];
     let photoFiles = {};
@@ -230,7 +228,6 @@
     let currentJalsaBgData = null;
     let currentJalsaBgType = 'none';
 
-    // --- TV WINDOW ---
     function openTV() {
         tvWindow = window.open('', 'GradTV', 'width=1280,height=720,menubar=no,toolbar=no');
         if(!tvWindow) { alert("Enable Popups!"); return; }
@@ -253,7 +250,7 @@
                 /* BACKGROUND */
                 #bgLayer { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; background:#00281c; }
                 
-                /* JALSA CONTENT */
+                /* JALSA TITLES */
                 #jalsaContent { 
                     position:absolute; top:0; left:0; width:100%; height:100%; 
                     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -269,20 +266,31 @@
                 }
                 .sub-title { font-size: 2em; color: #fff; text-shadow: 1px 1px 5px black; margin: 8px 0; }
 
-                /* LOGO LAYER */
+                /* LOGO WRAPPER */
                 #logoWrap { 
                     position:absolute; 
-                    /* STATE A: IDLE (180px) */
-                    top: 25%; left:50%; transform:translate(-50%, 0); 
+                    /* STATE A: IDLE (Centered Top 20%) */
+                    top: 20%; left:50%; transform:translate(-50%, 0); 
                     z-index:20; transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
                 }
-                #logoImg { height:180px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5)); transition:height 0.8s ease; }
                 
-                /* STATE B: LIVE (Half Size = 90px, Position = 7.5vh / ~60px) */
+                /* LOGO IMAGE SIZE (Idle = 180px) */
+                #logoImg { 
+                    height:180px; 
+                    filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5)); 
+                    transition:height 0.8s ease; 
+                }
+                
+                /* STATE B: LIVE (Half Size + On Border) */
                 #logoWrap.live { 
-                    top: 7.5vh; 
+                    /* Card Top is roughly at 7.5vh (50% - 42.5vh). 
+                       We position logo slightly above that line. 
+                       Fixed pixel for stability: 65px from top */
+                    top: 65px; 
                     transform:translate(-50%, -50%); 
                 }
+                
+                /* Reduce Logo size by half (180 -> 90) */
                 #logoWrap.live #logoImg { height:90px; }
 
                 /* CARD */
@@ -296,7 +304,7 @@
                 }
                 #card.active { opacity:1; }
 
-                /* CORNERS */
+                /* Corners */
                 .corner-thick { position:absolute; width:40px; height:40px; border:6px solid #d4af37; }
                 .tl { top:-8px; left:-8px; border-right:0; border-bottom:0; }
                 .tr { top:-8px; right:-8px; border-left:0; border-bottom:0; }
@@ -309,7 +317,7 @@
                 .bl-in { bottom:8px; left:8px; border-right:0; border-top:0; }
                 .br-in { bottom:8px; right:8px; border-left:0; border-top:0; }
 
-                /* DATA */
+                /* Data */
                 .font-dv { font-family: 'Faruuma', 'Amiri', serif; }
                 .font-en { font-family: 'Times New Roman', serif; direction:ltr; }
 
@@ -325,7 +333,7 @@
                 #stuImg { width:260px; height:260px; object-fit:cover; border-radius:50%; border:5px solid #d4af37; background:#000; box-shadow:0 15px 40px rgba(0,0,0,0.8); }
                 .text-col { flex:1; text-align:right; padding-right:30px; color:white; display:flex; flex-direction:column; justify-content:center; }
 
-                /* VIDEO LAYER */
+                /* VIDEO LAYER (High Z-Index) */
                 #videoLayer { position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:5000; display:none; justify-content:center; align-items:center; }
                 #videoLayer video, #videoLayer iframe { width:100%; height:100%; border:none; }
                 
@@ -341,8 +349,7 @@
             <div id="logoWrap"><img id="logoImg" src="https://via.placeholder.com/180x180/00281c/d4af37?text=LOGO"></div>
 
             <div id="jalsaContent">
-                <div style="margin-top:100px;">
-                    <div id="jt1" class="main-title jalsa-text"></div>
+                <div style="margin-top:250px;"> <div id="jt1" class="main-title jalsa-text"></div>
                     <div id="jt2" class="sub-title jalsa-text"></div>
                     <div id="jt3" class="sub-title jalsa-text"></div>
                     <div id="jt4" class="sub-title jalsa-text"></div>
@@ -445,7 +452,7 @@
         document.getElementById('statusMsg').innerText = "Screen Cleared";
     }
 
-    // --- VIDEO PLAYER (FIXED) ---
+    // --- VIDEO PLAYER (FORCED AUTOPLAY) ---
     function playLocalVideo() {
         if(!tvWindow || tvWindow.closed) { alert("TV Closed!"); return; }
         tvWindow.document.getElementById('jalsaContent').classList.add('hidden');
@@ -457,7 +464,12 @@
         vl.innerHTML = `<video id="mainVid" src="${url}" autoplay controls style="width:100%;height:100%;"></video>`;
         vl.style.display = 'flex';
         
-        setTimeout(() => { const v = tvWindow.document.getElementById('mainVid'); if(v) v.play(); }, 100);
+        setTimeout(() => { 
+            const v = tvWindow.document.getElementById('mainVid'); 
+            if(v) v.play().catch(e => {
+                alert("Please click ONCE on the TV screen to enable audio auto-play.");
+            }); 
+        }, 100);
         document.getElementById('statusMsg').innerText = "Playing Video...";
     }
 
