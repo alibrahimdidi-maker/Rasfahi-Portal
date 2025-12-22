@@ -2,7 +2,7 @@
 <html lang="dv" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Royal Graduation System (Final V29)</title>
+    <title>Royal Graduation System (Final V31 - SafeGuard)</title>
     <style>
         /* --- GLOBAL --- */
         body {
@@ -55,8 +55,15 @@
         /* Design Tabs */
         .design-panel {
             background: #fff8e1; border: 1px solid #ffb300; border-radius: 5px;
-            padding: 8px; margin-bottom: 8px;
+            padding: 8px; margin-bottom: 8px; transition: opacity 0.3s;
         }
+        /* When locked, fade out and disable clicks */
+        .design-panel.locked {
+            opacity: 0.6;
+            pointer-events: none;
+            filter: grayscale(0.5);
+        }
+
         .design-row { display: flex; gap: 10px; margin-bottom: 5px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
         .design-col { flex: 1; }
         .d-label { font-size: 11px; font-weight: bold; color: #e65100; display: block; margin-bottom: 2px; }
@@ -101,6 +108,10 @@
 
         #statusMsg { text-align: center; margin-top: 5px; font-weight: bold; color: green; font-size: 12px; background: #e8f5e9; padding: 2px; border-radius: 4px; flex-shrink: 0; }
         .copyright-text { text-align: center; font-size: 10px; color: #d4af37; background: #00281c; margin-top: auto; padding: 5px; border-radius: 4px; flex-shrink: 0; font-family: sans-serif; font-weight: bold; }
+        
+        /* Lock Switch */
+        .lock-controls { display:flex; align-items:center; justify-content:flex-end; margin-bottom:5px; font-size:12px; font-weight:bold; color:#c62828; }
+        .lock-controls input { width:auto; margin-left:5px; cursor:pointer; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -137,30 +148,36 @@
         </div>
 
         <div class="editor">
-            <div class="design-panel">
+            <div class="lock-controls">
+                <label for="lockDesign">🔒 Lock Controls</label>
+                <input type="checkbox" id="lockDesign" onchange="toggleLock(this)">
+                <button onclick="resetDesign()" style="margin-right:10px; font-size:10px; background:#555; color:white; border:none; border-radius:3px; cursor:pointer;">Reset</button>
+            </div>
+
+            <div class="design-panel" id="designPanel">
                 <h3 style="margin-top:0; border:none; font-size:14px;">🎨 Live Design Controls</h3>
                 
                 <div class="design-row">
                     <div class="design-col">
                         <span class="d-label">Main Title:</span>
                         <div style="display:flex; gap:2px;">
-                            <input type="range" min="2" max="10" step="0.1" value="5.6" oninput="liveUpdate('mtSize', this.value)">
-                            <input type="color" value="#d4af37" oninput="liveUpdate('mtColor', this.value)">
+                            <input id="in_mtSize" type="range" min="2" max="10" step="0.1" value="5.6" oninput="liveUpdate('mtSize', this.value)">
+                            <input id="in_mtColor" type="color" value="#d4af37" oninput="liveUpdate('mtColor', this.value)">
                         </div>
                         <div style="display:flex; gap:2px; margin-top:2px;">
-                            <input type="range" min="0" max="500" value="210" oninput="liveUpdate('mtY', this.value)">
-                            <input type="range" min="-300" max="300" value="0" oninput="liveUpdate('mtX', this.value)">
+                            <input id="in_mtY" type="range" min="0" max="500" value="210" oninput="liveUpdate('mtY', this.value)">
+                            <input id="in_mtX" type="range" min="-300" max="300" value="0" oninput="liveUpdate('mtX', this.value)">
                         </div>
                     </div>
                     <div class="design-col">
                         <span class="d-label">Sub Titles:</span>
                         <div style="display:flex; gap:2px;">
-                            <input type="range" min="1" max="6" step="0.1" value="2.6" oninput="liveUpdate('stSize', this.value)">
-                            <input type="color" value="#ffffff" oninput="liveUpdate('stColor', this.value)">
+                            <input id="in_stSize" type="range" min="1" max="6" step="0.1" value="2.6" oninput="liveUpdate('stSize', this.value)">
+                            <input id="in_stColor" type="color" value="#ffffff" oninput="liveUpdate('stColor', this.value)">
                         </div>
                         <div style="display:flex; gap:2px; margin-top:2px;">
-                            <input type="range" min="0" max="100" value="0" oninput="liveUpdate('stY', this.value)">
-                            <input type="range" min="-300" max="300" value="0" oninput="liveUpdate('stX', this.value)">
+                            <input id="in_stY" type="range" min="0" max="100" value="0" oninput="liveUpdate('stY', this.value)">
+                            <input id="in_stX" type="range" min="-300" max="300" value="0" oninput="liveUpdate('stX', this.value)">
                         </div>
                     </div>
                 </div>
@@ -169,11 +186,11 @@
                     <div class="design-col">
                         <span class="d-label">Layout Direction:</span>
                         <div style="display:flex; gap:5px;">
-                            <select onchange="liveUpdate('layoutDir', this.value)" style="width:50%; background:#bbdefb;">
+                            <select id="in_layoutDir" onchange="liveUpdate('layoutDir', this.value)" style="width:50%; background:#bbdefb;">
                                 <option value="rtl">Photo: Right</option>
                                 <option value="ltr">Photo: Left</option>
                             </select>
-                            <select onchange="liveUpdate('textAlign', this.value)" style="width:50%; background:#bbdefb;">
+                            <select id="in_textAlign" onchange="liveUpdate('textAlign', this.value)" style="width:50%; background:#bbdefb;">
                                 <option value="right">Align: Right</option>
                                 <option value="left">Align: Left</option>
                             </select>
@@ -182,14 +199,14 @@
                     <div class="design-col">
                         <span class="d-label">Logo (Pos/Vis):</span>
                         <div style="display:flex; gap:5px; margin-bottom:2px;">
-                            <select onchange="liveUpdate('lVis', this.value)" style="width:100%; background:#ffe0b2;">
+                            <select id="in_lVis" onchange="liveUpdate('lVis', this.value)" style="width:100%; background:#ffe0b2;">
                                 <option value="show">Logo: Show</option>
                                 <option value="hide">Logo: Hide</option>
                             </select>
                         </div>
                         <div style="display:flex; gap:2px;">
-                            <input type="range" min="0" max="400" value="40" title="Y Pos" oninput="liveUpdate('logoY', this.value)">
-                            <input type="range" min="-300" max="300" value="0" title="X Pos" oninput="liveUpdate('logoX', this.value)">
+                            <input id="in_logoY" type="range" min="0" max="400" value="40" oninput="liveUpdate('logoY', this.value)">
+                            <input id="in_logoX" type="range" min="-300" max="300" value="0" oninput="liveUpdate('logoX', this.value)">
                         </div>
                     </div>
                 </div>
@@ -198,18 +215,18 @@
                     <div class="design-col">
                         <span class="d-label">Student Text Position:</span>
                         <div style="display:flex; gap:2px;">
-                            <input type="range" min="-200" max="200" value="0" title="Text Y" oninput="liveUpdate('txtY', this.value)">
-                            <input type="range" min="-200" max="200" value="0" title="Text X" oninput="liveUpdate('txtX', this.value)">
+                            <input id="in_txtY" type="range" min="-200" max="200" value="0" oninput="liveUpdate('txtY', this.value)">
+                            <input id="in_txtX" type="range" min="-200" max="200" value="0" oninput="liveUpdate('txtX', this.value)">
                         </div>
                     </div>
                     <div class="design-col" style="display:flex; gap:5px; align-items:center;">
                         <div>
                             <span class="d-label">Name Col:</span>
-                            <input type="color" value="#ffffff" oninput="liveUpdate('nameCol', this.value)">
+                            <input id="in_nameCol" type="color" value="#ffffff" oninput="liveUpdate('nameCol', this.value)">
                         </div>
                         <div>
                             <span class="d-label">Detail Col:</span>
-                            <input type="color" value="#fff9c4" oninput="liveUpdate('detCol', this.value)">
+                            <input id="in_detCol" type="color" value="#fff9c4" oninput="liveUpdate('detCol', this.value)">
                         </div>
                     </div>
                 </div>
@@ -217,7 +234,7 @@
                 <div class="design-row" style="margin-bottom:0; border:none;">
                     <div class="design-col">
                         <span class="d-label">Card Style:</span>
-                        <select onchange="liveUpdate('cBorder', this.value)" style="width:100%;">
+                        <select id="in_cBorder" onchange="liveUpdate('cBorder', this.value)" style="width:100%;">
                             <option value="b1">Gold Double</option>
                             <option value="b2">Dashed Glow</option>
                             <option value="b3">Thick Solid</option>
@@ -228,34 +245,35 @@
                             <option value="custom">🖼️ Custom Frame</option>
                         </select>
                         <div style="display:flex; gap:5px; align-items:center; margin-top:2px;">
-                            <span style="font-size:10px;">Thm:</span><input type="color" value="#d4af37" oninput="liveUpdate('bdColor', this.value)">
-                            <span style="font-size:10px;">BG:</span><input type="color" value="#001a12" oninput="liveUpdate('bgColor', this.value)">
+                            <span style="font-size:10px;">Thm:</span><input id="in_bdColor" type="color" value="#d4af37" oninput="liveUpdate('bdColor', this.value)">
+                            <span style="font-size:10px;">BG:</span><input id="in_bgColor" type="color" value="#001a12" oninput="liveUpdate('bgColor', this.value)">
                         </div>
                     </div>
                     <div class="design-col">
                         <span class="d-label">Photo (Vis/Pos/Size):</span>
                         <div style="display:flex; gap:5px;">
-                            <select onchange="liveUpdate('pVis', this.value)" style="width:50%; background:#ffe0b2;">
+                            <select id="in_pVis" onchange="liveUpdate('pVis', this.value)" style="width:50%; background:#ffe0b2;">
                                 <option value="show">Show</option>
                                 <option value="hide">Hide</option>
                             </select>
-                            <select onchange="liveUpdate('pBorder', this.value)" style="width:50%;">
-                                <option value="on">Border ON</option>
-                                <option value="off">Border OFF</option>
+                            <select id="in_pBorder" onchange="liveUpdate('pBorder', this.value)" style="width:50%;">
+                                <option value="on">Bord ON</option>
+                                <option value="off">Bord OFF</option>
                             </select>
                         </div>
                         <div style="display:flex; gap:2px; margin-top:2px;">
-                            <input type="range" min="-200" max="200" value="0" title="Photo Y" oninput="liveUpdate('pY', this.value)">
-                            <input type="range" min="-200" max="200" value="-40" title="Photo X" oninput="liveUpdate('pX', this.value)">
+                            <input id="in_pY" type="range" min="-600" max="600" value="0" oninput="liveUpdate('pY', this.value)">
+                            <input id="in_pX" type="range" min="-1000" max="1000" value="-40" oninput="liveUpdate('pX', this.value)">
                         </div>
-                        <input type="range" min="150" max="400" value="260" oninput="liveUpdate('pSize', this.value)">
+                        <input id="in_pSize" type="range" min="150" max="400" value="260" oninput="liveUpdate('pSize', this.value)">
+                        <select id="in_pShape" onchange="liveUpdate('pShape', this.value)" style="display:none;"><option value="50%">R</option><option value="10px">S</option></select>
                     </div>
                 </div>
             </div>
 
             <div style="display:flex; gap:5px; margin-bottom:5px;">
                 <input type="file" id="jalsaBgFile" accept="video/*, image/*" style="width:33%">
-                <select onchange="liveUpdate('bgLoop', this.value)" style="width:33%; background:#c8e6c9;">
+                <select id="in_bgLoop" onchange="liveUpdate('bgLoop', this.value)" style="width:33%; background:#c8e6c9;">
                     <option value="on">BG Loop: ON</option>
                     <option value="off">BG Loop: OFF</option>
                 </select>
@@ -332,6 +350,8 @@
         if (pass === "7791550") {
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('mainApp').style.display = 'flex';
+            // Auto Load Settings on Login
+            loadSettings();
         } else {
             document.getElementById('loginError').style.display = 'block';
             document.getElementById('passInput').value = '';
@@ -355,8 +375,8 @@
     let currentJalsaBgType = 'none';
     let customBorderData = null;
 
-    // State for Live Design
-    let designState = {
+    // Default Design State
+    const defaultDesignState = {
         mtY: 210, mtX: 0, mtSize: 5.6, mtColor: '#d4af37',
         stY: 0, stX: 0, stSize: 2.6, stColor: '#ffffff',
         logoY: 40, logoX: 0, lVis: 'show',
@@ -366,137 +386,101 @@
         layoutDir: 'rtl', textAlign: 'right', bgLoop: 'on'
     };
 
+    let designState = { ...defaultDesignState };
+
+    // --- SAVE / LOAD SYSTEM ---
     function liveUpdate(key, value) {
         designState[key] = value;
+        // Save to storage on every change
+        localStorage.setItem('royalGradConfig', JSON.stringify(designState));
+        
         if(!tvWindow || tvWindow.closed) return;
-        const doc = tvWindow.document;
+        applyStyle(key, value, tvWindow.document);
+    }
+
+    function applyStyle(key, value, doc) {
+        // Colors & Theme
+        if(key === 'bgColor') { const bg = doc.getElementById('bgLayer'); if(bg) bg.style.backgroundColor = value; }
+        if(key === 'bdColor') { doc.documentElement.style.setProperty('--theme-color', value); if(designState.pBorder === 'on') { const img = doc.getElementById('stuImg'); if(img) img.style.border = `5px solid ${value}`; } }
 
         // Visibility
-        if(key === 'pVis') {
-            const el = doc.querySelector('.photo-col'); 
-            if(el) el.style.display = (value === 'show') ? 'flex' : 'none';
-        }
-        if(key === 'lVis') {
-            const el = doc.getElementById('logoWrap'); 
-            if(el) el.style.display = (value === 'show') ? 'block' : 'none';
-        }
-        if(key === 'bgLoop') {
-            const vid = doc.getElementById('bgVid');
-            if(vid) vid.style.display = (value === 'on') ? 'block' : 'none';
-        }
+        if(key === 'pVis') { const el = doc.querySelector('.photo-col'); if(el) el.style.display = (value === 'show') ? 'flex' : 'none'; }
+        if(key === 'lVis') { const el = doc.getElementById('logoWrap'); if(el) el.style.display = (value === 'show') ? 'block' : 'none'; }
+        if(key === 'bgLoop') { const vid = doc.getElementById('bgVid'); if(vid) vid.style.display = (value === 'on') ? 'block' : 'none'; }
 
         // Layout
-        if(key === 'layoutDir') {
-            const card = doc.getElementById('card');
-            if(card) card.style.flexDirection = (value === 'rtl') ? 'row-reverse' : 'row';
-        }
-        if(key === 'textAlign') {
-            const txt = doc.querySelector('.text-col');
-            if(txt) txt.style.textAlign = value;
-        }
-
-        // Colors & Theme
-        if(key === 'bgColor') {
-            const bg = doc.getElementById('bgLayer'); if(bg) bg.style.backgroundColor = value;
-        }
-        if(key === 'bdColor') {
-            doc.documentElement.style.setProperty('--theme-color', value);
-            if(designState.pBorder === 'on') {
-                const img = doc.getElementById('stuImg'); 
-                if(img) img.style.border = `5px solid ${value}`;
-            }
-        }
+        if(key === 'layoutDir') { const card = doc.getElementById('card'); if(card) card.style.flexDirection = (value === 'rtl') ? 'row-reverse' : 'row'; }
+        if(key === 'textAlign') { const txt = doc.querySelector('.text-col'); if(txt) txt.style.textAlign = value; }
 
         // Titles
-        if(key === 'mtY' || key === 'mtX') {
-            const con = doc.getElementById('titleContainer');
-            const el = doc.getElementById('mainTitleWrap');
-            if(con) con.style.marginTop = designState.mtY + 'px';
-            if(el) el.style.transform = `translate(${designState.mtX}px, 0)`;
-        }
-        if(key === 'mtSize') {
-            const el = doc.getElementById('jt1'); if(el) el.style.fontSize = value + 'em';
-        }
-        if(key === 'mtColor') {
-            const el = doc.getElementById('jt1'); if(el) { el.style.color = value; el.style.borderBottomColor = value; }
-        }
-
-        // Sub Titles
-        if(key === 'stY' || key === 'stX') {
-            const el = doc.getElementById('subTitleWrap');
-            if(el) { el.style.transform = `translate(${designState.stX}px, 0)`; el.style.marginTop = designState.stY + 'px'; }
-        }
-        if(key === 'stSize') {
-            const els = doc.querySelectorAll('.sub-title'); els.forEach(e => e.style.fontSize = value + 'em');
-        }
-        if(key === 'stColor') {
-            const els = doc.querySelectorAll('.sub-title'); els.forEach(e => e.style.color = value);
-        }
+        if(key === 'mtY' || key === 'mtX') { const con = doc.getElementById('titleContainer'); const el = doc.getElementById('mainTitleWrap'); if(con) con.style.marginTop = designState.mtY + 'px'; if(el) el.style.transform = `translate(${designState.mtX}px, 0)`; }
+        if(key === 'mtSize') { const el = doc.getElementById('jt1'); if(el) el.style.fontSize = value + 'em'; }
+        if(key === 'mtColor') { const el = doc.getElementById('jt1'); if(el) { el.style.color = value; el.style.borderBottomColor = value; } }
+        
+        if(key === 'stY' || key === 'stX') { const el = doc.getElementById('subTitleWrap'); if(el) { el.style.transform = `translate(${designState.stX}px, 0)`; el.style.marginTop = designState.stY + 'px'; } }
+        if(key === 'stSize') { const els = doc.querySelectorAll('.sub-title'); els.forEach(e => e.style.fontSize = value + 'em'); }
+        if(key === 'stColor') { const els = doc.querySelectorAll('.sub-title'); els.forEach(e => e.style.color = value); }
 
         // Text Position
-        if(key === 'txtY' || key === 'txtX') {
-            const el = doc.querySelector('.text-col');
-            if(el) el.style.transform = `translate(${designState.txtX}px, ${designState.txtY}px)`;
-        }
-        if(key === 'nameCol') {
-            doc.getElementById('tnD').style.color = value;
-            doc.getElementById('tnE').style.color = value;
-        }
-        if(key === 'detCol') {
-            const ids = ['tfD','tfE','tcD','tcE','tcm'];
-            ids.forEach(id => { const e = doc.getElementById(id); if(e) e.style.color = value; });
-        }
+        if(key === 'txtY' || key === 'txtX') { const el = doc.querySelector('.text-col'); if(el) el.style.transform = `translate(${designState.txtX}px, ${designState.txtY}px)`; }
+        if(key === 'nameCol') { doc.getElementById('tnD').style.color = value; doc.getElementById('tnE').style.color = value; }
+        if(key === 'detCol') { ['tfD','tfE','tcD','tcE','tcm'].forEach(id => { const e = doc.getElementById(id); if(e) e.style.color = value; }); }
 
-        // Logo Position
-        if(key === 'logoY' || key === 'logoX') {
-            const logo = doc.getElementById('logoWrap');
-            if(logo) {
-                logo.style.left = '50%'; 
-                logo.style.transform = `translate(calc(-50% + ${designState.logoX}px), 0)`;
-                logo.style.top = designState.logoY + 'px';
-            }
-        }
+        // Logo Pos
+        if(key === 'logoY' || key === 'logoX') { const logo = doc.getElementById('logoWrap'); if(logo) { logo.style.left = '50%'; logo.style.transform = `translate(calc(-50% + ${designState.logoX}px), 0)`; logo.style.top = designState.logoY + 'px'; } }
 
         // Photo
         if(key === 'pShape') { const img = doc.getElementById('stuImg'); if(img) img.style.borderRadius = value; }
         if(key === 'pSize') { const img = doc.getElementById('stuImg'); if(img) { img.style.width = value+'px'; img.style.height = value+'px'; } }
-        if(key === 'pX' || key === 'pY') {
-            const el = doc.querySelector('.photo-col');
-            if(el) el.style.transform = `translate(${designState.pX}px, ${designState.pY}px)`;
-        }
-        if(key === 'pBorder') {
-            const img = doc.getElementById('stuImg');
-            if(img) {
-                if(value === 'off') {
-                    img.style.border = 'none';
-                    img.style.background = 'transparent';
-                    img.style.boxShadow = 'none';
-                } else {
-                    img.style.border = `5px solid ${designState.bdColor}`;
-                    img.style.background = '#000';
-                    img.style.boxShadow = '0 15px 40px rgba(0,0,0,0.8)';
-                }
-            }
-        }
+        if(key === 'pX' || key === 'pY') { const el = doc.querySelector('.photo-col'); if(el) el.style.transform = `translate(${designState.pX}px, ${designState.pY}px)`; }
+        if(key === 'pBorder') { const img = doc.getElementById('stuImg'); if(img) { if(value === 'off') { img.style.border = 'none'; img.style.background = 'transparent'; img.style.boxShadow = 'none'; } else { img.style.border = `5px solid ${designState.bdColor}`; img.style.background = '#000'; img.style.boxShadow = '0 15px 40px rgba(0,0,0,0.8)'; } } }
 
-        // Border Style
+        // Card Border
         if(key === 'cBorder') {
             const card = doc.getElementById('card');
             if(card) {
                 card.className = ''; card.classList.add(value);
-                // Custom Border Logic
                 if(value === 'custom' && customBorderData) {
                     card.style.backgroundImage = `url(${customBorderData})`;
-                    card.style.backgroundSize = "100% 100%";
-                    card.style.border = "none";
-                    card.style.boxShadow = "none";
-                } else {
-                    card.style.backgroundImage = "none";
-                }
-                
-                if(value !== 'b1' && value !== 'b0') card.classList.add('active');
-                if(value === 'b0' || value === 'custom') card.classList.add('active'); 
+                    card.style.backgroundSize = "100% 100%"; card.style.border = "none"; card.style.boxShadow = "none";
+                } else { card.style.backgroundImage = "none"; }
+                card.classList.add('active'); 
             }
+        }
+    }
+
+    function loadSettings() {
+        const saved = localStorage.getItem('royalGradConfig');
+        if (saved) {
+            designState = JSON.parse(saved);
+            // Update UI Controls
+            for (const [key, value] of Object.entries(designState)) {
+                const el = document.getElementById('in_' + key);
+                if(el) el.value = value;
+            }
+        }
+    }
+
+    function resetDesign() {
+        if(confirm("Reset all design settings to default?")) {
+            designState = { ...defaultDesignState };
+            localStorage.removeItem('royalGradConfig');
+            loadSettings(); // Reset UI
+            // Force apply all defaults if TV open
+            if(tvWindow && !tvWindow.closed) {
+                for (const [key, value] of Object.entries(designState)) {
+                    applyStyle(key, value, tvWindow.document);
+                }
+            }
+        }
+    }
+
+    function toggleLock(checkbox) {
+        const panel = document.getElementById('designPanel');
+        if(checkbox.checked) {
+            panel.classList.add('locked');
+        } else {
+            panel.classList.remove('locked');
         }
     }
 
@@ -514,40 +498,31 @@
             <style>
                 @font-face { font-family: 'Faruuma'; src: ${fontCSS}; }
                 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
-                
                 :root { --theme-color: ${designState.bdColor}; }
-
                 body { margin:0; overflow:hidden; background:${designState.bgColor}; font-family:'Faruuma', serif; user-select:none; }
                 #fsBtn { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9999; padding:20px; font-size:20px; cursor:pointer; background:var(--theme-color); border:2px solid #fff; }
                 #bgLayer { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; background:transparent; }
-                
                 /* TITLES */
                 #jalsaContent { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; transition: opacity 0.8s ease; opacity:1; }
                 #jalsaContent.hidden { opacity: 0; pointer-events:none; }
                 .jalsa-text { font-family: 'Faruuma', 'Amiri', serif; direction: rtl; text-align: center; }
                 .main-title { font-size: ${designState.mtSize}em; color: ${designState.mtColor}; text-shadow: 2px 2px 10px black; margin-bottom: 20px; border-bottom: 3px solid ${designState.mtColor}; padding-bottom:10px; }
                 .sub-title { font-size: ${designState.stSize}em; color: ${designState.stColor}; text-shadow: 1px 1px 5px black; margin: 8px 0; }
-
                 /* LOGO */
-                #logoWrap { position:absolute; top: ${designState.logoY}px; left:50%; transform:translate(-50%, 0); z-index:20; transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+                #logoWrap { position:absolute; top: ${designState.logoY}px; left:50%; transform:translate(-50%, 0); z-index:20; transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1); display: ${designState.lVis === 'show' ? 'block' : 'none'}; }
                 #logoImg { height:145px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5)); transition:height 0.8s ease; }
                 #logoWrap.live { top: 7.5vh !important; transform:translate(-50%, -50%) !important; background-color: #00281c; padding: 0 10px; border-radius: 50px; }
                 #logoWrap.live #logoImg { height:70px; }
-
-                /* CARD & BORDERS */
-                #card { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:90vw; max-width:1500px; height:85vh; display:flex; flex-direction:row-reverse; align-items:center; background:rgba(0,40,28,0.95); padding:3vh; box-sizing:border-box; opacity:0; transition:opacity 0.5s ease; z-index:15; }
+                /* CARD */
+                #card { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:90vw; max-width:1500px; height:85vh; display:flex; flex-direction:${designState.layoutDir === 'rtl' ? 'row-reverse' : 'row'}; align-items:center; background:rgba(0,40,28,0.95); padding:3vh; box-sizing:border-box; opacity:0; transition:opacity 0.5s ease; z-index:15; }
                 #card.active { opacity:1; }
-
-                /* Custom Border Class - Used when custom image is set */
+                /* Custom Border */
                 .custom { border: none !important; box-shadow: none !important; }
                 .custom .corner-thick, .custom .corner-thin, .custom .b1-mask { display: none; }
-
                 .corner-thick { position:absolute; width:40px; height:40px; border:6px solid var(--theme-color); }
                 .corner-thin { position:absolute; width:70px; height:70px; border:2px solid #ffe57f; }
-                
                 .b0 { border: none !important; box-shadow: none !important; background: transparent !important; }
                 .b0 .corner-thick, .b0 .corner-thin, .b0 .b1-mask { display: none; }
-
                 .b1 { border:none; box-shadow:0 0 100px #000; }
                 .b1 .tl { top:-8px; left:-8px; border-right:0; border-bottom:0; }
                 .b1 .tr { top:-8px; right:-8px; border-left:0; border-bottom:0; }
@@ -558,29 +533,14 @@
                 .b1 .bl-in { bottom:8px; left:8px; border-right:0; border-top:0; }
                 .b1 .br-in { bottom:8px; right:8px; border-left:0; border-top:0; }
                 .b1-mask { position:absolute; background:var(--theme-color); z-index:-1; }
-
-                .b2 { border: 4px dashed var(--theme-color); box-shadow: 0 0 20px var(--theme-color); border-radius: 20px; }
-                .b2 .corner-thick, .b2 .corner-thin, .b2 .b1-mask { display: none; }
-
-                .b3 { border: 10px solid var(--theme-color); border-radius: 30px; box-shadow: inset 0 0 30px #000; }
-                .b3 .corner-thick, .b3 .corner-thin, .b3 .b1-mask { display: none; }
-
-                .b4 { border: 8px solid transparent; border-image: linear-gradient(45deg, var(--theme-color), #ffe57f, var(--theme-color)) 1; box-shadow: 0 0 15px rgba(212,175,55,0.5); }
-                .b4 .corner-thick, .b4 .corner-thin, .b4 .b1-mask { display: none; }
-
-                .b5 { border: 2px solid var(--theme-color); outline: 4px solid #00281c; outline-offset: -10px; box-shadow: 0 0 0 6px var(--theme-color); }
-                .b5 .corner-thick, .b5 .corner-thin, .b5 .b1-mask { display: none; }
-
-                .b6 { border-top: 10px double var(--theme-color); border-bottom: 10px double var(--theme-color); border-left: 2px solid var(--theme-color); border-right: 2px solid var(--theme-color); }
-                .b6 .corner-thick, .b6 .corner-thin, .b6 .b1-mask { display: none; }
-
-                .b7 { border: 1px solid var(--theme-color); box-shadow: 0 0 50px rgba(0,0,0,0.8); }
-                .b7 .corner-thick, .b7 .corner-thin, .b7 .b1-mask { display: none; }
-
+                .b2 { border: 4px dashed var(--theme-color); box-shadow: 0 0 20px var(--theme-color); border-radius: 20px; } .b2 .corner-thick, .b2 .corner-thin, .b2 .b1-mask { display: none; }
+                .b3 { border: 10px solid var(--theme-color); border-radius: 30px; box-shadow: inset 0 0 30px #000; } .b3 .corner-thick, .b3 .corner-thin, .b3 .b1-mask { display: none; }
+                .b4 { border: 8px solid transparent; border-image: linear-gradient(45deg, var(--theme-color), #ffe57f, var(--theme-color)) 1; box-shadow: 0 0 15px rgba(212,175,55,0.5); } .b4 .corner-thick, .b4 .corner-thin, .b4 .b1-mask { display: none; }
+                .b5 { border: 2px solid var(--theme-color); outline: 4px solid #00281c; outline-offset: -10px; box-shadow: 0 0 0 6px var(--theme-color); } .b5 .corner-thick, .b5 .corner-thin, .b5 .b1-mask { display: none; }
+                .b6 { border-top: 10px double var(--theme-color); border-bottom: 10px double var(--theme-color); border-left: 2px solid var(--theme-color); border-right: 2px solid var(--theme-color); } .b6 .corner-thick, .b6 .corner-thin, .b6 .b1-mask { display: none; }
+                .b7 { border: 1px solid var(--theme-color); box-shadow: 0 0 50px rgba(0,0,0,0.8); } .b7 .corner-thick, .b7 .corner-thin, .b7 .b1-mask { display: none; }
                 /* Data */
-                .font-dv { font-family: 'Faruuma', 'Amiri', serif; }
-                .font-en { font-family: 'Times New Roman', serif; direction:ltr; }
-                
+                .font-dv { font-family: 'Faruuma', 'Amiri', serif; } .font-en { font-family: 'Times New Roman', serif; direction:ltr; }
                 h1 { font-size: 5em; margin:0; color:${designState.nameCol}; line-height:1.1; }
                 h2 { font-size: 3em; margin:10px 0; color:var(--theme-color); text-transform:uppercase; border-bottom:2px solid var(--theme-color); display:inline-block; width:100%; text-align:left; }
                 .fac-dv { font-size: 2em; color:${designState.detCol}; margin-top:10px; }
@@ -588,11 +548,9 @@
                 .crs-dv { font-size: 2.5em; color:${designState.detCol}; font-weight:bold; }
                 .crs-en { font-size: 2em; color:${designState.detCol}; font-style:italic; margin-bottom:20px; text-align:left; }
                 .comm { background:rgba(212,175,55,0.15); border:2px solid var(--theme-color); padding:20px; font-size:2.2em; color:white; border-radius:10px; text-align:center; width:100%; box-sizing:border-box; }
-
-                .photo-col { flex:0 0 320px; display:flex; justify-content:center; transform:translate(${designState.pX}px, ${designState.pY}px); transition: transform 0.2s ease; }
-                #stuImg { width:${designState.pSize}px; height:${designState.pSize}px; object-fit:cover; border-radius:${designState.pShape}; border:5px solid var(--theme-color); background:#000; box-shadow:0 15px 40px rgba(0,0,0,0.8); transition: all 0.3s ease; }
-                .text-col { flex:1; text-align:right; padding-right:30px; color:white; display:flex; flex-direction:column; justify-content:center; transform: translate(${designState.txtX}px, ${designState.txtY}px); transition: transform 0.2s ease; }
-
+                .photo-col { flex:0 0 320px; display:${designState.pVis === 'show' ? 'flex' : 'none'}; justify-content:center; transform:translate(${designState.pX}px, ${designState.pY}px); transition: transform 0.2s ease; }
+                #stuImg { width:${designState.pSize}px; height:${designState.pSize}px; object-fit:cover; border-radius:${designState.pShape}; border:${designState.pBorder === 'on' ? '5px solid var(--theme-color)' : 'none'}; background:${designState.pBorder === 'on' ? '#000' : 'transparent'}; box-shadow:${designState.pBorder === 'on' ? '0 15px 40px rgba(0,0,0,0.8)' : 'none'}; transition: all 0.3s ease; }
+                .text-col { flex:1; text-align:${designState.textAlign}; padding-right:30px; color:white; display:flex; flex-direction:column; justify-content:center; transform: translate(${designState.txtX}px, ${designState.txtY}px); transition: transform 0.2s ease; }
                 #videoLayer { position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:5000; display:none; justify-content:center; align-items:center; }
                 #videoLayer video, #videoLayer iframe { width:100%; height:100%; border:none; }
                 .copyright { position:absolute; bottom:10px; right:10px; font-size:10px; color:rgba(255,255,255,0.3); font-family:sans-serif; z-index:900; }
@@ -603,9 +561,7 @@
             <button id="fsBtn" onclick="goFS(this)">⛶ FULL SCREEN</button>
             <div id="videoLayer"></div>
             <div id="bgLayer"></div>
-
             <div id="logoWrap"><img id="logoImg" src="https://via.placeholder.com/180x180/00281c/d4af37?text=LOGO"></div>
-
             <div id="jalsaContent">
                 <div id="titleContainer" style="margin-top:${designState.mtY}px;"> 
                     <div id="mainTitleWrap"><div id="jt1" class="main-title jalsa-text"></div></div>
@@ -616,17 +572,10 @@
                     </div>
                 </div>
             </div>
-
             <div id="card" class="${designState.cBorder}">
-                <div class="b1-mask" style="top:0; left:0; width:100%; height:1px;"></div>
-                <div class="b1-mask" style="bottom:0; left:0; width:100%; height:1px;"></div>
-                <div class="b1-mask" style="top:0; left:0; width:1px; height:100%;"></div>
-                <div class="b1-mask" style="top:0; right:0; width:1px; height:100%;"></div>
-                <div class="corner-thick tl"></div><div class="corner-thick tr"></div>
-                <div class="corner-thick bl"></div><div class="corner-thick br"></div>
-                <div class="corner-thin tl-in"></div><div class="corner-thin tr-in"></div>
-                <div class="corner-thin bl-in"></div><div class="corner-thin br-in"></div>
-
+                <div class="b1-mask" style="top:0; left:0; width:100%; height:1px;"></div> <div class="b1-mask" style="bottom:0; left:0; width:100%; height:1px;"></div> <div class="b1-mask" style="top:0; left:0; width:1px; height:100%;"></div> <div class="b1-mask" style="top:0; right:0; width:1px; height:100%;"></div>
+                <div class="corner-thick tl"></div><div class="corner-thick tr"></div><div class="corner-thick bl"></div><div class="corner-thick br"></div>
+                <div class="corner-thin tl-in"></div><div class="corner-thin tr-in"></div><div class="corner-thin bl-in"></div><div class="corner-thin br-in"></div>
                 <div class="photo-col"><img id="stuImg" src=""></div>
                 <div class="text-col">
                     <h1 id="tnD" class="font-dv"></h1><h2 id="tnE" class="font-en"></h2>
@@ -646,11 +595,8 @@
         updateJalsaBackground();
         updateJalsaText();
         
-        // Ensure initial visibility states are respected
-        const pVis = document.querySelector('select[onchange="liveUpdate(\'pVis\', this.value)"]').value;
-        const lVis = document.querySelector('select[onchange="liveUpdate(\'lVis\', this.value)"]').value;
-        liveUpdate('pVis', pVis);
-        liveUpdate('lVis', lVis);
+        // Init Custom Border if present
+        if(customBorderData) applyStyle('cBorder', designState.cBorder, tvWindow.document);
         
         document.getElementById('connStatus').innerText = "✅ Connected";
         document.getElementById('connStatus').style.color = "green";
@@ -690,10 +636,8 @@
         
         const logo = tvWindow.document.getElementById('logoWrap');
         logo.classList.remove('live');
-        
-        // Restore visibility if hidden by user
-        const logoVis = document.querySelector('select[onchange="liveUpdate(\'lVis\', this.value)"]').value;
-        logo.style.display = (logoVis === 'show') ? 'block' : 'none';
+        // Check user setting for idle visibility
+        logo.style.display = (designState.lVis === 'show') ? 'block' : 'none';
 
         document.getElementById('statusMsg').innerText = "Mode: Jalsa";
     }
@@ -704,9 +648,8 @@
         tvWindow.document.getElementById('jalsaContent').classList.add('hidden');
         const logo = tvWindow.document.getElementById('logoWrap');
         logo.classList.add('live');
-        
-        const logoVis = document.querySelector('select[onchange="liveUpdate(\'lVis\', this.value)"]').value;
-        logo.style.display = (logoVis === 'show') ? 'block' : 'none';
+        // Check user setting for live visibility
+        logo.style.display = (designState.lVis === 'show') ? 'block' : 'none';
 
         const doc = tvWindow.document;
         doc.getElementById('tnD').textContent = document.getElementById('nD').value;
@@ -841,7 +784,11 @@
         const r = new FileReader();
         r.onload = evt => {
             customBorderData = evt.target.result;
-            alert("Custom Border Loaded! Select 'Custom Frame' in Card Style.");
+            // Update live if custom is selected
+            if(designState.cBorder === 'custom' && tvWindow) {
+                applyStyle('cBorder', 'custom', tvWindow.document);
+            }
+            alert("Custom Frame Loaded!");
         };
         r.readAsDataURL(e.target.files[0]);
     };
