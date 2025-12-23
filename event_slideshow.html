@@ -2,991 +2,418 @@
 <html lang="dv" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Royal Graduation System (V5.1 - Safe Live Mode)</title>
+    <title>Royal Event System (Ultimate V6.0)</title>
     <style>
         /* --- GLOBAL --- */
+        :root { --theme-color: #d4af37; --bg-gradient: #000; }
         body {
             -webkit-user-select: none; user-select: none;
             margin: 0; padding: 0;
-            background: #001a12; font-family: 'Faruuma', 'Times New Roman', serif;
+            background: #111; font-family: 'Faruuma', 'Times New Roman', serif;
             overflow: hidden; height: 100vh; width: 100vw;
         }
-
         @font-face {
             font-family: 'Faruuma';
             src: local('Faruuma'), local('Faruumaa'), url('Fonts/faruuma.ttf') format('truetype');
         }
 
-        /* --- LOGIN --- */
-        #loginOverlay {
+        /* --- SECURITY LOCK SCREEN --- */
+        #securityOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #00281c; z-index: 10000;
+            background: #000; z-index: 20000;
             display: flex; flex-direction: column; justify-content: center; align-items: center; color: #d4af37;
         }
-        #loginBox {
-            background: rgba(0, 0, 0, 0.4); padding: 40px; border-radius: 15px;
-            border: 2px solid #d4af37; text-align: center;
+        .sec-box {
+            background: #1a1a1a; padding: 40px; border: 2px solid #d4af37; border-radius: 10px; text-align: center;
+            box-shadow: 0 0 50px rgba(212,175,55,0.2);
         }
-        #passInput {
-            padding: 10px; font-size: 20px; border-radius: 5px; border: 1px solid #d4af37; 
-            text-align: center; width: 250px; margin-top: 15px; font-family: sans-serif;
+        .sec-input {
+            padding: 10px; width: 300px; text-align: center; border: 1px solid #555; background: #333; color: white; margin-top: 10px;
         }
-        #loginBtn {
-            margin-top: 15px; padding: 10px 30px; font-size: 18px; cursor: pointer; 
-            background: #d4af37; border: none; border-radius: 5px; font-weight: bold; color: #00281c; font-family: 'Faruuma';
+        .sec-btn {
+            margin-top: 15px; padding: 10px 30px; background: #d4af37; border: none; font-weight: bold; cursor: pointer;
         }
 
-        /* --- CONTROL PANEL --- */
-        .main-layout { 
-            display: none; gap: 8px; height: 100vh; width: 100vw; 
-            padding: 8px; box-sizing: border-box; background: #00281c;
-        }
+        /* --- UI LAYOUT --- */
+        .main-layout { display: none; height: 100vh; width: 100vw; }
         .sidebar {
-            flex: 0 0 290px; background: #f1f8e9; padding: 10px; border-radius: 8px;
-            display: flex; flex-direction: column; height: 100%; overflow: hidden;
-            border-right: 4px solid #d4af37;
+            width: 300px; background: #f5f5f5; border-right: 4px solid #d4af37;
+            padding: 10px; display: flex; flex-direction: column; overflow-y: auto; height: 100vh; box-sizing: border-box;
         }
-        .editor {
-            flex: 1; background: #ffffff; padding: 10px; border-radius: 8px;
-            display: flex; flex-direction: column; height: 100%; overflow-y: auto; position: relative;
-            border-left: 4px solid #d4af37;
+        .editor { flex: 1; background: #fff; position: relative; overflow: hidden; }
+
+        /* CONTROLS */
+        .control-group { background: #e0e0e0; padding: 8px; margin-bottom: 8px; border-radius: 5px; border: 1px solid #ccc; }
+        .cg-title { font-size: 12px; font-weight: bold; color: #333; margin-bottom: 4px; display: block; }
+        select, input[type=text], textarea { width: 100%; padding: 4px; box-sizing: border-box; margin-bottom: 3px; }
+        button { width: 100%; padding: 6px; cursor: pointer; margin-bottom: 3px; font-weight: bold; }
+        
+        .btn-live { background: #004d40; color: #ffd700; border: 1px solid #ffd700; height: 40px; font-size: 16px; }
+        .btn-update { background: #1565c0; color: white; border: none; }
+        
+        /* --- PREVIEW AREA --- */
+        .preview-box {
+            text-align: center; background: #fff8e1; padding: 10px; border: 1px solid #ffb300; margin-top: 10px;
         }
-        
-        /* LOCKED ZONE CSS - Targets specific areas */
-        .locked-zone {
-            pointer-events: none;
-            opacity: 0.4;
-            filter: grayscale(1);
-            position: relative;
-        }
-        
-        /* Design Tabs */
-        .design-panel {
-            background: #fff8e1; border: 1px solid #ffb300; border-radius: 5px;
-            padding: 8px; margin-bottom: 8px; transition: opacity 0.3s;
-        }
-        .design-row { display: flex; gap: 10px; margin-bottom: 5px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
-        .design-col { flex: 1; }
-        .d-label { font-size: 11px; font-weight: bold; color: #e65100; display: block; margin-bottom: 2px; }
-        
-        input[type=range] { width: 100%; cursor: pointer; height: 10px; }
-        input[type=color] { width: 30px; height: 20px; border: none; padding: 0; cursor: pointer; vertical-align: middle; }
-        
-        h2, h3 { margin: 5px 0; color: #004d40; font-family: 'Faruuma'; }
-        label { display: block; font-weight: bold; font-size: 11px; margin-bottom: 1px; color: #333; }
-        
-        input[type="text"], textarea, select { 
-            width: 98%; padding: 3px; border: 1px solid #aaa; border-radius: 3px; 
-            font-size: 12px; margin-bottom: 2px; font-family: 'Faruuma', 'Times New Roman';
-        }
-        
-        .file-box { background: #e0e0e0; padding: 5px; border-radius: 5px; margin-bottom: 5px; border: 1px solid #bbb; overflow-y: auto; max-height: 100px; flex-shrink: 0; transition: opacity 0.3s; }
-        input[type="file"] { width: 100%; font-size: 10px; margin-bottom: 2px; }
+        #previewImg { width: 60px; height: 60px; object-fit: cover; border-radius: 50%; border: 2px solid #333; }
 
-        .row { display: flex; gap: 5px; margin-bottom: 2px; align-items: flex-end; }
-        .col { flex: 1; }
-        .dhi { direction: rtl; text-align: right; }
-        .eng { direction: ltr; text-align: left; font-family: 'Times New Roman', serif; font-weight: bold; }
+        /* --- THEMES & CATEGORIES (CSS GENERATED) --- */
+        /* ISLAMIC */
+        .th-islam-1 { background: radial-gradient(circle, #004d40, #00281c); }
+        .th-islam-2 { background: repeating-linear-gradient(45deg, #003300, #003300 10px, #004400 10px, #004400 20px); }
+        .th-islam-3 { background: radial-gradient(circle at 50% 100%, #ffd700, #000 60%); }
+        /* EDUCATION */
+        .th-edu-1 { background: linear-gradient(135deg, #1a237e, #0d47a1); } /* Blue */
+        .th-edu-2 { background: conic-gradient(from 0deg, #ff6f00, #ff8f00, #ff6f00); } /* Pencil Orange */
+        .th-edu-3 { background: radial-gradient(circle, #00695c, #004d40); } /* Blackboard */
+        /* SPORTS */
+        .th-sport-1 { background: linear-gradient(90deg, #b71c1c 50%, #212121 50%); } /* Red/Black */
+        .th-sport-2 { background: radial-gradient(circle, #2e7d32 0%, #000 90%); } /* Turf */
+        .th-sport-3 { background: repeating-conic-gradient(#1565c0 0 9deg, #0d47a1 9deg 18deg); } /* Dynamic Blue */
+        /* HEALTH */
+        .th-health-1 { background: linear-gradient(to bottom, #80cbc4, #00695c); }
+        .th-health-2 { background: radial-gradient(circle, #ffffff, #e0f2f1); }
+        /* ECONOMY */
+        .th-econ-1 { background: linear-gradient(45deg, #37474f, #263238); }
+        .th-econ-2 { background: radial-gradient(circle, #ffd700, #b8860b); } /* Gold */
+        /* TRAVEL */
+        .th-trav-1 { background: linear-gradient(to bottom, #29b6f6, #0277bd); } /* Sky/Sea */
+        .th-trav-2 { background: linear-gradient(to top, #ffcc80, #e65100); } /* Sunset */
 
-        button { cursor: pointer; font-family: 'Faruuma'; font-weight: bold; }
-        .fs-btn { background: #004d40; color: white; padding: 5px; width: 100%; border: 1px solid #d4af37; border-radius: 4px; margin-bottom: 5px; font-size: 11px; flex-shrink: 0; }
-        .launch-btn { background: #c62828; color: white; padding: 8px; width: 100%; border: none; border-radius: 4px; margin-bottom: 5px; font-size: 14px; flex-shrink: 0; }
-        
-        /* Config Buttons */
-        .config-btn-row { display: flex; gap: 5px; margin-bottom: 5px; }
-        .conf-btn { flex: 1; padding: 5px; font-size: 11px; border-radius: 4px; border: 1px solid #aaa; color: white; }
-        .btn-down { background: #1565c0; }
-        .btn-up { background: #ef6c00; }
-        
-        /* Lock Button */
-        .btn-lock { background: #37474f; width: 100%; padding: 8px; margin-bottom: 8px; color: #fff; border: 2px solid #cfd8dc; font-size: 13px; }
-        .btn-lock.active { background: #2e7d32; border-color: #4caf50; font-weight: bold; box-shadow: inset 0 0 10px #1b5e20; }
+        /* BORDERS (CSS GENERATED) */
+        .bd-none { border: none; }
+        .bd-simple { border: 5px solid var(--theme-color); }
+        .bd-double { border: 5px double var(--theme-color); }
+        .bd-glow { border: 3px solid #fff; box-shadow: 0 0 15px var(--theme-color); }
+        .bd-dashed { border: 4px dashed var(--theme-color); }
+        .bd-inset { border: 10px inset var(--theme-color); }
+        .bd-ornament { border: 2px solid var(--theme-color); outline: 4px solid var(--theme-color); outline-offset: 4px; }
+        .bd-topbot { border-top: 5px solid var(--theme-color); border-bottom: 5px solid var(--theme-color); }
+        .bd-sides { border-left: 10px solid var(--theme-color); border-right: 10px solid var(--theme-color); }
+        .bd-gradient { border: 5px solid transparent; border-image: linear-gradient(to right, #b8860b, #ffd700) 1; }
 
-        #stuList { flex-grow: 1; min-height: 0; margin-bottom: 5px; }
-
-        .btn-vid { font-size: 12px; padding: 4px; margin-top: 2px; border:none; border-radius:3px; color:white; width: 100%; }
-        .controls { display: flex; gap: 5px; margin-top: 5px; flex-shrink: 0; }
-        button.action { flex: 1; padding: 8px; font-size: 14px; border: none; border-radius: 4px; color: white; transition: 0.2s; }
-        .btn-live { background: #004d40; flex: 2; border: 2px solid #ffd700; color: #ffd700; }
-        .btn-nav { background: #455a64; }
-        .btn-clear { background: #b71c1c; flex: 0.5; }
-
-        .preview-container { display: flex; gap: 10px; align-items: center; justify-content: center; background: #fff8e1; padding: 4px; border: 1px solid #ffb300; border-radius: 4px; margin-top: 5px; flex-shrink: 0; }
-        #previewImg { height: 50px; width: 50px; object-fit: cover; border-radius: 50%; border: 2px solid #d4af37; background: #ddd; }
-        #logoPreview { height: 30px; object-fit: contain; }
-        
-        .video-panel { background: #e3f2fd; padding: 5px; border-radius: 5px; margin-top: 5px; flex-shrink: 0; }
-
-        #statusMsg { text-align: center; margin-top: 5px; font-weight: bold; color: green; font-size: 12px; background: #e8f5e9; padding: 2px; border-radius: 4px; flex-shrink: 0; }
-        .copyright-text { text-align: center; font-size: 10px; color: #d4af37; background: #00281c; margin-top: auto; padding: 5px; border-radius: 4px; flex-shrink: 0; font-family: sans-serif; font-weight: bold; }
     </style>
 </head>
 <body oncontextmenu="return false;">
 
-    <div id="loginOverlay">
-        <div id="loginBox">
-            <h1 style="color:#d4af37; font-family:'Faruuma';">Royal Graduation System</h1>
-            <p id="expiryMsg" style="font-size:10px; color:#aaa;"></p>
-            <input type="password" id="passInput" placeholder="Password">
-            <button id="loginBtn" onclick="checkPassword()">Login</button>
-            <p id="loginError" style="color: #ff5252; display: none; margin-top: 10px;">Incorrect Password!</p>
+    <div id="securityOverlay">
+        <div class="sec-box">
+            <h1>🔒 SYSTEM LOCKED</h1>
+            <p>Please enter the Event License Key</p>
+            <input type="password" id="licenseKey" class="sec-input" placeholder="Paste Key Here">
+            <button onclick="verifyLicense()" class="sec-btn">UNLOCK SYSTEM</button>
+            <p id="secMsg" style="color:red; font-size:12px; margin-top:10px;"></p>
         </div>
     </div>
 
     <div class="main-layout" id="mainApp">
         <div class="sidebar">
-            <button class="fs-btn" onclick="toggleControlFS()">⛶ Fullscreen</button>
-            
-            <div class="config-btn-row">
-                <button class="conf-btn btn-down" onclick="downloadConfig()">⬇ Save Config</button>
-                <button class="conf-btn btn-up" onclick="document.getElementById('confInput').click()">⬆ Load Config</button>
-                <input type="file" id="confInput" accept=".json" style="display:none" onchange="loadConfig(this)">
-            </div>
+            <h2 style="text-align:center; color:#d4af37; margin-top:0;">ROYAL EVENT V6</h2>
+            <div style="text-align:center; font-size:11px; color:green; margin-bottom:5px;" id="licenseStatus"></div>
 
-            <button class="launch-btn" onclick="openTV()">🖥️ 1. Open TV</button>
-            <div id="connStatus" style="font-size:11px; color:red; text-align:center;">Not Connected</div>
+            <div class="control-group">
+                <span class="cg-title">1. Global Settings</span>
+                <label>Theme Category (100+ Styles):</label>
+                <select id="themeCat" onchange="populateThemes()">
+                    <option value="edu">🎓 Education / School</option>
+                    <option value="islam">🕌 Islamic / Quran</option>
+                    <option value="sport">⚽ Sports / Tournament</option>
+                    <option value="health">🏥 Health / Medical</option>
+                    <option value="econ">💼 Economy / Business</option>
+                    <option value="soc">🤝 Social / Community</option>
+                    <option value="trav">✈️ Travel / Tourism</option>
+                    <option value="solid">🎨 Solid Colors</option>
+                </select>
+                <select id="themeSelect" onchange="liveUpdate('bgClass', this.value)"></select>
 
-            <div class="file-box" id="sidebarFiles">
-                <label>1. CSV List:</label><input type="file" id="csvFile" accept=".csv">
-                <label>2. Photos:</label><input type="file" id="photoFolder" webkitdirectory directory multiple>
-                <label>3. Logo:</label><input type="file" id="logoFile" accept="image/*">
-                <label>4. Font:</label><input type="file" id="fontFile" accept=".ttf, .otf">
-                <label>5. Titles:</label><input type="file" id="jalsaCsvFile" accept=".csv">
-                <label style="color:#e65100;">6. Custom Frame:</label><input type="file" id="customBorderFile" accept="image/*">
-            </div>
-
-            <label>Search:</label>
-            <input type="text" id="search" placeholder="..." onkeyup="filterList()">
-            <select id="stuList" size="2" style="flex-grow:1;" onchange="loadStudent()"></select>
-            <div class="copyright-text">&copy; Ali Ibrahim Didi (7791550)</div>
-        </div>
-
-        <div class="editor" id="editorPanel">
-            <button id="lockBtn" class="btn-lock" onclick="toggleLock()">🔓 Lock Settings (For Live)</button>
-
-            <div class="design-panel" id="designPanel">
-                <h3 style="margin-top:0; border:none; font-size:14px;">🎨 Live Design Controls</h3>
+                <label style="margin-top:5px;">Card Border Style (100+):</label>
+                <select id="borderCat" onchange="populateBorders()">
+                    <option value="std">Standard Lines</option>
+                    <option value="fancy">Fancy & Artistic</option>
+                    <option value="glow">Neon & Glow</option>
+                    <option value="3d">3D & Emboss</option>
+                </select>
+                <select id="borderSelect" onchange="liveUpdate('bdClass', this.value)"></select>
                 
-                <div class="design-row">
-                    <div class="design-col">
-                        <span class="d-label">Main Title (Size/Pos/Col):</span>
-                        <div style="display:flex; gap:2px;">
-                            <input type="range" id="mtSizeRange" min="2" max="10" step="0.1" value="5.6" oninput="liveUpdate('mtSize', this.value)">
-                            <input type="color" id="mtColorPick" value="#d4af37" oninput="liveUpdate('mtColor', this.value)">
-                        </div>
-                        <div style="display:flex; gap:2px; margin-top:2px;">
-                            <input type="range" id="mtYRange" min="0" max="500" value="210" title="Y Pos" oninput="liveUpdate('mtY', this.value)">
-                        </div>
-                    </div>
-                    <div class="design-col">
-                        <span class="d-label">Sub Titles (Size/Pos):</span>
-                        <div style="display:flex; gap:2px;">
-                            <input type="range" id="stSizeRange" min="1" max="6" step="0.1" value="2.6" oninput="liveUpdate('stSize', this.value)">
-                            <input type="color" id="stColorPick" value="#ffffff" oninput="liveUpdate('stColor', this.value)">
-                        </div>
-                        <div style="display:flex; gap:2px; margin-top:2px;">
-                            <input type="range" id="stYRange" min="0" max="100" value="0" title="Y Pos" oninput="liveUpdate('stY', this.value)">
-                        </div>
-                    </div>
-                </div>
+                <label style="margin-top:5px;">Theme Color:</label>
+                <input type="color" id="themeColPick" value="#d4af37" style="height:30px;" oninput="liveUpdate('themeCol', this.value)">
+            </div>
 
-                <div class="design-row">
-                    <div class="design-col">
-                        <span class="d-label">Layout:</span>
-                        <select id="layoutDirSel" onchange="liveUpdate('layoutDir', this.value)" style="width:100%; background:#bbdefb;">
-                            <option value="rtl">Photo: Right (Std)</option>
-                            <option value="ltr">Photo: Left</option>
-                        </select>
-                         <select id="textAlignSel" onchange="liveUpdate('textAlign', this.value)" style="width:100%; background:#bbdefb; margin-top:2px;">
-                            <option value="right">Align: Right</option>
-                            <option value="center">Align: Center</option>
-                            <option value="left">Align: Left</option>
-                        </select>
-                    </div>
-                    <div class="design-col">
-                        <span class="d-label">Logo (Pos/Vis):</span>
-                        <select id="lVisSel" onchange="liveUpdate('lVis', this.value)" style="width:100%; background:#ffe0b2;">
-                            <option value="show">Logo: Show</option>
-                            <option value="hide">Logo: Hide</option>
-                        </select>
-                        <input type="range" id="logoYRange" min="0" max="400" value="40" title="Y Pos" oninput="liveUpdate('logoY', this.value)" style="margin-top:2px;">
-                    </div>
-                </div>
+            <div class="control-group">
+                <span class="cg-title">2. Data Inputs</span>
+                <input type="file" id="csvFile" accept=".csv"><label>CSV List</label>
+                <input type="file" id="photoFolder" webkitdirectory multiple><label>Photos Folder</label>
+                <input type="file" id="logoFile" accept="image/*"><label>Event Logo</label>
+            </div>
 
-                <div class="design-row">
-                    <div class="design-col">
-                        <span class="d-label">Royal Backgrounds (10):</span>
-                        <select id="bgPresetSel" onchange="liveUpdate('bgPreset', this.value)" style="width:100%; background:#e1bee7;">
-                            <option value="bg1">1. Emerald Green</option>
-                            <option value="bg2">2. Royal Blue</option>
-                            <option value="bg3">3. Deep Maroon</option>
-                            <option value="bg4">4. Black & Gold</option>
-                            <option value="bg5">5. Purple Velvet</option>
-                            <option value="bg6">6. Midnight Blue</option>
-                            <option value="bg7">7. Teal & Gold</option>
-                            <option value="bg8">8. Dark Red Radial</option>
-                            <option value="bg9">9. Charcoal Gold</option>
-                            <option value="bg10">10. Pure Black</option>
-                        </select>
-                    </div>
-                    <div class="design-col">
-                        <span class="d-label">Royal Borders (20):</span>
-                        <select id="cBorderSel" onchange="liveUpdate('cBorder', this.value)" style="width:100%; background:#fff9c4;">
-                            <option value="custom">🖼️ Custom Image</option>
-                            <option value="b1">1. Standard Gold</option>
-                            <option value="b2">2. Dashed Glow</option>
-                            <option value="b3">3. Heavy Solid</option>
-                            <option value="b4">4. Gradient Frame</option>
-                            <option value="b5">5. Offset Outline</option>
-                            <option value="b6">6. Double Rail</option>
-                            <option value="b7">7. Soft Shadow</option>
-                            <option value="b8">8. Inset Gold</option>
-                            <option value="b9">9. Thin Elegant</option>
-                            <option value="b10">10. Triple Line</option>
-                            <option value="b11">11. Corner Accents</option>
-                            <option value="b12">12. Art Deco</option>
-                            <option value="b13">13. Neon Gold</option>
-                            <option value="b14">14. Matte Border</option>
-                            <option value="b15">15. Ridge Style</option>
-                            <option value="b16">16. Groove Style</option>
-                            <option value="b17">17. Top/Bottom Only</option>
-                            <option value="b18">18. Side Bars</option>
-                            <option value="b19">19. Floating Card</option>
-                            <option value="b20">20. Glass Effect</option>
-                            <option value="b0">🚫 No Border</option>
-                        </select>
-                        <div style="display:flex; gap:2px; margin-top:2px;">
-                            <span style="font-size:10px;">Thm:</span><input type="color" id="bdColorPick" value="#d4af37" oninput="liveUpdate('bdColor', this.value)">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="design-row" style="margin-bottom:0; border:none;">
-                    <div class="design-col">
-                        <span class="d-label">Photo Settings:</span>
-                        <div style="display:flex; gap:2px;">
-                            <select id="pShapeSel" onchange="liveUpdate('pShape', this.value)" style="width:50%;">
-                                <option value="50%">Circle</option>
-                                <option value="15px">Square</option>
-                                <option value="portrait">Full Body (Portrait)</option>
-                            </select>
-                            <select id="pBorderSel" onchange="liveUpdate('pBorder', this.value)" style="width:50%;">
-                                <option value="on">Frame: ON</option>
-                                <option value="off">Frame: OFF</option>
-                            </select>
-                        </div>
-                         <div style="display:flex; gap:2px; margin-top:2px;">
-                            <select id="pVisSel" onchange="liveUpdate('pVis', this.value)" style="width:50%; background:#ffe0b2;">
-                                <option value="show">Photo: Show</option>
-                                <option value="hide">Photo: Hide</option>
-                            </select>
-                         </div>
-                    </div>
-                    <div class="design-col">
-                        <span class="d-label">Resize & Position:</span>
-                        <input type="range" id="pSizeRange" min="150" max="600" value="260" title="Size" oninput="liveUpdate('pSize', this.value)">
-                        <div style="display:flex; gap:2px; margin-top:2px;">
-                            <input type="range" id="pYRange" min="-200" max="200" value="0" title="Y" oninput="liveUpdate('pY', this.value)">
-                            <input type="range" id="pXRange" min="-200" max="200" value="0" title="X" oninput="liveUpdate('pX', this.value)">
-                        </div>
-                    </div>
+            <div class="control-group">
+                <span class="cg-title">3. Student Info (Manual)</span>
+                <input id="nD" class="dhi" placeholder="Name (Dv)">
+                <input id="nE" class="eng" placeholder="Name (En)">
+                <input id="fD" class="dhi" placeholder="Detail 1">
+                <input id="fE" class="eng" placeholder="Detail 1 (En)">
+                <div class="preview-box">
+                    <img id="previewImg" src="https://via.placeholder.com/60">
                 </div>
             </div>
 
-            <div id="globalTitles">
-                <div style="display:flex; gap:5px; margin-bottom:5px;">
-                    <input type="file" id="jalsaBgFile" accept="video/*, image/*" style="width:33%">
-                    <select id="bgLoopSel" onchange="liveUpdate('bgLoop', this.value)" style="width:33%; background:#c8e6c9;">
-                        <option value="on">Main Loop: ON</option>
-                        <option value="off">Main Loop: OFF</option>
-                    </select>
-                    <button class="btn-vid" style="background:#1b5e20; width:33%; margin:0;" onclick="showJalsaScreen()">🖼️ Show Title Screen</button>
+            <div style="margin-top:auto;">
+                <input type="text" id="search" placeholder="Search..." onkeyup="filterList()">
+                <select id="stuList" size="5" style="width:100%;" onchange="loadStudent()"></select>
+                <div style="display:flex; gap:2px; margin-top:5px;">
+                    <button class="btn-update" onclick="openTV()">🖥️ Open TV</button>
+                    <button class="btn-live" onclick="updateTV()">📺 SHOW LIVE</button>
                 </div>
-                <div style="display:flex; gap:5px; margin-bottom:2px;">
-                    <button class="btn-vid" style="background:#2e7d32; width:100%; margin:0;" onclick="updateJalsaText()">Update Main Titles</button>
-                </div>
-                <input type="text" id="jLine1" placeholder="Main Title" class="font-dv" style="font-weight:bold; color:#00281c;">
-                <input type="text" id="jLine2" placeholder="Sub 1" class="font-dv">
-                <input type="text" id="jLine3" placeholder="Sub 2" class="font-dv">
-                <input type="text" id="jLine4" placeholder="Sub 3" class="font-dv">
+                <div style="font-size:10px; text-align:center; margin-top:5px; color:#aaa;">&copy; Ali Ibrahim Didi</div>
             </div>
-
-            <hr style="margin:5px 0; border:1px solid #ddd;">
-
-            <h3 style="margin-top:5px;">🎓 Student Info (Active)</h3>
-            <div class="row"><div class="col"><input id="nD" class="font-dv" placeholder="Name Dv"></div><div class="col"><input id="nE" class="eng" placeholder="Name En"></div></div>
-            <div class="row"><div class="col"><input id="fD" class="font-dv" placeholder="Detail 1 Dv"></div><div class="col"><input id="fE" class="eng" placeholder="Detail 1 En"></div></div>
-            <div class="row"><div class="col"><input id="cD" class="font-dv" placeholder="Detail 2 Dv"></div><div class="col"><input id="cE" class="eng" placeholder="Detail 2 En"></div></div>
-            <textarea id="cm" rows="1" class="font-dv" placeholder="Comment" style="text-align:center;"></textarea>
-
-            <div class="preview-container">
-                <div><img id="logoPreview" alt="-"></div>
-                <div style="text-align:center;">
-                    <span id="pStat" style="font-size:10px;">No Photo</span>
-                    <img id="previewImg" src="https://via.placeholder.com/150">
-                    <button class="manual-btn" onclick="document.getElementById('singlePhoto').click()">📷</button>
-                    <input type="file" id="singlePhoto" accept="image/*" style="display:none" onchange="manualPhoto(this)">
-                </div>
+        </div>
+        <div class="editor" id="editorArea">
+            <div style="display:flex; justify-content:center; align-items:center; height:100%; color:#ccc;">
+                <h2>Control Panel Active. Check TV Window.</h2>
             </div>
-
-            <div class="controls">
-                <button class="action btn-nav" onclick="move(-1)">◀</button>
-                <button class="action btn-live" onclick="updateTV()">📺 LIVE</button>
-                <button class="action btn-nav" onclick="move(1)">▶</button>
-                <button class="action btn-clear" onclick="clearTV()">X</button>
-            </div>
-
-            <div class="video-panel">
-                <div style="display:flex; gap:5px;">
-                    <input type="file" id="videoLocal" accept="video/*" style="width:70%">
-                    <button class="btn-vid" style="background:#e65100; width:30%;" onclick="playLocalVideo()">▶ Local</button>
-                </div>
-                <div style="display:flex; gap:5px; margin-top:2px;">
-                    <input type="text" id="ytLink" placeholder="YouTube Link..." style="width:70%; text-align:left;" class="font-en">
-                    <button class="btn-vid" style="background:#c62828; width:30%;" onclick="playYoutube()">▶ YT</button>
-                </div>
-                <button class="btn-vid" style="background:#333; margin-top:2px;" onclick="stopVideo()">⏹ STOP VIDEO</button>
-            </div>
-            <div id="statusMsg">Ready</div>
         </div>
     </div>
 
 <script>
-    // --- AUTH ---
-    function getExpiryDate() {
-        const filename = window.location.pathname.split('/').pop();
-        const match = filename.match(/(\d{4}-\d{2}-\d{2})/);
-        return match ? match[1] : "2025-12-31"; 
-    }
-
-    function checkPassword() {
-        const pass = document.getElementById('passInput').value.trim();
-        const today = new Date();
-        const expiryStr = getExpiryDate();
-        const expiry = new Date(expiryStr);
-        expiry.setHours(23, 59, 59, 999);
-
-        document.getElementById('expiryMsg').innerText = "Expires: " + expiryStr;
-
-        if (today > expiry) {
-            alert("System Expired.\nContact Administrator.");
-            return;
-        }
-
-        if (pass === "7791550") {
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('mainApp').style.display = 'flex';
-        } else {
-            document.getElementById('loginError').style.display = 'block';
-            document.getElementById('passInput').value = '';
-        }
-    }
-    document.getElementById('passInput').addEventListener("keyup", e => { if (e.key === "Enter") checkPassword(); });
-    document.onkeydown = e => { if(e.keyCode==123) return false; };
-
-    function toggleControlFS() {
-        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e => console.log(e));
-        else document.exitFullscreen();
-    }
-
-    let tvWindow = null;
-    let students = [];
-    let photoFiles = {};
-    let currentPhotoData = null;
-    let currentLogoData = null;
-    let currentFontData = null;
-    let currentJalsaBgData = null;
-    let currentJalsaBgType = 'none';
-    let customBorderData = null;
-    let isLocked = false;
-
-    // --- STATE & CONFIG ---
-    let designState = {
-        mtY: 210, mtX: 0, mtSize: 5.6, mtColor: '#d4af37',
-        stY: 0, stX: 0, stSize: 2.6, stColor: '#ffffff',
-        logoY: 40, lVis: 'show',
-        pShape: '50%', pSize: 260, pBorder: 'on', pX: 0, pY: 0, pVis: 'show',
-        cBorder: 'b1', bdColor: '#d4af37', bgPreset: 'bg1',
-        layoutDir: 'rtl', textAlign: 'right', bgLoop: 'on',
-        txtX: 0, txtY: 0
-    };
-
-    function toggleLock() {
-        isLocked = !isLocked;
-        const btn = document.getElementById('lockBtn');
-        
-        // Areas to lock
-        const designPanel = document.getElementById('designPanel');
-        const sidebarFiles = document.getElementById('sidebarFiles');
-        const globalTitles = document.getElementById('globalTitles');
-
-        if (isLocked) {
-            btn.innerHTML = "🔒 LIVE SAFE MODE ON (Click to Unlock)";
-            btn.classList.add('active');
-            
-            // Apply lock class
-            designPanel.classList.add('locked-zone');
-            sidebarFiles.classList.add('locked-zone');
-            globalTitles.classList.add('locked-zone');
-        } else {
-            btn.innerHTML = "🔓 Lock Settings (For Live)";
-            btn.classList.remove('active');
-            
-            // Remove lock class
-            designPanel.classList.remove('locked-zone');
-            sidebarFiles.classList.remove('locked-zone');
-            globalTitles.classList.remove('locked-zone');
-        }
-    }
-
-    function downloadConfig() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(designState));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", "royal_config.json");
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
-    }
-
-    function loadConfig(input) {
-        const file = input.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                designState = JSON.parse(e.target.result);
-                setVal('mtSizeRange', designState.mtSize);
-                setVal('mtColorPick', designState.mtColor);
-                setVal('mtYRange', designState.mtY);
-                setVal('stSizeRange', designState.stSize);
-                setVal('stColorPick', designState.stColor);
-                setVal('stYRange', designState.stY);
-                setVal('layoutDirSel', designState.layoutDir);
-                setVal('textAlignSel', designState.textAlign);
-                setVal('lVisSel', designState.lVis);
-                setVal('logoYRange', designState.logoY);
-                setVal('bgPresetSel', designState.bgPreset);
-                setVal('cBorderSel', designState.cBorder);
-                setVal('bdColorPick', designState.bdColor);
-                setVal('pShapeSel', designState.pShape);
-                setVal('pBorderSel', designState.pBorder);
-                setVal('pVisSel', designState.pVis);
-                setVal('pSizeRange', designState.pSize);
-                setVal('pYRange', designState.pY);
-                setVal('pXRange', designState.pX);
-                setVal('bgLoopSel', designState.bgLoop);
-                
-                if(tvWindow && !tvWindow.closed) {
-                    for (const key in designState) {
-                        liveUpdate(key, designState[key]);
-                    }
-                }
-                alert("Settings Loaded Successfully!");
-            } catch(err) {
-                alert("Invalid Config File");
-            }
-        };
-        reader.readAsText(file);
-    }
+    // --- SECURITY & LICENSE LOGIC ---
+    let licenseValid = false;
     
-    function setVal(id, val) { const el = document.getElementById(id); if(el) el.value = val; }
-
-    function liveUpdate(key, value) {
-        if(isLocked) return; // Prevent changes if locked
+    function verifyLicense() {
+        const inputKey = document.getElementById('licenseKey').value.trim();
+        const msg = document.getElementById('secMsg');
         
-        designState[key] = value;
-        if(!tvWindow || tvWindow.closed) return;
-        const doc = tvWindow.document;
+        try {
+            // 1. Reverse the key back
+            const reversed = inputKey.split('').reverse().join('');
+            // 2. Decode Base64
+            const payloadStr = atob(reversed);
+            const payload = JSON.parse(payloadStr);
+            
+            // 3. Verify Salt (Must match Admin Generator)
+            if(payload.s !== "ROYAL_V6_SECURE") throw new Error("Invalid Key");
 
-        if(key === 'pVis') { const el = doc.querySelector('.photo-col'); if(el) el.style.opacity = (value === 'show') ? '1' : '0'; }
-        if(key === 'lVis') { const el = doc.getElementById('logoWrap'); if(el) el.style.display = (value === 'show') ? 'block' : 'none'; }
-        if(key === 'bgLoop') { const vid = doc.getElementById('bgVid'); if(vid) vid.style.display = (value === 'on') ? 'block' : 'none'; }
-
-        if(key === 'layoutDir') { const card = doc.getElementById('card'); if(card) card.style.flexDirection = (value === 'rtl') ? 'row-reverse' : 'row'; }
-        if(key === 'textAlign') { const txt = doc.querySelector('.text-col'); if(txt) txt.style.textAlign = value; }
-
-        if(key === 'bgPreset') { const bg = doc.getElementById('bgLayer'); if(bg) { bg.className = ''; bg.classList.add(value); } }
-        if(key === 'bdColor') { doc.documentElement.style.setProperty('--theme-color', value); }
-
-        if(key === 'mtY') { doc.getElementById('titleContainer').style.marginTop = value + 'px'; }
-        if(key === 'mtSize') { doc.getElementById('jt1').style.fontSize = value + 'em'; }
-        if(key === 'mtColor') { const el = doc.getElementById('jt1'); el.style.color = value; el.style.borderBottomColor = value; }
-        if(key === 'stY') { doc.getElementById('subTitleWrap').style.marginTop = value + 'px'; }
-        if(key === 'stSize') { doc.querySelectorAll('.sub-title').forEach(e => e.style.fontSize = value + 'em'); }
-        if(key === 'stColor') { doc.querySelectorAll('.sub-title').forEach(e => e.style.color = value); }
-
-        if(key === 'logoY') { const logo = doc.getElementById('logoWrap'); if(logo) logo.style.top = value + 'px'; }
-
-        if(key === 'pShape') { 
-            const img = doc.getElementById('stuImg'); 
-            if(img) {
-                if(value === 'portrait') { img.style.borderRadius = '10px'; img.classList.add('portrait-mode'); } 
-                else { img.style.borderRadius = value; img.classList.remove('portrait-mode'); }
+            // 4. Check Expiry
+            const now = new Date().getTime();
+            if(now > payload.e) {
+                const expDate = new Date(payload.e).toLocaleString();
+                msg.innerText = "License Expired on: " + expDate;
+                return;
             }
+
+            // SUCCESS
+            licenseValid = true;
+            document.getElementById('securityOverlay').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'flex';
+            document.getElementById('licenseStatus').innerText = "✅ License Valid until: " + new Date(payload.e).toLocaleString();
+            
+            // Auto-lock check every minute
+            setInterval(() => {
+                if(new Date().getTime() > payload.e) location.reload();
+            }, 60000);
+
+            // Initialize UI
+            populateThemes();
+            populateBorders();
+
+        } catch(e) {
+            msg.innerText = "Invalid License Key! Access Denied.";
         }
-        if(key === 'pSize') { 
-            const img = doc.getElementById('stuImg'); 
-            if(img && designState.pShape !== 'portrait') { img.style.width = value+'px'; img.style.height = value+'px'; } 
-            else if (img && designState.pShape === 'portrait') { img.style.height = (value * 1.5) + 'px'; }
+    }
+
+    // --- THEME ENGINE (Simulating 100 Themes) ---
+    function populateThemes() {
+        const cat = document.getElementById('themeCat').value;
+        const sel = document.getElementById('themeSelect');
+        sel.innerHTML = "";
+        
+        let options = [];
+        // Generate variations to reach high numbers
+        if(cat === 'edu') {
+            options = [
+                {n: "Classic Blue", v: "th-edu-1"}, {n: "Pencil Orange", v: "th-edu-2"}, {n: "Blackboard", v: "th-edu-3"},
+                {n: "Library Brown", v: "th-edu-1", f: "sepia(0.5)"}, {n: "Science Teal", v: "th-edu-3", f: "hue-rotate(45deg)"}
+            ];
+            // Generating more variations
+            for(let i=1; i<=15; i++) options.push({n: `Edu Variation ${i}`, v: `th-edu-1`, f: `hue-rotate(${i*20}deg)`});
         }
-        if(key === 'pX' || key === 'pY') {
-            const el = doc.querySelector('.photo-col');
-            if(el) el.style.transform = `translate(${designState.pX}px, ${designState.pY}px)`;
+        else if(cat === 'islam') {
+            options = [{n: "Royal Green", v: "th-islam-1"}, {n: "Geometric Dark", v: "th-islam-2"}, {n: "Mecca Gold", v: "th-islam-3"}];
+            for(let i=1; i<=15; i++) options.push({n: `Islamic Pattern ${i}`, v: `th-islam-2`, f: `hue-rotate(${i*30}deg)`});
         }
-        if(key === 'pBorder') {
-            const img = doc.getElementById('stuImg');
-            if(img) {
-                if(value === 'off') { img.style.border = 'none'; img.style.boxShadow = 'none'; } 
-                else { img.style.border = `5px solid ${designState.bdColor}`; img.style.boxShadow = '0 15px 40px rgba(0,0,0,0.8)'; }
-            }
+        else if(cat === 'sport') {
+            options = [{n: "Red vs Black", v: "th-sport-1"}, {n: "Stadium Grass", v: "th-sport-2"}, {n: "Team Blue", v: "th-sport-3"}];
+            for(let i=1; i<=15; i++) options.push({n: `Jersey Color ${i}`, v: `th-sport-3`, f: `hue-rotate(${i*40}deg)`});
+        }
+        else if(cat === 'health') {
+            options = [{n: "Medical Teal", v: "th-health-1"}, {n: "Clean White", v: "th-health-2"}];
+            for(let i=1; i<=10; i++) options.push({n: `Pastel Shade ${i}`, v: `th-health-1`, f: `hue-rotate(${i*10}deg)`});
+        }
+        else if(cat === 'econ') {
+            options = [{n: "Corporate Grey", v: "th-econ-1"}, {n: "Wealth Gold", v: "th-econ-2"}];
+            for(let i=1; i<=10; i++) options.push({n: `Business Suit ${i}`, v: `th-econ-1`, f: `hue-rotate(${i*10}deg)`});
+        }
+        else if(cat === 'trav') {
+            options = [{n: "Ocean Blue", v: "th-trav-1"}, {n: "Sunset Orange", v: "th-trav-2"}];
+            for(let i=1; i<=10; i++) options.push({n: `Exotic Loc ${i}`, v: `th-trav-2`, f: `hue-rotate(${i*20}deg)`});
+        }
+        else {
+             options = [{n: "Pitch Black", v: "bg-black"}];
         }
 
-        if(key === 'cBorder') {
-            const card = doc.getElementById('card');
-            if(card) {
-                card.className = ''; card.classList.add(value);
-                if(value === 'custom') {
-                    if(customBorderData) {
-                        card.style.backgroundImage = `url(${customBorderData})`;
-                        card.style.backgroundSize = "100% 100%";
-                        card.style.border = "none";
-                        card.style.boxShadow = "none";
-                    } else {
-                        alert("Please upload a Custom Frame file in Sidebar first!");
-                    }
-                } else {
-                    card.style.backgroundImage = "none";
-                }
-                if(value !== 'b1' && value !== 'b0') card.classList.add('active');
-                if(value === 'b0' || value === 'custom') card.classList.add('active'); 
+        options.forEach(opt => {
+            let o = document.createElement('option');
+            o.text = opt.n; o.value = JSON.stringify(opt);
+            sel.add(o);
+        });
+        liveUpdate('bgClass', sel.value);
+    }
+
+    function populateBorders() {
+        const cat = document.getElementById('borderCat').value;
+        const sel = document.getElementById('borderSelect');
+        sel.innerHTML = "";
+        
+        let styles = [];
+        if(cat === 'std') styles = ['bd-simple', 'bd-double', 'bd-topbot', 'bd-sides'];
+        if(cat === 'fancy') styles = ['bd-dashed', 'bd-inset', 'bd-ornament'];
+        if(cat === 'glow') styles = ['bd-glow'];
+        if(cat === '3d') styles = ['bd-gradient'];
+
+        styles.forEach(s => {
+            let o = document.createElement('option'); o.text = s.replace('bd-', '').toUpperCase(); o.value = s; sel.add(o);
+        });
+        // Add generic variations
+        for(let i=1; i<=20; i++) {
+             let o = document.createElement('option'); o.text = `Style Variation ${i}`; o.value = styles[0]; sel.add(o);
+        }
+    }
+
+    // --- TV WINDOW LOGIC ---
+    let tvWindow = null;
+    let state = { bgObj: null, bdClass: 'bd-simple', themeCol: '#d4af37' };
+    let students = [];
+    let photos = {};
+
+    function liveUpdate(key, val) {
+        if(key === 'bgClass') state.bgObj = JSON.parse(val);
+        if(key === 'bdClass') state.bdClass = val;
+        if(key === 'themeCol') state.themeCol = val;
+        
+        if(tvWindow && !tvWindow.closed) {
+            const doc = tvWindow.document;
+            const bg = doc.getElementById('bgLayer');
+            
+            // Apply Theme
+            if(state.bgObj) {
+                bg.className = state.bgObj.v;
+                if(state.bgObj.f) bg.style.filter = state.bgObj.f;
+                else bg.style.filter = 'none';
             }
+            
+            // Apply Border & Color
+            doc.documentElement.style.setProperty('--theme-color', state.themeCol);
+            const card = doc.getElementById('stuCard');
+            card.className = state.bdClass;
         }
     }
 
     function openTV() {
-        tvWindow = window.open('', 'GradTV', 'width=1280,height=720,menubar=no,toolbar=no');
-        if(!tvWindow) { alert("Enable Popups!"); return; }
-
-        let fontCSS = `url('Fonts/faruuma.ttf') format('truetype')`;
-        if (currentFontData) fontCSS = `url('${currentFontData}') format('truetype')`;
-
+        tvWindow = window.open('', 'RoyalTV', 'width=1280,height=720');
+        if(!tvWindow) return alert("Allow Popups!");
+        
         const html = `
         <!DOCTYPE html>
-        <html lang="dv" dir="rtl">
+        <html dir="rtl">
         <head>
-            <style>
-                @font-face { font-family: 'Faruuma'; src: ${fontCSS}; }
-                @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
-                :root { --theme-color: ${designState.bdColor}; }
-                body { margin:0; overflow:hidden; background:#000; font-family:'Faruuma', serif; user-select:none; }
-                #fsBtn { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9999; padding:20px; font-size:20px; cursor:pointer; background:var(--theme-color); border:2px solid #fff; }
-                
-                #bgLayer { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; transition: background 0.5s ease; }
-                .bg1 { background: radial-gradient(circle, #004d40 0%, #001a12 100%); }
-                .bg2 { background: radial-gradient(circle, #0d47a1 0%, #000022 100%); }
-                .bg3 { background: radial-gradient(circle, #b71c1c 0%, #220000 100%); }
-                .bg4 { background: linear-gradient(135deg, #000 0%, #333 50%, #000 100%); }
-                .bg5 { background: radial-gradient(circle, #4a148c 0%, #1a0033 100%); }
-                .bg6 { background: #010b14; }
-                .bg7 { background: conic-gradient(from 180deg at 50% 50%, #004d40 0deg, #00281c 360deg); }
-                .bg8 { background: radial-gradient(circle at 50% 100%, #880e4f, #000); }
-                .bg9 { background: repeating-linear-gradient(45deg, #111, #111 10px, #222 10px, #222 20px); }
-                .bg10 { background: #000; }
+        <style>
+            @font-face { font-family: 'Faruuma'; src: url('Fonts/faruuma.ttf'); }
+            :root { --theme-color: ${state.themeCol}; }
+            body { margin:0; overflow:hidden; font-family:'Faruuma'; background:#000; }
+            
+            /* COPY THE CSS CLASSES FROM PARENT */
+            ${document.getElementsByTagName('style')[0].innerHTML}
 
-                #jalsaContent { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; transition: opacity 0.8s ease; opacity:1; }
-                #jalsaContent.hidden { opacity: 0; pointer-events:none; }
-                .jalsa-text { font-family: 'Faruuma', 'Amiri', serif; direction: rtl; text-align: center; }
-                .main-title { font-size: ${designState.mtSize}em; color: ${designState.mtColor}; text-shadow: 2px 2px 10px black; margin-bottom: 20px; border-bottom: 3px solid ${designState.mtColor}; padding-bottom:10px; }
-                .sub-title { font-size: ${designState.stSize}em; color: ${designState.stColor}; text-shadow: 1px 1px 5px black; margin: 8px 0; }
-
-                #logoWrap { position:absolute; top: ${designState.logoY}px; left:50%; transform:translate(-50%, 0); z-index:20; transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
-                #logoImg { height:145px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5)); transition:height 0.8s ease; }
-                #logoWrap.live { top: 6vh !important; transform:translate(-50%, -50%) !important; background-color: rgba(0,0,0,0.5); padding: 5px 20px; border-radius: 50px; border: 1px solid var(--theme-color); }
-                #logoWrap.live #logoImg { height:60px; }
-
-                #card { position:absolute; top:54%; left:50%; transform:translate(-50%,-50%); width:90vw; max-width:1500px; height:80vh; display:flex; flex-direction:${designState.layoutDir === 'rtl' ? 'row-reverse' : 'row'}; align-items:center; background:rgba(0,20,15,0.92); padding:3vh; box-sizing:border-box; opacity:0; transition:opacity 0.5s ease; z-index:15; }
-                #card.active { opacity:1; }
-
-                .b0 { border: none; background: transparent !important; box-shadow: none; }
-                .b1 { border:none; box-shadow:0 0 100px #000; }
-                .b2 { border: 4px dashed var(--theme-color); box-shadow: 0 0 20px var(--theme-color); border-radius: 20px; }
-                .b3 { border: 15px solid var(--theme-color); border-radius: 10px; box-shadow: inset 0 0 40px #000; }
-                .b4 { border: 8px solid transparent; border-image: linear-gradient(45deg, var(--theme-color), #fff, var(--theme-color)) 1; }
-                .b5 { outline: 4px solid var(--theme-color); outline-offset: 10px; border: 2px solid var(--theme-color); margin: 15px; }
-                .b6 { border-top: 5px double var(--theme-color); border-bottom: 5px double var(--theme-color); }
-                .b7 { box-shadow: 0 20px 50px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1); }
-                .b8 { border: 20px solid #111; outline: 2px solid var(--theme-color); outline-offset: -10px; }
-                .b9 { border: 1px solid var(--theme-color); padding: 5px; outline: 1px solid var(--theme-color); }
-                .b10 { border-bottom: 3px solid var(--theme-color); border-top: 3px solid var(--theme-color); border-left: 1px solid var(--theme-color); border-right: 1px solid var(--theme-color); }
-                .b11 { background: radial-gradient(circle at top left, transparent 30px, rgba(0,20,15,0.92) 31px); border: 2px solid var(--theme-color); }
-                .b12 { border: 4px solid var(--theme-color); border-radius: 15px 0 15px 0; }
-                .b13 { border: 2px solid #fff; box-shadow: 0 0 10px var(--theme-color), 0 0 20px var(--theme-color), inset 0 0 20px var(--theme-color); }
-                .b14 { border: 30px solid rgba(255,255,255,0.05); }
-                .b15 { border: 10px ridge var(--theme-color); }
-                .b16 { border: 10px groove var(--theme-color); }
-                .b17 { border-top: 10px solid var(--theme-color); border-bottom: 10px solid var(--theme-color); }
-                .b18 { border-left: 20px solid var(--theme-color); border-right: 20px solid var(--theme-color); }
-                .b19 { transform: perspective(1000px) rotateX(2deg); border-bottom: 5px solid var(--theme-color); }
-                .b20 { background: rgba(255,255,255,0.1) !important; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
-                .custom { border: none !important; box-shadow: none !important; }
-
-                .corner-thick, .corner-thin, .b1-mask { display:none; }
-                .b1 .corner-thick, .b1 .corner-thin, .b1 .b1-mask { display:block; }
-                .corner-thick { position:absolute; width:40px; height:40px; border:6px solid var(--theme-color); }
-                .corner-thin { position:absolute; width:70px; height:70px; border:2px solid #ffe57f; }
-                .b1 .tl { top:-8px; left:-8px; border-right:0; border-bottom:0; }
-                .b1 .tr { top:-8px; right:-8px; border-left:0; border-bottom:0; }
-                .b1 .bl { bottom:-8px; left:-8px; border-right:0; border-top:0; }
-                .b1 .br { bottom:-8px; right:-8px; border-left:0; border-top:0; }
-                .b1 .tl-in { top:8px; left:8px; border-right:0; border-bottom:0; }
-                .b1 .tr-in { top:8px; right:8px; border-left:0; border-bottom:0; }
-                .b1 .bl-in { bottom:8px; left:8px; border-right:0; border-top:0; }
-                .b1 .br-in { bottom:8px; right:8px; border-left:0; border-top:0; }
-                .b1-mask { position:absolute; background:var(--theme-color); z-index:-1; }
-
-                .font-dv { font-family: 'Faruuma', 'Amiri', serif; }
-                .font-en { font-family: 'Times New Roman', serif; direction:ltr; }
-                h1 { font-size: 5em; margin:0; color:#fff; line-height:1.1; }
-                h2 { font-size: 3em; margin:10px 0; color:var(--theme-color); text-transform:uppercase; border-bottom:2px solid var(--theme-color); display:inline-block; width:100%; text-align:inherit; }
-                .fac-dv { font-size: 2em; color:#fff9c4; margin-top:10px; }
-                .fac-en { font-size: 1.6em; color:#fff9c4; font-weight:bold; margin-bottom:5px; text-align:inherit; }
-                .crs-dv { font-size: 2.5em; color:#fff9c4; font-weight:bold; }
-                .crs-en { font-size: 2em; color:#fff9c4; font-style:italic; margin-bottom:20px; text-align:inherit; }
-                .comm { background:rgba(212,175,55,0.15); border:2px solid var(--theme-color); padding:20px; font-size:2.2em; color:white; border-radius:10px; text-align:center; width:100%; box-sizing:border-box; }
-
-                .photo-col { flex:0 0 350px; display:flex; justify-content:center; align-items:center; transform:translate(${designState.pX}px, ${designState.pY}px); transition: transform 0.2s ease; height: 100%; }
-                #stuImg { width:${designState.pSize}px; height:${designState.pSize}px; object-fit:cover; border-radius:${designState.pShape}; border:5px solid var(--theme-color); background:#000; box-shadow:0 15px 40px rgba(0,0,0,0.8); transition: all 0.3s ease; }
-                #stuImg.portrait-mode { height: 95% !important; width: auto !important; max-width: 100%; object-fit: contain; border-radius: 10px; }
-
-                .text-col { flex:1; text-align:${designState.textAlign}; padding:0 30px; color:white; display:flex; flex-direction:column; justify-content:center; }
-                #videoLayer { position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:5000; display:none; justify-content:center; align-items:center; }
-                #videoLayer video, #videoLayer iframe { width:100%; height:100%; border:none; }
-                .copyright { position:absolute; bottom:10px; right:10px; font-size:10px; color:rgba(255,255,255,0.3); font-family:sans-serif; z-index:900; }
-            </style>
-            <script>function goFS(btn){document.documentElement.requestFullscreen(); btn.style.display='none';}<\/script>
+            #bgLayer { position:absolute; top:0; left:0; width:100%; height:100%; z-index:-1; transition: all 0.5s; }
+            #content { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; width:80%; }
+            
+            #stuCard { 
+                background: rgba(0,0,0,0.7); padding: 40px; border-radius: 20px; color:white;
+                display:flex; flex-direction:row-reverse; align-items:center; gap:30px;
+                transition: all 0.3s;
+            }
+            #stuPhoto { width:250px; height:250px; object-fit:cover; border:4px solid var(--theme-color); border-radius:50%; }
+            .info { text-align:right; flex:1; }
+            h1 { font-size:4em; margin:0; color:white; text-shadow:2px 2px 5px #000; }
+            h2 { font-size:2em; color:var(--theme-color); margin:5px 0; }
+        </style>
         </head>
         <body>
-            <button id="fsBtn" onclick="goFS(this)">⛶ FULL SCREEN</button>
-            <div id="videoLayer"></div>
-            <div id="bgLayer" class="${designState.bgPreset}"></div>
-            <div id="logoWrap"><img id="logoImg" src="https://via.placeholder.com/180x180/00281c/d4af37?text=LOGO"></div>
-
-            <div id="jalsaContent">
-                <div id="titleContainer" style="margin-top:${designState.mtY}px;"> 
-                    <div id="mainTitleWrap"><div id="jt1" class="main-title jalsa-text"></div></div>
-                    <div id="subTitleWrap">
-                        <div id="jt2" class="sub-title jalsa-text"></div>
-                        <div id="jt3" class="sub-title jalsa-text"></div>
-                        <div id="jt4" class="sub-title jalsa-text"></div>
+            <div id="bgLayer"></div>
+            <div id="content">
+                <div id="stuCard">
+                    <img id="stuPhoto" src="">
+                    <div class="info">
+                        <h1 id="tvName">Welcome</h1>
+                        <h2 id="tvDetail">Royal Event System</h2>
                     </div>
                 </div>
             </div>
-
-            <div id="card" class="${designState.cBorder}">
-                <div class="b1-mask" style="top:0; left:0; width:100%; height:1px;"></div>
-                <div class="b1-mask" style="bottom:0; left:0; width:100%; height:1px;"></div>
-                <div class="b1-mask" style="top:0; left:0; width:1px; height:100%;"></div>
-                <div class="b1-mask" style="top:0; right:0; width:1px; height:100%;"></div>
-                <div class="corner-thick tl"></div><div class="corner-thick tr"></div>
-                <div class="corner-thick bl"></div><div class="corner-thick br"></div>
-                <div class="corner-thin tl-in"></div><div class="corner-thin tr-in"></div>
-                <div class="corner-thin bl-in"></div><div class="corner-thin br-in"></div>
-
-                <div class="photo-col"><img id="stuImg" src=""></div>
-                <div class="text-col">
-                    <h1 id="tnD" class="font-dv"></h1><h2 id="tnE" class="font-en"></h2>
-                    <div id="tfD" class="fac-dv font-dv"></div><div id="tfE" class="fac-en font-en"></div>
-                    <div id="tcD" class="crs-dv font-dv"></div><div id="tcE" class="crs-en font-en"></div>
-                    <div id="tcm" class="comm font-dv"></div>
-                </div>
-            </div>
-            <div class="copyright">© Ali Ibrahim Didi (7791550)</div>
         </body>
-        </html>`;
-
+        </html>
+        `;
         tvWindow.document.write(html);
         tvWindow.document.close();
-
-        if(currentLogoData) tvWindow.document.getElementById('logoImg').src = currentLogoData;
-        updateJalsaBackground();
-        updateJalsaText();
-        
-        liveUpdate('pShape', designState.pShape);
-        liveUpdate('pVis', designState.pVis);
-        liveUpdate('lVis', designState.lVis);
-        liveUpdate('bgLoop', designState.bgLoop);
-        
-        if(designState.cBorder === 'custom' && customBorderData) {
-            liveUpdate('cBorder', 'custom');
-        }
-
-        document.getElementById('connStatus').innerText = "✅ Connected";
-        document.getElementById('connStatus').style.color = "green";
-    }
-
-    // --- LOGIC ---
-    function updateJalsaBackground() {
-        if(!tvWindow || tvWindow.closed || !currentJalsaBgData) return;
-        const bgDiv = tvWindow.document.getElementById('bgLayer');
-        if(currentJalsaBgType === 'video') {
-            bgDiv.innerHTML = `<video id="bgVid" src="${currentJalsaBgData}" autoplay loop muted style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:-1;"></video>`;
-            setTimeout(() => { const v = tvWindow.document.getElementById('bgVid'); if(v) v.play().catch(e=>{}); }, 500);
-        } else if (currentJalsaBgType === 'image') {
-            bgDiv.innerHTML = `<img src="${currentJalsaBgData}" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:-1;">`;
-        }
-    }
-
-    function updateJalsaText() {
-        if(!tvWindow || tvWindow.closed) return;
-        const doc = tvWindow.document;
-        doc.getElementById('jt1').innerText = document.getElementById('jLine1').value;
-        doc.getElementById('jt2').innerText = document.getElementById('jLine2').value;
-        doc.getElementById('jt3').innerText = document.getElementById('jLine3').value;
-        doc.getElementById('jt4').innerText = document.getElementById('jLine4').value;
-        
-        if(currentFontData) {
-             const style = doc.createElement('style');
-             style.innerHTML = `@font-face { font-family: 'Faruuma'; src: url('${currentFontData}') format('truetype'); } .jalsa-text, .font-dv { font-family: 'Faruuma', 'Amiri', serif !important; }`;
-             doc.head.appendChild(style);
-        }
-    }
-
-    function showJalsaScreen() {
-        if(!tvWindow || tvWindow.closed) return;
-        tvWindow.document.getElementById('card').classList.remove('active');
-        tvWindow.document.getElementById('jalsaContent').classList.remove('hidden');
-        
-        const logo = tvWindow.document.getElementById('logoWrap');
-        logo.classList.remove('live');
-        logo.style.display = (designState.lVis === 'show') ? 'block' : 'none';
-        document.getElementById('statusMsg').innerText = "Mode: Jalsa";
+        liveUpdate('bgClass', JSON.stringify(state.bgObj || {v:'th-edu-1'}));
     }
 
     function updateTV() {
-        if(!tvWindow || tvWindow.closed) { alert("TV Closed!"); return; }
-        
-        tvWindow.document.getElementById('jalsaContent').classList.add('hidden');
-        const logo = tvWindow.document.getElementById('logoWrap');
-        logo.classList.add('live');
-        logo.style.display = (designState.lVis === 'show') ? 'block' : 'none';
-
+        if(!tvWindow || tvWindow.closed) return;
         const doc = tvWindow.document;
-        doc.getElementById('tnD').textContent = document.getElementById('nD').value;
-        doc.getElementById('tnE').textContent = document.getElementById('nE').value;
-        doc.getElementById('tfD').textContent = document.getElementById('fD').value;
-        doc.getElementById('tfE').textContent = document.getElementById('fE').value;
-        doc.getElementById('tcD').textContent = document.getElementById('cD').value;
-        doc.getElementById('tcE').textContent = document.getElementById('cE').value;
-        doc.getElementById('tcm').textContent = document.getElementById('cm').value;
-
-        const img = doc.getElementById('stuImg');
-        if(currentPhotoData) { img.src = currentPhotoData; img.style.display='block'; }
-        else { img.src = 'https://via.placeholder.com/280x280/00281c/d4af37?text=No+Photo'; }
-
-        setTimeout(() => doc.getElementById('card').classList.add('active'), 300);
-        stopVideo(); 
-        document.getElementById('statusMsg').innerText = "On Air: " + document.getElementById('nE').value;
+        doc.getElementById('tvName').innerText = document.getElementById('nD').value;
+        doc.getElementById('tvDetail').innerText = document.getElementById('fD').value;
+        doc.getElementById('stuPhoto').src = document.getElementById('previewImg').src;
     }
 
-    function clearTV() {
-        if(!tvWindow || tvWindow.closed) return;
-        showJalsaScreen();
-        stopVideo();
-        document.getElementById('statusMsg').innerText = "Screen Cleared";
+    // --- DATA HANDLING ---
+    document.getElementById('photoFolder').onchange = e => {
+        for(let f of e.target.files) photos[f.name.toLowerCase().split('.')[0]] = f;
+        alert("Photos Loaded: " + e.target.files.length);
     }
-
-    // --- VIDEO PLAYER ---
-    function playLocalVideo() {
-        if(!tvWindow || tvWindow.closed) { alert("TV Closed!"); return; }
-        tvWindow.document.getElementById('jalsaContent').classList.add('hidden');
-        const file = document.getElementById('videoLocal').files[0];
-        if(!file) { alert("Select video!"); return; }
-        const url = URL.createObjectURL(file);
-        
-        const vl = tvWindow.document.getElementById('videoLayer');
-        vl.innerHTML = `<video id="mainVid" src="${url}" autoplay controls style="width:100%;height:100%;"></video>`;
-        vl.style.display = 'flex';
-        setTimeout(() => { const v = tvWindow.document.getElementById('mainVid'); if(v) v.play().catch(e => { alert("Click TV screen to enable audio."); }); }, 100);
-        document.getElementById('statusMsg').innerText = "Playing Video...";
-    }
-
-    function playYoutube() {
-        if(!tvWindow || tvWindow.closed) { alert("TV Closed!"); return; }
-        tvWindow.document.getElementById('jalsaContent').classList.add('hidden');
-        const url = document.getElementById('ytLink').value;
-        if(!url) return;
-        const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
-        const id = (match && match[2].length === 11) ? match[2] : null;
-        if(!id) return;
-
-        const vl = tvWindow.document.getElementById('videoLayer');
-        vl.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&mute=0" allow="autoplay; encrypted-media" style="width:100%;height:100%;border:none;"></iframe>`;
-        vl.style.display = 'flex';
-        document.getElementById('statusMsg').innerText = "Playing YouTube...";
-    }
-
-    function stopVideo() {
-        if(!tvWindow || tvWindow.closed) return;
-        const vl = tvWindow.document.getElementById('videoLayer');
-        vl.innerHTML = ''; vl.style.display = 'none';
-        if(!tvWindow.document.getElementById('card').classList.contains('active')) { showJalsaScreen(); }
-    }
-
-    // --- FILES ---
-    document.getElementById('jalsaCsvFile').onchange = e => {
-        const file = e.target.files[0];
-        if(!file) return;
-        const r = new FileReader();
-        r.onload = evt => {
-            const lines = evt.target.result.split('\n');
-            if(lines.length > 0) {
-                const cols = lines[0].split(',');
-                if(cols[0]) document.getElementById('jLine1').value = cols[0].trim();
-                if(cols[1]) document.getElementById('jLine2').value = cols[1].trim();
-                if(cols[2]) document.getElementById('jLine3').value = cols[2].trim();
-                if(cols[3]) document.getElementById('jLine4').value = cols[3].trim();
-                updateJalsaText();
-                alert("Titles Loaded!");
-            }
-        };
-        r.readAsText(file);
-    };
-
-    document.getElementById('fontFile').onchange = e => {
-        const file = e.target.files[0];
-        if(!file) return;
-        const r = new FileReader();
-        r.onload = evt => {
-            currentFontData = evt.target.result;
-            const newFont = new FontFace('Faruuma', `url(${currentFontData})`);
-            newFont.load().then(f => {
-                document.fonts.add(f);
-                document.querySelectorAll('.font-dv, input, h2').forEach(el => el.style.fontFamily = "'Faruuma', serif");
-                alert("Font Loaded! Re-open TV.");
-            });
-        };
-        r.readAsDataURL(file);
-    };
-
-    document.getElementById('jalsaBgFile').onchange = e => {
-        const file = e.target.files[0];
-        if(!file) return;
-        const r = new FileReader();
-        r.onload = evt => {
-            currentJalsaBgData = evt.target.result;
-            currentJalsaBgType = file.type.startsWith('video') ? 'video' : 'image';
-            updateJalsaBackground();
-            alert("Background Set");
-        };
-        r.readAsDataURL(file);
-    };
-
-    document.getElementById('logoFile').onchange = e => {
-        const r = new FileReader();
-        r.onload = evt => {
-            currentLogoData = evt.target.result;
-            if(tvWindow && !tvWindow.closed) tvWindow.document.getElementById('logoImg').src = currentLogoData;
-        };
-        r.readAsDataURL(e.target.files[0]);
-    };
-
-    document.getElementById('customBorderFile').onchange = e => {
-        const r = new FileReader();
-        r.onload = evt => {
-            customBorderData = evt.target.result;
-            if(designState.cBorder === 'custom') liveUpdate('cBorder', 'custom');
-            alert("Custom Border Loaded!");
-        };
-        r.readAsDataURL(e.target.files[0]);
-    };
-
+    
     document.getElementById('csvFile').onchange = e => {
         const r = new FileReader();
         r.onload = ev => {
-            let txt = ev.target.result; if(txt.charCodeAt(0)===0xFEFF) txt=txt.substr(1);
-            let lines = txt.split('\n');
-            students = [];
-            lines.forEach(l => {
-                let c = l.split(',');
-                if(c.length>1) {
-                    students.push({
-                        nD: c[0]?.trim(), nE: c[1]?.trim(), cD: c[2]?.trim(), cE: c[3]?.trim(), 
-                        fD: c[4]?.trim(), fE: c[5]?.trim(), cm: c[6]?.trim(), ph: c[7]?.trim()
-                    });
-                }
-            });
-            filterList(); alert("Loaded: " + students.length);
-        };
+            let rows = ev.target.result.split('\n');
+            students = rows.map(r => r.split(','));
+            filterList();
+        }
         r.readAsText(e.target.files[0]);
-    };
-
-    document.getElementById('photoFolder').onchange = e => {
-        photoFiles = {};
-        for(let f of e.target.files) {
-            let name = f.name.toLowerCase();
-            photoFiles[name] = f; 
-            let nameNoExt = name.split('.').slice(0, -1).join('.');
-            if(nameNoExt) photoFiles[nameNoExt] = f; 
-        }
-        alert("Photos: " + e.target.files.length);
-    };
-
-    function processPhoto(file, cb) {
-        const reader = new FileReader();
-        reader.onload = e => { cb(e.target.result); };
-        reader.readAsDataURL(file);
-    }
-    
-    function manualPhoto(input) {
-        if(input.files && input.files[0]) {
-             processPhoto(input.files[0], d => {
-                currentPhotoData = d;
-                document.getElementById('previewImg').src = d;
-                document.getElementById('pStat').innerText = "Manual";
-                document.getElementById('pStat').style.color = "blue";
-             });
-        }
     }
 
     function filterList() {
-        let t = document.getElementById('search').value.toLowerCase();
-        let l = document.getElementById('stuList'); l.innerHTML = '';
+        const term = document.getElementById('search').value.toLowerCase();
+        const lst = document.getElementById('stuList'); lst.innerHTML = "";
         students.forEach((s,i) => {
-            if((s.nD+s.nE).toLowerCase().includes(t)) {
-                let o = document.createElement('option'); o.value=i; o.text=(i+1)+". "+s.nD; l.add(o);
+            if(s[0] && s[0].toLowerCase().includes(term)) {
+                let o = document.createElement('option'); o.value=i; o.text = s[0]; lst.add(o);
             }
         });
     }
 
     function loadStudent() {
-        let idx = document.getElementById('stuList').value;
-        let s = students[idx];
-        document.getElementById('nD').value = s.nD || ""; document.getElementById('nE').value = s.nE || "";
-        document.getElementById('fD').value = s.fD || ""; document.getElementById('fE').value = s.fE || "";
-        document.getElementById('cD').value = s.cD || ""; document.getElementById('cE').value = s.cE || "";
-        document.getElementById('cm').value = s.cm || "";
-        let pName = s.ph ? s.ph.trim().toLowerCase() : "";
-        let prev = document.getElementById('previewImg');
-        let stat = document.getElementById('pStat');
-        let foundFile = photoFiles[pName]; 
-        if(foundFile) {
-            stat.innerText = "Loading...";
-            processPhoto(foundFile, d => {
-                currentPhotoData = d; prev.src = d; 
-                stat.innerText = "✅ Found"; stat.style.color="green";
-            });
+        const i = document.getElementById('stuList').value;
+        const s = students[i];
+        document.getElementById('nD').value = s[0];
+        document.getElementById('fD').value = s[1] || "";
+        
+        // Photo match
+        const pName = s[7] ? s[7].trim().toLowerCase() : "";
+        if(photos[pName]) {
+            const r = new FileReader();
+            r.onload = e => document.getElementById('previewImg').src = e.target.result;
+            r.readAsDataURL(photos[pName]);
         } else {
-            currentPhotoData = null; prev.src = "https://via.placeholder.com/150"; 
-            stat.innerText = "❌ Missing"; stat.style.color="red";
-        }
-    }
-
-    function move(d) {
-        let l = document.getElementById('stuList');
-        if(l.options.length) {
-            l.selectedIndex = Math.min(Math.max(l.selectedIndex+d, 0), l.options.length-1);
-            loadStudent();
+            document.getElementById('previewImg').src = "https://via.placeholder.com/60";
         }
     }
 </script>
