@@ -2,7 +2,7 @@
 <html lang="dv" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Royal Graduation System (Final V5.0 - Config & Lock)</title>
+    <title>Royal Graduation System (V5.1 - Safe Live Mode)</title>
     <style>
         /* --- GLOBAL --- */
         body {
@@ -49,20 +49,21 @@
         .editor {
             flex: 1; background: #ffffff; padding: 10px; border-radius: 8px;
             display: flex; flex-direction: column; height: 100%; overflow-y: auto; position: relative;
-            border-left: 4px solid #d4af37; transition: opacity 0.3s;
+            border-left: 4px solid #d4af37;
         }
         
-        /* Locked State */
-        .editor.locked {
+        /* LOCKED ZONE CSS - Targets specific areas */
+        .locked-zone {
             pointer-events: none;
-            opacity: 0.5;
-            filter: grayscale(0.8);
+            opacity: 0.4;
+            filter: grayscale(1);
+            position: relative;
         }
         
         /* Design Tabs */
         .design-panel {
             background: #fff8e1; border: 1px solid #ffb300; border-radius: 5px;
-            padding: 8px; margin-bottom: 8px;
+            padding: 8px; margin-bottom: 8px; transition: opacity 0.3s;
         }
         .design-row { display: flex; gap: 10px; margin-bottom: 5px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
         .design-col { flex: 1; }
@@ -79,7 +80,7 @@
             font-size: 12px; margin-bottom: 2px; font-family: 'Faruuma', 'Times New Roman';
         }
         
-        .file-box { background: #e0e0e0; padding: 5px; border-radius: 5px; margin-bottom: 5px; border: 1px solid #bbb; overflow-y: auto; max-height: 100px; flex-shrink: 0; }
+        .file-box { background: #e0e0e0; padding: 5px; border-radius: 5px; margin-bottom: 5px; border: 1px solid #bbb; overflow-y: auto; max-height: 100px; flex-shrink: 0; transition: opacity 0.3s; }
         input[type="file"] { width: 100%; font-size: 10px; margin-bottom: 2px; }
 
         .row { display: flex; gap: 5px; margin-bottom: 2px; align-items: flex-end; }
@@ -96,8 +97,10 @@
         .conf-btn { flex: 1; padding: 5px; font-size: 11px; border-radius: 4px; border: 1px solid #aaa; color: white; }
         .btn-down { background: #1565c0; }
         .btn-up { background: #ef6c00; }
-        .btn-lock { background: #37474f; width: 100%; padding: 8px; margin-bottom: 8px; color: #fff; border: 2px solid #cfd8dc; }
-        .btn-lock.active { background: #b71c1c; border-color: #ff5252; }
+        
+        /* Lock Button */
+        .btn-lock { background: #37474f; width: 100%; padding: 8px; margin-bottom: 8px; color: #fff; border: 2px solid #cfd8dc; font-size: 13px; }
+        .btn-lock.active { background: #2e7d32; border-color: #4caf50; font-weight: bold; box-shadow: inset 0 0 10px #1b5e20; }
 
         #stuList { flex-grow: 1; min-height: 0; margin-bottom: 5px; }
 
@@ -143,7 +146,7 @@
             <button class="launch-btn" onclick="openTV()">🖥️ 1. Open TV</button>
             <div id="connStatus" style="font-size:11px; color:red; text-align:center;">Not Connected</div>
 
-            <div class="file-box">
+            <div class="file-box" id="sidebarFiles">
                 <label>1. CSV List:</label><input type="file" id="csvFile" accept=".csv">
                 <label>2. Photos:</label><input type="file" id="photoFolder" webkitdirectory directory multiple>
                 <label>3. Logo:</label><input type="file" id="logoFile" accept="image/*">
@@ -159,9 +162,9 @@
         </div>
 
         <div class="editor" id="editorPanel">
-            <button id="lockBtn" class="btn-lock" onclick="toggleLock()">🔓 Unlock Settings</button>
+            <button id="lockBtn" class="btn-lock" onclick="toggleLock()">🔓 Lock Settings (For Live)</button>
 
-            <div class="design-panel">
+            <div class="design-panel" id="designPanel">
                 <h3 style="margin-top:0; border:none; font-size:14px;">🎨 Live Design Controls</h3>
                 
                 <div class="design-row">
@@ -290,23 +293,27 @@
                 </div>
             </div>
 
-            <div style="display:flex; gap:5px; margin-bottom:5px;">
-                <input type="file" id="jalsaBgFile" accept="video/*, image/*" style="width:33%">
-                <select id="bgLoopSel" onchange="liveUpdate('bgLoop', this.value)" style="width:33%; background:#c8e6c9;">
-                    <option value="on">Main Loop: ON</option>
-                    <option value="off">Main Loop: OFF</option>
-                </select>
-                <button class="btn-vid" style="background:#1b5e20; width:33%; margin:0;" onclick="showJalsaScreen()">🖼️ Show</button>
+            <div id="globalTitles">
+                <div style="display:flex; gap:5px; margin-bottom:5px;">
+                    <input type="file" id="jalsaBgFile" accept="video/*, image/*" style="width:33%">
+                    <select id="bgLoopSel" onchange="liveUpdate('bgLoop', this.value)" style="width:33%; background:#c8e6c9;">
+                        <option value="on">Main Loop: ON</option>
+                        <option value="off">Main Loop: OFF</option>
+                    </select>
+                    <button class="btn-vid" style="background:#1b5e20; width:33%; margin:0;" onclick="showJalsaScreen()">🖼️ Show Title Screen</button>
+                </div>
+                <div style="display:flex; gap:5px; margin-bottom:2px;">
+                    <button class="btn-vid" style="background:#2e7d32; width:100%; margin:0;" onclick="updateJalsaText()">Update Main Titles</button>
+                </div>
+                <input type="text" id="jLine1" placeholder="Main Title" class="font-dv" style="font-weight:bold; color:#00281c;">
+                <input type="text" id="jLine2" placeholder="Sub 1" class="font-dv">
+                <input type="text" id="jLine3" placeholder="Sub 2" class="font-dv">
+                <input type="text" id="jLine4" placeholder="Sub 3" class="font-dv">
             </div>
-            <div style="display:flex; gap:5px; margin-bottom:2px;">
-                <button class="btn-vid" style="background:#2e7d32; width:100%; margin:0;" onclick="updateJalsaText()">Update Text</button>
-            </div>
-            <input type="text" id="jLine1" placeholder="Main Title" class="font-dv" style="font-weight:bold; color:#00281c;">
-            <input type="text" id="jLine2" placeholder="Sub 1" class="font-dv">
-            <input type="text" id="jLine3" placeholder="Sub 2" class="font-dv">
-            <input type="text" id="jLine4" placeholder="Sub 3" class="font-dv">
 
-            <h3 style="margin-top:5px;">🎓 Info</h3>
+            <hr style="margin:5px 0; border:1px solid #ddd;">
+
+            <h3 style="margin-top:5px;">🎓 Student Info (Active)</h3>
             <div class="row"><div class="col"><input id="nD" class="font-dv" placeholder="Name Dv"></div><div class="col"><input id="nE" class="eng" placeholder="Name En"></div></div>
             <div class="row"><div class="col"><input id="fD" class="font-dv" placeholder="Detail 1 Dv"></div><div class="col"><input id="fE" class="eng" placeholder="Detail 1 En"></div></div>
             <div class="row"><div class="col"><input id="cD" class="font-dv" placeholder="Detail 2 Dv"></div><div class="col"><input id="cE" class="eng" placeholder="Detail 2 En"></div></div>
@@ -406,22 +413,33 @@
 
     function toggleLock() {
         isLocked = !isLocked;
-        const panel = document.getElementById('editorPanel');
         const btn = document.getElementById('lockBtn');
+        
+        // Areas to lock
+        const designPanel = document.getElementById('designPanel');
+        const sidebarFiles = document.getElementById('sidebarFiles');
+        const globalTitles = document.getElementById('globalTitles');
+
         if (isLocked) {
-            panel.classList.add('locked');
-            btn.innerHTML = "🔒 SETTINGS LOCKED (Click to Unlock)";
+            btn.innerHTML = "🔒 LIVE SAFE MODE ON (Click to Unlock)";
             btn.classList.add('active');
-            btn.style.pointerEvents = "auto"; // keep button clickable
+            
+            // Apply lock class
+            designPanel.classList.add('locked-zone');
+            sidebarFiles.classList.add('locked-zone');
+            globalTitles.classList.add('locked-zone');
         } else {
-            panel.classList.remove('locked');
-            btn.innerHTML = "🔓 Lock Settings";
+            btn.innerHTML = "🔓 Lock Settings (For Live)";
             btn.classList.remove('active');
+            
+            // Remove lock class
+            designPanel.classList.remove('locked-zone');
+            sidebarFiles.classList.remove('locked-zone');
+            globalTitles.classList.remove('locked-zone');
         }
     }
 
     function downloadConfig() {
-        // Only save settings, not big data files to keep it light
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(designState));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
@@ -438,7 +456,6 @@
         reader.onload = (e) => {
             try {
                 designState = JSON.parse(e.target.result);
-                // Update UI to match
                 setVal('mtSizeRange', designState.mtSize);
                 setVal('mtColorPick', designState.mtColor);
                 setVal('mtYRange', designState.mtY);
@@ -460,13 +477,12 @@
                 setVal('pXRange', designState.pX);
                 setVal('bgLoopSel', designState.bgLoop);
                 
-                // Force update Live TV if open
                 if(tvWindow && !tvWindow.closed) {
                     for (const key in designState) {
                         liveUpdate(key, designState[key]);
                     }
                 }
-                alert("Settings Loaded Successfully! (Note: Please re-select images/fonts)");
+                alert("Settings Loaded Successfully!");
             } catch(err) {
                 alert("Invalid Config File");
             }
@@ -483,22 +499,16 @@
         if(!tvWindow || tvWindow.closed) return;
         const doc = tvWindow.document;
 
-        // Visibility
         if(key === 'pVis') { const el = doc.querySelector('.photo-col'); if(el) el.style.opacity = (value === 'show') ? '1' : '0'; }
         if(key === 'lVis') { const el = doc.getElementById('logoWrap'); if(el) el.style.display = (value === 'show') ? 'block' : 'none'; }
         if(key === 'bgLoop') { const vid = doc.getElementById('bgVid'); if(vid) vid.style.display = (value === 'on') ? 'block' : 'none'; }
 
-        // Layout
         if(key === 'layoutDir') { const card = doc.getElementById('card'); if(card) card.style.flexDirection = (value === 'rtl') ? 'row-reverse' : 'row'; }
         if(key === 'textAlign') { const txt = doc.querySelector('.text-col'); if(txt) txt.style.textAlign = value; }
 
-        // Background
         if(key === 'bgPreset') { const bg = doc.getElementById('bgLayer'); if(bg) { bg.className = ''; bg.classList.add(value); } }
-
-        // Colors
         if(key === 'bdColor') { doc.documentElement.style.setProperty('--theme-color', value); }
 
-        // Titles
         if(key === 'mtY') { doc.getElementById('titleContainer').style.marginTop = value + 'px'; }
         if(key === 'mtSize') { doc.getElementById('jt1').style.fontSize = value + 'em'; }
         if(key === 'mtColor') { const el = doc.getElementById('jt1'); el.style.color = value; el.style.borderBottomColor = value; }
@@ -506,10 +516,8 @@
         if(key === 'stSize') { doc.querySelectorAll('.sub-title').forEach(e => e.style.fontSize = value + 'em'); }
         if(key === 'stColor') { doc.querySelectorAll('.sub-title').forEach(e => e.style.color = value); }
 
-        // Logo
         if(key === 'logoY') { const logo = doc.getElementById('logoWrap'); if(logo) logo.style.top = value + 'px'; }
 
-        // Photo
         if(key === 'pShape') { 
             const img = doc.getElementById('stuImg'); 
             if(img) {
@@ -534,7 +542,6 @@
             }
         }
 
-        // Card Border - CUSTOM Logic
         if(key === 'cBorder') {
             const card = doc.getElementById('card');
             if(card) {
@@ -710,7 +717,6 @@
         liveUpdate('lVis', designState.lVis);
         liveUpdate('bgLoop', designState.bgLoop);
         
-        // Ensure custom border loads if selected
         if(designState.cBorder === 'custom' && customBorderData) {
             liveUpdate('cBorder', 'custom');
         }
