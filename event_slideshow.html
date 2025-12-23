@@ -2,7 +2,7 @@
 <html lang="dv" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Royal Graduation System (Final V31 - SafeGuard)</title>
+    <title>Royal Graduation System (Final V33 - Multi-Screen)</title>
     <style>
         /* --- GLOBAL --- */
         body {
@@ -57,12 +57,7 @@
             background: #fff8e1; border: 1px solid #ffb300; border-radius: 5px;
             padding: 8px; margin-bottom: 8px; transition: opacity 0.3s;
         }
-        /* When locked, fade out and disable clicks */
-        .design-panel.locked {
-            opacity: 0.6;
-            pointer-events: none;
-            filter: grayscale(0.5);
-        }
+        .design-panel.locked { opacity: 0.6; pointer-events: none; filter: grayscale(0.5); }
 
         .design-row { display: flex; gap: 10px; margin-bottom: 5px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
         .design-col { flex: 1; }
@@ -79,7 +74,7 @@
             font-size: 12px; margin-bottom: 2px; font-family: 'Faruuma', 'Times New Roman';
         }
         
-        .file-box { background: #e0e0e0; padding: 5px; border-radius: 5px; margin-bottom: 5px; border: 1px solid #bbb; overflow-y: auto; max-height: 100px; flex-shrink: 0; }
+        .file-box { background: #e0e0e0; padding: 5px; border-radius: 5px; margin-bottom: 5px; border: 1px solid #bbb; overflow-y: auto; max-height: 80px; flex-shrink: 0; }
         input[type="file"] { width: 100%; font-size: 10px; margin-bottom: 2px; }
 
         .row { display: flex; gap: 5px; margin-bottom: 2px; align-items: flex-end; }
@@ -89,7 +84,13 @@
 
         button { cursor: pointer; font-family: 'Faruuma'; font-weight: bold; }
         .fs-btn { background: #004d40; color: white; padding: 5px; width: 100%; border: 1px solid #d4af37; border-radius: 4px; margin-bottom: 5px; font-size: 11px; flex-shrink: 0; }
-        .launch-btn { background: #c62828; color: white; padding: 8px; width: 100%; border: none; border-radius: 4px; margin-bottom: 5px; font-size: 14px; flex-shrink: 0; }
+        
+        /* Multi-Screen Launchers */
+        .screen-launcher { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+        .launch-btn { background: #c62828; color: white; padding: 6px; border: none; border-radius: 3px; font-size: 12px; width: 100%; cursor: pointer; }
+        .launch-btn:hover { background: #d32f2f; }
+        
+        .cfg-btn { background: #0277bd; color: white; padding: 4px; width: 48%; border: none; border-radius: 3px; font-size: 11px; }
 
         #stuList { flex-grow: 1; min-height: 0; margin-bottom: 5px; }
 
@@ -100,8 +101,24 @@
         .btn-nav { background: #455a64; }
         .btn-clear { background: #b71c1c; flex: 0.5; }
 
-        .preview-container { display: flex; gap: 10px; align-items: center; justify-content: center; background: #fff8e1; padding: 4px; border: 1px solid #ffb300; border-radius: 4px; margin-top: 5px; flex-shrink: 0; }
-        #previewImg { height: 50px; width: 50px; object-fit: cover; border-radius: 50%; border: 2px solid #d4af37; background: #ddd; }
+        /* Resizable Preview Container */
+        .preview-container { 
+            display: flex; gap: 10px; align-items: center; justify-content: center; 
+            background: #fff8e1; padding: 4px; border: 1px solid #ffb300; border-radius: 4px; margin-top: 5px; flex-shrink: 0; 
+        }
+        /* The container for the resizable image */
+        .resize-wrapper {
+            position: relative;
+            display: inline-block;
+            resize: both; /* Enables resizing */
+            overflow: hidden; /* Required for resize to work */
+            border: 1px dashed #d4af37;
+            width: 100px; /* Initial visual size in admin */
+            height: 100px;
+            min-width: 50px; min-height: 50px;
+            max-width: 300px; max-height: 300px;
+        }
+        #previewImg { width: 100%; height: 100%; object-fit: cover; }
         #logoPreview { height: 30px; object-fit: contain; }
         
         .video-panel { background: #e3f2fd; padding: 5px; border-radius: 5px; margin-top: 5px; flex-shrink: 0; }
@@ -109,7 +126,6 @@
         #statusMsg { text-align: center; margin-top: 5px; font-weight: bold; color: green; font-size: 12px; background: #e8f5e9; padding: 2px; border-radius: 4px; flex-shrink: 0; }
         .copyright-text { text-align: center; font-size: 10px; color: #d4af37; background: #00281c; margin-top: auto; padding: 5px; border-radius: 4px; flex-shrink: 0; font-family: sans-serif; font-weight: bold; }
         
-        /* Lock Switch */
         .lock-controls { display:flex; align-items:center; justify-content:flex-end; margin-bottom:5px; font-size:12px; font-weight:bold; color:#c62828; }
         .lock-controls input { width:auto; margin-left:5px; cursor:pointer; }
     </style>
@@ -129,8 +145,23 @@
     <div class="main-layout" id="mainApp">
         <div class="sidebar">
             <button class="fs-btn" onclick="toggleControlFS()">⛶ Fullscreen</button>
-            <button class="launch-btn" onclick="openTV()">🖥️ 1. Open TV</button>
+            
+            <div class="screen-launcher">
+                <button class="launch-btn" onclick="openTV(1)">🖥️ Screen 1</button>
+                <button class="launch-btn" onclick="openTV(2)">🖥️ Screen 2</button>
+                <button class="launch-btn" onclick="openTV(3)">🖥️ Screen 3</button>
+                <button class="launch-btn" onclick="openTV(4)">🖥️ Screen 4</button>
+            </div>
+            
             <div id="connStatus" style="font-size:11px; color:red; text-align:center;">Not Connected</div>
+
+            <div style="background:#e3f2fd; padding:5px; border-radius:5px; border:1px solid #90caf9; margin-bottom:5px;">
+                <div style="display:flex; justify-content:space-between;">
+                    <button class="cfg-btn" onclick="exportConfig()">💾 Save Setup</button>
+                    <button class="cfg-btn" style="background:#00695c;" onclick="document.getElementById('confLoad').click()">📂 Load Setup</button>
+                    <input type="file" id="confLoad" accept=".json" style="display:none" onchange="importConfig(this)">
+                </div>
+            </div>
 
             <div class="file-box">
                 <label>1. CSV List:</label><input type="file" id="csvFile" accept=".csv">
@@ -233,40 +264,67 @@
 
                 <div class="design-row" style="margin-bottom:0; border:none;">
                     <div class="design-col">
-                        <span class="d-label">Card Style:</span>
-                        <select id="in_cBorder" onchange="liveUpdate('cBorder', this.value)" style="width:100%;">
-                            <option value="b1">Gold Double</option>
-                            <option value="b2">Dashed Glow</option>
-                            <option value="b3">Thick Solid</option>
-                            <option value="b4">Gradient</option>
-                            <option value="b5">Frame Offset</option>
-                            <option value="b6">Ornamental</option>
-                            <option value="b0">🚫 No Border</option>
-                            <option value="custom">🖼️ Custom Frame</option>
+                        <span class="d-label">Card & Themes:</span>
+                        <select id="in_cBorder" onchange="liveUpdate('cBorder', this.value)" style="width:100%; font-size:11px;">
+                            <optgroup label="Basic">
+                                <option value="b0">🚫 No Border</option>
+                                <option value="custom">🖼️ Custom Frame</option>
+                            </optgroup>
+                            <optgroup label="20 Royal Frames">
+                                <option value="frame-1">1. Gold Double</option>
+                                <option value="frame-2">2. Dashed Glow</option>
+                                <option value="frame-3">3. Thick Solid</option>
+                                <option value="frame-4">4. Gradient Fade</option>
+                                <option value="frame-5">5. Offset Line</option>
+                                <option value="frame-6">6. Ornamental</option>
+                                <option value="frame-7">7. Minimal</option>
+                                <option value="frame-8">8. Triple Gold</option>
+                                <option value="frame-9">9. Silver Lining</option>
+                                <option value="frame-10">10. Ancient Scroll</option>
+                                <option value="frame-11">11. Modern Box</option>
+                                <option value="frame-12">12. Corner Decos</option>
+                                <option value="frame-13">13. Soft Shadow</option>
+                                <option value="frame-14">14. Neon Gold</option>
+                                <option value="frame-15">15. Dark Wood</option>
+                                <option value="frame-16">16. Marble Gold</option>
+                                <option value="frame-17">17. Silk Ribbon</option>
+                                <option value="frame-18">18. dotted Royal</option>
+                                <option value="frame-19">19. Inset Glow</option>
+                                <option value="frame-20">20. Heavy Metal</option>
+                            </optgroup>
                         </select>
-                        <div style="display:flex; gap:5px; align-items:center; margin-top:2px;">
-                            <span style="font-size:10px;">Thm:</span><input id="in_bdColor" type="color" value="#d4af37" oninput="liveUpdate('bdColor', this.value)">
-                            <span style="font-size:10px;">BG:</span><input id="in_bgColor" type="color" value="#001a12" oninput="liveUpdate('bgColor', this.value)">
-                        </div>
+                        <select id="in_mainTheme" onchange="liveUpdate('mainTheme', this.value)" style="width:100%; margin-top:2px; font-size:11px;">
+                            <optgroup label="10 Main Themes">
+                                <option value="theme-1">1. Classic Green (Default)</option>
+                                <option value="theme-2">2. Royal Blue</option>
+                                <option value="theme-3">3. Maroon Velvet</option>
+                                <option value="theme-4">4. Deep Black/Gold</option>
+                                <option value="theme-5">5. Purple Satin</option>
+                                <option value="theme-6">6. Teal Luxury</option>
+                                <option value="theme-7">7. Red Carpet</option>
+                                <option value="theme-8">8. Golden Hour</option>
+                                <option value="theme-9">9. Silver Mist</option>
+                                <option value="theme-10">10. Dark Chocolate</option>
+                            </optgroup>
+                        </select>
                     </div>
                     <div class="design-col">
-                        <span class="d-label">Photo (Vis/Pos/Size):</span>
-                        <div style="display:flex; gap:5px;">
-                            <select id="in_pVis" onchange="liveUpdate('pVis', this.value)" style="width:50%; background:#ffe0b2;">
-                                <option value="show">Show</option>
-                                <option value="hide">Hide</option>
-                            </select>
-                            <select id="in_pBorder" onchange="liveUpdate('pBorder', this.value)" style="width:50%;">
-                                <option value="on">Bord ON</option>
-                                <option value="off">Bord OFF</option>
-                            </select>
-                        </div>
+                        <span class="d-label">Photo (Pos/Size/Vis):</span>
                         <div style="display:flex; gap:2px; margin-top:2px;">
-                            <input id="in_pY" type="range" min="-600" max="600" value="0" oninput="liveUpdate('pY', this.value)">
-                            <input id="in_pX" type="range" min="-1000" max="1000" value="-40" oninput="liveUpdate('pX', this.value)">
+                            <input id="in_pY" type="range" min="-600" max="600" value="0" title="Photo Y" oninput="liveUpdate('pY', this.value)">
+                            <input id="in_pX" type="range" min="-1000" max="1000" value="-40" title="Photo X" oninput="liveUpdate('pX', this.value)">
                         </div>
-                        <input id="in_pSize" type="range" min="150" max="400" value="260" oninput="liveUpdate('pSize', this.value)">
-                        <select id="in_pShape" onchange="liveUpdate('pShape', this.value)" style="display:none;"><option value="50%">R</option><option value="10px">S</option></select>
+                        <div style="display:flex; gap:5px; margin-top:2px;">
+                            <select id="in_pVis" onchange="liveUpdate('pVis', this.value)" style="width:33%; background:#ffe0b2;">
+                                <option value="show">Show</option><option value="hide">Hide</option>
+                            </select>
+                            <select id="in_pShape" onchange="liveUpdate('pShape', this.value)" style="width:33%;">
+                                <option value="50%">Cir</option><option value="10px">Sqr</option>
+                            </select>
+                            <select id="in_pBorder" onchange="liveUpdate('pBorder', this.value)" style="width:33%;">
+                                <option value="on">Bord</option><option value="off">None</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -277,7 +335,7 @@
                     <option value="on">BG Loop: ON</option>
                     <option value="off">BG Loop: OFF</option>
                 </select>
-                <button class="btn-vid" style="background:#1b5e20; width:33%; margin:0;" onclick="showJalsaScreen()">🖼️ Show</button>
+                <button class="btn-vid" style="background:#1b5e20; width:33%; margin:0;" onclick="showJalsaScreen()">🖼️ Show Jalsa</button>
             </div>
             <div style="display:flex; gap:5px; margin-bottom:2px;">
                 <button class="btn-vid" style="background:#2e7d32; width:100%; margin:0;" onclick="updateJalsaText()">Update Text</button>
@@ -296,9 +354,11 @@
             <div class="preview-container">
                 <div><img id="logoPreview" alt="-"></div>
                 <div style="text-align:center;">
-                    <span id="pStat" style="font-size:10px;">No Photo</span>
-                    <img id="previewImg" src="https://via.placeholder.com/150">
-                    <button class="manual-btn" onclick="document.getElementById('singlePhoto').click()">📷</button>
+                    <div id="resizeWrap" class="resize-wrapper">
+                        <img id="previewImg" src="https://via.placeholder.com/150">
+                    </div>
+                    <div style="font-size:9px; color:grey;">Drag corner to resize</div>
+                    <button class="manual-btn" onclick="document.getElementById('singlePhoto').click()">📷 Set</button>
                     <input type="file" id="singlePhoto" accept="image/*" style="display:none" onchange="manualPhoto(this)">
                 </div>
             </div>
@@ -350,8 +410,7 @@
         if (pass === "7791550") {
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('mainApp').style.display = 'flex';
-            // Auto Load Settings on Login
-            loadSettings();
+            loadSettings(); // AUTO LOAD
         } else {
             document.getElementById('loginError').style.display = 'block';
             document.getElementById('passInput').value = '';
@@ -365,7 +424,9 @@
         else document.exitFullscreen();
     }
 
-    let tvWindow = null;
+    // --- MULTI SCREEN MANAGEMENT ---
+    let tvWindows = {}; // Store multiple windows: {1: win, 2: win...}
+    
     let students = [];
     let photoFiles = {};
     let currentPhotoData = null;
@@ -381,36 +442,64 @@
         stY: 0, stX: 0, stSize: 2.6, stColor: '#ffffff',
         logoY: 40, logoX: 0, lVis: 'show',
         pShape: '50%', pSize: 260, pBorder: 'on', pX: -40, pY: 0, pVis: 'show',
-        cBorder: 'b1', bdColor: '#d4af37', bgColor: '#001a12',
+        cBorder: 'frame-1', mainTheme: 'theme-1', bdColor: '#d4af37', bgColor: '#001a12',
         txtY: 0, txtX: 0, nameCol: '#ffffff', detCol: '#fff9c4',
         layoutDir: 'rtl', textAlign: 'right', bgLoop: 'on'
     };
 
     let designState = { ...defaultDesignState };
 
+    // --- RESIZE OBSERVER FOR DRAG ---
+    const resizeWrap = document.getElementById('resizeWrap');
+    const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+            // Get width from drag
+            const newWidth = entry.contentRect.width;
+            // Update designState only if significantly changed to avoid loops
+            if(Math.abs(newWidth - designState.pSize) > 2) {
+                designState.pSize = newWidth;
+                // Update live windows
+                Object.values(tvWindows).forEach(win => {
+                    if(win && !win.closed) applyStyle('pSize', newWidth, win.document);
+                });
+            }
+        }
+    });
+    resizeObserver.observe(resizeWrap);
+
     // --- SAVE / LOAD SYSTEM ---
     function liveUpdate(key, value) {
         designState[key] = value;
-        // Save to storage on every change
         localStorage.setItem('royalGradConfig', JSON.stringify(designState));
         
-        if(!tvWindow || tvWindow.closed) return;
-        applyStyle(key, value, tvWindow.document);
+        // Sync Resize Wrapper if updated via slider
+        if(key === 'pSize') {
+            resizeWrap.style.width = value + 'px';
+            resizeWrap.style.height = value + 'px';
+        }
+
+        Object.values(tvWindows).forEach(win => {
+            if(win && !win.closed) applyStyle(key, value, win.document);
+        });
     }
 
     function applyStyle(key, value, doc) {
-        // Colors & Theme
-        if(key === 'bgColor') { const bg = doc.getElementById('bgLayer'); if(bg) bg.style.backgroundColor = value; }
-        if(key === 'bdColor') { doc.documentElement.style.setProperty('--theme-color', value); if(designState.pBorder === 'on') { const img = doc.getElementById('stuImg'); if(img) img.style.border = `5px solid ${value}`; } }
+        // Colors & Theme (Manual Override)
+        if(key === 'bgColor') { /* managed by theme classes now, but keep for overrides */ }
+        
+        // Theme Classes
+        if(key === 'mainTheme') {
+            doc.body.className = value; // Apply theme class to body
+        }
+
+        // Layout
+        if(key === 'layoutDir') { const card = doc.getElementById('card'); if(card) card.style.flexDirection = (value === 'rtl') ? 'row-reverse' : 'row'; }
+        if(key === 'textAlign') { const txt = doc.querySelector('.text-col'); if(txt) txt.style.textAlign = value; }
 
         // Visibility
         if(key === 'pVis') { const el = doc.querySelector('.photo-col'); if(el) el.style.display = (value === 'show') ? 'flex' : 'none'; }
         if(key === 'lVis') { const el = doc.getElementById('logoWrap'); if(el) el.style.display = (value === 'show') ? 'block' : 'none'; }
         if(key === 'bgLoop') { const vid = doc.getElementById('bgVid'); if(vid) vid.style.display = (value === 'on') ? 'block' : 'none'; }
-
-        // Layout
-        if(key === 'layoutDir') { const card = doc.getElementById('card'); if(card) card.style.flexDirection = (value === 'rtl') ? 'row-reverse' : 'row'; }
-        if(key === 'textAlign') { const txt = doc.querySelector('.text-col'); if(txt) txt.style.textAlign = value; }
 
         // Titles
         if(key === 'mtY' || key === 'mtX') { const con = doc.getElementById('titleContainer'); const el = doc.getElementById('mainTitleWrap'); if(con) con.style.marginTop = designState.mtY + 'px'; if(el) el.style.transform = `translate(${designState.mtX}px, 0)`; }
@@ -435,11 +524,15 @@
         if(key === 'pX' || key === 'pY') { const el = doc.querySelector('.photo-col'); if(el) el.style.transform = `translate(${designState.pX}px, ${designState.pY}px)`; }
         if(key === 'pBorder') { const img = doc.getElementById('stuImg'); if(img) { if(value === 'off') { img.style.border = 'none'; img.style.background = 'transparent'; img.style.boxShadow = 'none'; } else { img.style.border = `5px solid ${designState.bdColor}`; img.style.background = '#000'; img.style.boxShadow = '0 15px 40px rgba(0,0,0,0.8)'; } } }
 
-        // Card Border
+        // Card Border (Classes)
         if(key === 'cBorder') {
             const card = doc.getElementById('card');
             if(card) {
-                card.className = ''; card.classList.add(value);
+                // Remove all previous frame classes
+                card.className = ''; 
+                // Add new class
+                card.classList.add(value);
+                
                 if(value === 'custom' && customBorderData) {
                     card.style.backgroundImage = `url(${customBorderData})`;
                     card.style.backgroundSize = "100% 100%"; card.style.border = "none"; card.style.boxShadow = "none";
@@ -453,40 +546,70 @@
         const saved = localStorage.getItem('royalGradConfig');
         if (saved) {
             designState = JSON.parse(saved);
-            // Update UI Controls
             for (const [key, value] of Object.entries(designState)) {
                 const el = document.getElementById('in_' + key);
                 if(el) el.value = value;
             }
+            // Init resize wrap size
+            if(resizeWrap) {
+                resizeWrap.style.width = designState.pSize + 'px';
+                resizeWrap.style.height = designState.pSize + 'px';
+            }
         }
     }
 
+    function exportConfig() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(designState));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "royal_setup.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function importConfig(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                designState = JSON.parse(e.target.result);
+                localStorage.setItem('royalGradConfig', JSON.stringify(designState));
+                loadSettings();
+                alert("Setup Loaded!");
+            } catch(err) {
+                alert("Invalid file!");
+            }
+        };
+        reader.readAsText(file);
+    }
+
     function resetDesign() {
-        if(confirm("Reset all design settings to default?")) {
+        if(confirm("Reset all design settings?")) {
             designState = { ...defaultDesignState };
             localStorage.removeItem('royalGradConfig');
-            loadSettings(); // Reset UI
-            // Force apply all defaults if TV open
-            if(tvWindow && !tvWindow.closed) {
-                for (const [key, value] of Object.entries(designState)) {
-                    applyStyle(key, value, tvWindow.document);
+            loadSettings();
+            Object.values(tvWindows).forEach(win => {
+                if(win && !win.closed) {
+                    for (const [key, value] of Object.entries(designState)) applyStyle(key, value, win.document);
                 }
-            }
+            });
         }
     }
 
     function toggleLock(checkbox) {
         const panel = document.getElementById('designPanel');
-        if(checkbox.checked) {
-            panel.classList.add('locked');
-        } else {
-            panel.classList.remove('locked');
-        }
+        if(checkbox.checked) panel.classList.add('locked');
+        else panel.classList.remove('locked');
     }
 
-    function openTV() {
-        tvWindow = window.open('', 'GradTV', 'width=1280,height=720,menubar=no,toolbar=no');
-        if(!tvWindow) { alert("Enable Popups!"); return; }
+    // --- MAIN WINDOW OPENER ---
+    function openTV(id) {
+        const win = window.open('', 'GradTV_'+id, 'width=1280,height=720,menubar=no,toolbar=no');
+        if(!win) { alert("Enable Popups!"); return; }
+        
+        tvWindows[id] = win; // Store reference
 
         let fontCSS = `url('Fonts/faruuma.ttf') format('truetype')`;
         if (currentFontData) fontCSS = `url('${currentFontData}') format('truetype')`;
@@ -499,46 +622,70 @@
                 @font-face { font-family: 'Faruuma'; src: ${fontCSS}; }
                 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
                 :root { --theme-color: ${designState.bdColor}; }
-                body { margin:0; overflow:hidden; background:${designState.bgColor}; font-family:'Faruuma', serif; user-select:none; }
+                
+                /* --- THEMES (Backgrounds) --- */
+                body { margin:0; overflow:hidden; font-family:'Faruuma', serif; user-select:none; }
+                .theme-1 { background: #001a12; }
+                .theme-2 { background: radial-gradient(circle, #0d47a1 0%, #000000 100%); }
+                .theme-3 { background: radial-gradient(circle, #880e4f 0%, #210313 100%); }
+                .theme-4 { background: linear-gradient(135deg, #000000 0%, #434343 100%); }
+                .theme-5 { background: radial-gradient(circle, #4a148c 0%, #000000 100%); }
+                .theme-6 { background: linear-gradient(to bottom right, #004d40, #000000); }
+                .theme-7 { background: radial-gradient(circle at center, #b71c1c, #3e0404); }
+                .theme-8 { background: radial-gradient(circle, #ffb300 0%, #5d4037 100%); }
+                .theme-9 { background: linear-gradient(to right, #ece9e6, #ffffff); }
+                .theme-10 { background: #3e2723; }
+
+                /* --- BORDERS (Frames) --- */
+                /* Base Frame */
+                #card { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:90vw; max-width:1500px; height:85vh; display:flex; flex-direction:${designState.layoutDir === 'rtl' ? 'row-reverse' : 'row'}; align-items:center; background:rgba(0,40,28,0.95); padding:3vh; box-sizing:border-box; opacity:0; transition:opacity 0.5s ease; z-index:15; }
+                #card.active { opacity:1; }
+
+                .frame-1 { border:none; box-shadow:0 0 100px #000; }
+                .frame-1 .corner-thick { position:absolute; width:40px; height:40px; border:6px solid var(--theme-color); }
+                .frame-1 .tl{top:-8px;left:-8px;border-right:0;border-bottom:0} .frame-1 .tr{top:-8px;right:-8px;border-left:0;border-bottom:0} .frame-1 .bl{bottom:-8px;left:-8px;border-right:0;border-top:0} .frame-1 .br{bottom:-8px;right:-8px;border-left:0;border-top:0}
+
+                .frame-2 { border: 4px dashed var(--theme-color); box-shadow: 0 0 20px var(--theme-color); border-radius: 20px; }
+                .frame-3 { border: 10px solid var(--theme-color); border-radius: 30px; }
+                .frame-4 { border: 8px solid transparent; border-image: linear-gradient(45deg, var(--theme-color), #ffe57f) 1; }
+                .frame-5 { border: 2px solid var(--theme-color); outline: 4px solid #fff; outline-offset: -10px; }
+                .frame-6 { border-top: 10px double var(--theme-color); border-bottom: 10px double var(--theme-color); }
+                .frame-7 { border: 1px solid var(--theme-color); box-shadow: 0 0 50px #000; }
+                .frame-8 { border: 3px solid var(--theme-color); outline: 2px solid var(--theme-color); outline-offset: 5px; }
+                .frame-9 { border: 5px ridge #c0c0c0; background:rgba(0,0,0,0.8); }
+                .frame-10 { background: url('https://www.transparenttextures.com/patterns/aged-paper.png'); border: 5px solid #5d4037; }
+                .frame-11 { border: 15px solid #fff; box-shadow: 0 0 10px #000; color: #000; background: #fff; }
+                .frame-11 h1, .frame-11 h2, .frame-11 div { color:#333 !important; } /* Invert Text for light theme */
+                .frame-12 { border: 2px solid var(--theme-color); } .frame-12::after { content:''; position:absolute; top:10px; left:10px; right:10px; bottom:10px; border: 1px solid var(--theme-color); }
+                .frame-13 { border: none; box-shadow: 20px 20px 60px #000; border-radius: 50px; }
+                .frame-14 { border: 2px solid #fff; box-shadow: 0 0 10px #fff, 0 0 20px var(--theme-color); }
+                .frame-15 { border: 20px solid #3e2723; border-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png') 30 stretch; }
+                .frame-16 { border: 10px solid #fff; outline: 1px solid #000; }
+                .frame-17 { border-left: 50px solid var(--theme-color); background: rgba(0,0,0,0.9); }
+                .frame-18 { border: 5px dotted var(--theme-color); border-radius: 10px; }
+                .frame-19 { box-shadow: inset 0 0 50px var(--theme-color); border: 2px solid var(--theme-color); }
+                .frame-20 { border: 10px outset #555; background: #222; }
+
+                /* Common Elements */
                 #fsBtn { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9999; padding:20px; font-size:20px; cursor:pointer; background:var(--theme-color); border:2px solid #fff; }
                 #bgLayer { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; background:transparent; }
+                
                 /* TITLES */
                 #jalsaContent { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; transition: opacity 0.8s ease; opacity:1; }
                 #jalsaContent.hidden { opacity: 0; pointer-events:none; }
                 .jalsa-text { font-family: 'Faruuma', 'Amiri', serif; direction: rtl; text-align: center; }
                 .main-title { font-size: ${designState.mtSize}em; color: ${designState.mtColor}; text-shadow: 2px 2px 10px black; margin-bottom: 20px; border-bottom: 3px solid ${designState.mtColor}; padding-bottom:10px; }
                 .sub-title { font-size: ${designState.stSize}em; color: ${designState.stColor}; text-shadow: 1px 1px 5px black; margin: 8px 0; }
+
                 /* LOGO */
                 #logoWrap { position:absolute; top: ${designState.logoY}px; left:50%; transform:translate(-50%, 0); z-index:20; transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1); display: ${designState.lVis === 'show' ? 'block' : 'none'}; }
                 #logoImg { height:145px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5)); transition:height 0.8s ease; }
                 #logoWrap.live { top: 7.5vh !important; transform:translate(-50%, -50%) !important; background-color: #00281c; padding: 0 10px; border-radius: 50px; }
                 #logoWrap.live #logoImg { height:70px; }
-                /* CARD */
-                #card { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:90vw; max-width:1500px; height:85vh; display:flex; flex-direction:${designState.layoutDir === 'rtl' ? 'row-reverse' : 'row'}; align-items:center; background:rgba(0,40,28,0.95); padding:3vh; box-sizing:border-box; opacity:0; transition:opacity 0.5s ease; z-index:15; }
-                #card.active { opacity:1; }
-                /* Custom Border */
+
                 .custom { border: none !important; box-shadow: none !important; }
-                .custom .corner-thick, .custom .corner-thin, .custom .b1-mask { display: none; }
-                .corner-thick { position:absolute; width:40px; height:40px; border:6px solid var(--theme-color); }
-                .corner-thin { position:absolute; width:70px; height:70px; border:2px solid #ffe57f; }
                 .b0 { border: none !important; box-shadow: none !important; background: transparent !important; }
-                .b0 .corner-thick, .b0 .corner-thin, .b0 .b1-mask { display: none; }
-                .b1 { border:none; box-shadow:0 0 100px #000; }
-                .b1 .tl { top:-8px; left:-8px; border-right:0; border-bottom:0; }
-                .b1 .tr { top:-8px; right:-8px; border-left:0; border-bottom:0; }
-                .b1 .bl { bottom:-8px; left:-8px; border-right:0; border-top:0; }
-                .b1 .br { bottom:-8px; right:-8px; border-left:0; border-top:0; }
-                .b1 .tl-in { top:8px; left:8px; border-right:0; border-bottom:0; }
-                .b1 .tr-in { top:8px; right:8px; border-left:0; border-bottom:0; }
-                .b1 .bl-in { bottom:8px; left:8px; border-right:0; border-top:0; }
-                .b1 .br-in { bottom:8px; right:8px; border-left:0; border-top:0; }
-                .b1-mask { position:absolute; background:var(--theme-color); z-index:-1; }
-                .b2 { border: 4px dashed var(--theme-color); box-shadow: 0 0 20px var(--theme-color); border-radius: 20px; } .b2 .corner-thick, .b2 .corner-thin, .b2 .b1-mask { display: none; }
-                .b3 { border: 10px solid var(--theme-color); border-radius: 30px; box-shadow: inset 0 0 30px #000; } .b3 .corner-thick, .b3 .corner-thin, .b3 .b1-mask { display: none; }
-                .b4 { border: 8px solid transparent; border-image: linear-gradient(45deg, var(--theme-color), #ffe57f, var(--theme-color)) 1; box-shadow: 0 0 15px rgba(212,175,55,0.5); } .b4 .corner-thick, .b4 .corner-thin, .b4 .b1-mask { display: none; }
-                .b5 { border: 2px solid var(--theme-color); outline: 4px solid #00281c; outline-offset: -10px; box-shadow: 0 0 0 6px var(--theme-color); } .b5 .corner-thick, .b5 .corner-thin, .b5 .b1-mask { display: none; }
-                .b6 { border-top: 10px double var(--theme-color); border-bottom: 10px double var(--theme-color); border-left: 2px solid var(--theme-color); border-right: 2px solid var(--theme-color); } .b6 .corner-thick, .b6 .corner-thin, .b6 .b1-mask { display: none; }
-                .b7 { border: 1px solid var(--theme-color); box-shadow: 0 0 50px rgba(0,0,0,0.8); } .b7 .corner-thick, .b7 .corner-thin, .b7 .b1-mask { display: none; }
+
                 /* Data */
                 .font-dv { font-family: 'Faruuma', 'Amiri', serif; } .font-en { font-family: 'Times New Roman', serif; direction:ltr; }
                 h1 { font-size: 5em; margin:0; color:${designState.nameCol}; line-height:1.1; }
@@ -548,17 +695,19 @@
                 .crs-dv { font-size: 2.5em; color:${designState.detCol}; font-weight:bold; }
                 .crs-en { font-size: 2em; color:${designState.detCol}; font-style:italic; margin-bottom:20px; text-align:left; }
                 .comm { background:rgba(212,175,55,0.15); border:2px solid var(--theme-color); padding:20px; font-size:2.2em; color:white; border-radius:10px; text-align:center; width:100%; box-sizing:border-box; }
+                
                 .photo-col { flex:0 0 320px; display:${designState.pVis === 'show' ? 'flex' : 'none'}; justify-content:center; transform:translate(${designState.pX}px, ${designState.pY}px); transition: transform 0.2s ease; }
                 #stuImg { width:${designState.pSize}px; height:${designState.pSize}px; object-fit:cover; border-radius:${designState.pShape}; border:${designState.pBorder === 'on' ? '5px solid var(--theme-color)' : 'none'}; background:${designState.pBorder === 'on' ? '#000' : 'transparent'}; box-shadow:${designState.pBorder === 'on' ? '0 15px 40px rgba(0,0,0,0.8)' : 'none'}; transition: all 0.3s ease; }
                 .text-col { flex:1; text-align:${designState.textAlign}; padding-right:30px; color:white; display:flex; flex-direction:column; justify-content:center; transform: translate(${designState.txtX}px, ${designState.txtY}px); transition: transform 0.2s ease; }
+                
                 #videoLayer { position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:5000; display:none; justify-content:center; align-items:center; }
                 #videoLayer video, #videoLayer iframe { width:100%; height:100%; border:none; }
                 .copyright { position:absolute; bottom:10px; right:10px; font-size:10px; color:rgba(255,255,255,0.3); font-family:sans-serif; z-index:900; }
             </style>
             <script>function goFS(btn){document.documentElement.requestFullscreen(); btn.style.display='none';}<\/script>
         </head>
-        <body>
-            <button id="fsBtn" onclick="goFS(this)">⛶ FULL SCREEN</button>
+        <body class="${designState.mainTheme}">
+            <button id="fsBtn" onclick="goFS(this)">⛶ FULL SCREEN ${id}</button>
             <div id="videoLayer"></div>
             <div id="bgLayer"></div>
             <div id="logoWrap"><img id="logoImg" src="https://via.placeholder.com/180x180/00281c/d4af37?text=LOGO"></div>
@@ -573,9 +722,7 @@
                 </div>
             </div>
             <div id="card" class="${designState.cBorder}">
-                <div class="b1-mask" style="top:0; left:0; width:100%; height:1px;"></div> <div class="b1-mask" style="bottom:0; left:0; width:100%; height:1px;"></div> <div class="b1-mask" style="top:0; left:0; width:1px; height:100%;"></div> <div class="b1-mask" style="top:0; right:0; width:1px; height:100%;"></div>
                 <div class="corner-thick tl"></div><div class="corner-thick tr"></div><div class="corner-thick bl"></div><div class="corner-thick br"></div>
-                <div class="corner-thin tl-in"></div><div class="corner-thin tr-in"></div><div class="corner-thin bl-in"></div><div class="corner-thin br-in"></div>
                 <div class="photo-col"><img id="stuImg" src=""></div>
                 <div class="text-col">
                     <h1 id="tnD" class="font-dv"></h1><h2 id="tnE" class="font-en"></h2>
@@ -588,138 +735,134 @@
         </body>
         </html>`;
 
-        tvWindow.document.write(html);
-        tvWindow.document.close();
+        win.document.write(html);
+        win.document.close();
 
-        if(currentLogoData) tvWindow.document.getElementById('logoImg').src = currentLogoData;
+        // Init Data
+        if(currentLogoData) win.document.getElementById('logoImg').src = currentLogoData;
         updateJalsaBackground();
         updateJalsaText();
+        if(customBorderData) applyStyle('cBorder', designState.cBorder, win.document);
         
-        // Init Custom Border if present
-        if(customBorderData) applyStyle('cBorder', designState.cBorder, tvWindow.document);
-        
-        document.getElementById('connStatus').innerText = "✅ Connected";
+        document.getElementById('connStatus').innerText = "✅ Connected (" + Object.keys(tvWindows).length + ")";
         document.getElementById('connStatus').style.color = "green";
     }
 
     // --- LOGIC ---
     function updateJalsaBackground() {
-        if(!tvWindow || tvWindow.closed || !currentJalsaBgData) return;
-        const bgDiv = tvWindow.document.getElementById('bgLayer');
-        if(currentJalsaBgType === 'video') {
-            bgDiv.innerHTML = `<video id="bgVid" src="${currentJalsaBgData}" autoplay loop muted style="width:100%; height:100%; object-fit:cover; display:${designState.bgLoop === 'on' ? 'block' : 'none'}"></video>`;
-            setTimeout(() => { const v = tvWindow.document.getElementById('bgVid'); if(v) v.play().catch(e=>{}); }, 500);
-        } else {
-            bgDiv.innerHTML = `<img src="${currentJalsaBgData}" style="width:100%; height:100%; object-fit:cover;">`;
-        }
+        Object.values(tvWindows).forEach(win => {
+            if(!win || win.closed) return;
+            const bgDiv = win.document.getElementById('bgLayer');
+            if(currentJalsaBgType === 'video') {
+                bgDiv.innerHTML = `<video id="bgVid" src="${currentJalsaBgData}" autoplay loop muted style="width:100%; height:100%; object-fit:cover; display:${designState.bgLoop === 'on' ? 'block' : 'none'}"></video>`;
+                setTimeout(() => { const v = win.document.getElementById('bgVid'); if(v) v.play().catch(e=>{}); }, 500);
+            } else {
+                bgDiv.innerHTML = `<img src="${currentJalsaBgData}" style="width:100%; height:100%; object-fit:cover;">`;
+            }
+        });
     }
 
     function updateJalsaText() {
-        if(!tvWindow || tvWindow.closed) return;
-        const doc = tvWindow.document;
-        doc.getElementById('jt1').innerText = document.getElementById('jLine1').value;
-        doc.getElementById('jt2').innerText = document.getElementById('jLine2').value;
-        doc.getElementById('jt3').innerText = document.getElementById('jLine3').value;
-        doc.getElementById('jt4').innerText = document.getElementById('jLine4').value;
-        
-        if(currentFontData) {
-             const style = doc.createElement('style');
-             style.innerHTML = `@font-face { font-family: 'Faruuma'; src: url('${currentFontData}') format('truetype'); } .jalsa-text, .font-dv { font-family: 'Faruuma', 'Amiri', serif !important; }`;
-             doc.head.appendChild(style);
-        }
+        Object.values(tvWindows).forEach(win => {
+            if(!win || win.closed) return;
+            const doc = win.document;
+            doc.getElementById('jt1').innerText = document.getElementById('jLine1').value;
+            doc.getElementById('jt2').innerText = document.getElementById('jLine2').value;
+            doc.getElementById('jt3').innerText = document.getElementById('jLine3').value;
+            doc.getElementById('jt4').innerText = document.getElementById('jLine4').value;
+            if(currentFontData) {
+                 const style = doc.createElement('style');
+                 style.innerHTML = `@font-face { font-family: 'Faruuma'; src: url('${currentFontData}') format('truetype'); } .jalsa-text, .font-dv { font-family: 'Faruuma', 'Amiri', serif !important; }`;
+                 doc.head.appendChild(style);
+            }
+        });
     }
 
     function showJalsaScreen() {
-        if(!tvWindow || tvWindow.closed) return;
-        tvWindow.document.getElementById('card').classList.remove('active');
-        tvWindow.document.getElementById('jalsaContent').classList.remove('hidden');
-        
-        const logo = tvWindow.document.getElementById('logoWrap');
-        logo.classList.remove('live');
-        // Check user setting for idle visibility
-        logo.style.display = (designState.lVis === 'show') ? 'block' : 'none';
-
+        Object.values(tvWindows).forEach(win => {
+            if(!win || win.closed) return;
+            win.document.getElementById('card').classList.remove('active');
+            win.document.getElementById('jalsaContent').classList.remove('hidden');
+            const logo = win.document.getElementById('logoWrap');
+            logo.classList.remove('live');
+            logo.style.display = (designState.lVis === 'show') ? 'block' : 'none';
+        });
         document.getElementById('statusMsg').innerText = "Mode: Jalsa";
     }
 
     function updateTV() {
-        if(!tvWindow || tvWindow.closed) { alert("TV Closed!"); return; }
-        
-        tvWindow.document.getElementById('jalsaContent').classList.add('hidden');
-        const logo = tvWindow.document.getElementById('logoWrap');
-        logo.classList.add('live');
-        // Check user setting for live visibility
-        logo.style.display = (designState.lVis === 'show') ? 'block' : 'none';
+        Object.values(tvWindows).forEach(win => {
+            if(!win || win.closed) return;
+            win.document.getElementById('jalsaContent').classList.add('hidden');
+            const logo = win.document.getElementById('logoWrap');
+            logo.classList.add('live');
+            logo.style.display = (designState.lVis === 'show') ? 'block' : 'none';
 
-        const doc = tvWindow.document;
-        doc.getElementById('tnD').textContent = document.getElementById('nD').value;
-        doc.getElementById('tnE').textContent = document.getElementById('nE').value;
-        doc.getElementById('tfD').textContent = document.getElementById('fD').value;
-        doc.getElementById('tfE').textContent = document.getElementById('fE').value;
-        doc.getElementById('tcD').textContent = document.getElementById('cD').value;
-        doc.getElementById('tcE').textContent = document.getElementById('cE').value;
-        doc.getElementById('tcm').textContent = document.getElementById('cm').value;
+            const doc = win.document;
+            doc.getElementById('tnD').textContent = document.getElementById('nD').value;
+            doc.getElementById('tnE').textContent = document.getElementById('nE').value;
+            doc.getElementById('tfD').textContent = document.getElementById('fD').value;
+            doc.getElementById('tfE').textContent = document.getElementById('fE').value;
+            doc.getElementById('tcD').textContent = document.getElementById('cD').value;
+            doc.getElementById('tcE').textContent = document.getElementById('cE').value;
+            doc.getElementById('tcm').textContent = document.getElementById('cm').value;
 
-        const img = doc.getElementById('stuImg');
-        if(currentPhotoData) { img.src = currentPhotoData; img.style.display='block'; }
-        else { img.src = 'https://via.placeholder.com/280x280/00281c/d4af37?text=No+Photo'; }
+            const img = doc.getElementById('stuImg');
+            if(currentPhotoData) { img.src = currentPhotoData; img.style.display='block'; }
+            else { img.src = 'https://via.placeholder.com/280x280/00281c/d4af37?text=No+Photo'; }
 
-        setTimeout(() => doc.getElementById('card').classList.add('active'), 300);
+            setTimeout(() => doc.getElementById('card').classList.add('active'), 300);
+        });
         stopVideo(); 
         document.getElementById('statusMsg').innerText = "On Air: " + document.getElementById('nE').value;
     }
 
     function clearTV() {
-        if(!tvWindow || tvWindow.closed) return;
         showJalsaScreen();
         stopVideo();
         document.getElementById('statusMsg').innerText = "Screen Cleared";
     }
 
-    // --- VIDEO PLAYER (FORCE AUTOPLAY) ---
     function playLocalVideo() {
-        if(!tvWindow || tvWindow.closed) { alert("TV Closed!"); return; }
-        tvWindow.document.getElementById('jalsaContent').classList.add('hidden');
         const file = document.getElementById('videoLocal').files[0];
         if(!file) { alert("Select video!"); return; }
         const url = URL.createObjectURL(file);
         
-        const vl = tvWindow.document.getElementById('videoLayer');
-        vl.innerHTML = `<video id="mainVid" src="${url}" autoplay controls style="width:100%;height:100%;"></video>`;
-        vl.style.display = 'flex';
-        
-        setTimeout(() => { 
-            const v = tvWindow.document.getElementById('mainVid'); 
-            if(v) v.play().catch(e => {
-                alert("Please click ONCE on the TV screen to enable audio auto-play.");
-            }); 
-        }, 100);
+        Object.values(tvWindows).forEach(win => {
+            if(!win || win.closed) return;
+            win.document.getElementById('jalsaContent').classList.add('hidden');
+            const vl = win.document.getElementById('videoLayer');
+            vl.innerHTML = `<video id="mainVid" src="${url}" autoplay controls style="width:100%;height:100%;"></video>`;
+            vl.style.display = 'flex';
+            setTimeout(() => { const v = win.document.getElementById('mainVid'); if(v) v.play().catch(e => {}); }, 100);
+        });
         document.getElementById('statusMsg').innerText = "Playing Video...";
     }
 
     function playYoutube() {
-        if(!tvWindow || tvWindow.closed) { alert("TV Closed!"); return; }
-        tvWindow.document.getElementById('jalsaContent').classList.add('hidden');
         const url = document.getElementById('ytLink').value;
         if(!url) return;
         const match = url.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/);
         const id = (match && match[2].length === 11) ? match[2] : null;
         if(!id) return;
 
-        const vl = tvWindow.document.getElementById('videoLayer');
-        vl.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&mute=0" allow="autoplay; encrypted-media" style="width:100%;height:100%;border:none;"></iframe>`;
-        vl.style.display = 'flex';
+        Object.values(tvWindows).forEach(win => {
+            if(!win || win.closed) return;
+            win.document.getElementById('jalsaContent').classList.add('hidden');
+            const vl = win.document.getElementById('videoLayer');
+            vl.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&mute=0" allow="autoplay; encrypted-media" style="width:100%;height:100%;border:none;"></iframe>`;
+            vl.style.display = 'flex';
+        });
         document.getElementById('statusMsg').innerText = "Playing YouTube...";
     }
 
     function stopVideo() {
-        if(!tvWindow || tvWindow.closed) return;
-        const vl = tvWindow.document.getElementById('videoLayer');
-        vl.innerHTML = ''; vl.style.display = 'none';
-        
-        if(!tvWindow.document.getElementById('card').classList.contains('active')) {
-            showJalsaScreen();
-        }
+        Object.values(tvWindows).forEach(win => {
+            if(!win || win.closed) return;
+            const vl = win.document.getElementById('videoLayer');
+            vl.innerHTML = ''; vl.style.display = 'none';
+            if(!win.document.getElementById('card').classList.contains('active')) { showJalsaScreen(); }
+        });
     }
 
     // --- DATA ---
@@ -775,7 +918,9 @@
         const r = new FileReader();
         r.onload = evt => {
             currentLogoData = evt.target.result;
-            if(tvWindow && !tvWindow.closed) tvWindow.document.getElementById('logoImg').src = currentLogoData;
+            Object.values(tvWindows).forEach(win => {
+                if(win && !win.closed) win.document.getElementById('logoImg').src = currentLogoData;
+            });
         };
         r.readAsDataURL(e.target.files[0]);
     };
@@ -784,11 +929,7 @@
         const r = new FileReader();
         r.onload = evt => {
             customBorderData = evt.target.result;
-            // Update live if custom is selected
-            if(designState.cBorder === 'custom' && tvWindow) {
-                applyStyle('cBorder', 'custom', tvWindow.document);
-            }
-            alert("Custom Frame Loaded!");
+            alert("Custom Frame Loaded! Select 'Custom Frame' in Card Style.");
         };
         r.readAsDataURL(e.target.files[0]);
     };
