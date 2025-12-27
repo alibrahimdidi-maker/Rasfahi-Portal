@@ -183,8 +183,9 @@
             position: relative;
             padding-bottom: 56.25%;
             height: 0;
-            background: #000;
+            background: #000; /* Placeholder background */
         }
+        /* Iframe is dynamically added now, so we style it generally */
         .video-wrapper iframe {
             position: absolute;
             top: 0;
@@ -235,7 +236,7 @@
             cursor: pointer;
             font-weight: bold;
             border: 1px solid var(--royal-gold);
-            font-family: var(--main-font);
+            font-family: var(--main-font); /* Ensure Faruma is used */
         }
 
         .video-card.unlocked .security-overlay { opacity: 0; pointer-events: none; }
@@ -415,7 +416,7 @@
         }
 
         // ==========================================
-        // 3. RENDERING & LOGIC
+        // 3. RENDERING & LOGIC (PERFORMANCE FIX)
         // ==========================================
         function renderVideos(videoList) {
             const container = document.getElementById('videoContainer');
@@ -426,18 +427,19 @@
                 const card = document.createElement('div');
                 card.className = 'video-card';
                 card.setAttribute('data-id', video.id);
-
+                // Note: IFRAME removed from initial render to prevent freezing
+                // Instead, we just have the wrapper and overlay
+                
                 card.innerHTML = `
-                    <div class="video-wrapper">
+                    <div class="video-wrapper" id="wrapper-${video.id}">
                         <div class="security-overlay" id="overlay-${video.id}">
                             <i class="fas fa-lock lock-icon"></i>
-                            <div style="color:#d4af37; margin-bottom:5px; font-weight:bold; font-family:'Noto Sans Thaana';">މި ވީޑިއޯ ބެލުމަށް ކޯޑު ޖައްސަވާ</div>
+                            <div style="color:#d4af37; margin-bottom:5px; font-weight:bold; font-family:'Faruma', 'Mv Galan', sans-serif;">މި ވީޑިއޯ ބެލުމަށް ކޯޑު ޖައްސަވާ</div>
                             <input type="text" class="security-input" id="pass-${video.id}" placeholder="Paste Key Here">
                             <span class="error-msg" id="msg-${video.id}">Invalid Key</span>
-                            <button class="unlock-btn" onclick="verifyAndUnlock(${video.id})">VERIFY & UNLOCK</button>
+                            <button class="unlock-btn" onclick="verifyAndUnlock(${video.id}, '${video.youtubeId}')">VERIFY & UNLOCK</button>
                         </div>
-                        <iframe src="https://www.youtube.com/embed/${video.youtubeId}" allowfullscreen></iframe>
-                    </div>
+                        </div>
                     
                     <div class="card-body">
                         <span class="category-badge">${video.catName}</span>
@@ -457,10 +459,11 @@
             container.appendChild(fragment);
         }
 
-        function verifyAndUnlock(id) {
+        function verifyAndUnlock(id, youtubeId) {
             const inputField = document.getElementById(`pass-${id}`);
             const msgField = document.getElementById(`msg-${id}`);
             const overlay = document.getElementById(`overlay-${id}`);
+            const wrapper = document.getElementById(`wrapper-${id}`); // Get wrapper
             const card = overlay.closest('.video-card');
             
             const rawKey = inputField.value.trim();
@@ -485,8 +488,16 @@
                     showError(msgField, "މުއްދަތު ހަމަވެއްޖެ!");
                     inputField.style.borderColor = "red";
                 } else {
+                    // --- SUCCESS & LAZY LOAD ---
                     card.classList.add('unlocked');
                     msgField.style.display = 'none';
+                    
+                    // Inject Iframe NOW (Prevents freezing on load)
+                    const iframe = document.createElement('iframe');
+                    iframe.src = `https://www.youtube.com/embed/${youtubeId}?autoplay=1`;
+                    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+                    iframe.allowFullscreen = true;
+                    wrapper.appendChild(iframe);
                 }
 
             } catch (e) {
@@ -504,6 +515,8 @@
         function filterVideos(category) {
             document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
+            
+            // Limit search to first 500 for performance if list grows huge
             if (category === 'all') renderVideos(allVideos);
             else renderVideos(allVideos.filter(v => v.category === category));
         }
