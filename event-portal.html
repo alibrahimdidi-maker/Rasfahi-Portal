@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* --- THEME VARIABLES --- */
         :root {
             --royal-blue: #0C2D48;
             --royal-dark: #051626;
@@ -40,7 +39,7 @@
             line-height: 1.8;
         }
 
-        /* --- HEADER & NAV --- */
+        /* HEADER & NAV */
         .top-bar {
             background: var(--royal-dark); color: #ddd; padding: 8px 2%;
             display: flex; justify-content: space-between; font-family: var(--font-en); font-size: 0.9em;
@@ -68,7 +67,7 @@
         .main-menu li a { display: block; padding: 15px; color: var(--royal-blue); font-weight: bold; text-decoration: none; font-size: 1.1em; }
         .main-menu li a:hover { color: var(--royal-gold); }
 
-        /* --- SEARCH BAR --- */
+        /* SEARCH BAR */
         .search-area {
             background: var(--royal-dark); padding: 20px; text-align: center;
             border-bottom: 2px solid var(--royal-gold);
@@ -80,7 +79,7 @@
             font-family: var(--font-en);
         }
 
-        /* --- GRID LAYOUT --- */
+        /* GRID LAYOUT */
         .portal-container {
             max-width: 1600px; margin: 30px auto; padding: 0 20px;
             flex: 1; width: 100%;
@@ -91,7 +90,7 @@
             gap: 20px;
         }
 
-        /* --- CARD DESIGN --- */
+        /* CARD DESIGN */
         .card {
             background: white; border: 1px solid #ddd; border-radius: 8px;
             overflow: hidden; box-shadow: 0 3px 6px rgba(0,0,0,0.05);
@@ -353,7 +352,7 @@
 
         <div class="footer-bottom">
             <div ondblclick="openAdminMode()" style="cursor: pointer; display:inline-block;">
-                &copy; 2025 Zaad Academy. All Rights Reserved. (Authorized Access Only)
+                &copy; 2025 Zaad Academy. All Rights Reserved. (Double Click here for Admin)
             </div>
         </div>
     </footer>
@@ -369,11 +368,17 @@
         </div>
     </div>
 
-    <script id="data-script">
+    <script id="db-storage">
+        // If this array is empty, the system will generate 500 new cards.
+        // When you save via Admin Mode, this array will be populated with your data.
+        var storedData = []; 
+    </script>
+
+    <script>
         // --- DATABASE ---
         var db = []; 
         const TOTAL_CARDS = 500;
-        const CARDS_PER_PAGE = 50; // Optimized for Speed
+        const CARDS_PER_PAGE = 50; 
         
         let currentPage = 1;
         let currentData = []; 
@@ -386,7 +391,11 @@
 
         // --- 1. INITIALIZE ---
         function init() {
-            if(db.length === 0) {
+            // Check if we have saved data in the script tag
+            if(window.storedData && window.storedData.length > 0) {
+                db = window.storedData;
+            } else {
+                // Generate new data if empty
                 for(let i=1; i<=TOTAL_CARDS; i++) {
                     let num = i.toString().padStart(3,'0');
                     db.push({
@@ -416,7 +425,7 @@
                 const idx = item.index; 
                 
                 html += `
-                <div class="card" id="card-${idx}">
+                <div class="card" id="card-${idx}" data-id="${item.id}">
                     <div class="card-header" onclick="toggleCard(${idx})">
                         <div class="cus-id"><i class="fas fa-id-card-alt"></i> ${item.id}</div>
                         <div class="status"><i class="fas fa-lock"></i> Locked</div>
@@ -551,26 +560,31 @@
             link.click();
         }
 
+        // --- ROBUST SAVE FUNCTION ---
         function saveAndDownload() {
-            const dbString = JSON.stringify(db);
-            let html = document.documentElement.outerHTML;
+            // 1. Get current Full HTML
+            let html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
             
-            const startMarker = 'var db = ';
-            const endMarker = '; const TOTAL_CARDS';
-            const startPos = html.indexOf(startMarker);
-            const endPos = html.indexOf(endMarker);
+            // 2. Prepare the new Data String
+            const newDataString = `\n        var storedData = ${JSON.stringify(db)}; \n    `;
             
-            if(startPos > -1 && endPos > -1) {
-                const before = html.substring(0, startPos + startMarker.length);
-                const after = html.substring(endPos);
-                html = before + dbString + after;
+            // 3. Find the script tag by ID and replace its content
+            // We use Regex to find <script id="db-storage"> ... </script>
+            // [\s\S]*? means match everything including newlines non-greedily
+            const regex = /(<script id="db-storage">)([\s\S]*?)(<\/script>)/;
+            
+            if(html.match(regex)) {
+                html = html.replace(regex, `$1${newDataString}$3`);
+                
+                // 4. Download
+                const blob = new Blob([html], {type: "text/html"});
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = "event-portal.html";
+                a.click();
+            } else {
+                alert("Error: Could not find database storage block to update.");
             }
-
-            const blob = new Blob(['<!DOCTYPE html>\n' + html], {type: "text/html"});
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "event-portal.html";
-            a.click();
         }
 
         window.onload = init;
