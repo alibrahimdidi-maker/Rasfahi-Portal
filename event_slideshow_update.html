@@ -2,7 +2,7 @@
 <html lang="dv" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Royal Graduation (V26.0 - Diamond Edition)</title>
+    <title>Royal Graduation (V26.0 - Diamond Edition - Top5 Fixed)</title>
     <style>
         /* 1. Google Font (Backup for Dhivehi) */
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
@@ -15,7 +15,7 @@
 
         /* --- GLOBAL VARIABLES --- */
         :root {
-            --royal-accent: #c5a059;      
+            --royal-accent: #c5a059;       
             --royal-blue-dark: #001b3d;   
             --royal-blue-mid: #0d47a1;    
             --royal-green: #003322;        
@@ -219,6 +219,13 @@
         }
         #sidebarFiles label { font-size: 14px; color: #444; margin-bottom: 3px; }
         #sidebarFiles input[type="file"] { font-size: 12px; padding: 5px; direction: ltr; }
+        
+        .list-switch-btn {
+            background: #eee; border: 1px solid #ccc; padding: 5px; cursor: pointer; flex: 1; font-size: 12px; font-weight: bold;
+        }
+        .list-switch-btn.active {
+            background: var(--royal-blue-mid); color: white; border-color: var(--royal-blue-dark);
+        }
 
         /* --- FULL SCREEN BUTTON --- */
         #cpFsBtn {
@@ -291,9 +298,20 @@
                 
                 <label style="color:#d32f2f;">10. ޕީޑީއެފް (PDF) ޕްރެޒެންޓޭޝަން:</label>
                 <input type="file" id="pdfFile" accept="application/pdf" onchange="loadPDF(this)">
+                
+                <hr style="border: 2px dashed #ffb300;">
+                <label style="color:#ff6f00; font-weight:900;">11. TOP 5 LIST (CSV):</label>
+                <input type="file" id="top5CsvFile" accept=".csv" onchange="loadTop5Csv(this)">
+                
+                <label style="color:#ff6f00; font-weight:900;">12. TOP 5 PHOTOS:</label>
+                <input type="file" id="top5PhotoFolder" webkitdirectory directory multiple onchange="loadTop5Photos(this)">
             </div>
 
             <label style="margin-top:15px; color:#00281c;">🔍 ދަރިވަރުން ހޯއްދަވާ:</label>
+            <div style="display:flex; gap:0; margin-bottom:5px;">
+                <button class="list-switch-btn active" id="btnGenList" onclick="switchListMode('general')">👥 ޢާންމު ލިސްޓު</button>
+                <button class="list-switch-btn" id="btnTop5List" onclick="switchListMode('top5')">🏆 Top 5 ލިސްޓު</button>
+            </div>
             <input type="text" id="search" placeholder="ނަން ޖައްސަވާ..." onkeyup="filterList()">
             
             <select id="stuList" size="10" style="flex-grow:1; border:1px solid #ccc; min-height: 200px;" onchange="loadStudent()"></select>
@@ -329,8 +347,8 @@
                           <input type="checkbox" id="vidOverlayCheck" onchange="toggleOverlayMode(this.checked)"> ވީޑިއޯ މަތީ ކާޑު (Overlay)
                       </label>
                       <label style="font-size:12px; display:inline-flex; align-items:center; color:#c62828;">
-                         <input type="checkbox" id="top5ModeCheck"> <b>Top 5 Banner Mode (Royal)</b>
-                     </label>
+                          <input type="checkbox" id="top5ModeCheck"> <b>Top 5 Banner Mode (Royal)</b>
+                      </label>
                     <button class="btn-vid" style="background:#37474f; width:auto;" onclick="stopVideo()">⏹ Stop</button>
                 </div>
 
@@ -762,6 +780,12 @@
     let tvWindow = null;
     let students = [];
     let photoFiles = {};
+    
+    // Top 5 Separation Arrays
+    let top5Students = [];
+    let top5PhotoFiles = {};
+    let activeListMode = 'general'; // 'general' or 'top5'
+    
     let partnerLogosData = [];
     let mainLogosData = [];
     let adFiles = [];
@@ -1253,8 +1277,8 @@
                 .top5-mode #titleContainer { display: none !important; }
                 
                 .top5-mode #videoLayer {
-                    top: 2%; 
-                    height: 73%; 
+                    top: 5%; /* Moved up so banner fits */
+                    height: 65%; /* Made smaller as requested */
                     width: 80%; 
                     left: 10%;
                     border: 4px solid var(--royal-accent);
@@ -1476,6 +1500,15 @@
             pCol.classList.add('shrink-photo');
         }
 
+        // Auto Toggle Top 5 Mode on TV if activeListMode is top5
+        if(activeListMode === 'top5') {
+            doc.body.classList.add('top5-mode');
+            document.getElementById('top5ModeCheck').checked = true;
+        } else {
+             // Only remove if checkbox is manually unchecked in general mode
+             if(!document.getElementById('top5ModeCheck').checked) doc.body.classList.remove('top5-mode');
+        }
+
         setTimeout(() => doc.getElementById('card').classList.add('active'), 100);
         stopVideo(); 
         document.getElementById('statusMsg').innerText = "LIVE: " + document.getElementById('nE').value;
@@ -1642,7 +1675,8 @@
         const vl = tvWindow.document.getElementById('videoLayer');
         vl.innerHTML = ''; vl.style.display = 'none';
         tvWindow.document.body.classList.remove('overlay-mode');
-        tvWindow.document.body.classList.remove('top5-mode');
+        // Only remove top 5 mode if manually stopped or toggled off, but keep safe
+        if(!document.getElementById('top5ModeCheck').checked) tvWindow.document.body.classList.remove('top5-mode');
         
         // Return to correct state logic
         if(lastActiveState === 'title') {
@@ -1660,13 +1694,15 @@
     
     // 4. PRESENTATION & SMART LINK CONVERTER
     function getSmartLink(url, type) {
-        // Handle YouTube conversion (Fixing the Error)
+        // Handle YouTube conversion (Robust Fix)
         if(url.includes('youtube.com') || url.includes('youtu.be')) {
+            // Regex to find video ID
             const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
             const match = url.match(regExp);
-            if (match && match[2].length == 11) {
-                // Use youtube-nocookie for better privacy/security handling in some browsers
-                return `https://www.youtube-nocookie.com/embed/${match[2]}?autoplay=1&controls=1&rel=0`;
+            if (match && match[2]) {
+                const videoId = match[2];
+                // Use youtube-nocookie for better privacy/security handling
+                return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&rel=0`;
             }
         }
         
@@ -1688,7 +1724,7 @@
 
         // Handle Gamma
         if(type === 'gamma' || (type === 'auto' && url.includes('gamma.app'))) {
-             // Gamma embed usually works by standard URL, but ensure it's clean
+             // Gamma usually works by standard URL, but ensure clean
              return url; 
         }
 
@@ -1817,22 +1853,29 @@
         }; r.readAsDataURL(input.files[0]);
     }
 
+    // --- CSV & PHOTO LOADERS (GENERAL) ---
+    function parseCSV(text) {
+        let lines = text.split('\n');
+        let data = [];
+        lines.forEach(l => {
+            let c = l.split(',');
+            if(c.length>1) {
+                data.push({
+                    nD: c[0]?.trim(), nE: c[1]?.trim(), cD: c[2]?.trim(), cE: c[3]?.trim(), 
+                    fD: c[4]?.trim(), fE: c[5]?.trim(), cm: c[6]?.trim(), ph: c[7]?.trim()
+                });
+            }
+        });
+        return data;
+    }
+
     document.getElementById('csvFile').onchange = e => {
         const r = new FileReader();
         r.onload = ev => {
             let txt = ev.target.result; if(txt.charCodeAt(0)===0xFEFF) txt=txt.substr(1);
-            let lines = txt.split('\n');
-            students = [];
-            lines.forEach(l => {
-                let c = l.split(',');
-                if(c.length>1) {
-                    students.push({
-                        nD: c[0]?.trim(), nE: c[1]?.trim(), cD: c[2]?.trim(), cE: c[3]?.trim(), 
-                        fD: c[4]?.trim(), fE: c[5]?.trim(), cm: c[6]?.trim(), ph: c[7]?.trim()
-                    });
-                }
-            });
-            filterList(); alert("Loaded: " + students.length);
+            students = parseCSV(txt);
+            if(activeListMode === 'general') filterList(); 
+            alert("General List Loaded: " + students.length);
         }; r.readAsText(e.target.files[0]);
     };
 
@@ -1844,8 +1887,45 @@
             let nameNoExt = name.split('.').slice(0, -1).join('.');
             if(nameNoExt) photoFiles[nameNoExt] = f; 
         }
-        alert("Photos: " + e.target.files.length);
+        alert("General Photos: " + e.target.files.length);
     };
+
+    // --- TOP 5 SPECIFIC LOADERS ---
+    function loadTop5Csv(input) {
+        const r = new FileReader();
+        r.onload = ev => {
+            let txt = ev.target.result; if(txt.charCodeAt(0)===0xFEFF) txt=txt.substr(1);
+            top5Students = parseCSV(txt);
+            if(activeListMode === 'top5') filterList();
+            alert("Top 5 List Loaded: " + top5Students.length);
+        }; r.readAsText(input.files[0]);
+    }
+
+    function loadTop5Photos(input) {
+        top5PhotoFiles = {};
+        for(let f of input.files) {
+            let name = f.name.toLowerCase();
+            top5PhotoFiles[name] = f; 
+            let nameNoExt = name.split('.').slice(0, -1).join('.');
+            if(nameNoExt) top5PhotoFiles[nameNoExt] = f; 
+        }
+        alert("Top 5 Photos: " + input.files.length);
+    }
+
+    function switchListMode(mode) {
+        activeListMode = mode;
+        document.getElementById('btnGenList').className = mode === 'general' ? 'list-switch-btn active' : 'list-switch-btn';
+        document.getElementById('btnTop5List').className = mode === 'top5' ? 'list-switch-btn active' : 'list-switch-btn';
+        
+        // Auto check/uncheck the Top 5 checkbox based on list
+        if(mode === 'top5') {
+            document.getElementById('top5ModeCheck').checked = true;
+        } else {
+             document.getElementById('top5ModeCheck').checked = false;
+        }
+        
+        filterList();
+    }
 
     function processPhoto(file, cb) {
         const reader = new FileReader();
@@ -1867,24 +1947,36 @@
     function filterList() {
         let t = document.getElementById('search').value.toLowerCase();
         let l = document.getElementById('stuList'); l.innerHTML = '';
-        students.forEach((s,i) => {
+        
+        let targetArray = activeListMode === 'top5' ? top5Students : students;
+        
+        targetArray.forEach((s,i) => {
             if((s.nD+s.nE).toLowerCase().includes(t)) {
-                let o = document.createElement('option'); o.value=i; o.text=(i+1)+". "+s.nD; l.add(o);
+                let prefix = activeListMode === 'top5' ? "🏆 " : (i+1)+". ";
+                let o = document.createElement('option'); o.value=i; o.text=prefix+s.nD; l.add(o);
             }
         });
     }
 
     function loadStudent() {
         let idx = document.getElementById('stuList').value;
-        let s = students[idx];
+        let targetArray = activeListMode === 'top5' ? top5Students : students;
+        let targetPhotos = activeListMode === 'top5' ? top5PhotoFiles : photoFiles;
+        
+        if(!targetArray[idx]) return;
+
+        let s = targetArray[idx];
         document.getElementById('nD').value = s.nD || ""; document.getElementById('nE').value = s.nE || "";
         document.getElementById('fD').value = s.fD || ""; document.getElementById('fE').value = s.fE || "";
         document.getElementById('cD').value = s.cD || ""; document.getElementById('cE').value = s.cE || "";
         document.getElementById('cm').value = s.cm || "";
+        
         let pName = s.ph ? s.ph.trim().toLowerCase() : "";
         let prev = document.getElementById('previewImg');
         let stat = document.getElementById('pStat');
-        let foundFile = photoFiles[pName]; 
+        
+        let foundFile = targetPhotos[pName]; 
+        
         if(foundFile) {
             stat.innerText = "Loading...";
             processPhoto(foundFile, d => {
@@ -1900,7 +1992,8 @@
     function move(d) {
         let l = document.getElementById('stuList');
         if(l.options.length) {
-            l.selectedIndex = Math.min(Math.max(l.selectedIndex+d, 0), l.options.length-1);
+            let newIdx = Math.min(Math.max(l.selectedIndex+d, 0), l.options.length-1);
+            l.selectedIndex = newIdx;
             loadStudent();
         }
     }
