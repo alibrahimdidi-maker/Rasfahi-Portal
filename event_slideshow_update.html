@@ -2,7 +2,7 @@
 <html lang="dv" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Royal Graduation (V27.0 - Ultimate Edition - Top5 Freedom)</title>
+    <title>Royal Graduation (V28.0 - Ultimate Edition - Dedicated Top5 Video)</title>
     <style>
         /* 1. Google Font (Backup for Dhivehi) */
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
@@ -245,8 +245,8 @@
 
     <div id="securityOverlay">
         <div class="sec-box">
-            <h1 style="color:#fff; font-size:45px; margin-bottom:10px; text-shadow:0 2px 5px #000;">Royal Graduation V27.0</h1>
-            <p style="color:#a0c4ff; font-size:18px; margin-bottom:30px;">🔒 ULTIMATE EDITION - TOP 5 FREEDOM</p>
+            <h1 style="color:#fff; font-size:45px; margin-bottom:10px; text-shadow:0 2px 5px #000;">Royal Graduation V28.0</h1>
+            <p style="color:#a0c4ff; font-size:18px; margin-bottom:30px;">🔒 ULTIMATE EDITION - TOP 5 VIDEO FIXED</p>
             <input type="password" id="licenseKey" class="sec-input" placeholder="Enter Key...">
             <button class="sec-btn" onclick="verifyLicense()">AUTHENTICATE</button>
             <p id="secMsg" style="color:#ff5252; font-size:16px; margin-top:20px; font-weight:bold;"></p>
@@ -305,6 +305,9 @@
                 
                 <label style="color:#ff6f00; font-weight:900;">12. TOP 5 PHOTOS:</label>
                 <input type="file" id="top5PhotoFolder" webkitdirectory directory multiple onchange="loadTop5Photos(this)">
+                
+                <label style="color:#ff6f00; font-weight:900;">13. TOP 5 VIDEOS:</label>
+                <input type="file" id="top5VideoFiles" accept="video/*" multiple onchange="loadTop5Videos(this)">
             </div>
 
             <label style="margin-top:15px; color:#00281c;">🔍 ދަރިވަރުން ހޯއްދަވާ:</label>
@@ -338,6 +341,7 @@
                 <div style="font-weight:bold; color:#0277bd; margin-bottom:5px;">🎞️ ވީޑިއޯ ޕްލޭޔަރ & ޕްރެޒެންޓޭޝަން</div>
                 
                 <div style="display:flex; gap:8px;">
+                    <label style="width:70%; font-size:12px; color:#555;">General Video Playlist:</label>
                     <input type="file" id="videoPlaylist" accept="video/*" multiple style="width:70%">
                     <button class="btn-vid" style="background:#ef6c00; width:30%;" onclick="playNextVideo()">▶ Next Video</button>
                 </div>
@@ -802,6 +806,7 @@
     let top5Students = [];
     let top5PhotoFiles = {};
     let activeListMode = 'general'; 
+    let top5VideoPlaylist = []; // New dedicated playlist
     
     let partnerLogosData = [];
     let mainLogosData = [];
@@ -931,7 +936,7 @@
 
     function downloadConfig() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(designState));
-        const a = document.createElement('a'); a.href = dataStr; a.download = "royal_config_v27.json"; document.body.appendChild(a); a.click(); a.remove();
+        const a = document.createElement('a'); a.href = dataStr; a.download = "royal_config_v28.json"; document.body.appendChild(a); a.click(); a.remove();
     }
 
     function loadConfig(input) {
@@ -1006,7 +1011,6 @@
             const card = doc.getElementById('card');
             card.classList.remove('t5-bottom', 't5-left', 't5-right');
             card.classList.add('t5-' + value);
-            // Re-trigger size update to switch units if needed
             liveUpdate('t5CardW', designState.t5CardW);
             liveUpdate('t5CardH', designState.t5CardH);
         }
@@ -1091,7 +1095,6 @@
             const card = doc.getElementById('card');
             if(card) {
                 card.className = ''; card.classList.add(value);
-                // Also add current Top5 layout class if mode is active
                 if(document.getElementById('top5ModeCheck').checked) card.classList.add('t5-'+designState.t5Layout);
                 
                 if(value === 'custom' && customBorderData) {
@@ -1572,7 +1575,7 @@
         document.getElementById('statusMsg').innerText = "CLEARED";
     }
 
-    // --- VIDEO & ADS & PRESENTATION V27 ---
+    // --- VIDEO & ADS & PRESENTATION V28 ---
     
     function loadPartnerLogos(input) {
         partnerLogosData = [];
@@ -1665,15 +1668,25 @@
     document.getElementById('videoPlaylist').onchange = e => {
         playlist = Array.from(e.target.files);
         currentVidIdx = 0;
-        alert(playlist.length + " Videos Queued.");
+        alert(playlist.length + " General Videos Queued.");
     };
+    
+    function loadTop5Videos(input) {
+        top5VideoPlaylist = Array.from(input.files);
+        currentVidIdx = 0;
+        alert(top5VideoPlaylist.length + " Top 5 Videos Queued.");
+    }
 
     function playNextVideo() {
         if(!tvWindow || tvWindow.closed) return;
-        if(playlist.length === 0) { alert("Playlist empty!"); return; }
-        if(currentVidIdx >= playlist.length) currentVidIdx = 0;
         
-        playLocalVideoFile(playlist[currentVidIdx]);
+        let targetList = activeListMode === 'top5' ? top5VideoPlaylist : playlist;
+        let listName = activeListMode === 'top5' ? "Top 5" : "General";
+        
+        if(targetList.length === 0) { alert(listName + " Playlist empty!"); return; }
+        if(currentVidIdx >= targetList.length) currentVidIdx = 0;
+        
+        playLocalVideoFile(targetList[currentVidIdx]);
         currentVidIdx++;
     }
 
@@ -1950,6 +1963,8 @@
         }
         
         filterList();
+        // Reset Video Index when switching modes
+        currentVidIdx = 0;
     }
 
     function processPhoto(file, cb) {
