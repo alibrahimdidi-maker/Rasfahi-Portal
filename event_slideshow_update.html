@@ -1900,12 +1900,11 @@
         alert(top5VideoPlaylist.length + " Top 5 Videos Queued.");
     }
 
-    // --- SMART SEARCH VIDEO FUNCTION ---
-    // --- SMART SEARCH (DUAL LANGUAGE: DHIVEHI & ENGLISH) ---
+    // --- NEXT VIDEO FUNCTION (SMART SEARCH + AUTO TV UPDATE) ---
     function playNextVideo() {
         if(!tvWindow || tvWindow.closed) return;
 
-        // 1. Select correct list based on mode
+        // 1. Select correct list
         let targetStudentList = activeListMode === 'top5' ? top5Students : students;
         let targetVideoFiles = activeListMode === 'top5' ? top5VideoPlaylist : playlist;
 
@@ -1913,55 +1912,70 @@
         if(targetStudentList.length === 0) { alert("Student List is empty!"); return; }
         if(targetVideoFiles.length === 0) { alert("No Videos Loaded!"); return; }
         
-        // Reset index if we reached the end
+        // Reset index if needed
         if(currentVidIdx >= targetStudentList.length) currentVidIdx = 0;
 
         // 3. Get Student Data
         let studentData = targetStudentList[currentVidIdx];
         if(!studentData) return;
 
-        // Prepare Search Terms (Both Dhivehi and English)
+        // Prepare Search Terms (Dhivehi & English)
         let nameDhivehi = studentData.nD ? studentData.nD.trim() : "";
         let nameEnglish = studentData.nE ? studentData.nE.trim().toLowerCase() : "";
         
-        // Remove extra spaces from names to improve matching
+        // Clean names
         nameDhivehi = nameDhivehi.replace(/\s+/g, ' ');
         nameEnglish = nameEnglish.replace(/\s+/g, ' ');
 
-        console.log("Searching for video: " + nameDhivehi + " OR " + nameEnglish);
+        console.log("Searching Next: " + nameDhivehi + " OR " + nameEnglish);
 
-        // 4. FIND VIDEO: Check if filename matches EITHER Dhivehi OR English name
+        // 4. FIND VIDEO
         let foundVideo = targetVideoFiles.find(file => {
-            // Decode file name (fixes some Dhivehi character issues)
             let fileName = decodeURIComponent(file.name);
             let fileNameLower = fileName.toLowerCase().replace(/\s+/g, ' ');
-
-            // Check match
+            
             let matchDhivehi = (nameDhivehi.length > 0) && fileName.includes(nameDhivehi);
             let matchEnglish = (nameEnglish.length > 0) && fileNameLower.includes(nameEnglish);
-
+            
             return matchDhivehi || matchEnglish;
         });
 
         if(foundVideo) {
-            // Video Found!
+            // Play Video
             playLocalVideoFile(foundVideo);
             
-            // Auto-select student in the sidebar list
+            // Highlight Student & Load Data
             let listElement = document.getElementById('stuList');
             if(listElement.options.length > currentVidIdx) {
                 listElement.selectedIndex = currentVidIdx;
-                loadStudent(); // Show text/photo on card
+                loadStudent(); 
+
+                // --- FORCE UPDATE TEXT ON TV ---
+                if(tvWindow && !tvWindow.closed) {
+                    let doc = tvWindow.document;
+                    doc.getElementById('tnD').textContent = studentData.nD || "";
+                    doc.getElementById('tnE').textContent = studentData.nE || "";
+                    doc.getElementById('tfD').textContent = studentData.fD || "";
+                    doc.getElementById('tfE').textContent = studentData.fE || "";
+                    doc.getElementById('tcD').textContent = studentData.cD || "";
+                    doc.getElementById('tcE').textContent = studentData.cE || "";
+                    
+                    if(studentData.rank) {
+                        doc.getElementById('rankNum').innerText = studentData.rank;
+                        doc.getElementById('trophyWrap').style.display = 'flex';
+                    } else {
+                        doc.getElementById('trophyWrap').style.display = 'none';
+                    }
+                }
+                // -------------------------------
             }
 
-            // Update status
             document.getElementById('statusMsg').innerText = "PLAYING: " + studentData.nD;
             
-            // Move to next student for next click
+            // Move index forward for the next click
             currentVidIdx++; 
         } else {
-            // Error Message
-            alert("⚠️ ވީޑިއޯއެއް ނުފެނުނު!\n\nދަރިވަރު: " + studentData.nD + " (" + studentData.nE + ")\n\nވީޑިއޯ ފައިލްގެ ނަމުގައި ކުއްޖާގެ ދިވެހި ނަން ނުވަތަ އިނގިރޭސި ނަން ހިމަނުއްވާ!");
+            alert("⚠️ ވީޑިއޯއެއް ނުފެނުނު!\n\nދަރިވަރު: " + studentData.nD);
         }
     }
 
