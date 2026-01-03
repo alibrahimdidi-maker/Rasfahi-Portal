@@ -1892,17 +1892,58 @@
         alert(top5VideoPlaylist.length + " Top 5 Videos Queued.");
     }
 
+    // --- SMART SEARCH VIDEO FUNCTION ---
     function playNextVideo() {
         if(!tvWindow || tvWindow.closed) return;
+
+        // 1. Select correct list based on mode
+        let targetStudentList = activeListMode === 'top5' ? top5Students : students;
+        let targetVideoFiles = activeListMode === 'top5' ? top5VideoPlaylist : playlist;
+
+        // 2. Safety Checks
+        if(targetStudentList.length === 0) { alert("Student List is empty!"); return; }
+        if(targetVideoFiles.length === 0) { alert("No Videos Loaded!"); return; }
         
-        let targetList = activeListMode === 'top5' ? top5VideoPlaylist : playlist;
-        let listName = activeListMode === 'top5' ? "Top 5" : "General";
+        // Reset index if we reached the end
+        if(currentVidIdx >= targetStudentList.length) currentVidIdx = 0;
+
+        // 3. Get the Student Name (English)
+        let studentData = targetStudentList[currentVidIdx];
+        if(!studentData) return;
+
+        let searchName = studentData.nE.trim().toLowerCase(); 
         
-        if(targetList.length === 0) { alert(listName + " Playlist empty!"); return; }
-        if(currentVidIdx >= targetList.length) currentVidIdx = 0;
-        
-        playLocalVideoFile(targetList[currentVidIdx]);
-        currentVidIdx++;
+        // Clean name to remove extra spaces for better matching
+        // Example: "Ahmed  Ali" -> "ahmed ali"
+        searchName = searchName.replace(/\s+/g, ' ');
+
+        console.log("Looking for video for: " + searchName);
+
+        // 4. FIND VIDEO: Check if file name contains the student's name
+        let foundVideo = targetVideoFiles.find(file => {
+            let fileName = file.name.toLowerCase().replace(/\s+/g, ' '); // Clean filename too
+            return fileName.includes(searchName);
+        });
+
+        if(foundVideo) {
+            // Video Found!
+            playLocalVideoFile(foundVideo);
+            
+            // Auto-select student in the sidebar list
+            let listElement = document.getElementById('stuList');
+            if(listElement.options.length > currentVidIdx) {
+                listElement.selectedIndex = currentVidIdx;
+                loadStudent(); // Show text/photo on card
+            }
+
+            document.getElementById('statusMsg').innerText = "PLAYING: " + studentData.nE;
+            
+            // Move to next student for next click
+            currentVidIdx++; 
+        } else {
+            // Error Message if video not found
+            alert("⚠️ ވީޑިއޯއެއް ނުފެނުނު!\n\nStudent: " + studentData.nE + "\n\nPlease rename the video file to include this name.");
+        }
     }
 
     function toggleOverlayMode(enabled) {
