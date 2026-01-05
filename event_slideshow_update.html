@@ -1140,6 +1140,28 @@
         const a = document.createElement('a'); a.href = dataStr; a.download = "royal_config_v33.json"; document.body.appendChild(a); a.click(); a.remove();
     }
 
+   // --- NEW UPDATED SAVE/LOAD FUNCTIONS (SAVES TITLES & STYLES) ---
+
+    function downloadConfig() {
+        // 1. Save Subtitle Specific Styles (stStyles is global, so we add it to designState temporarily)
+        designState.savedStStyles = stStyles;
+
+        // 2. Save Written Titles (Saves what you typed in the boxes)
+        designState.savedTitles = {
+            t1: document.getElementById('jLine1').value,
+            t2: document.getElementById('jLine2').value,
+            t3: document.getElementById('jLine3').value,
+            t4: document.getElementById('jLine4').value,
+            t5: document.getElementById('jLine5').value,
+            t6: document.getElementById('jLine6').value,
+            t7: document.getElementById('jLine7').value,
+            t8: document.getElementById('jLine8').value
+        };
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(designState));
+        const a = document.createElement('a'); a.href = dataStr; a.download = "royal_config_v33_full.json"; document.body.appendChild(a); a.click(); a.remove();
+    }
+
     function loadConfig(input) {
         const file = input.files[0]; if(!file) return;
         const reader = new FileReader();
@@ -1148,21 +1170,47 @@
                 const loaded = JSON.parse(e.target.result);
                 Object.assign(designState, loaded);
                 
+                // --- RESTORE SUBTITLE STYLES ---
+                if(loaded.savedStStyles) {
+                    stStyles = loaded.savedStStyles;
+                }
+
+                // --- RESTORE WRITTEN TITLES ---
+                if(loaded.savedTitles) {
+                    document.getElementById('jLine1').value = loaded.savedTitles.t1 || "";
+                    document.getElementById('jLine2').value = loaded.savedTitles.t2 || "";
+                    document.getElementById('jLine3').value = loaded.savedTitles.t3 || "";
+                    document.getElementById('jLine4').value = loaded.savedTitles.t4 || "";
+                    document.getElementById('jLine5').value = loaded.savedTitles.t5 || "";
+                    document.getElementById('jLine6').value = loaded.savedTitles.t6 || "";
+                    document.getElementById('jLine7').value = loaded.savedTitles.t7 || "";
+                    document.getElementById('jLine8').value = loaded.savedTitles.t8 || "";
+                }
+
                 if(tvWindow && !tvWindow.closed) { 
                     for (const key in designState) { liveUpdate(key, designState[key]); }
                     renderMainLogos(); 
+                    
+                    // Force update titles visually on TV
+                    updateJalsaText();
                 }
+                
+                // Update checkbox states based on loaded settings
                 if(designState.plAutoHide !== undefined) document.getElementById('plAutoHideCheck').checked = designState.plAutoHide;
                 if(designState.logoAutoHide !== undefined) document.getElementById('logoAutoHideCheck').checked = designState.logoAutoHide;
                 if(designState.keepTitle !== undefined) document.getElementById('keepTitleCheck').checked = designState.keepTitle;
                 if(designState.t5Layout !== undefined) document.getElementById('t5LayoutSel').value = designState.t5Layout;
+                
                 refreshLogoInputs();
-                alert("Settings Loaded Successfully!");
-            } catch(err) { alert("Invalid Config File"); }
+                alert("Settings & Titles Loaded Successfully!");
+
+            } catch(err) { 
+                console.error(err);
+                alert("Invalid Config File"); 
+            }
         };
         reader.readAsText(file);
     }
-    
     function setVal(id, val) { const el = document.getElementById(id); if(el) el.value = val; }
 
     function applyPhotoPreset(val) {
