@@ -273,7 +273,7 @@
             <button class="launch-btn" onclick="openTV()">🖥️ 1. ޓީވީ ސްކްރީން ހުޅުއްވާ</button>
             <div id="connStatus" style="font-size:14px; color:red; text-align:center; background:#ffebee; padding:4px; border-radius:4px; margin-bottom:10px; border:1px solid #ffcdd2;">ކަނެކްޓް ނުވޭ</div>
 
-            <div class="config-btn-row">
+            <div id="configPanel" class="config-btn-row">
                 <button class="conf-btn" onclick="downloadConfig()">⬇ ސޭވް ސެޓިންގްސް</button>
                 <button class="conf-btn" onclick="document.getElementById('confInput').click()">⬆ ލޯޑް ސެޓިންގްސް</button>
                 <input type="file" id="confInput" accept=".json" style="display:none" onchange="loadConfig(this)">
@@ -336,9 +336,9 @@
         </div>
 
         <div class="editor" id="editorPanel">
-            <div style="background:#fff; padding:10px; border-radius:8px; border:2px solid #000; margin-bottom:15px; text-align:center;">
+            <div id="infoPanel" style="background:#fff; padding:20px; border-radius:10px; border:2px solid #90caf9; margin:15px 0; box-shadow:0 3px 10px rgba(0,0,0,0.05);">
                 <label style="color:#d32f2f;">🚀 SCENE SWITCHER (ގަޑި ނުޖެހި ބަދަލުކުރައްވާ):</label>
-                <div style="display:flex; gap:5px; margin-top:5px;">
+                <div id="listPanel" style="display:flex; gap:0; margin-bottom:5px;">
                     <button class="btn-live" style="background:#455a64; border-color:#37474f;" onclick="showJalsaScreen()">🏠 TITLE SCREEN</button>
                     <button class="btn-live" style="background:#0d47a1; border-color:#002171;" onclick="forceStudentCard()">🎓 STUDENT</button>
                     <button class="btn-live" style="background:#ff6f00; border-color:#c43e00;" onclick="forceTop5()">🏆 TOP 5</button>
@@ -1088,29 +1088,53 @@
         tvWindow.document.getElementById('mainLogosContainer').style.opacity = designState.logoVisible ? '1' : '0';
     }
 
-    // --- LOCK FUNCTION ---
+    // --- LOCK FUNCTION (ULTIMATE FIX - DISABLES ALL INPUTS) ---
     function toggleLock() {
         isLocked = !isLocked;
         const btn = document.getElementById('lockBtn');
-        const designPanel = document.getElementById('designPanel');
-        const sidebarFiles = document.getElementById('sidebarFiles');
-        const searchInput = document.getElementById('search');
+        
+        // 1. ލޮކް ކުރަން ބޭނުންވާ ޕެނަލްތަކުގެ ނަންތައް
+        const panelIds = ['designPanel', 'sidebarFiles', 'infoPanel', 'configPanel', 'listPanel'];
+
+        // 2. ލޮކް ކުރަން ބޭނުންވާ ހުރިހާ އިންޕުޓްތައް ހޮވާލުން
+        // (Design, Files, Info, Settings, Lists)
+        const inputsToLock = document.querySelectorAll(
+            '#designPanel input, #designPanel select, #designPanel button, ' +
+            '#sidebarFiles input, #sidebarFiles select, #sidebarFiles button, ' +
+            '#infoPanel input, #infoPanel textarea, #infoPanel button, ' +
+            '#configPanel button, ' +
+            '#listPanel button, #search'
+        );
 
         if (isLocked) {
+            // --- LOCK MODE ON ---
             btn.innerHTML = "🔒 SYSTEM LOCKED (LIVE MODE)";
             btn.classList.add('active');
-            designPanel.classList.add('locked-zone');
-            sidebarFiles.classList.add('locked-zone');
-            if(searchInput) searchInput.disabled = true;
+            
+            // ކުލަ ފަނޑުކޮށްލުން (Visual Lock)
+            panelIds.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.classList.add('locked-zone');
+            });
+
+            // ހުރިހާ އެއްޗެއް ހުއްޓުވާލުން (Functional Lock - Disable)
+            inputsToLock.forEach(el => el.disabled = true);
+            
         } else {
+            // --- UNLOCK MODE ---
             btn.innerHTML = "🔓 UNLOCKED (Edit Mode)";
             btn.classList.remove('active');
-            designPanel.classList.remove('locked-zone');
-            sidebarFiles.classList.remove('locked-zone');
-            if(searchInput) searchInput.disabled = false;
+            
+            // ކުލަ އަނބުރާ ގެނައުން
+            panelIds.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.classList.remove('locked-zone');
+            });
+
+            // ހުރިހާ އެއްޗެއް ހުޅުވާލުން (Enable)
+            inputsToLock.forEach(el => el.disabled = false);
         }
     }
-
     function downloadConfig() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(designState));
         const a = document.createElement('a'); a.href = dataStr; a.download = "royal_config_v33.json"; document.body.appendChild(a); a.click(); a.remove();
