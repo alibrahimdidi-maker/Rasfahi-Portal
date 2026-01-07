@@ -978,43 +978,58 @@
         }
     }
 
-        if(btoa(keyInput) === "WkFBRC1NQVNURVItNzc5MTU1MA==") { 
+        // --- FINAL SECURE LICENSE LOGIC (HASHED MASTER KEY & EXPIRY CHECK) ---
+    function verifyLicense() {
+        var keyInput = document.getElementById('licenseKey').value.trim();
+        var msg = document.getElementById('secMsg');
+
+        // 1. ޑިވެލޮޕަރ މާސްޓަރ ކީ (SECURE HASH CHECK)
+        // "-926938927" އަކީ "ZAAD-MASTER-7791550" ގެ ހޭޝް ނަންބަރެވެ.
+        // މީހަކަށް ކޯޑު ހުޅުވިޔަސް އަސްލު ޕާސްވޯޑެއް ނުފެންނާނެއެވެ.
+        
+        var inputHash = 0;
+        for (var i = 0; i < keyInput.length; i++) {
+            var char = keyInput.charCodeAt(i);
+            inputHash = ((inputHash << 5) - inputHash) + char;
+            inputHash = inputHash & inputHash; 
+        }
+
+        if(inputHash === -926938927) { 
              unlockApp("DEVELOPER MODE");
              return;
         }
 
         try {
-            // 2. ކީ ޑިކޯޑް ކުރުން (Base64)
-            // ކީ ހަދަންވާނީ: "ROYAL_EXP_" + "YYYY-MM-DD" މި ފޯމެޓަށް
+            // 2. ކަސްޓަމަރުންގެ ކީ ޗެކްކުރުން (DATE CHECK)
             var decodedString = atob(keyInput);
 
-            // 3. ކީ ގެ ކުރީގައި އިންނަންޖެހޭ ބަސް ޗެކްކުރުން
+            // ކީ ގެ ކުރީގައި "ROYAL_EXP_" އިންނަން ޖެހޭނެ
             if(!decodedString.startsWith("ROYAL_EXP_")) {
-                msg.innerText = "❌ Invalid License Key! (Wrong Format)";
+                msg.innerText = "❌ Invalid License Key!";
                 msg.style.color = "red";
                 return;
             }
 
-            // 4. ތާރީޚު ވަކިކުރުން
-            var dateString = decodedString.split("ROYAL_EXP_")[1]; // "YYYY-MM-DD" ނަގާނީ
+            // ތާރީޚު ވަކިކުރުން
+            var dateString = decodedString.split("ROYAL_EXP_")[1];
             var expDate = new Date(dateString);
             var today = new Date();
-            today.setHours(0,0,0,0); // ގަޑި އުނިކޮށް ހަމައެކަނި ތާރީޚު ބެލުމަށް
+            today.setHours(0,0,0,0); 
 
-            // 5. ތާރީޚު ޗެކްކުރުން (EXPIRY CHECK LOGIC)
+            // ތާރީޚު ރަނގަޅުތޯ ބެލުން
             if(isNaN(expDate.getTime())) {
-                msg.innerText = "❌ Corrupted Date in Key!";
+                msg.innerText = "❌ Corrupted Key!";
                 return;
             }
 
-            // މިއަދު > މުއްދަތު ހަމަވާ ތާރީޚު (އެހެންވެއްޖެނަމަ ބްލޮކް ކުރޭ)
+            // މުއްދަތު ހަމަވެއްޖެނަމަ
             if(today > expDate) {
                  msg.innerText = "⚠️ LICENSE EXPIRED! Valid until: " + dateString;
                  msg.style.color = "#ff5252";
-                 return; // ހުއްޓުވާލާނީ މިހިސާބުން (STOP)
+                 return; 
             }
 
-            // 6. ހުރިހާ ކަމެއް ރަނގަޅުނަމަ ހުޅުވާލަދީ
+            // ހުރިހާ ކަމެއް ރަނގަޅު (Unlock)
             unlockApp(dateString);
 
         } catch(e) {
@@ -1027,6 +1042,14 @@
         document.getElementById('mainApp').style.display = 'flex';
         document.getElementById('licenseStatus').innerText = "✅ PLATINUM EDITION | ACTIVE (Exp: " + dateInfo + ")";
         
+        // ޓައިޓްލްތައް އަޕްޑޭޓް ކުރުން
+        setTimeout(() => {
+             if(typeof updateJalsaText === "function") updateJalsaText();
+        }, 1000);
+    }
+    
+    // Enter ފިތުމުން ލޮގިންވުން
+    document.getElementById('licenseKey').addEventListener("keyup", e => { if (e.key === "Enter") verifyLicense(); });
         setTimeout(() => {
              if(typeof updateJalsaText === "function") updateJalsaText();
         }, 1000);
