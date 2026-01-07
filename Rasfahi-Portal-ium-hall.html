@@ -981,48 +981,52 @@
 function verifyLicense() {
         var keyInput = document.getElementById('licenseKey').value.trim();
         var msg = document.getElementById('secMsg');
+        var today = new Date();
 
-        // (މިތަނުގައި އިން ZAAD-MASTER ގެ 4 ފޮޅުވަތް މިހާރު ވާނީ ފޮހެލާފައި)
-        // އެ ނޫން އެހެން އެއްވެސް ތަނެއް ނުފޮހެލައްވާ!
+        // ހުސްކޮށް އިންނަމަ
+        if (!keyInput) {
+            msg.innerText = "❌ Please enter a key";
+            msg.style.color = "red";
+            return;
+        }
 
         try {
-            // 2. ކީ ޑިކޯޑް ކުރުން (Base64)
-            var decodedString = atob(keyInput);
+            // 1. REVERSE THE KEY (ޖެނެރޭޓަރުން ހެދި ގޮތަށް އަނބުރާލުން)
+            // މިސާލު: "==QWE..." -> "...EWQ=="
+            var reversedKey = keyInput.split('').reverse().join('');
 
-            // 3. ކީ ގެ ކުރީގައި އިންނަންޖެހޭ ބަސް ޗެކްކުރުން
-            if(!decodedString.startsWith("ROYAL_EXP_")) {
-                msg.innerText = "❌ Invalid License Key! (Wrong Format)";
-                msg.style.color = "red";
-                return;
+            // 2. DECODE BASE64 (އަސްލު ލިޔުންގަނޑު ހޯދުން)
+            var jsonString = atob(reversedKey);
+
+            // 3. PARSE JSON (މައުލޫމާތު ވަކިކުރުން)
+            var data = JSON.parse(jsonString);
+
+            // 4. CHECK SECURITY SALT (ސިއްރު ބަސް ދިމާވޭތޯ ބެލުން)
+            // ޖެނެރޭޓަރުގައި އިން ބަސް: "ROYAL_V5_SECURE"
+            if (data.s !== "ROYAL_V5_SECURE") {
+                throw new Error("Invalid Security Signature");
             }
 
-            // 4. ތާރީޚު ވަކިކުރުން
-            var dateString = decodedString.split("ROYAL_EXP_")[1]; // "YYYY-MM-DD" ނަގާނީ
-            var expDate = new Date(dateString);
-            var today = new Date();
-            today.setHours(0,0,0,0); // ގަޑި އުނިކޮށް ހަމައެކަނި ތާރީޚު ބެލުމަށް
-
-            // 5. ތާރީޚު ޗެކްކުރުން (EXPIRY CHECK LOGIC) <--- މިބައި އިންނަންވާނެ!
-            if(isNaN(expDate.getTime())) {
-                msg.innerText = "❌ Corrupted Date in Key!";
-                return;
+            // 5. CHECK EXPIRY DATE (ތާރީޚު ހަމަވެއްޖެތޯ ބެލުން)
+            var expiryDate = new Date(data.e);
+            
+            if (today > expiryDate) {
+                // މުއްދަތު ހަމަވެއްޖެނަމަ
+                msg.innerText = "⚠️ LICENSE EXPIRED on: " + expiryDate.toDateString();
+                msg.style.color = "#ff5252";
+            } else {
+                // ހުރިހާ ކަމެއް ރަނގަޅުނަމަ - ހުޅުވާލަދީ!
+                // data.n އަކީ ކަސްޓަމަރުގެ ނަން
+                unlockApp(expiryDate.toDateString() + " | Client: " + (data.n || "User"));
             }
 
-            // މިއަދު > މުއްދަތު ހަމަވާ ތާރީޚު (އެހެންވެއްޖެނަމަ ބްލޮކް ކުރޭ)
-            if(today > expDate) {
-                 msg.innerText = "⚠️ LICENSE EXPIRED! Valid until: " + dateString;
-                 msg.style.color = "#ff5252";
-                 return; // ހުއްޓުވާލާނީ މިހިސާބުން (STOP)
-            }
-
-            // 6. ހުރިހާ ކަމެއް ރަނގަޅުނަމަ ހުޅުވާލަދީ
-            unlockApp(dateString);
-
-        } catch(e) {
-            msg.innerText = "❌ Invalid Key Format";
+        } catch (e) {
+            // ކީ ނުބައި ނަމަ ނުވަތަ ފޯމެޓް ގޯސްނަމަ
+            console.error(e);
+            msg.innerText = "❌ Invalid License Key!";
+            msg.style.color = "red";
         }
     }
-
     function unlockApp(dateInfo) {
         document.getElementById('securityOverlay').style.display = 'none';
         document.getElementById('mainApp').style.display = 'flex';
