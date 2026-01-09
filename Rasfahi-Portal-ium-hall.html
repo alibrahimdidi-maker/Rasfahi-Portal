@@ -2572,16 +2572,83 @@ body.triple-active #card {
         }
     }
     
-    // --- SMART LINK CONVERTER (UPDATED FOR GAMMA) ---
+    // --- SMART LINK CONVERTER (FIXED FOR YOUTUBE & SHORTS) ---
     function getSmartLink(url, type) {
-        // YouTube
-        if(url.includes('youtube.com') || url.includes('youtu.be')) {
-            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-            const match = url.match(regExp);
-            if (match && match[2]) {
-                return `https://www.youtube-nocookie.com/embed/${match[2]}?autoplay=1&controls=1&rel=0`;
+        if (!url) return null;
+
+        // 1. YouTube Handling (Includes Shorts & Live)
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            let videoId = null;
+
+            // Try detecting "Shorts" URL first
+            if (url.includes('/shorts/')) {
+                const shortsMatch = url.match(/shorts\/([^#\&\?]*)/);
+                if (shortsMatch && shortsMatch[1]) videoId = shortsMatch[1];
+            } 
+            // Standard URL detection
+            else {
+                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                const match = url.match(regExp);
+                if (match && match[2]) videoId = match[2];
+            }
+
+            // Return the correct Embed URL
+            if (videoId) {
+                return `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0`;
             }
         }
+        
+        // 2. Canva Handling
+        if (type === 'canva' || (type === 'auto' && url.includes('canva.com'))) {
+             let cleanUrl = url.split('?')[0];
+             if(cleanUrl.endsWith('/')) cleanUrl = cleanUrl.slice(0, -1);
+             if(cleanUrl.includes('/view')) {
+                 if(!cleanUrl.includes('?embed')) return cleanUrl + '?embed';
+             } else if(cleanUrl.includes('/edit')) {
+                 return cleanUrl.replace('/edit', '/view?embed');
+             } else {
+                 return cleanUrl + '/view?embed';
+             }
+        }
+
+        // 3. Gamma Handling
+        if (type === 'gamma' || (type === 'auto' && url.includes('gamma.app'))) {
+             return url; 
+        }
+
+        // Return original if no match (e.g., direct link)
+        return url;
+    }
+
+    // --- PLAY YOUTUBE FUNCTION (UPDATED) ---
+    function playYoutube() {
+        if(!tvWindow || tvWindow.closed) return;
+        
+        // Hide other layers
+        tvWindow.document.getElementById('jalsaContent').classList.add('hidden');
+        tvWindow.document.getElementById('card').classList.remove('active');
+
+        let url = document.getElementById('ytLink').value;
+        if(!url) return;
+        
+        // Use the fixed getSmartLink function
+        const embedUrl = getSmartLink(url, 'auto');
+        
+        if(!embedUrl) { alert("Invalid YT Link"); return; }
+
+        const vl = tvWindow.document.getElementById('videoLayer');
+        
+        // Updated Iframe with better permission settings
+        vl.innerHTML = `<iframe id="ytFrame" src="${embedUrl}" frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            referrerpolicy="strict-origin-when-cross-origin" 
+            allowfullscreen style="width:100%;height:100%;"></iframe>`;
+            
+        vl.style.display = 'flex';
+        
+        // Update status on control panel
+        document.getElementById('statusMsg').innerText = "PLAYING YOUTUBE";
+    }
         
         // Canva
         if(type === 'canva' || (type === 'auto' && url.includes('canva.com'))) {
