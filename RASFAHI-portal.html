@@ -968,60 +968,59 @@
         }
     }
 
-    // --- LICENSE LOGIC (UPDATED WITH DATE CHECK) ---
-    function verifyLicense() {
-        var inputKey = document.getElementById('licenseKey').value.trim();
-        var msgArea = document.getElementById('secMsg');
+    // --- IMPROVED SECURITY FUNCTION ---
+function verifyLicense() {
+    var inputKey = document.getElementById('licenseKey').value.trim();
+    var msgArea = document.getElementById('secMsg');
+    var overlay = document.getElementById('securityOverlay');
 
-        // ހުސްކޮށް އޮތްތޯ ބެލުން
-        if (!inputKey) {
-            msgArea.innerText = "⚠️ ލައިސަންސް ކީ ޖައްސަވާ!";
+    // ހުސްކޮށް އޮތްތޯ ބެލުން
+    if (!inputKey) {
+        msgArea.innerText = "⚠️ ލައިސަންސް ކީ ޖައްސަވާ!";
+        return;
+    }
+
+    try {
+        // 1. Decode Key
+        var decodedString = atob(inputKey); 
+        
+        // 2. Strict Validation Check
+        if (decodedString.indexOf("ROYAL_EXP_") !== 0) {
+            throw new Error("Invalid Format");
+        }
+
+        var parts = decodedString.split('_');
+        if (parts.length < 5) throw new Error("Incomplete Key");
+
+        var expDateString = parts[2]; 
+        var custName = parts[4];      
+        var expDate = new Date(expDateString);
+        var today = new Date();
+        today.setHours(0,0,0,0); 
+
+        // 3. Check Expiry
+        if (today > expDate) {
+            msgArea.innerText = "❌ ލައިސަންސްގެ މުއްދަތު ވަނީ ހަމަވެފައި!";
+            msgArea.style.color = "red";
             return;
         }
 
-        try {
-            // 1. Decode Key (Base64)
-            var decodedString = atob(inputKey); 
-            // Format expected: ROYAL_EXP_YYYY-MM-DD_CUST_Name
+        // 4. Success - Remove Overlay completely from DOM
+        // (މިއީ ކުރިން ހުރި ކޯޑަށްވުރެ ރައްކާތެރި ގޮތެކެވެ. ލޮކް ސްކްރީން އެއްކޮށް ފޮހެލާނެއެވެ.)
+        overlay.style.opacity = '0';
+        setTimeout(function(){
+            overlay.remove(); 
+        }, 500);
 
-            // 2. Check Format (Valid Key Prefix)
-            if (!decodedString.startsWith("ROYAL_EXP_")) {
-                throw new Error("Invalid Format");
-            }
+        document.getElementById('mainApp').style.display = 'flex';
+        document.getElementById('licenseStatus').innerText = "✅ PLATINUM ACTIVE | " + custName;
 
-            // 3. Extract Date and Name
-            var parts = decodedString.split('_');
-            var expDateString = parts[2]; // Gets YYYY-MM-DD
-            var custName = parts[4];      // Gets Name
-
-            var expDate = new Date(expDateString);
-            var today = new Date();
-            
-            // Time reset to ensure accurate date comparison
-            today.setHours(0,0,0,0); 
-
-            // 4. Compare Dates (Check Expiry)
-            if (today > expDate) {
-                msgArea.innerText = "❌ ލައިސަންސްގެ މުއްދަތު ވަނީ ހަމަވެފައި! (" + expDateString + ")";
-                msgArea.style.color = "red";
-                return; // Stop here if expired
-            }
-
-            // 5. Success - Unlock App
-            document.getElementById('securityOverlay').style.display = 'none';
-            document.getElementById('mainApp').style.display = 'flex';
-            document.getElementById('licenseStatus').innerText = "✅ PLATINUM ACTIVE | Customer: " + custName;
-            
-            // Optional: Save to LocalStorage so they don't type every time
-            // localStorage.setItem('royalLicense', inputKey);
-
-        } catch (e) {
-            console.error(e);
-            msgArea.innerText = "❌ ކީ ރަނގަޅެއް ނޫން (Invalid Key)";
-            msgArea.style.color = "red";
-        }
+    } catch (e) {
+        msgArea.innerText = "❌ ކީ ރަނގަޅެއް ނޫން!";
+        msgArea.style.color = "red";
+        document.getElementById('licenseKey').value = ""; // Clear input for security
     }
-
+}
     // Allow "Enter" key to submit
     document.getElementById('licenseKey').addEventListener("keyup", e => { if (e.key === "Enter") verifyLicense(); });
   
@@ -1220,32 +1219,32 @@
             allElements.forEach(el => el.disabled = false);
         }
     }
-    function downloadConfig() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(designState));
-        const a = document.createElement('a'); a.href = dataStr; a.download = "royal_config_v33.json"; document.body.appendChild(a); a.click(); a.remove();
-    }
+    // --- UPDATED SAVE FUNCTION (COMBINED & FIXED) ---
+function downloadConfig() {
+    // 1. Save Subtitle Specific Styles
+    designState.savedStStyles = stStyles;
 
-   // --- NEW UPDATED SAVE/LOAD FUNCTIONS (SAVES TITLES & STYLES) ---
+    // 2. Save Written Titles (Saves what you typed in the boxes)
+    designState.savedTitles = {
+        t1: document.getElementById('jLine1').value,
+        t2: document.getElementById('jLine2').value,
+        t3: document.getElementById('jLine3').value,
+        t4: document.getElementById('jLine4').value,
+        t5: document.getElementById('jLine5').value,
+        t6: document.getElementById('jLine6').value,
+        t7: document.getElementById('jLine7').value,
+        t8: document.getElementById('jLine8').value
+    };
 
-    function downloadConfig() {
-        // 1. Save Subtitle Specific Styles (stStyles is global, so we add it to designState temporarily)
-        designState.savedStStyles = stStyles;
-
-        // 2. Save Written Titles (Saves what you typed in the boxes)
-        designState.savedTitles = {
-            t1: document.getElementById('jLine1').value,
-            t2: document.getElementById('jLine2').value,
-            t3: document.getElementById('jLine3').value,
-            t4: document.getElementById('jLine4').value,
-            t5: document.getElementById('jLine5').value,
-            t6: document.getElementById('jLine6').value,
-            t7: document.getElementById('jLine7').value,
-            t8: document.getElementById('jLine8').value
-        };
-
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(designState));
-        const a = document.createElement('a'); a.href = dataStr; a.download = "royal_config_v33_full.json"; document.body.appendChild(a); a.click(); a.remove();
-    }
+    // 3. Create and Download the File
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(designState));
+    const a = document.createElement('a');
+    a.href = dataStr;
+    a.download = "royal_config_v33_full.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
 
     function loadConfig(input) {
         const file = input.files[0]; if(!file) return;
@@ -2826,15 +2825,21 @@ body.triple-active #card {
     }
     
     function manualPhoto(input) {
-        if(input.files && input.files[0]) {
-             processPhoto(input.files[0], d => {
-                currentPhotoData = d;
-                document.getElementById('previewImg').src = d;
-                document.getElementById('pStat').innerText = "Manual";
-                document.getElementById('pStat').style.color = "blue";
-             });
+    if (input.files && input.files[0]) {
+        // 1. ކުރިން ފޮޓޯއެއް އިންނަމަ، އެ ފޮޓޯ މެމޮރީން ފޮހެލާ (Free up RAM)
+        if (currentPhotoData && currentPhotoData.startsWith('blob:')) {
+            URL.revokeObjectURL(currentPhotoData);
         }
+
+        // 2. ދެން އާ ފޮޓޯ ޕްރޮސެސް ކުރޭ
+        processPhoto(input.files[0], d => {
+            currentPhotoData = d;
+            document.getElementById('previewImg').src = d;
+            document.getElementById('pStat').innerText = "Manual";
+            document.getElementById('pStat').style.color = "blue";
+        });
     }
+}
 
     function filterList() {
         let t = document.getElementById('search').value.toLowerCase();
