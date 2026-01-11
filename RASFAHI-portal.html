@@ -991,47 +991,42 @@
         }
     }
 
-// --- EMERGENCY UNLOCK FUNCTION (NO KEY REQUIRED) ---
+    // --- IMPROVED SECURITY FUNCTION ---
 function verifyLicense() {
-    var overlay = document.getElementById('securityOverlay');
+    var inputKey = document.getElementById('licenseKey').value.trim();
     var msgArea = document.getElementById('secMsg');
+    var overlay = document.getElementById('securityOverlay');
 
-    // 1. Success Message
-    msgArea.innerText = "🔓 Unlocking System...";
-    msgArea.style.color = "#00e676"; // Green color
-
-    // 2. Remove Lock Screen
-    overlay.style.transition = "opacity 0.5s";
-    overlay.style.opacity = '0';
-    
-    setTimeout(function(){
-        overlay.remove(); // Delete lock screen from memory
-    }, 500);
-
-    // 3. Show the App
-    document.getElementById('mainApp').style.display = 'flex';
-    
-    // 4. Set Status
-    document.getElementById('licenseStatus').innerText = "✅ SYSTEM READY (ADMIN MODE)";
-}
-
-        // 5. Success - Remove Overlay completely from DOM
-        overlay.style.opacity = '0';
-        setTimeout(function(){
-            overlay.remove(); 
-        }, 500);
-
-        document.getElementById('mainApp').style.display = 'flex';
-        // Display decoded name to confirm
-        document.getElementById('licenseStatus').innerText = "✅ PLATINUM ACTIVE | " + custName;
-
-    } catch (e) {
-        // Show EXACT error message on screen
-        msgArea.innerText = "❌ Error: " + e.message;
-        msgArea.style.color = "red";
-        console.error(e);
+    // ހުސްކޮށް އޮތްތޯ ބެލުން
+    if (!inputKey) {
+        msgArea.innerText = "⚠️ Please enter the license key!";
+        return;
     }
-}
+
+    try {
+        // 1. Decode Key
+        var decodedString = atob(inputKey); 
+        
+        // 2. Strict Validation Check
+        if (decodedString.indexOf("ROYAL_EXP_") !== 0) {
+            throw new Error("Invalid Format");
+        }
+
+        var parts = decodedString.split('_');
+        if (parts.length < 5) throw new Error("Incomplete Key");
+
+        var expDateString = parts[2]; 
+        var custName = parts[4];      
+        var expDate = new Date(expDateString);
+        var today = new Date();
+        today.setHours(0,0,0,0); 
+
+        // 3. Check Expiry
+        if (today > expDate) {
+            msgArea.innerText = "❌ The license has expired!";
+            msgArea.style.color = "red";
+            return;
+        }
 
         // 4. Success - Remove Overlay completely from DOM
         // (މިއީ ކުރިން ހުރި ކޯޑަށްވުރެ ރައްކާތެރި ގޮތެކެވެ. ލޮކް ސްކްރީން އެއްކޮށް ފޮހެލާނެއެވެ.)
@@ -1054,7 +1049,6 @@ function verifyLicense() {
   
     let tvWindow = null;
     let students = [];
-    let currentPhotoObjectUrl = null;
     let photoFiles = {};
     
     // Top 5 Separation Arrays
@@ -1141,9 +1135,9 @@ function verifyLicense() {
         trophyX: -10, trophyY: -10, trophyAnim: 'none'
     };
 
-   // --- FIX: MEMORY LEAK IN LOGOS ---
+    // --- MAIN LOGO MANAGER (MEMORY SAFE VERSION) ---
 function loadMainLogos(input) {
-    // 1. މެމޮރީ ސާފުކުރުން (މިއީ ކުރިން ނެތް ބައެއް)
+    // 1. ކުރިން ލޯޑުކޮށްފައި ހުރި ލޯގޯތަކުގެ މެމޮރީ ސާފުކޮށްލުން (މުހިންމު ބައި)
     if (typeof mainLogosData !== 'undefined' && mainLogosData.length > 0) {
         mainLogosData.forEach(url => URL.revokeObjectURL(url));
     }
@@ -1156,7 +1150,7 @@ function loadMainLogos(input) {
     }
 
     renderMainLogos();
-    alert(mainLogosData.length + " Main Logos Loaded.");
+    alert(mainLogosData.length + " Main Logos Loaded (Memory Optimized).");
 }
 
     function renderMainLogos() {
@@ -2353,13 +2347,14 @@ body.triple-active #card {
         const pCol = doc.querySelector('.photo-col');
         
         if(currentPhotoData) { 
-           img.src = currentPhotoData; 
-           img.style.display='block'; 
-           pCol.classList.remove('shrink-photo');
-       } else { 
-           img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; 
-           pCol.classList.add('shrink-photo');
-       }
+            img.src = currentPhotoData; 
+            img.style.display='block'; 
+            pCol.classList.remove('shrink-photo');
+        } else { 
+            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; 
+            pCol.classList.add('shrink-photo');
+        }
+
         // Auto Toggle Top 5 Mode
         if(activeListMode === 'top5') {
             doc.body.classList.add('top5-mode');
@@ -2859,36 +2854,22 @@ body.triple-active #card {
         }; r.readAsDataURL(input.files[0]);
     }
 
-    // UPDATED CSV PARSER (Fixes Commas in Names & Handles Quotes)
-function parseCSV(text) {
-    let lines = text.split('\n');
-    let data = [];
-    
-    lines.forEach(l => {
-        // ހުސް ލައިންތައް ދޫކޮށްލުން
-        if (!l || l.trim() === '') return;
-
-        // ރެޖެކްސް ބޭނުންކޮށްގެން ކޮމާ ވަކިކުރުން (Quotes ތެރޭގައި އިންނަ ކޮމާ ދޫކޮށްލާނެ)
-        // މިއީ އެންމެ މުހިންމު ބަދަލެވެ.
-        let c = l.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-        
-        // މެޗް ނުވިނަމަ ނުވަތަ ނަލް ނަމަ، އާދައިގެ ގޮތަށް ސްޕްލިޓް ކުރުން (Safety Fallback)
-        if (!c) c = l.split(','); 
-
-        // ޑަބަލް ކޯޓްސް (") ހުރިނަމަ އެ ފޮހެލުން (Clean up quotes)
-        c = c.map(val => val.replace(/^"|"$/g, '').trim());
-
-        // ޑޭޓާ ނެގުން
-        if(c.length > 1) {
-            data.push({
-                nD: c[0] || "", nE: c[1] || "", cD: c[2] || "", cE: c[3] || "", 
-                fD: c[4] || "", fE: c[5] || "", cm: c[6] || "", ph: c[7] || "",
-                rank: c[8] || "" // Rank Column included
-            });
-        }
-    });
-    return data;
-}
+    // UPDATED CSV PARSER FOR RANK
+    function parseCSV(text) {
+        let lines = text.split('\n');
+        let data = [];
+        lines.forEach(l => {
+            let c = l.split(',');
+            if(c.length>1) {
+                data.push({
+                    nD: c[0]?.trim(), nE: c[1]?.trim(), cD: c[2]?.trim(), cE: c[3]?.trim(), 
+                    fD: c[4]?.trim(), fE: c[5]?.trim(), cm: c[6]?.trim(), ph: c[7]?.trim(),
+                    rank: c[8]?.trim() // New Column for Rank
+                });
+            }
+        });
+        return data;
+    }
 
     document.getElementById('csvFile').onchange = e => {
         const r = new FileReader();
@@ -3025,32 +3006,17 @@ function parseCSV(text) {
         let foundFile = targetPhotos[pNameRaw] || targetPhotos[pName] || targetPhotos[pNameNoExt];
         
         if(foundFile) {
-           stat.innerText = "Loading...";
-
-           // 1. މެމަރީ ސާފުކުރުން (Memory Cleanup)
-           if (currentPhotoObjectUrl) {
-               URL.revokeObjectURL(currentPhotoObjectUrl);
-           }
-
-           // 2. އާ ފޮޓޯ ލޯޑުކުރުން (RAM Safe Mode)
-           currentPhotoObjectUrl = URL.createObjectURL(foundFile);
-           currentPhotoData = currentPhotoObjectUrl; 
-
-           // 3. ޕްރިވިއު ދެއްކުން
-           prev.src = currentPhotoObjectUrl; 
-           stat.innerText = "✅ Found (RAM Safe)"; 
-           stat.style.color="green";
-       }
-
-           // 2. އާ ފޮޓޯ ލޯޑުކުރުން (RAM Safe Mode)
-           currentPhotoObjectUrl = URL.createObjectURL(foundFile);
-           currentPhotoData = currentPhotoObjectUrl; 
-
-           // 3. ޕްރިވިއު ދެއްކުން
-           prev.src = currentPhotoObjectUrl; 
-           stat.innerText = "✅ Found (RAM Safe)"; 
-           stat.style.color="green";
-       }
+            stat.innerText = "Loading...";
+            processPhoto(foundFile, d => {
+                currentPhotoData = d; 
+                prev.src = d; 
+                stat.innerText = "✅ Found"; 
+                stat.style.color="green";
+                
+                // --- FIX: REMOVED AUTO TV UPDATE CODE FROM HERE ---
+                // The lines that forced the photo to TV immediately have been removed.
+                // Now photo only goes to TV when you click 'Live'.
+            });
         } else {
             currentPhotoData = null; 
             prev.src = "https://via.placeholder.com/150"; 
@@ -3204,21 +3170,11 @@ function parseCSV(text) {
             e.preventDefault();
             return false;
         }
-        // 6. F5 (Refresh) Block - Add this inside your keydown listener
-if(e.key === 'F5' || e.keyCode === 116) {
-    e.preventDefault();
-    alert("⚠️ Safety: Refresh is disabled during the show!");
-    return false;
-}
 
+        // 5. Ctrl + S (Save Page - މިއިން ޑައުންލޯޑް ކުރުން ހުއްޓުވޭނެ)
         if(e.ctrlKey && (e.key === 's' || e.key === 'S' || e.keyCode === 83)) {
             e.preventDefault();
-            // alert("Saving is disabled!"); 
-            return false;
-        }
-
-        if (e.key === 'Enter' || e.keyCode === 13) {
-            e.preventDefault();
+            // alert("Saving is disabled!"); // ބޭނުންނަމަ މެސެޖެއް އަރުވަން މިތަން އަން-ކޮމެންޓް ކުރައްވާ
             return false;
         }
     });
