@@ -306,7 +306,7 @@
                 <button class="list-switch-btn active" id="btnGenList" onclick="switchListMode('general')">👥 General List</button>
                 <button class="list-switch-btn" id="btnTop5List" onclick="switchListMode('top5')">🏆 Top 5 List</button>
             </div>
-            <input type="text" id="search" placeholder="Type Name..." onkeyup="debouncedFilter()">
+            <input type="text" id="search" placeholder="Type Name..." onkeyup="filterList()">
             
             <select id="stuList" size="10" style="flex-grow:1; border:1px solid #ccc; min-height: 200px;" onchange="loadStudent()"></select>
             
@@ -2960,36 +2960,29 @@ body.triple-active #card {
             URL.revokeObjectURL(currentPhotoData);
         }
 
-        // 2. އާ ފޮޓޯ ލޯޑުކުރުން (Optimized Method)
-        // processPhoto ގެ ބަދަލުގައި ސީދާ URL ހަދަނީ (މިތަން މި ބަދަލުކޮށްލީ)
-        currentPhotoData = URL.createObjectURL(input.files[0]);
-        
-        document.getElementById('previewImg').src = currentPhotoData;
-        document.getElementById('pStat').innerText = "Manual";
-        document.getElementById('pStat').style.color = "blue";
+        // 2. ދެން އާ ފޮޓޯ ޕްރޮސެސް ކުރޭ
+        processPhoto(input.files[0], d => {
+            currentPhotoData = d;
+            document.getElementById('previewImg').src = d;
+            document.getElementById('pStat').innerText = "Manual";
+            document.getElementById('pStat').style.color = "blue";
+        });
     }
 }
 
-    let filterTimeout;
-function debouncedFilter() {
-    clearTimeout(filterTimeout);
-    filterTimeout = setTimeout(() => {
-        filterList();
-    }, 300); 
-}
-function filterList() {
-    let t = document.getElementById('search').value.toLowerCase();
-    let l = document.getElementById('stuList'); l.innerHTML = '';
-    
-    let targetArray = activeListMode === 'top5' ? top5Students : students;
-    
-    targetArray.forEach((s,i) => {
-        if((s.nD+s.nE).toLowerCase().includes(t)) {
-            let prefix = activeListMode === 'top5' ? "🏆 " : (i+1)+". ";
-            let o = document.createElement('option'); o.value=i; o.text=prefix+s.nD; l.add(o);
-        }
-    });
-}
+    function filterList() {
+        let t = document.getElementById('search').value.toLowerCase();
+        let l = document.getElementById('stuList'); l.innerHTML = '';
+        
+        let targetArray = activeListMode === 'top5' ? top5Students : students;
+        
+        targetArray.forEach((s,i) => {
+            if((s.nD+s.nE).toLowerCase().includes(t)) {
+                let prefix = activeListMode === 'top5' ? "🏆 " : (i+1)+". ";
+                let o = document.createElement('option'); o.value=i; o.text=prefix+s.nD; l.add(o);
+            }
+        });
+    }
 
    function loadStudent() {
     let idx = document.getElementById('stuList').value;
@@ -3033,25 +3026,21 @@ function filterList() {
         
         if(foundFile) {
             stat.innerText = "Loading...";
-            if(foundFile) {
-            // 1. Memory Cleanup (ކުރިން އިން ފޮޓޯ މެމޮރީން ފޮހެލުން)
-            if (currentPhotoData && currentPhotoData.startsWith('blob:')) {
-                URL.revokeObjectURL(currentPhotoData);
-            }
-
-            // 2. Optimized Loading (ލުއިކޮށް ފޮޓޯ ލޯޑުކުރުން)
-            currentPhotoData = URL.createObjectURL(foundFile);
-            
-            // Preview Update
-            prev.src = currentPhotoData;
-            stat.innerText = "✅ Found (Fast)";
-            stat.style.color = "green";
-
+            processPhoto(foundFile, d => {
+                currentPhotoData = d; 
+                prev.src = d; 
+                stat.innerText = "✅ Found"; 
+                stat.style.color="green";
+                
+                // --- FIX: REMOVED AUTO TV UPDATE CODE FROM HERE ---
+                // The lines that forced the photo to TV immediately have been removed.
+                // Now photo only goes to TV when you click 'Live'.
+            });
         } else {
-            // ފޮޓޯ ނުފެނުނު ނަމަ
             currentPhotoData = null; 
             prev.src = "https://via.placeholder.com/150"; 
             
+            // Show error in the preview box
             if(pNameRaw === "") {
                 stat.innerText = "No Photo Name"; 
                 stat.style.color="grey";
@@ -3059,8 +3048,8 @@ function filterList() {
                 stat.innerText = "❌ Missing: " + pNameRaw; 
                 stat.style.color="red";
             }
+        }
     }
-}
     function move(d) {
         let l = document.getElementById('stuList');
         if(l.options.length) {
@@ -3260,65 +3249,6 @@ function filterList() {
         }
     }, 2000);
 
-    // --- AUTO-SAVE SYSTEM (FIXED & VERIFIED) ---
-
-    // 1. Load settings when page opens
-    window.addEventListener('load', function() {
-        const savedConfig = localStorage.getItem('rasfahi_config_v33');
-        if (savedConfig) {
-            try {
-                const loaded = JSON.parse(savedConfig);
-                Object.assign(designState, loaded);
-                
-                // Restore Text Fields
-                if(loaded.savedTitles) {
-                    // Check if element exists before setting value to avoid errors
-                    if(document.getElementById('jLine1')) document.getElementById('jLine1').value = loaded.savedTitles.t1 || "";
-                    if(document.getElementById('jLine2')) document.getElementById('jLine2').value = loaded.savedTitles.t2 || "";
-                    if(document.getElementById('jLine3')) document.getElementById('jLine3').value = loaded.savedTitles.t3 || "";
-                    if(document.getElementById('jLine4')) document.getElementById('jLine4').value = loaded.savedTitles.t4 || "";
-                    if(document.getElementById('jLine5')) document.getElementById('jLine5').value = loaded.savedTitles.t5 || "";
-                    if(document.getElementById('jLine6')) document.getElementById('jLine6').value = loaded.savedTitles.t6 || "";
-                    if(document.getElementById('jLine7')) document.getElementById('jLine7').value = loaded.savedTitles.t7 || "";
-                    if(document.getElementById('jLine8')) document.getElementById('jLine8').value = loaded.savedTitles.t8 || "";
-                }
-                
-                if(loaded.savedStStyles) {
-                    stStyles = loaded.savedStStyles;
-                }
-                console.log("✅ Auto-saved settings restored!");
-            } catch (e) {
-                console.error("Error loading auto-save", e);
-            }
-        }
-    });
-
-    // 2. Modified liveUpdate to trigger Auto-Save
-    const originalLiveUpdate = liveUpdate; 
-    liveUpdate = function(key, value) {
-        // Call original function
-        originalLiveUpdate(key, value);
-        
-        // Save to LocalStorage
-        clearTimeout(window.saveTimeout);
-        window.saveTimeout = setTimeout(() => {
-            
-            designState.savedTitles = {
-                t1: document.getElementById('jLine1').value,
-                t2: document.getElementById('jLine2').value,
-                t3: document.getElementById('jLine3').value,
-                t4: document.getElementById('jLine4').value,
-                t5: document.getElementById('jLine5').value,
-                t6: document.getElementById('jLine6').value,
-                t7: document.getElementById('jLine7').value,
-                t8: document.getElementById('jLine8').value
-            };
-            designState.savedStStyles = stStyles;
-            
-            localStorage.setItem('rasfahi_config_v33', JSON.stringify(designState));
-            console.log("💾 Settings Auto-Saved");
-        }, 1000); 
-    };
 </script>
 </body>
 </html>
