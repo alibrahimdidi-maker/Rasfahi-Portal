@@ -3412,7 +3412,135 @@ body.triple-active #card {
             document.getElementById('connStatus').style.color = "red";
         }
     }, 2000);
+// ==========================================
+    // RASFAHI AUTO-SAVE SYSTEM (POWER LOSS PROTECTION)
+    // ==========================================
+    
+    // 1. ސޭވް ކުރާ ފަންކްޝަން
+    function saveSystemState() {
+        const saveData = {
+            // ޑިޒައިން ސެޓިންގްސް
+            design: designState,
+            // ޓައިޓްލްތައް
+            titles: {
+                t1: document.getElementById('jLine1').value,
+                t2: document.getElementById('jLine2').value,
+                t3: document.getElementById('jLine3').value,
+                t4: document.getElementById('jLine4').value,
+                t5: document.getElementById('jLine5').value,
+                t6: document.getElementById('jLine6').value,
+                t7: document.getElementById('jLine7').value,
+                t8: document.getElementById('jLine8').value
+            },
+            // ދަރިވަރުންގެ މަޢުލޫމާތު ފީލްޑްތަކުގައި ލިޔެފައި ހުރި އެއްޗެހި
+            inputs: {
+                nD: document.getElementById('nD').value,
+                nE: document.getElementById('nE').value,
+                fD: document.getElementById('fD').value,
+                fE: document.getElementById('fE').value,
+                cD: document.getElementById('cD').value,
+                cE: document.getElementById('cE').value,
+                rank: document.getElementById('rankInput').value
+            },
+            // ސަބްޓައިޓްލް ސްޓައިލްތައް
+            stStyles: stStyles
+        };
+        
+        // ބްރައުޒާގެ މެމޮރީއަށް ރައްކާކުރުން
+        localStorage.setItem('rasfahi_v33_autosave', JSON.stringify(saveData));
+        
+        // ކަނާތްފަރާތު މަތީގައި އިންޑިކޭޓަރ ދެއްކުން
+        const status = document.getElementById('statusMsg');
+        if(status && !status.innerText.includes("SAVED")) {
+            let oldText = status.innerText;
+            status.innerText = "💾 AUTO-SAVED";
+            setTimeout(() => status.innerText = oldText, 1000);
+        }
+    }
 
+    // 2. އަލުން ލޯޑުކުރާ ފަންކްޝަން (Restore)
+    function restoreSystemState() {
+        const raw = localStorage.getItem('rasfahi_v33_autosave');
+        if(!raw) return; // ސޭވްކޮށްފައި ނެތްނަމަ ހުއްޓާލާ
+
+        try {
+            const data = JSON.parse(raw);
+
+            // A. ޑިޒައިން ސްޓޭޓް އަނބުރާ ގެނައުން
+            if(data.design) {
+                designState = data.design;
+                
+                // ސްލައިޑަރުތަކާއި ކުލަތައް އަޕްޑޭޓްކުރުން
+                // (މިތަނުގައި މުހިންމު ބައިތައް ލޯޑުކުރާނެ)
+                setVal('mtYRange', designState.mtY);
+                setVal('mtXRange', designState.mtX);
+                setVal('mtSizeRange', designState.mtSize);
+                setVal('mtColorPick', designState.mtColor);
+                
+                // ޓޮޕް 5 ސެޓިންގްސް
+                setVal('t5LayoutSel', designState.t5Layout);
+                
+                // ބެކްގްރައުންޑް
+                if(designState.bgPreset) document.getElementById('bgPresetSel').value = designState.bgPreset;
+                
+                // ކާޑު ބޯޑަރު
+                if(designState.cBorder) document.getElementById('cBorderSel').value = designState.cBorder;
+            }
+
+            // B. ޓައިޓްލްތައް އަނބުރާ ގެނައުން
+            if(data.titles) {
+                document.getElementById('jLine1').value = data.titles.t1 || "";
+                for(let i=2; i<=8; i++) {
+                    document.getElementById('jLine'+i).value = data.titles['t'+i] || "";
+                }
+            }
+
+            // C. ދަރިވަރުންގެ ފީލްޑްތައް
+            if(data.inputs) {
+                document.getElementById('nD').value = data.inputs.nD || "";
+                document.getElementById('nE').value = data.inputs.nE || "";
+                document.getElementById('fD').value = data.inputs.fD || "";
+                document.getElementById('fE').value = data.inputs.fE || "";
+                document.getElementById('cD').value = data.inputs.cD || "";
+                document.getElementById('cE').value = data.inputs.cE || "";
+                document.getElementById('rankInput').value = data.inputs.rank || "";
+            }
+
+            // D. ސްޓައިލްތައް
+            if(data.stStyles) stStyles = data.stStyles;
+
+            console.log("System State Restored Successfully!");
+            
+            // ކުޑަ މެސެޖެއް ދައްކާލުން
+            const status = document.getElementById('statusMsg');
+            if(status) {
+                status.innerText = "🔄 PREVIOUS SETTINGS RESTORED";
+                status.style.color = "blue";
+            }
+
+        } catch(e) {
+            console.error("Error restoring save:", e);
+        }
+    }
+
+    // 3. އޮޓޯ ސޭވް މަސައްކަތް ކުރުުވުން
+    // ހުރިހާ އިންޕުޓަކަށް "Change" އިވެންޓް ލުން
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+        el.addEventListener('change', saveSystemState);
+        el.addEventListener('keyup', saveSystemState); // ލިޔާއިރުވެސް ސޭވްވާނެ
+    });
+
+    // ލައިވް އަޕްޑޭޓް ފަންކްޝަން ތެރެއަށް ސޭވް ކުރުން ލުން
+    const originalLiveUpdate = liveUpdate; 
+    liveUpdate = function(key, value) {
+        originalLiveUpdate(key, value); // ކުރީގެ މަސައްކަތް ކުރިއަށް ގެންދޭ
+        saveSystemState(); // އިތުރަށް ސޭވް ކޮށްލާ
+    };
+
+    // ޕޭޖު ހުޅުވޭއިރު ރިސްޓޯރ ކުރުން
+    window.addEventListener('load', () => {
+        restoreSystemState();
+    });
 </script>
 </body>
 </html>
