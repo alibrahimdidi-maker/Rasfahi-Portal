@@ -622,12 +622,63 @@
         theme: null
     };
 
-    // --- SYSTEM ---
+    // --- SYSTEM SECURITY & VALIDATION (NEW) ---
     function unlockSystem() {
-        const key = document.getElementById('secKey').value;
-        if(key === "1234" || key.length > 5) {
+        const inputKey = document.getElementById('secKey').value.trim();
+        const msg = document.getElementById('secMsg');
+
+        // Master Override (މިއީ އެޑްމިން ފަރާތަށް ޚާއްޞަ މާސްޓަރ ކޯޑެކެވެ)
+        if(inputKey === "ADMIN-MASTER-123") {
             document.getElementById('securityOverlay').classList.add('hidden');
             renderSlots();
+            return;
+        }
+
+        try {
+            // 1. Decode the Base64 Key
+            const decodedString = atob(inputKey);
+
+            // 2. Check for Prefix (ކޯޑުގެ ފޯމެޓް ރަނގަޅުތޯ ބެލުން)
+            if (!decodedString.startsWith("ROYAL_EXP_")) {
+                throw new Error("Invalid Format");
+            }
+
+            // 3. Extract Info (ތާރީޚާއި ނަން ވަކިކުރުން)
+            const parts = decodedString.split('_'); 
+            // parts[0] = ROYAL
+            // parts[1] = EXP
+            // parts[2] = Date (YYYY-MM-DD)
+            // parts[3] = CUST
+            // parts[4] = Name
+
+            const expiryDateStr = parts[2];
+            const customerName = parts[4];
+
+            // 4. Validate Date (މުއްދަތު ހަމަވެފައިވޭތޯ ބެލުން)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // ގަޑި ނުލައި ހަމައެކަނި ތާރީޚަށް ބެލުމަށް
+            const expiry = new Date(expiryDateStr);
+
+            if (isNaN(expiry.getTime())) {
+                throw new Error("Invalid Date");
+            }
+
+            if (today > expiry) {
+                // EXPIRED CASE
+                msg.innerText = "⛔ LICENSE EXPIRED! (Valid until: " + expiryDateStr + ")";
+                msg.style.color = "#ff5252";
+            } else {
+                // SUCCESS CASE
+                document.getElementById('securityOverlay').classList.add('hidden');
+                renderSlots();
+                alert("✅ Welcome " + customerName + "!\nLicense Valid until: " + expiryDateStr);
+            }
+
+        } catch (e) {
+            // INVALID KEY CASE
+            msg.innerText = "❌ Invalid License Key. Please check again.";
+            msg.style.color = "#ffb74d";
+            console.error(e);
         }
     }
 
