@@ -953,37 +953,69 @@
         if(!qData.src) qData.src = resolveImage(qData.imgRaw);
         return qData;
     }
-
-    // FIX: RESHUFFLE LOGIC
+// --- UPDATED: RESHUFFLE LOGIC WITH JUZ FILTER ---
     window.reshuffleGrid = function() {
-        // Safety Check
+        // 1. Safety Check
         if(state.qPool.length === 0 && state.qUsed.length === 0) {
             alert("No questions loaded! Please load CSV first.");
             return;
         }
 
-        state.grid.map = {}; state.grid.taken = [];
-        let tempPool = [...state.qPool];
+        // 2. Get Selected Range
+        const sJuz = parseInt(document.getElementById('startJuz').value);
+        const eJuz = parseInt(document.getElementById('endJuz').value);
+
+        if(sJuz > eJuz) {
+            alert("Error: Start Juz cannot be greater than End Juz!");
+            return;
+        }
+
+        // 3. Prepare Pool
+        // Combine pool and used to filter from everything
+        let allQuestions = [...state.qPool, ...state.qUsed];
         
-        // If low on questions, borrow from used pile
-        if(tempPool.length < 20 && state.qUsed.length > 0) tempPool = [...tempPool, ...state.qUsed];
+        // 4. FILTER Logic (Check Page Number to guess Juz)
+        let filteredPool = allQuestions.filter(qID => {
+            let q = state.qDataMap[qID];
+            if(!q) return false;
+            
+            let pNo = parseInt(q.page);
+            // Calculate Juz from Page (Approximate standard formula)
+            let juzCalc = Math.ceil((pNo - 1.5) / 20); 
+            if(pNo >= 582) juzCalc = 30; // Juz 30 fix
+            if(juzCalc === 0) juzCalc = 1;
+
+            return juzCalc >= sJuz && juzCalc <= eJuz;
+        });
+
+        if(filteredPool.length === 0) {
+            alert(`No questions found in Juz ${sJuz} to ${eJuz}. Please check your CSV or Range.`);
+            return;
+        }
+
+        // 5. Build Grid
+        state.grid.map = {}; 
+        state.grid.taken = [];
+        
+        // Randomize the filtered list
+        let tempPool = [...filteredPool];
         
         for(let i=1; i<=20; i++) {
             if(tempPool.length === 0) {
-                state.grid.map[i] = null; // Mark as empty
-                continue;
+                // If we run out of questions in that specific Juz, recycle
+                tempPool = [...filteredPool];
             }
+            
             const rIdx = Math.floor(Math.random() * tempPool.length);
             state.grid.map[i] = tempPool[rIdx];
+            
+            // Remove to avoid duplicates in the same grid if possible
             tempPool.splice(rIdx, 1);
         }
-        updateGridPreview(); syncWindows();
-    }
 
-    window.toggleGridScreen = function(show) {
-        state.grid.visible = show;
-        state.session.phase = 'selection';
-        syncWindows(); updateGridPreview();
+        // Reset UI
+        updateGridPreview(); 
+        syncWindows();
     }
 
     // --- NAVIGATION SAFEGUARDS & FEATURES ---
