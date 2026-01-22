@@ -962,11 +962,12 @@
         if(!qData.src) qData.src = resolveImage(qData.imgRaw);
         return qData;
     }
-// --- UPDATED: RESHUFFLE LOGIC WITH JUZ FILTER ---
+// --- ޕޭސްޓް ކުރަންވީ ބައި (PASTE THIS) ---
+
     window.reshuffleGrid = function() {
-        // 1. Safety Check
-        if(state.qPool.length === 0 && state.qUsed.length === 0) {
-            alert("No questions loaded! Please load CSV first.");
+        // 1. Safety Check for Data
+        if(!state.qPool || (state.qPool.length === 0 && state.qUsed.length === 0)) {
+            alert("އެއްވެސް ސުވާލެއް ލޯޑުކުރެވިފައެއް ނެތް! ފުރަތަމަ CSV ފައިލް ލޯޑުކުރައްވާ.");
             return;
         }
 
@@ -974,13 +975,7 @@
         const sJuz = parseInt(document.getElementById('startJuz').value);
         const eJuz = parseInt(document.getElementById('endJuz').value);
 
-        if(sJuz > eJuz) {
-            alert("Error: Start Juz cannot be greater than End Juz!");
-            return;
-        }
-
-        // 3. Prepare Pool
-        // Combine pool and used to filter from everything
+        // 3. Prepare Pool (Combine all loaded questions)
         let allQuestions = [...state.qPool, ...state.qUsed];
         
         // 4. FILTER Logic (Check Page Number to guess Juz)
@@ -989,44 +984,39 @@
             if(!q) return false;
             
             let pNo = parseInt(q.page);
-            // Calculate Juz from Page (Approximate standard formula)
+            // Calculate Juz from Page (Standard formula)
             let juzCalc = Math.ceil((pNo - 1.5) / 20); 
-            if(pNo >= 582) juzCalc = 30; // Juz 30 fix
+            if(pNo >= 582) juzCalc = 30; 
             if(juzCalc === 0) juzCalc = 1;
 
             return juzCalc >= sJuz && juzCalc <= eJuz;
         });
 
         if(filteredPool.length === 0) {
-            alert(`No questions found in Juz ${sJuz} to ${eJuz}. Please check your CSV or Range.`);
+            alert(`Juz ${sJuz} to ${eJuz} : މި ފޮތްތަކާ ދިމާވާ އެއްވެސް ސުވާލެއް ޑޭޓާބޭސްގައި ނެތެވެ!`);
             return;
         }
 
-        // 5. Build Grid
+        // 5. Build Grid Map
         state.grid.map = {}; 
         state.grid.taken = [];
         
-        // Randomize the filtered list
         let tempPool = [...filteredPool];
         
         for(let i=1; i<=20; i++) {
-            if(tempPool.length === 0) {
-                // If we run out of questions in that specific Juz, recycle
-                tempPool = [...filteredPool];
-            }
+            // Recycle if pool is smaller than 20
+            if(tempPool.length === 0) tempPool = [...filteredPool];
             
             const rIdx = Math.floor(Math.random() * tempPool.length);
-            state.grid.map[i] = tempPool[rIdx];
+            state.grid.map[i] = tempPool[rIdx]; // Assign Question ID to Box Number
             
-            // Remove to avoid duplicates in the same grid if possible
             tempPool.splice(rIdx, 1);
         }
 
-        // Reset UI
+        // 6. Confirm & Update
         updateGridPreview(); 
         syncWindows();
     }
-
     // --- NAVIGATION SAFEGUARDS & FEATURES ---
     window.prevQuestion = function() {
         if(state.session.phase === 'finished') {
