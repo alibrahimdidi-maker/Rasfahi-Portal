@@ -424,11 +424,10 @@
        target="_blank" 
        class="btn-green" 
        style="width:40%; font-size:10px; text-decoration:none; display:flex; align-items:center; justify-content:center; color:white; border-radius:4px; font-weight:bold; border:1px solid #00e676;">
-        ⬇️ Download Font
+       ⬇️ Download Font
     </a>
 </div>
 <small style="color:#666; font-size:10px;">Select .TTF or .WOFF file for Faruuma/Waheed</small>
-                <small style="color:#666; font-size:10px;">Select .TTF or .WOFF file for Faruuma/Waheed</small>
                 
                 <hr style="border-color:#333; margin:8px 0;">
 
@@ -451,7 +450,7 @@
                        target="_blank" 
                        class="btn-blue" 
                        style="width:40%; font-size:10px; text-decoration:none; display:flex; align-items:center; justify-content:center; color:white; border-radius:4px; font-weight:bold; border:1px solid #0059b3;">
-                        ⬇️ Download Images
+                       ⬇️ Download Images
                     </a>
                 </div>
                 <small id="imgStatus" style="color:#aaa; display:block;">No images loaded</small>
@@ -548,6 +547,19 @@
                             cThemes.forEach((t, i) => document.write(`<option value="${i}">${t}</option>`));
                         </script>
                     </select>
+                </div>
+
+                <div style="margin-top:8px; margin-bottom:8px; border-top:1px dashed #333; padding-top:5px;">
+                    <label style="color:#FFD700;">★ ސެރަމަނީ ބޯޑަރު ސްޓައިލް:</label>
+                    <select id="cBorderStyle" onchange="updateCeremonyState()">
+                        <option value="theme">Use Theme Border (Default)</option>
+                        <option value="thin">Very Thin Gold Line (ހިމަ ރަން ރޮނގެއް)</option>
+                        <option value="none">No Border (ބޯޑަރެއް ނުލާ)</option>
+                        <option value="custom">Custom Image Border (ކަސްޓަމް ފޮޓޯ)</option>
+                    </select>
+                    
+                    <input type="file" id="cBorderImgFile" accept="image/*" style="margin-top:5px;" onchange="loadCeremonyBorder(this)">
+                    <small style="color:#aaa;">* Select "Custom Image" above to use uploaded border</small>
                 </div>
 
                 <div class="control-row">
@@ -866,7 +878,7 @@
             ]
         },
 
-        // Ceremony Data (Fixed Structure)
+        // Ceremony Data
         ceremony: {
             active: false,
             phase: 'cover', // cover, start, reciting, end
@@ -876,13 +888,15 @@
             selectedLang: 'dv', // dv or en
             fonts: { quran: null, trans: null },
             
-            // New Settings for Ceremony Screen
+            // New Settings for Ceremony Screen including borders
             settings: {
                 themeIndex: 0,
                 arabicColor: '#D4AF37',
                 transColor: '#ffffff',
                 arabicSize: 12,
-                transSize: 5
+                transSize: 5,
+                borderStyle: 'theme', // theme, thin, none, custom
+                borderData: null      // To store the custom image data
             }
         }
     };
@@ -1140,6 +1154,18 @@
         syncWindows();
     }
     
+    // Custom Border Loader for Ceremony
+    function loadCeremonyBorder(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            state.ceremony.settings.borderData = e.target.result;
+            updateCeremonyState(); // Update screen immediately
+        };
+        reader.readAsDataURL(file);
+    }
+
     function updateCeremonyState() {
         // Collect new settings
         state.ceremony.settings.themeIndex = document.getElementById('ceremonyTheme').value;
@@ -1147,6 +1173,12 @@
         state.ceremony.settings.transColor = document.getElementById('cTransColor').value;
         state.ceremony.settings.arabicSize = document.getElementById('cArabicSize').value;
         state.ceremony.settings.transSize = document.getElementById('cTransSize').value;
+        
+        // Capture Border Style
+        const borderSelect = document.getElementById('cBorderStyle');
+        if(borderSelect) {
+            state.ceremony.settings.borderStyle = borderSelect.value;
+        }
         
         syncWindows(); 
     }
@@ -2101,13 +2133,33 @@
 
                 function updateCeremony(d) {
                     ['idleScreen','gridScreen','waitScreen','readScreen','finishScreen', 'ceremonyScreen'].forEach(id=>document.getElementById(id).style.display='none');
-                    document.getElementById('signalLight').style.display = 'none'; // Hide light for ceremony
+                    document.getElementById('signalLight').style.display = 'none'; 
                     
                     const screen = document.getElementById('ceremonyScreen');
                     screen.style.display = 'flex';
                     
-                    // APPLY THEME
+                    // 1. Theme Class Apply
                     screen.className = 'theme-' + (d.ceremony.settings.themeIndex || 0);
+
+                    // 2. APPLY CUSTOM BORDER LOGIC
+                    const bStyle = d.ceremony.settings.borderStyle || 'theme';
+                    const bData = d.ceremony.settings.borderData;
+
+                    // Reset styles first
+                    screen.style.border = ''; 
+                    screen.style.borderImage = '';
+
+                    if (bStyle === 'thin') {
+                        screen.style.border = '0.5vmin solid #D4AF37'; 
+                        screen.style.boxShadow = 'inset 0 0 2vmin #000'; 
+                    } 
+                    else if (bStyle === 'none') {
+                        screen.style.border = 'none';
+                    }
+                    else if (bStyle === 'custom' && bData) {
+                        screen.style.border = '5vmin solid transparent';
+                        screen.style.borderImage = \`url('\${bData}') 30 stretch\`;
+                    }
 
                     const cHead = document.getElementById('cHeader');
                     const cBody = document.getElementById('cBody');
@@ -2226,7 +2278,6 @@
             currentLang: currentLang, fontData: state.fontData,
             judging: state.judging,
             
-            // New Ceremony Data
             ceremony: state.ceremony,
             ceremonyTitle: document.getElementById('ceremonyTitle') ? document.getElementById('ceremonyTitle').value : "Ceremony"
         };
