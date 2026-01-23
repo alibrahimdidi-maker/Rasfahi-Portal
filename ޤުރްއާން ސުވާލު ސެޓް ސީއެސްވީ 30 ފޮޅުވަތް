@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="dv" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Master Quran CSV Generator (Multi-Range)</title>
+    <style>
+        /* FONT & STYLING */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
+        
+        body { font-family: "Noto Sans Thaana", "Segoe UI", Tahoma, sans-serif; text-align: center; padding: 40px; background: #f0f4c3; }
+        .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); max-width: 650px; margin: 0 auto; border-top: 5px solid #827717; }
+        
+        h1 { color: #827717; margin-bottom: 5px; }
+        p { color: #555; font-size: 14px; margin-bottom: 25px; }
+
+        .control-group { margin-bottom: 20px; text-align: right; direction: rtl; }
+        label { font-weight: bold; display: block; margin-bottom: 8px; color: #333; }
+        
+        select { 
+            width: 100%; padding: 12px; font-size: 16px; border: 2px solid #cddc39; border-radius: 6px; 
+            font-family: "Noto Sans Thaana", sans-serif; background: #fff; cursor: pointer;
+        }
+
+        #btn { 
+            padding: 15px 40px; font-size: 18px; background: #9e9d24; color: white; border: none; 
+            border-radius: 6px; cursor: pointer; transition: 0.3s; width: 100%; font-weight: bold;
+        }
+        #btn:hover { background: #827717; }
+        #btn:disabled { background: #cfd8dc; cursor: not-allowed; }
+
+        .progress { width: 100%; background-color: #e0e0e0; margin-top: 20px; height: 25px; border-radius: 15px; overflow: hidden; }
+        .bar { width: 0%; height: 100%; background-color: #c0ca33; text-align: center; line-height: 25px; color: #fff; font-size: 12px; transition: width 0.2s; }
+        
+        .status-text { margin-top: 15px; font-size: 13px; color: #666; font-family: monospace; direction: ltr; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Quran Question Generator</h1>
+    <p>Select line range below to generate specific CSV for Rasfahi V22</p>
+
+    <div class="control-group">
+        <label>ބޭނުންވާ ފޮޅުވަތުގެ މިންވަރު (Select Range):</label>
+        <select id="rangeSelect">
+            <option value="1-5">1 ފޮޅުވަތާއި 5 ފޮޅުވަތާ ދެމެދު (ކުރު)</option>
+            <option value="5-7">5 ފޮޅުވަތާއި 7 ފޮޅުވަތާ ދެމެދު (މެދު)</option>
+            <option value="7-10">7 ފޮޅުވަތާއި 10 ފޮޅުވަތާ ދެމެދު (ދިގު)</option>
+            <option value="10-15">10 ފޮޅުވަތާއި 15 ފޮޅުވަތާ ދެމެދު (މުޅި ޞަފްޙާ)</option>
+            <option value="15-20">15 ފޮޅުވަތާއި 20 ފޮޅުވަތާ ދެމެދު (1.5 ޞަފްޙާ)</option>
+            <option value="20-30">20 ފޮޅުވަތާއި 30 ފޮޅުވަތާ ދެމެދު (2 ޞަފްޙާ)</option>
+        </select>
+    </div>
+
+    <button id="btn" onclick="startGeneration()">Generate CSV (ފައިލް ހަދާ)</button>
+
+    <div class="progress">
+        <div id="bar" class="bar">0%</div>
+    </div>
+    <div id="status" class="status-text">Ready...</div>
+</div>
+
+<script>
+    // --- SETTINGS ---
+    // Standard Madani Page has 15 lines. We use Ratio (Text Length) to approximate.
+    const RANGES = {
+        "1-5":   { min: 0.05, max: 0.33, step: 0.30 }, // ~1-5 lines
+        "5-7":   { min: 0.33, max: 0.48, step: 0.45 }, // ~5-7 lines
+        "7-10":  { min: 0.48, max: 0.70, step: 0.60 }, // ~7-10 lines
+        "10-15": { min: 0.70, max: 1.00, step: 1.00 }, // Full Page
+        "15-20": { min: 0.95, max: 1.00, step: 1.00 }, // Full Page Start (Read over to next)
+        "20-30": { min: 0.95, max: 1.00, step: 1.00 }  // Full Page Start (Read over to next)
+    };
+
+    async function startGeneration() {
+        const btn = document.getElementById('btn');
+        const status = document.getElementById('status');
+        const bar = document.getElementById('bar');
+        const rangeKey = document.getElementById('rangeSelect').value;
+        const config = RANGES[rangeKey];
+
+        btn.disabled = true;
+        let csvContent = "ID,ImageName,Book,Surah,Page,StartAyah,EndAyah\n";
+        let qID = 1;
+        let count = 0;
+
+        try {
+            // Loop all 604 Pages
+            for (let page = 1; page <= 604; page++) {
+                
+                // Update UI
+                let pct = Math.round((page / 604) * 100);
+                bar.style.width = pct + "%";
+                bar.innerText = pct + "%";
+                status.innerText = `Scanning Page ${page}... (Found: ${count})`;
+
+                // Fetch Page Data
+                let response = await fetch(`https://api.alquran.cloud/v1/page/${page}/quran-uthmani`);
+                let json = await response.json();
+                let ayahs = json.data.ayahs;
+
+                if (ayahs.length > 0) {
+                    let totalTxt = ayahs.reduce((a,c)=>a+c.text.length,0);
+                    let createdKeys = new Set(); 
+
+                    // Determine Scan Points based on Range
+                    // Small ranges scan Top, Mid, Bottom. Large ranges scan Top only.
+                    let startPoints = [];
+                    if(config.max <= 0.5) {
+                        startPoints = [0, totalTxt * 0.33, totalTxt * 0.66]; // Multiple per page
+                    } else {
+                        startPoints = [0]; // Start from top for long questions
+                    }
+
+                    startPoints.forEach(targetStart => {
+                        let currentLen = 0;
+                        let startIndex = -1;
+
+                        // 1. Find Start Ayah
+                        for(let i=0; i<ayahs.length; i++) {
+                            if(currentLen >= targetStart) { startIndex = i; break; }
+                            currentLen += ayahs[i].text.length;
+                        }
+                        if(startIndex === -1) startIndex = 0;
+
+                        // 2. Find End Ayah based on Ratio
+                        let chunkTxt = 0;
+                        let endIndex = startIndex;
+                        
+                        for(let j=startIndex; j<ayahs.length; j++) {
+                            chunkTxt += ayahs[j].text.length;
+                            endIndex = j;
+                            let ratio = chunkTxt / totalTxt;
+                            
+                            // Check if within range
+                            if(ratio >= config.min) {
+                                // For very long ranges (20-30), we just take the whole page
+                                // The judge/software handles page turning.
+                                break; 
+                            }
+                        }
+
+                        // Check if the chunk is too small (e.g. last ayah of surah)
+                        let finalRatio = chunkTxt / totalTxt;
+                        if(finalRatio < config.min && config.min < 0.9) return; 
+
+                        // 3. Generate Data
+                        let uniqueKey = `${page}-${startIndex}-${endIndex}`;
+                        if(!createdKeys.has(uniqueKey)) {
+                            createdKeys.add(uniqueKey);
+                            
+                            let first = ayahs[startIndex];
+                            let last = ayahs[endIndex];
+
+                            // FORMATTING FOR V22
+                            let imgName = String(page).padStart(3, '0') + ".png";
+                            let juzStr = "Juz " + first.juz;
+                            let surahStr = `${first.surah.number}. ${first.surah.englishName}`;
+
+                            let row = [
+                                qID++,
+                                imgName,
+                                juzStr,
+                                surahStr,
+                                page,
+                                first.numberInSurah,
+                                last.numberInSurah
+                            ].join(",");
+
+                            csvContent += row + "\n";
+                            count++;
+                        }
+                    });
+                }
+            }
+
+            // Download File
+            const blob = new Blob(["\uFEFF"+csvContent], {type: 'text/csv;charset=utf-8;'});
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `Quran_Questions_${rangeKey}_Lines.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            status.innerText = `Completed! Generated ${count} questions.`;
+            status.style.color = "green";
+            bar.style.backgroundColor = "#76ff03";
+            btn.disabled = false;
+
+        } catch (e) {
+            status.innerText = "Error: " + e.message;
+            status.style.color = "red";
+            btn.disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>
