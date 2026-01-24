@@ -1196,18 +1196,76 @@
         }
     }
 
-    // --- SYSTEM SECURITY ---
+    // --- ADVANCED SECURITY UNLOCK (NEW) ---
     function unlockSystem() {
         const inputKey = document.getElementById('secKey').value.trim();
         const msg = document.getElementById('secMsg');
 
-        if (inputKey === "ADMIN-12345" || inputKey === "123") { // Backdoor for demo
-            document.getElementById('securityOverlay').classList.add('hidden');
-            renderSlots();
-            loadFromLocal(); // Trigger load
+        // Backdoor for testing (ބޭނުންނަމަ މިބައި ފޮހެލާ: ADMIN-OVERRIDE ޖަހައިގެން ވަދެވޭނެ)
+        if (inputKey === "ADMIN-OVERRIDE") {
+            grantAccess("Administrator");
             return;
         }
-        msg.innerText = "❌ Invalid License Key.";
+
+        if (!inputKey) {
+            msg.innerText = "⚠️ Please enter a license key.";
+            return;
+        }
+
+        try {
+            // 1. ކޯޑު ޑިކޯޑް ކުރުން (Base64 Decode)
+            const decoded = atob(inputKey); 
+            
+            // ކޯޑު ހެދިފައިވާ ގޮތް: "ROYAL_EXP_YYYY-MM-DD_CUST_Name"
+            const parts = decoded.split('_');
+
+            // 2. ކޯޑުގެ ފޯމެޓް ޗެކްކުރުން
+            if (parts.length < 5 || parts[0] !== "ROYAL" || parts[1] !== "EXP") {
+                throw new Error("Invalid License Format");
+            }
+
+            // 3. ތާރީޚް ހަމަވެފައިވޭތޯ ބެލުން
+            const expDateString = parts[2]; // YYYY-MM-DD
+            const expDate = new Date(expDateString);
+            const today = new Date();
+            
+            // ގަޑި ނުބަލައި ހަމައެކަނި ތާރީޚް ބެލުމަށް
+            today.setHours(0,0,0,0);
+            
+            if (expDate < today) {
+                msg.innerText = "❌ License Expired on: " + expDateString;
+                return;
+            }
+
+            // 4. ކަސްޓަމަރުގެ ނަން ނެގުން
+            const custName = parts[4].replace(/-/g, ' '); // ނަމުގައި ހުރި "-" ފިލުވައިލުން
+
+            // 5. ހުރިހާ ކަމެއް ރަނގަޅުނަމަ ވަނުމުގެ ހުއްދަ ދިނުން
+            grantAccess(custName);
+
+        } catch (e) {
+            console.error(e);
+            msg.innerText = "❌ Invalid License Key.";
+        }
+    }
+
+    // ވަނުމުގެ ހުއްދަ ދޭ ފަންކްޝަން
+    function grantAccess(name) {
+        // ސްކްރީން ފޮރުވުން
+        document.getElementById('securityOverlay').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('securityOverlay').classList.add('hidden');
+        }, 500);
+        
+        // ލައިސަންސް އޮތް މީހާގެ ނަން ދެއްކުން (އެތެރޭގައި އެބައި އިންނަމަ)
+        const licDisp = document.getElementById('licenseDisplay');
+        if(licDisp) {
+            licDisp.style.display = 'block';
+            document.getElementById('licenseName').innerText = name;
+        }
+        
+        renderSlots(); // ސްލޮޓްތައް ދެއްކުން
+        loadFromLocal(); // ★ މުހިންމު: އޮޓޯ ސޭވް ޑޭޓާ ލޯޑުކުރުން
     }
 
     function setMode(mode) {
