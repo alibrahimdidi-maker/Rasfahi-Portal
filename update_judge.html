@@ -2809,6 +2809,336 @@
         link.click();
         document.body.removeChild(link);
     }
+    // --- ADVANCED REPORT GENERATION FUNCTIONS ---
+
+    function getFilteredResults() {
+        const fBranch = document.getElementById('rptFilterBranch').value;
+        const fGroup = document.getElementById('rptFilterGroup').value;
+
+        // Filter Data
+        let list = state.judging.savedResults.filter(r => {
+            // Check Branch (Flexible check)
+            let branchMatch = (fBranch === "All") ? true : (r.branch && r.branch.includes(fBranch));
+            // Manual fixes for Dhivehi naming if needed
+            if(fBranch === "Balaiygen" && r.branch && r.branch.toLowerCase().includes("balai")) branchMatch = true;
+            if(fBranch === "Nubalai" && r.branch && r.branch.toLowerCase().includes("nubalai")) branchMatch = true;
+
+            // Check Group
+            let groupMatch = (fGroup === "All") ? true : (r.group === fGroup);
+
+            return branchMatch && groupMatch;
+        });
+
+        // Sort Highest to Lowest
+        return list.sort((a, b) => b.finalScore - a.finalScore);
+    }
+
+    function generateAdvancedReport(mode) {
+        let list = getFilteredResults();
+        
+        // Slice for Top 3/5
+        let titleSuffix = "(Full List)";
+        if(mode === 'top3') { list = list.slice(0, 3); titleSuffix = "(TOP 3)"; }
+        if(mode === 'top5') { list = list.slice(0, 5); titleSuffix = "(TOP 5)"; }
+
+        if(list.length === 0) { alert("No students found for this filter!"); return; }
+
+        // Get Custom Info
+        const instName = document.getElementById('rptInstName').value || "Quran Competition";
+        const compName = document.getElementById('rptCompName').value || "Official Results";
+        const chiefName = document.getElementById('rptChief').value || "__________________";
+        const judgeCount = parseInt(document.getElementById('rptJudgeCount').value) || 3;
+        
+        const branchTxt = document.getElementById('rptFilterBranch').value;
+        const groupTxt = document.getElementById('rptFilterGroup').value;
+
+        // Generate Signature Lines
+        let sigLines = '';
+        for(let i=1; i<=judgeCount; i++) {
+            sigLines += `
+                <div class="sig-box">
+                    <div class="line"></div>
+                    <div class="label">Judge ${i}</div>
+                </div>`;
+        }
+
+        // HTML Structure for Print
+        const html = `
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <title>Result Report</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 40px; }
+                .header { text-align: center; margin-bottom: 40px; border-bottom: 3px double #000; padding-bottom: 20px; }
+                h1 { margin: 0; font-size: 28px; text-transform: uppercase; }
+                h2 { margin: 5px 0; font-size: 20px; color: #444; }
+                .meta { display: flex; justify-content: space-between; margin-top: 20px; font-weight: bold; font-size: 16px; border: 1px solid #ccc; padding: 10px; }
+                
+                table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+                th, td { border: 1px solid #333; padding: 10px; text-align: center; }
+                th { background: #eee; font-weight: bold; }
+                tr:nth-child(1) td { background: #fffbe6; font-weight:bold; } /* 1st Place Highlight */
+
+                .footer { margin-top: 60px; page-break-inside: avoid; }
+                .chief-section { text-align: right; margin-bottom: 40px; }
+                .judges-grid { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+                .sig-box { width: 30%; text-align: center; margin-bottom: 30px; }
+                .line { border-bottom: 1px solid #000; margin-bottom: 5px; height: 30px; }
+                .label { font-size: 12px; color: #555; }
+                
+                @media print {
+                    button { display: none; }
+                    body { -webkit-print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <button onclick="window.print()" style="position:fixed; top:10px; left:10px; padding:10px 20px; font-size:20px; background:blue; color:white; cursor:pointer;">🖨️ PRINT / SAVE AS PDF</button>
+
+            <div class="header">
+                <h1>${instName}</h1>
+                <h2>${compName}</h2>
+                <h3 style="margin-top:10px; text-decoration:underline;">OFFICIAL RESULT SHEET ${titleSuffix}</h3>
+            </div>
+
+            <div class="meta">
+                <div>Branch: ${branchTxt}</div>
+                <div>Category: ${groupTxt}</div>
+                <div>Date: ${new Date().toLocaleDateString()}</div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th width="10%">Rank</th>
+                        <th width="40%">Student Name</th>
+                        <th width="15%">ID Card</th>
+                        <th width="15%">Final Score</th>
+                        <th width="20%">Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${list.map((s, i) => `
+                        <tr>
+                            <td>${i+1}</td>
+                            <td style="text-align:right;">${s.name}</td>
+                            <td>${s.id}</td>
+                            <td><b>${s.finalScore}</b></td>
+                            <td></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+
+            <div class="footer">
+                <div class="chief-section">
+                    <div>Endorsed By Chief Judge:</div>
+                    <div style="margin-top:40px; border-bottom:1px solid #000; display:inline-block; width:250px;"></div>
+                    <div style="margin-top:5px;">${chiefName}</div>
+                </div>
+
+                <div class="judges-grid">
+                    ${sigLines}
+                </div>
+            </div>
+        </body>
+        </html>`;
+
+        const w = window.open("", "Report", "width=900,height=900");
+        w.document.write(html);
+        w.document.close();
+    }
+
+    // --- FILTERED CSV EXPORT (Separate file for specific category) ---
+    function exportFilteredCSV() {
+        let list = getFilteredResults();
+        if(list.length === 0) { alert("No data found for this filter."); return; }
+
+        let csv = "Rank,Name,ID,Group,Branch,FinalScore\n";
+        
+        list.forEach((s, i) => {
+            csv += `${i+1},"${s.name}","${s.id}","${s.group}","${s.branch}",${s.finalScore}\n`;
+        });
+
+        const fBranch = document.getElementById('rptFilterBranch').value;
+        const fGroup = document.getElementById('rptFilterGroup').value;
+        const fileName = `Result_${fBranch}_${fGroup}.csv`;
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    // --- ADVANCED REPORT GENERATION FUNCTIONS ---
+
+    function getFilteredResults() {
+        const fBranch = document.getElementById('rptFilterBranch').value;
+        const fGroup = document.getElementById('rptFilterGroup').value;
+
+        // Filter Data
+        let list = state.judging.savedResults.filter(r => {
+            // Check Branch (Flexible check)
+            let branchMatch = (fBranch === "All") ? true : (r.branch && r.branch.includes(fBranch));
+            // Manual fixes for Dhivehi naming if needed
+            if(fBranch === "Balaiygen" && r.branch && r.branch.toLowerCase().includes("balai")) branchMatch = true;
+            if(fBranch === "Nubalai" && r.branch && r.branch.toLowerCase().includes("nubalai")) branchMatch = true;
+
+            // Check Group
+            let groupMatch = (fGroup === "All") ? true : (r.group === fGroup);
+
+            return branchMatch && groupMatch;
+        });
+
+        // Sort Highest to Lowest
+        return list.sort((a, b) => b.finalScore - a.finalScore);
+    }
+
+    function generateAdvancedReport(mode) {
+        let list = getFilteredResults();
+        
+        // Slice for Top 3/5
+        let titleSuffix = "(Full List)";
+        if(mode === 'top3') { list = list.slice(0, 3); titleSuffix = "(TOP 3)"; }
+        if(mode === 'top5') { list = list.slice(0, 5); titleSuffix = "(TOP 5)"; }
+
+        if(list.length === 0) { alert("No students found for this filter!"); return; }
+
+        // Get Custom Info
+        const instName = document.getElementById('rptInstName').value || "Quran Competition";
+        const compName = document.getElementById('rptCompName').value || "Official Results";
+        const chiefName = document.getElementById('rptChief').value || "__________________";
+        const judgeCount = parseInt(document.getElementById('rptJudgeCount').value) || 3;
+        
+        const branchTxt = document.getElementById('rptFilterBranch').value;
+        const groupTxt = document.getElementById('rptFilterGroup').value;
+
+        // Generate Signature Lines
+        let sigLines = '';
+        for(let i=1; i<=judgeCount; i++) {
+            sigLines += `
+                <div class="sig-box">
+                    <div class="line"></div>
+                    <div class="label">Judge ${i}</div>
+                </div>`;
+        }
+
+        // HTML Structure for Print
+        const html = `
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <title>Result Report</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 40px; }
+                .header { text-align: center; margin-bottom: 40px; border-bottom: 3px double #000; padding-bottom: 20px; }
+                h1 { margin: 0; font-size: 28px; text-transform: uppercase; }
+                h2 { margin: 5px 0; font-size: 20px; color: #444; }
+                .meta { display: flex; justify-content: space-between; margin-top: 20px; font-weight: bold; font-size: 16px; border: 1px solid #ccc; padding: 10px; }
+                
+                table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+                th, td { border: 1px solid #333; padding: 10px; text-align: center; }
+                th { background: #eee; font-weight: bold; }
+                tr:nth-child(1) td { background: #fffbe6; font-weight:bold; } /* 1st Place Highlight */
+
+                .footer { margin-top: 60px; page-break-inside: avoid; }
+                .chief-section { text-align: right; margin-bottom: 40px; }
+                .judges-grid { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+                .sig-box { width: 30%; text-align: center; margin-bottom: 30px; }
+                .line { border-bottom: 1px solid #000; margin-bottom: 5px; height: 30px; }
+                .label { font-size: 12px; color: #555; }
+                
+                @media print {
+                    button { display: none; }
+                    body { -webkit-print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <button onclick="window.print()" style="position:fixed; top:10px; left:10px; padding:10px 20px; font-size:20px; background:blue; color:white; cursor:pointer;">🖨️ PRINT / SAVE AS PDF</button>
+
+            <div class="header">
+                <h1>${instName}</h1>
+                <h2>${compName}</h2>
+                <h3 style="margin-top:10px; text-decoration:underline;">OFFICIAL RESULT SHEET ${titleSuffix}</h3>
+            </div>
+
+            <div class="meta">
+                <div>Branch: ${branchTxt}</div>
+                <div>Category: ${groupTxt}</div>
+                <div>Date: ${new Date().toLocaleDateString()}</div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th width="10%">Rank</th>
+                        <th width="40%">Student Name</th>
+                        <th width="15%">ID Card</th>
+                        <th width="15%">Final Score</th>
+                        <th width="20%">Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${list.map((s, i) => `
+                        <tr>
+                            <td>${i+1}</td>
+                            <td style="text-align:right;">${s.name}</td>
+                            <td>${s.id}</td>
+                            <td><b>${s.finalScore}</b></td>
+                            <td></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+
+            <div class="footer">
+                <div class="chief-section">
+                    <div>Endorsed By Chief Judge:</div>
+                    <div style="margin-top:40px; border-bottom:1px solid #000; display:inline-block; width:250px;"></div>
+                    <div style="margin-top:5px;">${chiefName}</div>
+                </div>
+
+                <div class="judges-grid">
+                    ${sigLines}
+                </div>
+            </div>
+        </body>
+        </html>`;
+
+        const w = window.open("", "Report", "width=900,height=900");
+        w.document.write(html);
+        w.document.close();
+    }
+
+    // --- FILTERED CSV EXPORT (Separate file for specific category) ---
+    function exportFilteredCSV() {
+        let list = getFilteredResults();
+        if(list.length === 0) { alert("No data found for this filter."); return; }
+
+        let csv = "Rank,Name,ID,Group,Branch,FinalScore\n";
+        
+        list.forEach((s, i) => {
+            csv += `${i+1},"${s.name}","${s.id}","${s.group}","${s.branch}",${s.finalScore}\n`;
+        });
+
+        const fBranch = document.getElementById('rptFilterBranch').value;
+        const fGroup = document.getElementById('rptFilterGroup').value;
+        const fileName = `Result_${fBranch}_${fGroup}.csv`;
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 </script>
 </body>
 </html>
