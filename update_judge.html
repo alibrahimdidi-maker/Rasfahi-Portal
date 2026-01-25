@@ -3504,6 +3504,130 @@ function getStudentPhotoURL(regNo) {
     if(state.studentPhotos[cleanReg.toLowerCase()]) return state.studentPhotos[cleanReg.toLowerCase()];
     return ""; // No photo found
 }
+    // ==========================================
+   // PART 2: NEW LOGIC (PHOTOS & SCHEDULE)
+   // ==========================================
+
+   // 1. ފޮޓޯތައް މެނޭޖްކުރާ ބައި (PHOTO HANDLING)
+   // ------------------------------------------
+   state.studentPhotos = {}; 
+
+   // ފޮޓޯ ފޯލްޑަރ ސިލެކްޓް ކުރުމުން މަސައްކަތްކުރާނެ ގޮތް
+   if(document.getElementById('stdPhotoDir')) {
+       document.getElementById('stdPhotoDir').onchange = e => {
+           let count = 0;
+           state.studentPhotos = {};
+           for(let f of e.target.files) {
+               if(f.type.startsWith('image/')) {
+                   // ފައިލް ނަމުން "R-001.png" އިން "R-001" ނަގަނީ
+                   const name = f.name.split('.')[0].trim(); 
+                   const url = URL.createObjectURL(f);
+                   state.studentPhotos[name] = url;
+                   state.studentPhotos[name.toLowerCase()] = url; // ކުޑަ އަކުރުން ލިޔުނަސް ނެގޭގޮތަށް
+                   count++;
+               }
+           }
+           document.getElementById('stdPhotoStatus').innerText = count + " Photos Loaded!";
+           syncWindows(); // ސްކްރީންތައް އަޕްޑޭޓްކުރުން
+       };
+   }
+
+   // ދަރިވަރުގެ ރެޖިސްޓްރީ ނަންބަރުން ފޮޓޯ ހޯދާ ފަންކްޝަން
+   function getStudentPhotoURL(regNo) {
+       if(!regNo) return ""; 
+       const cleanReg = regNo.trim();
+       if(state.studentPhotos[cleanReg]) return state.studentPhotos[cleanReg];
+       if(state.studentPhotos[cleanReg.toLowerCase()]) return state.studentPhotos[cleanReg.toLowerCase()];
+       return ""; 
+   }
+
+   // 2. ޝެޑިއުލް ޕްރިންޓް ކުރާ ބައި (SCHEDULE PRINTING)
+   // ------------------------------------------
+   function printSessionSchedule() {
+       // Inputs ނެގުން
+       const dateVal = document.getElementById('schDate').value;
+       const timeVal = document.getElementById('schTime').value;
+       const sessionVal = document.getElementById('schSessionName').value || "General Session";
+       const branch = document.getElementById('schFilterBranch').value;
+       const group = document.getElementById('schFilterGroup').value;
+       const limit = parseInt(document.getElementById('schLimit').value) || 1000;
+
+       // ދަރިވަރުން ފިލްޓަރ ކުރުން
+       let list = state.allStudents.filter(s => {
+           let bMatch = (branch === "All") ? true : (s.branch && s.branch.includes(branch));
+           let gMatch = (group === "All") ? true : (s.group === group);
+           return bMatch && gMatch;
+       });
+
+       // ލިމިޓް ހަމަކުރުން
+       list = list.slice(0, limit);
+
+       if(list.length === 0) { alert("No students found for this filter."); return; }
+
+       // ޕްރިންޓް ކުރާ ޞަފްޙާގެ ޑިޒައިން (HTML)
+       const html = `
+       <!DOCTYPE html>
+       <html dir="rtl" lang="dv">
+       <head>
+           <title>Session Schedule</title>
+           <style>
+               @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
+               body { font-family: 'Noto Sans Thaana', sans-serif; padding: 40px; direction: rtl; }
+               h1 { text-align: center; margin-bottom: 5px; text-decoration: underline; }
+               .meta-box { border: 1px solid #000; padding: 15px; margin: 20px 0; background: #f0f0f0; display:flex; justify-content: space-around; font-weight:bold;}
+               table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+               th, td { border: 1px solid #000; padding: 10px; text-align: center; }
+               th { background: #ccc; font-weight: bold; }
+               @media print { button { display: none; } }
+           </style>
+       </head>
+       <body>
+           <button onclick="window.print()" style="padding:10px; margin-bottom:10px;">🖨️ PRINT LIST</button>
+           
+           <h1>ރަސްފަހި ޤުރްއާން މުބާރާތުގެ ބައިވެރިން ހާޒިރުވާންޖެހޭ ގޮތުގެ ތާވަލް</h1>
+           
+           <div class="meta-box">
+               <div>ތާރީޚް: ${dateVal}</div>
+               <div>ގަޑި: ${timeVal}</div>
+               <div>ދަންފަޅި: ${sessionVal}</div>
+               <div>ގޮފި: ${branch}</div>
+           </div>
+
+           <table>
+               <thead>
+                   <tr>
+                       <th width="5%">#</th>
+                       <th width="15%">ރެޖިސްޓްރީ ނަންބަރ</th>
+                       <th width="35%">ބައިވެރިޔާގެ ނަން</th>
+                       <th width="15%">ޢުމުރު ފުރާ</th>
+                       <th width="15%">ގޮފި</th>
+                       <th width="15%">ނޯޓް</th>
+                   </tr>
+               </thead>
+               <tbody>
+                   ${list.map((s, i) => `
+                       <tr>
+                           <td>${i+1}</td>
+                           <td style="font-weight:bold;">${s.reg || "-"}</td>
+                           <td style="text-align:right;">${s.name}</td>
+                           <td>${s.group}</td>
+                           <td>${s.branch}</td>
+                           <td></td>
+                       </tr>
+                   `).join('')}
+               </tbody>
+           </table>
+           
+           <div style="margin-top:20px; text-align:center; font-size:12px;">
+               generated by Rasfahi Judge V26.0
+           </div>
+       </body>
+       </html>`;
+
+       const w = window.open("", "Schedule", "width=900,height=900");
+       w.document.write(html);
+       w.document.close();
+   }
 </script>
 </body>
 </html>
