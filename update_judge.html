@@ -3477,6 +3477,80 @@ quiz: {
         }
     });
 }
+    // Switch between Quran and Quiz
+function switchMainMode(mode) {
+    state.quiz.active = (mode === 'quiz');
+    
+    document.getElementById('tabQuran').classList.toggle('active', mode === 'quran');
+    document.getElementById('tabQuiz').classList.toggle('active', mode === 'quiz');
+    
+    // Toggle Controls
+    document.getElementById('quizControls').classList.toggle('hidden', mode !== 'quiz');
+    document.getElementById('judgeControls').classList.toggle('hidden', mode === 'quiz'); // Hide normal Quran controls
+    
+    // Clear Screens
+    state.session.phase = 'idle';
+    syncWindows();
+}
+
+// Load Quiz CSV
+function loadQuizData(input) {
+    const file = input.files[0];
+    if(!file) return;
+    const r = new FileReader();
+    r.onload = e => {
+        const rows = e.target.result.split('\n');
+        state.quiz.pool = [];
+        rows.slice(1).forEach(row => {
+            const cols = row.split(',');
+            if(cols.length >= 3) {
+                state.quiz.pool.push({
+                    id: cols[0].trim(),
+                    q: cols[1].trim(),
+                    a: cols[2].trim()
+                });
+            }
+        });
+        alert(`Loaded ${state.quiz.pool.length} Quiz Questions!`);
+        if(state.quiz.active) reshuffleGrid(); // Refresh grid if in quiz mode
+    };
+    r.readAsText(file);
+}
+
+// Quiz Logic for Grid Click (Update existing handleGridClick logic inside handling)
+// NOTE: You need to update your existing 'handleGridClick' to check 'state.quiz.active'
+/* Existing handleGridClick function at top needs modification:
+   if (state.quiz.active) {
+       const q = state.quiz.pool[state.grid.map[boxID]]; // Logic to pick quiz Q
+       state.quiz.currentQ = q;
+       state.quiz.revealed = false;
+       document.getElementById('quizPreviewQ').innerText = q.q;
+       document.getElementById('quizPreviewA').innerText = q.a;
+       syncWindows();
+       return; 
+   }
+*/
+
+// Quiz Judging
+function judgeQuiz(isCorrect) {
+    state.quiz.revealed = true;
+    state.quiz.isCorrect = isCorrect;
+    syncWindows();
+}
+
+function resetQuizAns() {
+    state.quiz.revealed = false;
+    syncWindows();
+}
+
+function downloadQuizTemplate() {
+    const csv = "ID,Question,Answer\n1,Sample Question?,Sample Answer";
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = "Quiz_Template.csv";
+    a.click();
+}
 </script>
 </body>
 </html>
