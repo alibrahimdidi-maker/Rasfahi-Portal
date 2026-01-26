@@ -2836,6 +2836,7 @@
                     screen.style.display = 'flex';
                     screen.className = 'theme-' + (d.ceremony.settings.themeIndex || 0);
 
+                    // --- BORDER LOGIC (Existing) ---
                     const bStyle = d.ceremony.settings.borderStyle || 'theme';
                     const bData = d.ceremony.settings.borderData;
                     screen.style.border = ''; screen.style.borderImage = '';
@@ -2849,7 +2850,7 @@
                     }
                     else if (bStyle === 'custom' && bData) {
                         screen.style.border = '5vmin solid transparent';
-                        screen.style.borderImage = \`url('\${bData}') 30 stretch\`;
+                        screen.style.borderImage = `url('${bData}') 30 stretch`;
                     }
 
                     const cHead = document.getElementById('cHeader');
@@ -2859,9 +2860,11 @@
 
                     const data = d.ceremony;
                     const sets = d.ceremony.settings;
+                    // ★ NEW: Get the mode
+                    const tMode = sets.transMode || 'both'; 
                     
                     if(data.phase === 'cover') {
-                        cBody.innerHTML = \`<div class="c-cover">\${d.ceremonyTitle || "Quran Ceremony"}</div>\`;
+                        cBody.innerHTML = `<div class="c-cover">${d.ceremonyTitle || "Quran Ceremony"}</div>`;
                     } else if (data.phase === 'start') {
                          cBody.innerHTML = '<div class="c-basmalah">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>';
                     } else if (data.phase === 'end') {
@@ -2869,13 +2872,30 @@
                     } else if (data.phase === 'reciting') {
                         cHead.style.display = 'none'; 
                         const ayah = data.activeData[data.currentIndex];
-                        let transText = "";
-                        if(data.selectedLang === 'en') { transText = ayah.en || ayah.dv || ""; } else { transText = ayah.dv || ayah.en || ""; }
-
+                        
                         if(ayah) {
-                            cBody.innerHTML = \`<div class="ceremony-quran" style="color:\${sets.arabicColor}; font-size:\${sets.arabicSize}vmin;">\${ayah.arabic}</div>
-                                                <div class="ceremony-divider"></div>
-                                                <div class="ceremony-trans" style="color:\${sets.transColor}; font-size:\${sets.transSize}vmin;">\${transText}</div>\`;
+                            // --- NEW TRANSLATION LOGIC ---
+                            let transHTML = "";
+                            
+                            // Check Modes
+                            if (tMode === 'both') {
+                                // ދެބަސް އެކުގައި: ދިވެހި މަތީގައި، އިނގިރޭސި ތިރީގައި
+                                if(ayah.dv) transHTML += `<div class="ceremony-trans" style="color:${sets.transColor}; font-size:${sets.transSize}vmin; margin-bottom:1vmin;">${ayah.dv}</div>`;
+                                if(ayah.en) transHTML += `<div class="ceremony-trans" style="color:${sets.transColor}; font-size:${sets.transSize * 0.9}vmin; opacity:0.9; font-family:sans-serif !important;">${ayah.en}</div>`;
+                            } 
+                            else if (tMode === 'dv') {
+                                // ހަމައެކަނި ދިވެހި
+                                if(ayah.dv) transHTML = `<div class="ceremony-trans" style="color:${sets.transColor}; font-size:${sets.transSize}vmin;">${ayah.dv}</div>`;
+                            } 
+                            else if (tMode === 'en') {
+                                // ހަމައެކަނި އިނގިރޭސި
+                                if(ayah.en) transHTML = `<div class="ceremony-trans" style="color:${sets.transColor}; font-size:${sets.transSize}vmin; font-family:sans-serif !important;">${ayah.en}</div>`;
+                            }
+
+                            // Render
+                            cBody.innerHTML = `<div class="ceremony-quran" style="color:${sets.arabicColor}; font-size:${sets.arabicSize}vmin;">${ayah.arabic}</div>
+                                               <div class="ceremony-divider"></div>
+                                               ${transHTML}`;
                         }
                     }
                 }
