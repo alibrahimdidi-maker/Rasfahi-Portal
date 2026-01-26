@@ -862,20 +862,7 @@
                         <input type="range" id="cTransSize" class="range-slider" min="2" max="15" step="0.5" value="5" oninput="updateCeremonyState()">
                     </div>
                 </div>
-<input type="range" id="cTransSize" class="range-slider" min="2" max="15" step="0.5" value="5" oninput="updateCeremonyState()">
-                </div>
-            </div>
 
-            <div style="margin-top:5px; margin-bottom:5px;">
-                <small style="color:#aaa;">Translation Mode (ތަރުޖަމާ ދައްކާގޮތް):</small>
-                <select id="cTransMode" onchange="updateCeremonyState()">
-                    <option value="both">Both (ދިވެހި & English)</option>
-                    <option value="dv">Dhivehi Only (ހަމައެކަނި ދިވެހި)</option>
-                    <option value="en">English Only (ހަމައެކަނި އިނގިރޭސި)</option>
-                </select>
-            </div>
-
-            <hr style="border-color:#333; margin:8px 0;">
                 <hr style="border-color:#333; margin:8px 0;">
 
                 <label style="margin-top:10px; color:#00e5ff;">3. ކިޔެވުން ސެލެކްޓް (Selection):</label>
@@ -1833,16 +1820,13 @@
         reader.readAsDataURL(file);
     }
 
-   function updateCeremonyState() {
+    function updateCeremonyState() {
         state.ceremony.settings.themeIndex = document.getElementById('ceremonyTheme').value;
         state.ceremony.settings.arabicColor = document.getElementById('cArabicColor').value;
         state.ceremony.settings.transColor = document.getElementById('cTransColor').value;
         state.ceremony.settings.arabicSize = document.getElementById('cArabicSize').value;
         state.ceremony.settings.transSize = document.getElementById('cTransSize').value;
-
-        // ★ މިއޮތީ އިތުރުކުރަންޖެހޭ ލައިން:
-        state.ceremony.settings.transMode = document.getElementById('cTransMode').value;
-
+        
         const borderSelect = document.getElementById('cBorderStyle');
         if(borderSelect) {
             state.ceremony.settings.borderStyle = borderSelect.value;
@@ -2363,8 +2347,8 @@
         }
     }
 
-    // --- TEMPLATE GENERATOR (UPDATED FULL FUNCTION) ---
-    function getTemplate(isCeremony = false, titleOverride = "") {
+    // --- TEMPLATE GENERATOR ---
+    function getTemplate(isCeremony = false) {
         const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
         
         // Fonts for Ceremony
@@ -2380,14 +2364,6 @@
         let borderCSS = `border: 1.5vmin ${th.borderType} ${th.accent}; box-shadow: 0 0 5vmin ${th.accent}80;`;
         if(bStyle === 'custom' && state.borderData) borderCSS = `border: 4vmin solid transparent; border-image: url('${state.borderData}') 30 stretch;`;
         if(bStyle === 'none') borderCSS = "border:none;";
-
-        // Title logic for Judges
-        let displayTitleHTML = "";
-        if(titleOverride) {
-            displayTitleHTML = `<h1 style="text-align:center; color:#b71c1c; border-bottom:2px solid #ccc; padding-bottom:10px; font-size:40px;">${titleOverride}</h1>`;
-        } else {
-             displayTitleHTML = `<h1 id="judgeTitleDisplay" style="text-align:center; color:#b71c1c; border-bottom:2px solid #ccc; padding-bottom:10px; font-size:40px;">JUDGE SCREEN</h1>`;
-        }
 
         return `
         <!DOCTYPE html>
@@ -2598,9 +2574,9 @@
                         <div class="royal-card" id="mainScroll"><img id="qImg" src=""><h1 id="memoryText"></h1></div>
                         
                         <div id="judgeSection">
-                            ${displayTitleHTML}
+    <h1 id="judgeTitleDisplay" style="text-align:center; color:#b71c1c; border-bottom:2px solid #ccc; padding-bottom:10px; font-size:40px;">JUDGE SCREEN</h1>
     
-                            <div class="student-bar">Student: <span id="jStudentName">---</span></div>
+    <div class="student-bar">Student: <span id="jStudentName">---</span></div>
                             <table class="rubric-table">
                                 <thead style="border-bottom: 2px solid var(--accent);">
                                     <tr>
@@ -2655,6 +2631,7 @@
                 }
 
                 // --- DYNAMIC JUDGE TABLE LOGIC ---
+                // Helper to initialize rows in Judge Window
                 window.initJudgeRow = function(idx, max) {
                     if(!currentScores[idx]) currentScores[idx] = { max: max, deducted: 0 };
                     updateRowDisplay(idx);
@@ -2867,9 +2844,6 @@
                     const data = d.ceremony;
                     const sets = d.ceremony.settings;
                     
-                    // --- MODE SELECTION ---
-                    const tMode = sets.transMode || 'both';
-
                     if(data.phase === 'cover') {
                         cBody.innerHTML = \`<div class="c-cover">\${d.ceremonyTitle || "Quran Ceremony"}</div>\`;
                     } else if (data.phase === 'start') {
@@ -2879,29 +2853,17 @@
                     } else if (data.phase === 'reciting') {
                         cHead.style.display = 'none'; 
                         const ayah = data.activeData[data.currentIndex];
-                        
-                        if(ayah) {
-                            let transHTML = "";
-                            
-                            // Check Modes and Build HTML
-                            if (tMode === 'both') {
-                                if(ayah.dv) transHTML += \`<div class="ceremony-trans" style="color:\${sets.transColor}; font-size:\${sets.transSize}vmin; margin-bottom:1vmin;">\${ayah.dv}</div>\`;
-                                if(ayah.en) transHTML += \`<div class="ceremony-trans" style="color:\${sets.transColor}; font-size:\${sets.transSize * 0.9}vmin; opacity:0.9; font-family:sans-serif !important;">\${ayah.en}</div>\`;
-                            } 
-                            else if (tMode === 'dv') {
-                                if(ayah.dv) transHTML = \`<div class="ceremony-trans" style="color:\${sets.transColor}; font-size:\${sets.transSize}vmin;">\${ayah.dv}</div>\`;
-                            } 
-                            else if (tMode === 'en') {
-                                if(ayah.en) transHTML = \`<div class="ceremony-trans" style="color:\${sets.transColor}; font-size:\${sets.transSize}vmin; font-family:sans-serif !important;">\${ayah.en}</div>\`;
-                            }
+                        let transText = "";
+                        if(data.selectedLang === 'en') { transText = ayah.en || ayah.dv || ""; } else { transText = ayah.dv || ayah.en || ""; }
 
+                        if(ayah) {
                             cBody.innerHTML = \`<div class="ceremony-quran" style="color:\${sets.arabicColor}; font-size:\${sets.arabicSize}vmin;">\${ayah.arabic}</div>
-                                               <div class="ceremony-divider"></div>
-                                               \${transHTML}\`;
+                                                <div class="ceremony-divider"></div>
+                                                <div class="ceremony-trans" style="color:\${sets.transColor}; font-size:\${sets.transSize}vmin;">\${transText}</div>\`;
                         }
                     }
                 }
-            </script>
+            <\/script>
         </body>
         </html>`;
     }
