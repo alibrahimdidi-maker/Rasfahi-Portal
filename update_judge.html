@@ -1356,46 +1356,81 @@
         saveToLocal(); // ޑޭޓާ ސޭވްކުރުން
         syncWindows(); // ★ ހުރިހާ ވިންޑޯއަކަށް (ޖަޖުންނަށް) ވަގުތުން ފޮނުވުން
     }
-// --- 1. CSV ލޯޑުކުރާ ފަންކްޝަން (Updated for Fake Master Sheet) ---
+// --- CSV ލޯޑުކޮށް + ރުބްރިކް އޮޓޯއިން އަޕްޑޭޓްކުރާ ފަންކްޝަން ---
     function loadStudentBatch() {
         const file = document.getElementById('batchCsv').files[0];
         if(!file) { alert("Please select a CSV file first!"); return; }
         
         const r = new FileReader();
         r.onload = e => {
-            // CSV ލައިންތަކަށް ބަހާލުން
             const rows = e.target.result.split('\n');
             state.allStudents = [];
             
-            // ހެޑަރ (ފުރަތަމަ ލައިން) ދޫކޮށްލާފައި ޑޭޓާ ނެގުން
-            for(let i=1; i<rows.length; i++) {
-                // ރޯ އެއްކޮށް ނެގުމަށްފަހު، ކޮމާތަކުން ވަކިކުރުން
-                // ނޯޓް: މިއީ ސާދާ ގޮތަކަށް ހަދާފައިވާ ކޯޑެއް ކަމުން، އެޑްރެސް ތެރޭގައި ކޮމާ ހުރެއްޖެނަމަ މައްސަލަ ޖެހިދާނެ.
-                // އެކަމަކު އަޅުގަނޑުމެން ޖެނެރޭޓްކުރި ފޭކް ފައިލްގައި އެޑްރެސްގައި ކޮމާ ނުހުންނާނެތީ މައްސަލައެއް ނުޖެހޭނެ.
-                const cols = rows[i].split(',');
+            // 1. ހެޑަރތައް (Headers) ކިޔައި، ރުބްރިކް އުފެއްދުން
+            if(rows.length > 0) {
+                const headers = rows[0].split(',');
+                let newRubric = [];
                 
-                // ޑޭޓާ ހަމައަށް ހުރިތޯ ބެލުން (ނަމާއި އައިޑީ ނެތްނަމަ ދޫކޮށްލާނެ)
+                // އަޅުގަނޑުމެންގެ ސްޓޭންޑަޑް ކޮލަމްތައް (Name ... InstType) ހުންނަނީ 0-10 އަށް.
+                // ވީމާ ރުބްރިކް ފަށާނީ 11 ވަނަ ކޮލަމުން.
+                for(let i=11; i<headers.length; i++) {
+                    let h = headers[i].trim();
+                    
+                    // "TOTAL SCORE" އާ ހަމައިން ހުއްޓާލާނެ
+                    if(h === "TOTAL SCORE" || h === "RANK" || h === "REMARKS") break;
+                    
+                    if(h) {
+                        // ކޮލަމްގެ ނަމުން މާކުސް ވަކިކުރުން. މިސާލަކަށް: "Tajweed (20)"
+                        let maxMarks = 10; // ޑިފޯލްޓް
+                        let catName = h;
+                        
+                        // ބްރެކެޓް ތެރޭގައި އިންނަ އަދަދު ނެގުން (e.g. 20)
+                        const match = h.match(/\((\d+)\)/);
+                        if(match) {
+                            maxMarks = parseInt(match[1]);
+                            // ނަމުން މާކުސް ބައި ފޮހެލުން (ރީތިކޮށް ދެއްކުމަށް)
+                            catName = h.replace(/\(\d+\)/, '').trim(); 
+                        }
+                        
+                        newRubric.push({ name: catName, max: maxMarks });
+                    }
+                }
+                
+                // ރުބްރިކް އަޕްޑޭޓް ކުރުން (އެއްވެސް ބައެއް އިންނަމަ)
+                if(newRubric.length > 0) {
+                    state.judging.rubric = newRubric;
+                    renderRubricConfig(); // ސެޓިންގސް ޕެނަލްގައި ލިސްޓް އަޕްޑޭޓްކުރުން
+                }
+            }
+            
+            // 2. ދަރިވަރުންގެ ޑޭޓާ ނެގުން (ކުރިންވެސް ހަދާފައިވާ ގޮތަށް)
+            for(let i=1; i<rows.length; i++) {
+                const cols = rows[i].split(',');
                 if(cols.length < 5) continue; 
                 
                 state.allStudents.push({
-                    name: cols[0]?.trim(),          // Name
-                    id: cols[1]?.trim(),            // ID Card
-                    reg: cols[1]?.trim(),           // Fake Data ގައި ID އާއި Reg އެއްވަރުކުރަނީ
-                    group: cols[2]?.trim(),         // Group
-                    branch: cols[3]?.trim(),        // Branch
-                    age: cols[4]?.trim(),           // Age
-                    address: cols[5]?.trim().replace(/"/g, ''), // Address
-                    phone: cols[6]?.trim(),         // Phone
-                    parent: cols[7]?.trim(),        // Parent Name
-                    parentPhone: cols[8]?.trim(),   // Parent Phone
-                    email: cols[9]?.trim(),         // Email
-                    instType: cols[10]?.trim() || "School" // Institution Type
+                    name: cols[0]?.trim(),
+                    id: cols[1]?.trim(),
+                    reg: cols[1]?.trim(),
+                    group: cols[2]?.trim(),
+                    branch: cols[3]?.trim(),
+                    age: cols[4]?.trim(),
+                    address: cols[5]?.trim().replace(/"/g, ''),
+                    phone: cols[6]?.trim(),
+                    parent: cols[7]?.trim(),
+                    parentPhone: cols[8]?.trim(),
+                    email: cols[9]?.trim(),
+                    instType: cols[10]?.trim() || "School"
                 });
             }
             
-            populateStudentSelector(); // ލިސްޓަށް ނަންތައް އެޅުން
-            saveToLocal(); // ސޭވްކުރުން
-            alert(`✅ Successfully Loaded ${state.allStudents.length} Students from Master Sheet!`);
+            populateStudentSelector();
+            saveToLocal();
+            
+            // ޖަޖުންގެ ސްކްރީންތައް ވަގުތުން އަޕްޑޭޓްކުރުން
+            syncWindows(); 
+            
+            alert(`✅ Loaded ${state.allStudents.length} Students & Updated Rubric Structure!`);
         };
         r.readAsText(file);
     }
