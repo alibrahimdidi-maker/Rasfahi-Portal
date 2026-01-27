@@ -3039,70 +3039,65 @@ function populateStudentForm(idx) {
 
     document.addEventListener('contextmenu', function(event) { event.preventDefault(); });
     
-// --- 3. EXPORT SCORED STUDENTS ONLY (މާކުސް ދެވުނު ކުދިން އެކަނި ޑައުންލޯޑްކުރުން) ---
+// --- 3. EXPORT FULL MASTER SHEET (WITH SCORES & UNSCORED STUDENTS) ---
     function exportMasterResultSheet() {
-        // 1. މާކުސް ދީފައިވާ ކުދިން ތިބިތޯ ޗެކްކުރުން
-        // (state.allStudents އެއް ނޫން، state.judging.savedResults ނަގަނީ)
-        const listToExport = state.judging.savedResults;
-
-        if(!listToExport || listToExport.length === 0) {
-            alert("No scored students found to export! (މާކުސް ދެވިފައިވާ ކުއްޖަކު ނެތް)");
+        if(!state.allStudents || state.allStudents.length === 0) {
+            alert("No student data found!");
             return;
         }
 
-        // 2. CSV Headers
+        // 1. Headers Setup
         let csv = "Name,ID,Group,Branch,Age,Address,Phone,Parent,ParentPhone,Email,Institution Type,";
         
-        // ރުބްރިކް ކެޓަގަރީތައް (Thilawa, Tajweed...)
+        // Rubric Headers
         if(state.judging.rubric) {
-            state.judging.rubric.forEach(r => {
-                csv += `${r.name} (${r.max}),`; 
-            });
+            state.judging.rubric.forEach(r => csv += `${r.name} (${r.max}),`);
         }
 
-        // ޖަޖުންގެ ޓޯޓަލްތަކަށް ޖާގަ ހެދުން
-        for(let i=1; i<=7; i++) {
-            csv += `JUDGE ${i} TOTAL,`;
-        }
-
+        // Judge Columns
+        for(let i=1; i<=7; i++) csv += `JUDGE ${i} TOTAL,`;
+        
         csv += "FINAL AVERAGE,RANK\n";
 
-        // 3. ޑޭޓާ ސޯޓްކުރުން (ގަދަ މާކުސް މަތިން ތިރިއަށް)
-        let sortedList = [...listToExport].sort((a, b) => b.finalScore - a.finalScore);
+        // 2. Merge Data (All Students + Saved Results)
+        // މާކުސް ލިބިފައިވާ ކުދިންގެ ޑޭޓާ ނެގުން
+        const scoredMap = {};
+        state.judging.savedResults.forEach(r => { scoredMap[r.id] = r; });
 
-        // 4. ހަމައެކަނި މާކުސް ދީފައިވާ ކުދިންގެ ލިސްޓު ހެދުން
-        sortedList.forEach((s, index) => {
+        // 3. Process ALL Students
+        state.allStudents.forEach((std) => {
             let row = [];
             
+            // މާކުސް ލިބިފައިވޭތޯ ބެލުން
+            const result = scoredMap[std.id]; 
+
             // Student Info
-            row.push(`"${s.name||''}"`, `"${s.id||''}"`, `"${s.group||''}"`, `"${s.branch||''}"`);
-            row.push(`"${s.age||''}"`, `"${s.address||''}"`, `"${s.phone||''}"`, `"${s.parent||''}"`, `"${s.parentPhone||''}"`, `"${s.email||''}"`);
-            row.push(`"${s.instType||'School'}"`); // Institution Type
-            
-            // Rubric Scores (Breakdown - Optional placeholders)
+            row.push(`"${std.name||''}"`, `"${std.id||''}"`, `"${std.group||''}"`, `"${std.branch||''}"`);
+            row.push(`"${std.age||''}"`, `"${std.address||''}"`, `"${std.phone||''}"`, `"${std.parent||''}"`, `"${std.parentPhone||''}"`, `"${std.email||''}"`);
+            row.push(`"${std.instType||'School'}"`); 
+
+            // Rubric Scores (Empty if no result)
             if(state.judging.rubric) {
                 state.judging.rubric.forEach(() => row.push("-")); 
             }
 
-            // --- Individual Judge Scores ---
+            // Judge Scores
             for(let i=1; i<=7; i++) {
-                let key = `Judge_${i}`; 
-                // އެ ކުއްޖާއަށް އެ ޖަޖު މާކުސް ދިންތޯ ބެލުން
-                let val = (s.scores && s.scores[key] !== undefined) ? s.scores[key] : "-";
+                let key = `Judge_${i}`;
+                let val = (result && result.scores && result.scores[key] !== undefined) ? result.scores[key] : "-";
                 row.push(val);
             }
 
-            // Final Average & Rank
-            row.push(s.finalScore);
-            row.push(index + 1); // Rank based on sorted list
+            // Final Score
+            row.push(result ? result.finalScore : "-");
+            row.push("-"); // Rank will be calculated in final report, leaving blank in master sheet for ongoing editing
 
             csv += row.join(",") + "\n";
         });
 
-        // 5. ފައިލް ޑައުންލޯޑް ކުރުން
+        // 4. Download
         const dateStr = new Date().toISOString().split('T')[0];
-        // ފައިލް ނަމުގައި "Scored_Students" ޖަހާފައި އިންނާނީ
-        const fileName = `Rasfahi_Scored_Students_${dateStr}.csv`;
+        const fileName = `Rasfahi_Master_Progress_${dateStr}.csv`;
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
