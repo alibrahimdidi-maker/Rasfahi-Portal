@@ -3039,94 +3039,70 @@ function populateStudentForm(idx) {
 
     document.addEventListener('contextmenu', function(event) { event.preventDefault(); });
     
-   // 1. Download Blank Master Template (Updated with Institution Type)
-    function downloadMasterCSVTemplate() {
-        // Headers ލިސްޓަށް "Institution Type" އިތުރުކޮށްފައި
-        const headers = [
-            "Name", "ID", "Group", "Branch", "Age", "Address", "Phone", 
-            "Parent", "ParentPhone", "Email", 
-            "Institution Type (School/Office/NGO)" // ★ New Column
-        ];
-
-        // Dynamic Headers (From Settings) - އޮޓަމެޓިކުން ކެޓަގަރީތައް ނަގާނެ
-        if(state.judging.rubric) {
-            state.judging.rubric.forEach(r => {
-                headers.push(`${r.name} (${r.max})`);
-            });
-        }
-
-        // Final Columns
-        headers.push("TOTAL SCORE", "RANK", "REMARKS");
-
-        const csvContent = "data:text/csv;charset=utf-8," + headers.join(",");
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "Rasfahi_Master_Template.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-    // 3. Export Filled Master Sheet (FINAL UPDATED VERSION)
-    // Includes: Judge 1-7 Breakdown + Institution Type
+// --- 3. EXPORT SCORED STUDENTS ONLY (މާކުސް ދެވުނު ކުދިން އެކަނި ޑައުންލޯޑްކުރުން) ---
     function exportMasterResultSheet() {
-        if(!state.judging.savedResults || state.judging.savedResults.length === 0) {
-            alert("No results to export! (މާކުސް ދެވިފައިވާ ކުދިންނެއް ނެތް)");
+        // 1. މާކުސް ދީފައިވާ ކުދިން ތިބިތޯ ޗެކްކުރުން
+        // (state.allStudents އެއް ނޫން، state.judging.savedResults ނަގަނީ)
+        const listToExport = state.judging.savedResults;
+
+        if(!listToExport || listToExport.length === 0) {
+            alert("No scored students found to export! (މާކުސް ދެވިފައިވާ ކުއްޖަކު ނެތް)");
             return;
         }
 
-        // 1. Headers Setup
-        // Added 'Institution Type' after Branch
-        let csv = "Name,ID,Group (Age),Branch (Gofi),Institution Type,Age,Address,Phone,Parent,ParentPhone,Email,";
+        // 2. CSV Headers
+        let csv = "Name,ID,Group,Branch,Age,Address,Phone,Parent,ParentPhone,Email,Institution Type,";
         
-        // Rubric Columns (Breakdown placeholders)
+        // ރުބްރިކް ކެޓަގަރީތައް (Thilawa, Tajweed...)
         if(state.judging.rubric) {
             state.judging.rubric.forEach(r => {
-                csv += `${r.name} (Cat.),`; 
+                csv += `${r.name} (${r.max}),`; 
             });
         }
 
-        // --- Add Headers for Up to 7 Judges ---
+        // ޖަޖުންގެ ޓޯޓަލްތަކަށް ޖާގަ ހެދުން
         for(let i=1; i<=7; i++) {
             csv += `JUDGE ${i} TOTAL,`;
         }
 
         csv += "FINAL AVERAGE,RANK\n";
 
-        // 2. Sort Data (High Score to Low Score)
-        let sortedList = [...state.judging.savedResults].sort((a, b) => b.finalScore - a.finalScore);
+        // 3. ޑޭޓާ ސޯޓްކުރުން (ގަދަ މާކުސް މަތިން ތިރިއަށް)
+        let sortedList = [...listToExport].sort((a, b) => b.finalScore - a.finalScore);
 
-        // 3. Process Rows
+        // 4. ހަމައެކަނި މާކުސް ދީފައިވާ ކުދިންގެ ލިސްޓު ހެދުން
         sortedList.forEach((s, index) => {
             let row = [];
             
-            // Student Info - Note: Added s.instType
+            // Student Info
             row.push(`"${s.name||''}"`, `"${s.id||''}"`, `"${s.group||''}"`, `"${s.branch||''}"`);
-            row.push(`"${s.instType||'School'}"`); // ★ This ensures School/Office appears
             row.push(`"${s.age||''}"`, `"${s.address||''}"`, `"${s.phone||''}"`, `"${s.parent||''}"`, `"${s.parentPhone||''}"`, `"${s.email||''}"`);
+            row.push(`"${s.instType||'School'}"`); // Institution Type
             
-            // Rubric Placeholders
+            // Rubric Scores (Breakdown - Optional placeholders)
             if(state.judging.rubric) {
                 state.judging.rubric.forEach(() => row.push("-")); 
             }
 
-            // --- Insert Individual Judge Scores ---
+            // --- Individual Judge Scores ---
             for(let i=1; i<=7; i++) {
                 let key = `Judge_${i}`; 
+                // އެ ކުއްޖާއަށް އެ ޖަޖު މާކުސް ދިންތޯ ބެލުން
                 let val = (s.scores && s.scores[key] !== undefined) ? s.scores[key] : "-";
                 row.push(val);
             }
 
             // Final Average & Rank
             row.push(s.finalScore);
-            row.push(index + 1);
+            row.push(index + 1); // Rank based on sorted list
 
             csv += row.join(",") + "\n";
         });
 
-        // 4. Download File
+        // 5. ފައިލް ޑައުންލޯޑް ކުރުން
         const dateStr = new Date().toISOString().split('T')[0];
-        const fileName = `Rasfahi_Master_FULL_DETAILS_${dateStr}.csv`;
+        // ފައިލް ނަމުގައި "Scored_Students" ޖަހާފައި އިންނާނީ
+        const fileName = `Rasfahi_Scored_Students_${dateStr}.csv`;
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
