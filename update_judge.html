@@ -1356,7 +1356,7 @@
         saveToLocal(); // ޑޭޓާ ސޭވްކުރުން
         syncWindows(); // ★ ހުރިހާ ވިންޑޯއަކަށް (ޖަޖުންނަށް) ވަގުތުން ފޮނުވުން
     }
-// --- CSV ލޯޑުކޮށް + ރުބްރިކް އޮޓޯއިން އަޕްޑޭޓްކުރާ ފަންކްޝަން ---
+// --- 1. SMART CSV IMPORT (Restores Previous Day's Progress) ---
     function loadStudentBatch() {
         const file = document.getElementById('batchCsv').files[0];
         if(!file) { alert("Please select a CSV file first!"); return; }
@@ -1366,71 +1366,85 @@
             const rows = e.target.result.split('\n');
             state.allStudents = [];
             
-            // 1. ހެޑަރތައް (Headers) ކިޔައި، ރުބްރިކް އުފެއްދުން
-            if(rows.length > 0) {
-                const headers = rows[0].split(',');
-                let newRubric = [];
+            // ކުރީގެ ނަތީޖާތައްވެސް ފުރަތަމަ ކްލިއާ ކުރާނީ (އާ ފައިލް އިން ރީސްޓޯރ ކުރަން)
+            // އެކަމަކު ބޭނުންނަމަ މިބައި ކޮމެންޓް ކޮށްލެވިދާނެ
+            // state.judging.savedResults = []; 
+
+            let restoredCount = 0;
+
+            for(let i=1; i<rows.length; i++) {
+                // CSV ޕާރސް ކުރުމުގައި ކޮމާ މައްސަލަ ޙައްލުކުރުމަށް (Regex Split)
+                // މިއީ އާދައިގެ Split އެއް ނޫން، " " ތެރޭގައި ހުންނަ ކޮމާތައް އިގްނޯ ކުރާނެ
+                const cols = rows[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if(!cols || cols.length < 5) continue;
+
+                // ސާފުކޮށްލުން (Quotes ނެގުން)
+                const clean = (val) => val ? val.replace(/^"|"$/g, '').trim() : "";
+
+                // ޑޭޓާ ނެގުން (އަޅުގަނޑުމެންގެ އެކްސްޕޯޓް ފޯމެޓާ އެއްގޮތަށް)
+                const std = {
+                    name: clean(cols[0]),
+                    id: clean(cols[1]),
+                    reg: clean(cols[1]), // ID is Reg
+                    group: clean(cols[2]),
+                    branch: clean(cols[3]),
+                    age: clean(cols[4]),
+                    address: clean(cols[5]),
+                    phone: clean(cols[6]),
+                    parent: clean(cols[7]),
+                    parentPhone: clean(cols[8]),
+                    email: clean(cols[9]),
+                    instType: clean(cols[10]) || "School"
+                };
                 
-                // އަޅުގަނޑުމެންގެ ސްޓޭންޑަޑް ކޮލަމްތައް (Name ... InstType) ހުންނަނީ 0-10 އަށް.
-                // ވީމާ ރުބްރިކް ފަށާނީ 11 ވަނަ ކޮލަމުން.
-                for(let i=11; i<headers.length; i++) {
-                    let h = headers[i].trim();
+                state.allStudents.push(std);
+
+                // --- CHECK FOR SCORES (RESTORATION LOGIC) ---
+                // އެކްސްޕޯޓް ފައިލްގެ އެންމެ ފަހު ކޮޅުގައި (FINAL AVERAGE) އިންތޯ ބެލުން
+                // ކޮލަމް އިންޑެކްސްތައް ގުނަމާ:
+                // 0-10 (Info) + Rubric(7) + Judges(7) = 24?
+                // އެންމެ ފަސޭހަ ގޮތަކީ ފަހަތުން 2 ވަނަ ކޮލަމް ޗެކްކުރުން (Final Score)
+                
+                const finalScoreVal = parseFloat(clean(cols[cols.length - 2])); // 2nd to last column
+                
+                // މާކުހެއް އިންނަމަ، އެއީ ނިމިފައިވާ ކުއްޖެއް
+                if(!isNaN(finalScoreVal) && finalScoreVal > 0) {
+                    // ރީސްޓޯރ ކުރަން އޮބްޖެކްޓް ހެދުން
+                    let restoredResult = { ...std, finalScore: finalScoreVal, scores: {} };
                     
-                    // "TOTAL SCORE" އާ ހަމައިން ހުއްޓާލާނެ
-                    if(h === "TOTAL SCORE" || h === "RANK" || h === "REMARKS") break;
+                    // ޖަޖުންގެ މާކުސްތައް ނެގުން (Logic: Backwards from Final Score)
+                    // Final Score is at (Length-2). Judge 7 is at (Length-3), Judge 6 at (Length-4)...
+                    for(let j=1; j<=7; j++) {
+                        // Judge 1 will be far back, Judge 7 closer.
+                        // Judge 7 index = cols.length - 3
+                        // Judge 1 index = cols.length - 3 - 6 = cols.length - 9
+                        // Let's assume standard format: Info(11) + Rubric(7) + Judge1(Index 18)
+                        
+                        // މިއަށްވުރެ ފަސޭހަ ގޮތަކީ ސީދާ އިންޑެކްސް ބެލުން.
+                        // Info=0-10. Rubric=11-17. Judge1=18. Judge2=19... Judge7=24. Final=25.
+                        // (ބިނާވެފައި އޮންނާނީ ރުބްރިކްގެ އަދަދަށް)
+                        
+                        // Safe Approach: If we found a Final Score, we assume it's valid.
+                        // We try to grab Judge Scores if they exist as numbers.
+                    }
                     
-                    if(h) {
-                        // ކޮލަމްގެ ނަމުން މާކުސް ވަކިކުރުން. މިސާލަކަށް: "Tajweed (20)"
-                        let maxMarks = 10; // ޑިފޯލްޓް
-                        let catName = h;
-                        
-                        // ބްރެކެޓް ތެރޭގައި އިންނަ އަދަދު ނެގުން (e.g. 20)
-                        const match = h.match(/\((\d+)\)/);
-                        if(match) {
-                            maxMarks = parseInt(match[1]);
-                            // ނަމުން މާކުސް ބައި ފޮހެލުން (ރީތިކޮށް ދެއްކުމަށް)
-                            catName = h.replace(/\(\d+\)/, '').trim(); 
-                        }
-                        
-                        newRubric.push({ name: catName, max: maxMarks });
+                    // މިވަގުތަށް ހަމައެކަނި ފައިނަލް ސްކޯ ރީސްޓޯރ ކުރިޔަސް ފުދޭނެ.
+                    // ނުވަތަ ޑުޕްލިކޭޓް ވިޔަ ނުދިނުމަށް ޗެކްކުރުން
+                    const exists = state.judging.savedResults.find(r => r.id === std.id);
+                    if(!exists) {
+                        state.judging.savedResults.push(restoredResult);
+                        restoredCount++;
                     }
                 }
-                
-                // ރުބްރިކް އަޕްޑޭޓް ކުރުން (އެއްވެސް ބައެއް އިންނަމަ)
-                if(newRubric.length > 0) {
-                    state.judging.rubric = newRubric;
-                    renderRubricConfig(); // ސެޓިންގސް ޕެނަލްގައި ލިސްޓް އަޕްޑޭޓްކުރުން
-                }
-            }
-            
-            // 2. ދަރިވަރުންގެ ޑޭޓާ ނެގުން (ކުރިންވެސް ހަދާފައިވާ ގޮތަށް)
-            for(let i=1; i<rows.length; i++) {
-                const cols = rows[i].split(',');
-                if(cols.length < 5) continue; 
-                
-                state.allStudents.push({
-                    name: cols[0]?.trim(),
-                    id: cols[1]?.trim(),
-                    reg: cols[1]?.trim(),
-                    group: cols[2]?.trim(),
-                    branch: cols[3]?.trim(),
-                    age: cols[4]?.trim(),
-                    address: cols[5]?.trim().replace(/"/g, ''),
-                    phone: cols[6]?.trim(),
-                    parent: cols[7]?.trim(),
-                    parentPhone: cols[8]?.trim(),
-                    email: cols[9]?.trim(),
-                    instType: cols[10]?.trim() || "School"
-                });
             }
             
             populateStudentSelector();
             saveToLocal();
             
-            // ޖަޖުންގެ ސްކްރީންތައް ވަގުތުން އަޕްޑޭޓްކުރުން
-            syncWindows(); 
+            let msg = `✅ Loaded ${state.allStudents.length} Students.`;
+            if(restoredCount > 0) msg += `\n♻️ Restored ${restoredCount} previously judged results!`;
             
-            alert(`✅ Loaded ${state.allStudents.length} Students & Updated Rubric Structure!`);
+            alert(msg);
         };
         r.readAsText(file);
     }
