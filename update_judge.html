@@ -3566,6 +3566,76 @@ function populateStudentForm(idx) {
         link.click();
         document.body.removeChild(link);
     }
+    // --- SMART SEARCH FUNCTION ---
+    function searchStudent(query) {
+        const listDiv = document.getElementById('stdSearchResults');
+        
+        // 1. އެއްޗެއް ނުލިޔާނަމަ ލިސްޓު ފޮރުވުން
+        if(!query || query.trim() === "") {
+            listDiv.style.display = 'none';
+            return;
+        }
+
+        const q = query.toLowerCase();
+        
+        // 2. ދަރިވަރުންގެ ތެރެއިން ހޯދުން (Name, ID, Reg, Index)
+        const matches = state.allStudents
+            .map((s, index) => ({ s, index })) // Index ހިފެހެއްޓުން
+            .filter(item => {
+                const name = (item.s.name || "").toLowerCase();
+                const id = (item.s.id || "").toLowerCase();
+                const reg = (item.s.reg || "").toLowerCase(); // ރެޖިސްޓްރީ ނަންބަރުންވެސް ހޯދޭނެ
+                
+                // ނަމުން ނުވަތަ އައިޑީން ދިމާވޭތޯ ބެލުން
+                return name.includes(q) || id.includes(q) || reg.includes(q);
+            })
+            .slice(0, 50); // ލަސްވިޔަ ނުދިނުމަށް ގިނަވެގެން 50 ނަތީޖާ ދެއްކުން
+
+        // 3. ލިސްޓު ދެއްކުން
+        listDiv.innerHTML = '';
+        if(matches.length === 0) {
+            listDiv.innerHTML = '<div style="padding:10px; color:#aaa;">No matches found</div>';
+        } else {
+            matches.forEach(m => {
+                const div = document.createElement('div');
+                div.style.padding = "8px";
+                div.style.borderBottom = "1px solid #333";
+                div.style.cursor = "pointer";
+                div.style.fontSize = "13px";
+                div.style.color = "#fff";
+                
+                // Mouse hover effect
+                div.onmouseover = () => { div.style.background = "#004d00"; };
+                div.onmouseout = () => { div.style.background = "transparent"; };
+                
+                // ދަރިވަރުގެ މަޢުލޫމާތު ދެއްކުން
+                div.innerHTML = `
+                    <span style="color:#00e676; font-weight:bold;">${m.s.name}</span> 
+                    <span style="color:#aaa; font-size:11px;">(${m.s.group})</span><br>
+                    <span style="color:#FFD700; font-size:10px;">ID: ${m.s.id}</span>
+                `;
+                
+                // Click ކުރުމުން ފޯމަށް އެޅުން
+                div.onclick = () => {
+                    populateStudentForm(m.index); // ފޯމު ފުރާލުން
+                    listDiv.style.display = 'none'; // ލިސްޓު ފޮރުވުން
+                    document.getElementById('stdSearchBox').value = m.s.name; // ސާރޗް ބޮކްސްގައި ނަން ދެއްކުން
+                };
+                
+                listDiv.appendChild(div);
+            });
+        }
+        listDiv.style.display = 'block';
+    }
+
+    // ލިސްޓުން ބޭރަށް ފިއްތާލުމުން ލިސްޓު ގެއްލޭގޮތް ހެދުން
+    document.addEventListener('click', function(e) {
+        const searchBox = document.getElementById('stdSearchBox');
+        const listDiv = document.getElementById('stdSearchResults');
+        if (e.target !== searchBox && e.target !== listDiv) {
+            listDiv.style.display = 'none';
+        }
+    });
 </script>
 </body>
 </html>
