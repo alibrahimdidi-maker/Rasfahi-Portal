@@ -1322,50 +1322,9 @@
         updateMirror(); syncWindows();
     }
 
-    function updateTheme() {
-        const idx = document.getElementById('themeSelect').value;
-        state.theme = themeList[idx];
-        syncWindows();
-    }
-
-   function registerStudent() {
-        const s = {
-            name: document.getElementById('stdName').value,
-            id: document.getElementById('stdID').value,
-            reg: document.getElementById('stdReg').value,
-            age: document.getElementById('stdAge').value,
-            branch: document.getElementById('stdBranch').value,
-            address: document.getElementById('stdAddr').value,
-            phone: document.getElementById('stdPhone').value,
-            email: document.getElementById('stdEmail').value,
-            parent: document.getElementById('stdParent').value,
-            parentPhone: document.getElementById('stdParentPhone').value,
-            group: document.getElementById('stdGroup').value,
-            instType: document.getElementById('stdInstType').value, 
-            timestamp: new Date().toISOString()
-        };
-        
-        if(!s.name) { 
-            // ނަމެއް ނެތްނަމަ އެލަރޓް ނުކޮށް ހަމައެކަނި ރިޓަރން ކުރާގޮތަށް (އޮޓޯއިން ހިންގާއިރު އެރަރ ނުއރުވުމަށް)
-            return; 
-        }
-        
-        state.judging.currentStudentObj = s;
-        state.judging.liveScores = {}; // ކުރީގެ ސްކޯތައް ފޮހެލުން
-        
-        // ޔޫއައި އަޕްޑޭޓްކުރުން
-        const labelInfo = `${s.name} (${s.group})`;
-        document.getElementById('currentStdLabel').innerText = `Active: ${labelInfo}`;
-        document.getElementById('currentStdLabel').style.color = "#00e676"; // ފެހިކުލަ ޖެއްސުން
-        
-        document.getElementById('btnFinalize').innerText = "✅ Save Student Result";
-        document.getElementById('btnFinalize').disabled = false;
-        document.getElementById('adminScoreMonitor').innerText = "Waiting for judges...";
-        
-        saveToLocal(); // ޑޭޓާ ސޭވްކުރުން
-        syncWindows(); // ★ ހުރިހާ ވިންޑޯއަކަށް (ޖަޖުންނަށް) ވަގުތުން ފޮނުވުން
-    }
-// --- 1. SMART CSV IMPORT (Restores Previous Day's Progress) ---
+// ==========================================
+    // 1. SMART CSV IMPORT (With Progress Restore)
+    // ==========================================
     function loadStudentBatch() {
         const file = document.getElementById('batchCsv').files[0];
         if(!file) { alert("Please select a CSV file first!"); return; }
@@ -1373,28 +1332,22 @@
         const r = new FileReader();
         r.onload = e => {
             const rows = e.target.result.split('\n');
-            state.allStudents = [];
+            state.allStudents = []; 
             
-            // ކުރީގެ ނަތީޖާތައްވެސް ފުރަތަމަ ކްލިއާ ކުރާނީ (އާ ފައިލް އިން ރީސްޓޯރ ކުރަން)
-            // އެކަމަކު ބޭނުންނަމަ މިބައި ކޮމެންޓް ކޮށްލެވިދާނެ
-            // state.judging.savedResults = []; 
-
             let restoredCount = 0;
 
             for(let i=1; i<rows.length; i++) {
-                // CSV ޕާރސް ކުރުމުގައި ކޮމާ މައްސަލަ ޙައްލުކުރުމަށް (Regex Split)
-                // މިއީ އާދައިގެ Split އެއް ނޫން، " " ތެރޭގައި ހުންނަ ކޮމާތައް އިގްނޯ ކުރާނެ
+                // Regex Split to handle CSV commas correctly
                 const cols = rows[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
                 if(!cols || cols.length < 5) continue;
 
-                // ސާފުކޮށްލުން (Quotes ނެގުން)
                 const clean = (val) => val ? val.replace(/^"|"$/g, '').trim() : "";
 
-                // ޑޭޓާ ނެގުން (އަޅުގަނޑުމެންގެ އެކްސްޕޯޓް ފޯމެޓާ އެއްގޮތަށް)
+                // Construct Student Object
                 const std = {
                     name: clean(cols[0]),
                     id: clean(cols[1]),
-                    reg: clean(cols[1]), // ID is Reg
+                    reg: clean(cols[1]), 
                     group: clean(cols[2]),
                     branch: clean(cols[3]),
                     age: clean(cols[4]),
@@ -1408,37 +1361,11 @@
                 
                 state.allStudents.push(std);
 
-                // --- CHECK FOR SCORES (RESTORATION LOGIC) ---
-                // އެކްސްޕޯޓް ފައިލްގެ އެންމެ ފަހު ކޮޅުގައި (FINAL AVERAGE) އިންތޯ ބެލުން
-                // ކޮލަމް އިންޑެކްސްތައް ގުނަމާ:
-                // 0-10 (Info) + Rubric(7) + Judges(7) = 24?
-                // އެންމެ ފަސޭހަ ގޮތަކީ ފަހަތުން 2 ވަނަ ކޮލަމް ޗެކްކުރުން (Final Score)
+                // --- RESTORE PREVIOUS SCORES ---
+                const finalScoreVal = parseFloat(clean(cols[cols.length - 2])); 
                 
-                const finalScoreVal = parseFloat(clean(cols[cols.length - 2])); // 2nd to last column
-                
-                // މާކުހެއް އިންނަމަ، އެއީ ނިމިފައިވާ ކުއްޖެއް
                 if(!isNaN(finalScoreVal) && finalScoreVal > 0) {
-                    // ރީސްޓޯރ ކުރަން އޮބްޖެކްޓް ހެދުން
                     let restoredResult = { ...std, finalScore: finalScoreVal, scores: {} };
-                    
-                    // ޖަޖުންގެ މާކުސްތައް ނެގުން (Logic: Backwards from Final Score)
-                    // Final Score is at (Length-2). Judge 7 is at (Length-3), Judge 6 at (Length-4)...
-                    for(let j=1; j<=7; j++) {
-                        // Judge 1 will be far back, Judge 7 closer.
-                        // Judge 7 index = cols.length - 3
-                        // Judge 1 index = cols.length - 3 - 6 = cols.length - 9
-                        // Let's assume standard format: Info(11) + Rubric(7) + Judge1(Index 18)
-                        
-                        // މިއަށްވުރެ ފަސޭހަ ގޮތަކީ ސީދާ އިންޑެކްސް ބެލުން.
-                        // Info=0-10. Rubric=11-17. Judge1=18. Judge2=19... Judge7=24. Final=25.
-                        // (ބިނާވެފައި އޮންނާނީ ރުބްރިކްގެ އަދަދަށް)
-                        
-                        // Safe Approach: If we found a Final Score, we assume it's valid.
-                        // We try to grab Judge Scores if they exist as numbers.
-                    }
-                    
-                    // މިވަގުތަށް ހަމައެކަނި ފައިނަލް ސްކޯ ރީސްޓޯރ ކުރިޔަސް ފުދޭނެ.
-                    // ނުވަތަ ޑުޕްލިކޭޓް ވިޔަ ނުދިނުމަށް ޗެކްކުރުން
                     const exists = state.judging.savedResults.find(r => r.id === std.id);
                     if(!exists) {
                         state.judging.savedResults.push(restoredResult);
@@ -1447,8 +1374,7 @@
                 }
             }
             
-            populateStudentSelector();
-            saveToLocal();
+            saveToLocal(); 
             
             let msg = `✅ Loaded ${state.allStudents.length} Students.`;
             if(restoredCount > 0) msg += `\n♻️ Restored ${restoredCount} previously judged results!`;
@@ -1458,39 +1384,73 @@
         r.readAsText(file);
     }
 
-    // --- 2. ޑްރޮޕްޑައުން ލިސްޓަށް ނަންތައް އަޅައިދޭ ފަންކްޝަން ---
-    function populateStudentSelector() {
-        const sel = document.getElementById('studentSelector');
-        sel.innerHTML = '<option value="">-- Manual Entry --</option>';
-        state.allStudents.forEach((s, idx) => {
-            let opt = document.createElement('option');
-            opt.value = idx;
-            // ލިސްޓުގައި ދައްކާނީ: ނަން (ގްރޫޕް) - އައިޑީ
-            opt.innerText = `${s.name} (${s.group}) - ${s.id}`;
-            sel.appendChild(opt);
-        });
+    // ==========================================
+    // 2. SMART SEARCH FUNCTION
+    // ==========================================
+    function searchStudent(query) {
+        const listDiv = document.getElementById('stdSearchResults');
+        
+        if(!query || query.trim() === "") {
+            listDiv.style.display = 'none';
+            return;
+        }
+
+        const q = query.toLowerCase();
+        
+        const matches = state.allStudents
+            .map((s, index) => ({ s, index })) 
+            .filter(item => {
+                const name = (item.s.name || "").toLowerCase();
+                const id = (item.s.id || "").toLowerCase();
+                const reg = (item.s.reg || "").toLowerCase();
+                return name.includes(q) || id.includes(q) || reg.includes(q);
+            })
+            .slice(0, 50);
+
+        listDiv.innerHTML = '';
+        if(matches.length === 0) {
+            listDiv.innerHTML = '<div style="padding:10px; color:#aaa;">No matches found</div>';
+        } else {
+            matches.forEach(m => {
+                const div = document.createElement('div');
+                div.style.padding = "8px";
+                div.style.borderBottom = "1px solid #333";
+                div.style.cursor = "pointer";
+                div.style.fontSize = "13px";
+                div.style.color = "#fff";
+                
+                div.onmouseover = () => { div.style.background = "#004d00"; };
+                div.onmouseout = () => { div.style.background = "transparent"; };
+                
+                div.innerHTML = `
+                    <span style="color:#00e676; font-weight:bold;">${m.s.name}</span> 
+                    <span style="color:#aaa; font-size:11px;">(${m.s.group})</span><br>
+                    <span style="color:#FFD700; font-size:10px;">ID: ${m.s.id}</span>
+                `;
+                
+                div.onclick = () => {
+                    populateStudentForm(m.index); 
+                    listDiv.style.display = 'none'; 
+                    document.getElementById('stdSearchBox').value = m.s.name; 
+                };
+                
+                listDiv.appendChild(div);
+            });
+        }
+        listDiv.style.display = 'block';
     }
 
-    // ... މަތީގައި މިބައި އިންނާނެ ...
-    function populateStudentSelector() {
-        const sel = document.getElementById('studentSelector');
-        sel.innerHTML = '<option value="">-- Manual Entry --</option>';
-        state.allStudents.forEach((s, idx) => {
-            let opt = document.createElement('option');
-            opt.value = idx;
-            opt.innerText = `${s.name} (${s.group})`;
-            sel.appendChild(opt);
-        });
-    }
-
-function populateStudentForm(idx) {
+    // ==========================================
+    // 3. POPULATE FORM & AUTO-REGISTER
+    // ==========================================
+    function populateStudentForm(idx) {
         if(idx === "") return;
         const s = state.allStudents[idx];
         if(!s) return;
         
-        // 1. އިންޕުޓް ފީލްޑްތަކަށް ޑޭޓާ އެޅުން
         document.getElementById('stdName').value = s.name || "";
         document.getElementById('stdID').value = s.id || "";
+        document.getElementById('stdReg').value = s.reg || "";
         document.getElementById('stdGroup').value = s.group || "Under 6"; 
         document.getElementById('stdBranch').value = s.branch || "";
         document.getElementById('stdAge').value = s.age || "";
@@ -1499,12 +1459,45 @@ function populateStudentForm(idx) {
         document.getElementById('stdParent').value = s.parent || "";
         document.getElementById('stdParentPhone').value = s.parentPhone || "";
         document.getElementById('stdEmail').value = s.email || "";
-        
-        // CSV ގައި އިން "Institution Type" މި ފީލްޑަށް ސެޓްކުރުން
         document.getElementById('stdInstType').value = s.instType || "School";
 
-        // 2. އޮޓަމެޓިކުން ރެޖިސްޓަރކޮށް ޖަޖުންނަށް ފޮނުވުން
         registerStudent();
+    }
+
+    // ==========================================
+    // 4. SYNC TO JUDGES (Register)
+    // ==========================================
+    function registerStudent() {
+        const s = {
+            name: document.getElementById('stdName').value,
+            id: document.getElementById('stdID').value,
+            reg: document.getElementById('stdReg').value,
+            age: document.getElementById('stdAge').value,
+            branch: document.getElementById('stdBranch').value,
+            address: document.getElementById('stdAddr').value,
+            phone: document.getElementById('stdPhone').value,
+            email: document.getElementById('stdEmail').value,
+            parent: document.getElementById('stdParent').value,
+            parentPhone: document.getElementById('stdParentPhone').value,
+            group: document.getElementById('stdGroup').value,
+            instType: document.getElementById('stdInstType').value,
+            timestamp: new Date().toISOString()
+        };
+        
+        if(!s.name) return;
+        
+        state.judging.currentStudentObj = s;
+        state.judging.liveScores = {}; 
+        
+        document.getElementById('currentStdLabel').innerText = `Active: ${s.name}`;
+        document.getElementById('currentStdLabel').style.color = "#00e676";
+        
+        document.getElementById('btnFinalize').innerText = "✅ Save Student Result";
+        document.getElementById('btnFinalize').disabled = false;
+        document.getElementById('adminScoreMonitor').innerText = "Waiting for judges...";
+        
+        saveToLocal(); 
+        syncWindows(); 
     }
     window.submitJudgeScore = function(judgeId, totalScore) {
     }
