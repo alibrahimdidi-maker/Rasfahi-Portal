@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="dv" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Rasfahi Judge System (Professional Edition)</title>
+    <style>
+        /* --- GLOBAL STYLES --- */
+        :root {
+            --gold: #D4AF37;
+            --dark: #0b1016;
+            --blue: #001a33;
+            --text: #fff;
+            --green: #00e676;
+        }
+        body { margin: 0; background: #000; color: var(--text); font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; overflow: hidden; }
+        * { box-sizing: border-box; outline: none; }
+
+        /* --- SIDEBAR --- */
+        .sidebar { width: 400px; background: #111; border-left: 2px solid var(--gold); display: flex; flex-direction: column; padding: 10px; overflow-y: auto; }
+        .panel { background: rgba(255,255,255,0.05); border: 1px solid #333; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        h2 { color: var(--gold); font-size: 14px; margin: 0 0 5px 0; border-bottom: 1px dashed #444; padding-bottom: 3px; }
+        
+        input, button, select { width: 100%; padding: 8px; margin-bottom: 5px; background: #222; border: 1px solid #444; color: #fff; border-radius: 3px; }
+        button { cursor: pointer; font-weight: bold; }
+        button:hover { border-color: var(--gold); }
+        .btn-green { background: #004d00; } .btn-blue { background: #00264d; } .btn-red { background: #4d0000; }
+
+        /* --- MAIN AREA (ADMIN MONITOR) --- */
+        .main-view { flex: 1; display: flex; flex-direction: column; background: #050505; position: relative; }
+        .top-bar { padding: 10px; background: var(--blue); border-bottom: 1px solid var(--gold); display: flex; justify-content: space-between; align-items: center; }
+        
+        /* GRID PREVIEW IN ADMIN */
+        #adminGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; padding: 20px; flex: 1; align-content: center; max-width: 800px; margin: 0 auto; }
+        .grid-box { 
+            aspect-ratio: 1; background: #222; border: 1px solid #444; 
+            display: flex; justify-content: center; align-items: center; 
+            font-size: 20px; font-weight: bold; cursor: pointer; color: #666;
+        }
+        .grid-box:hover { border-color: var(--gold); color: #fff; }
+        .grid-box.taken { background: #330000; color: #555; pointer-events: none; }
+        .grid-box.selected { background: var(--gold); color: #000; }
+
+        /* PREVIEW AREA */
+        #activeQPreview { display: none; flex: 1; justify-content: center; align-items: center; flex-direction: column; }
+        #previewImg { max-width: 90%; max-height: 80%; border: 2px solid #333; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div style="text-align:center; margin-bottom:10px;">
+        <h1 style="color:var(--gold); margin:0; font-size:20px;">RASFAHI JUDGE</h1>
+        <small style="color:#777;">System Control Center</small>
+    </div>
+
+    <div class="panel">
+        <h2>1. ޑޭޓާ ލޯޑްކުރުން (Setup)</h2>
+        <label>Questions CSV:</label>
+        <input type="file" id="csvFile" accept=".csv" onchange="loadCSV(this)">
+        <label>Images Folder:</label>
+        <input type="file" id="imgFolder" webkitdirectory directory multiple onchange="loadImages(this)">
+        <div style="font-size:11px; color:#aaa;" id="statusMsg">System Ready.</div>
+    </div>
+
+    <div class="panel">
+        <h2>2. ދަރިވަރު (Student)</h2>
+        <input type="text" id="stdName" placeholder="Name">
+        <input type="text" id="stdID" placeholder="ID Card">
+        <button class="btn-blue" onclick="newStudent()">New Student / Reset</button>
+    </div>
+
+    <div class="panel">
+        <h2>3. ސުވާލު ނެގުން (Grid)</h2>
+        <button class="btn-green" onclick="reshuffleGrid()">🔄 Shuffle Grid</button>
+        <div style="margin-top:5px; padding:5px; background:#000;">
+            <small style="color:#aaa;">Selected Questions:</small>
+            <div id="selectedList" style="color:var(--gold); font-weight:bold;">None</div>
+        </div>
+        <button class="btn-blue" onclick="startSession()">▶ Start Reading (Send to Student)</button>
+    </div>
+
+    <div class="panel">
+        <h2>4. ސްކްރީންތައް (Windows)</h2>
+        <button onclick="openStudentScreen()">🖥️ Open Student Screen</button>
+        <button onclick="openJudgeScreen()">⚖️ Open Judge Screen</button>
+        <button class="btn-red" onclick="syncScreens()">🔄 Force Sync</button>
+    </div>
+
+    <div class="panel">
+        <h2>5. ނަތީޖާ (Results)</h2>
+        <div id="liveScores" style="font-size:12px; margin-bottom:5px; color:#aaa;">Waiting for judges...</div>
+        <button class="btn-green" onclick="saveResult()">💾 Save Result</button>
+        <button class="btn-blue" onclick="exportCSV()">📥 Export All CSV</button>
+    </div>
+</div>
+
+<div class="main-view">
+    <div class="top-bar">
+        <span id="adminStatus" style="color:var(--gold); font-weight:bold;">IDLE</span>
+        <button style="width:auto; padding:5px 15px;" onclick="nextQ()">Next Question ⏩</button>
+    </div>
+
+    <div id="adminGrid"></div>
+
+    <div id="activeQPreview">
+        <h2 id="qInfoDisplay" style="color:#fff;"></h2>
+        <img id="previewImg" src="">
+    </div>
+</div>
+
+<script>
+    // --- STATE MANAGEMENT ---
+    const state = {
+        pool: [],          // All questions from CSV
+        images: {},        // Loaded image blobs
+        gridMap: {},       // Maps Grid 1-20 to Question IDs
+        takenSlots: [],    // Grid numbers already used
+        
+        session: {
+            student: {},
+            selectedQIDs: [],
+            activeQIndex: -1, // -1 = selection phase, 0+ = reading phase
+            phase: 'selection' // selection, reading
+        },
+        
+        judging: {
+            rubric: [
+                {name: "Thilawa", max: 40},
+                {name: "Tajweed", max: 30},
+                {name: "Fasaha", max: 20},
+                {name: "Sifa", max: 10}
+            ],
+            scores: {}, // { "Judge_1": 95 }
+            results: [] // Saved results
+        },
+        
+        windows: { student: null, judges: [] }
+    };
+
+    // --- 1. DATA LOADING ---
+    function loadCSV(input) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const rows = e.target.result.split('\n');
+            state.pool = [];
+            rows.slice(1).forEach(row => {
+                const cols = row.split(',');
+                if(cols.length > 1) {
+                    // CSV Format: ID, ImageName, Surah, Ayah...
+                    state.pool.push({
+                        id: cols[0].trim(),
+                        img: cols[1].trim(),
+                        desc: cols[2] ? cols[2].trim() : ""
+                    });
+                }
+            });
+            document.getElementById('statusMsg').innerText = `Loaded ${state.pool.length} questions.`;
+            reshuffleGrid();
+        };
+        reader.readAsText(input.files[0]);
+    }
+
+    function loadImages(input) {
+        let count = 0;
+        for(let file of input.files) {
+            state.images[file.name.toLowerCase()] = URL.createObjectURL(file);
+            count++;
+        }
+        document.getElementById('statusMsg').innerText += ` | ${count} Images.`;
+    }
+
+    // --- 2. GRID LOGIC ---
+    function reshuffleGrid() {
+        if(state.pool.length === 0) return;
+        state.gridMap = {};
+        state.takenSlots = [];
+        
+        // Randomly assign questions to 1-20
+        const tempPool = [...state.pool]; // Copy
+        for(let i=1; i<=20; i++) {
+            if(tempPool.length === 0) break;
+            const r = Math.floor(Math.random() * tempPool.length);
+            state.gridMap[i] = tempPool[r];
+            tempPool.splice(r, 1);
+        }
+        renderAdminGrid();
+        syncScreens();
+    }
+
+    function renderAdminGrid() {
+        const grid = document.getElementById('adminGrid');
+        grid.innerHTML = '';
+        document.getElementById('adminGrid').style.display = 'grid';
+        document.getElementById('activeQPreview').style.display = 'none';
+
+        for(let i=1; i<=20; i++) {
+            const div = document.createElement('div');
+            div.className = `grid-box ${state.takenSlots.includes(i) ? 'taken' : ''}`;
+            if(state.session.selectedQIDs.includes(state.gridMap[i])) div.classList.add('selected');
+            
+            div.innerText = i;
+            div.onclick = () => handleGridClick(i);
+            grid.appendChild(div);
+        }
+    }
+
+    function handleGridClick(num) {
+        if(state.takenSlots.includes(num)) return;
+        
+        const q = state.gridMap[num];
+        state.takenSlots.push(num);
+        state.session.selectedQIDs.push(q);
+        
+        // Update UI
+        document.getElementById('selectedList').innerText = state.session.selectedQIDs.map(q=>q.id).join(', ');
+        renderAdminGrid();
+        syncScreens(); // Updates student screen grid
+    }
+
+    // --- 3. SESSION CONTROL ---
+    function newStudent() {
+        state.session.student = {
+            name: document.getElementById('stdName').value,
+            id: document.getElementById('stdID').value
+        };
+        state.session.selectedQIDs = [];
+        state.session.activeQIndex = -1;
+        state.session.phase = 'selection';
+        state.judging.scores = {};
+        
+        document.getElementById('selectedList').innerText = "None";
+        document.getElementById('liveScores').innerText = "Waiting...";
+        reshuffleGrid(); // New grid for new student
+    }
+
+    function startSession() {
+        if(state.session.selectedQIDs.length === 0) return alert("Select questions first!");
+        state.session.phase = 'reading';
+        state.session.activeQIndex = 0;
+        updateMainView();
+        syncScreens();
+    }
+
+    function nextQ() {
+        if(state.session.phase !== 'reading') return;
+        if(state.session.activeQIndex < state.session.selectedQIDs.length - 1) {
+            state.session.activeQIndex++;
+            updateMainView();
+            syncScreens();
+        } else {
+            alert("Finished all questions!");
+        }
+    }
+
+    function updateMainView() {
+        // Admin View Update
+        document.getElementById('adminGrid').style.display = 'none';
+        const preview = document.getElementById('activeQPreview');
+        preview.style.display = 'flex';
+        
+        const q = state.session.selectedQIDs[state.session.activeQIndex];
+        document.getElementById('qInfoDisplay').innerText = `Q: ${q.id} | ${q.desc}`;
+        
+        const imgUrl = state.images[q.img.toLowerCase()];
+        document.getElementById('previewImg').src = imgUrl || "";
+    }
+
+    // --- 4. WINDOWS & SYNC ---
+    function syncScreens() {
+        const packet = {
+            phase: state.session.phase,
+            taken: state.takenSlots, // For grid shading
+            activeQ: state.session.selectedQIDs[state.session.activeQIndex], // Current Question
+            imgUrl: state.session.selectedQIDs[state.session.activeQIndex] ? state.images[state.session.selectedQIDs[state.session.activeQIndex].img.toLowerCase()] : null,
+            student: state.session.student,
+            rubric: state.judging.rubric
+        };
+
+        // Send to Student
+        if(state.windows.student && !state.windows.student.closed) {
+            state.windows.student.updateState(packet);
+        }
+
+        // Send to Judges
+        state.windows.judges.forEach(w => {
+            if(w && !w.closed) w.updateJudge(packet);
+        });
+    }
+
+    // --- 5. RESULT LOGIC ---
+    window.submitScore = function(judgeID, score) {
+        state.judging.scores[judgeID] = score;
+        let txt = "";
+        let total = 0; let count = 0;
+        for(let j in state.judging.scores) {
+            txt += `${j}: ${state.judging.scores[j]}  `;
+            total += parseFloat(state.judging.scores[j]);
+            count++;
+        }
+        if(count > 0) txt += ` | AVG: ${(total/count).toFixed(2)}`;
+        document.getElementById('liveScores').innerText = txt;
+    }
+
+    function saveResult() {
+        const s = state.session.student;
+        if(!s.name) return alert("No student info!");
+        
+        // Calc Avg
+        let total = 0; let count = 0;
+        for(let j in state.judging.scores) { total += parseFloat(state.judging.scores[j]); count++; }
+        const final = count > 0 ? (total/count).toFixed(2) : 0;
+
+        state.judging.results.push({
+            name: s.name,
+            id: s.id,
+            finalScore: final,
+            details: {...state.judging.scores}
+        });
+        alert(`Saved! Score: ${final}`);
+    }
+
+    function exportCSV() {
+        let csv = "Name,ID,FinalScore\n";
+        state.judging.results.forEach(r => {
+            csv += `"${r.name}","${r.id}","${r.finalScore}"\n`;
+        });
+        const blob = new Blob([csv]);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = "Rasfahi_Results.csv";
+        a.click();
+    }
+
+    // --- HTML TEMPLATES FOR POPUPS ---
+
+    // 1. STUDENT SCREEN TEMPLATE
+    function openStudentScreen() {
+        const win = window.open("", "StudentScreen", "width=1000,height=700");
+        win.document.write(`
+            <html><head><style>
+                body { background: #000; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; overflow:hidden; }
+                #gridContainer { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; width:80%; }
+                .box { background:#111; border:2px solid #333; color:#555; height:100px; display:flex; justify-content:center; align-items:center; font-size:30px; border-radius:10px; }
+                .box.taken { opacity:0.2; }
+                #qImage { max-height:95vh; max-width:95vw; display:none; border:5px solid #D4AF37; }
+            </style></head><body>
+                <div id="gridContainer"></div>
+                <img id="qImage" src="">
+                <script>
+                    // Render Grid initially
+                    const g = document.getElementById('gridContainer');
+                    for(let i=1; i<=20; i++){
+                        let d = document.createElement('div');
+                        d.className = 'box'; d.id = 'b'+i; d.innerText = i;
+                        g.appendChild(d);
+                    }
+
+                    window.updateState = function(data) {
+                        if(data.phase === 'selection') {
+                            document.getElementById('qImage').style.display = 'none';
+                            document.getElementById('gridContainer').style.display = 'grid';
+                            // Update grid state
+                            for(let i=1; i<=20; i++){
+                                let b = document.getElementById('b'+i);
+                                if(data.taken.includes(i)) b.classList.add('taken');
+                                else b.classList.remove('taken');
+                            }
+                        } else {
+                            // Reading Phase
+                            document.getElementById('gridContainer').style.display = 'none';
+                            const img = document.getElementById('qImage');
+                            if(data.imgUrl) { img.src = data.imgUrl; img.style.display = 'block'; }
+                        }
+                    }
+                <\/script>
+            </body></html>
+        `);
+        state.windows.student = win;
+    }
+
+    // 2. JUDGE SCREEN TEMPLATE
+    function openJudgeScreen() {
+        const jID = "Judge_" + (state.windows.judges.length + 1);
+        const win = window.open("", jID, "width=800,height=900");
+        win.document.write(`
+            <html><head><style>
+                body { font-family:sans-serif; padding:20px; background:#f4f4f4; text-align:center; }
+                .card { background:#fff; padding:20px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+                table { width:100%; border-collapse:collapse; margin-top:20px; }
+                td, th { border:1px solid #ddd; padding:10px; }
+                .score-disp { font-weight:bold; color:green; font-size:18px; }
+                .deduct-btn { background:#ffebee; color:red; border:1px solid red; cursor:pointer; margin:2px; }
+                button.submit { background:green; color:#fff; width:100%; padding:15px; font-size:20px; margin-top:20px; cursor:pointer; }
+            </style></head><body>
+                <div class="card">
+                    <h1>${jID}</h1>
+                    <h2 id="sName">Waiting...</h2>
+                    <div id="rubric"></div>
+                    <h2>Total: <span id="total">0</span></h2>
+                    <button class="submit" onclick="send()">Submit Score</button>
+                </div>
+                <script>
+                    let scores = {}; // { index: {max:10, deducted:0} }
+                    
+                    window.updateJudge = function(data) {
+                        document.getElementById('sName').innerText = data.student.name || "No Student";
+                        const rDiv = document.getElementById('rubric');
+                        if(!data.rubric) return;
+                        
+                        let html = '<table><tr><th>Category</th><th>Max</th><th>Deduct</th><th>Score</th></tr>';
+                        data.rubric.forEach((r, i) => {
+                            if(!scores[i]) scores[i] = {max:r.max, deducted:0};
+                            html += \`<tr>
+                                <td>\${r.name}</td>
+                                <td>\${r.max}</td>
+                                <td>
+                                    <button class="deduct-btn" onclick="deduct(\${i}, 0.5)">-0.5</button>
+                                    <button class="deduct-btn" onclick="deduct(\${i}, 1)">-1.0</button>
+                                    <button onclick="reset(\${i})">R</button>
+                                </td>
+                                <td class="score-disp" id="s_\${i}">\${scores[i].max - scores[i].deducted}</td>
+                            </tr>\`;
+                        });
+                        html += '</table>';
+                        rDiv.innerHTML = html;
+                        calc();
+                    }
+
+                    window.deduct = function(i, val) {
+                        scores[i].deducted += val;
+                        if(scores[i].deducted > scores[i].max) scores[i].deducted = scores[i].max;
+                        refresh(i);
+                    }
+                    window.reset = function(i) { scores[i].deducted = 0; refresh(i); }
+                    
+                    function refresh(i) {
+                        document.getElementById('s_'+i).innerText = scores[i].max - scores[i].deducted;
+                        calc();
+                    }
+                    function calc() {
+                        let t = 0;
+                        for(let k in scores) t += (scores[k].max - scores[k].deducted);
+                        document.getElementById('total').innerText = t;
+                    }
+                    function send() {
+                        const t = document.getElementById('total').innerText;
+                        window.opener.submitScore("${jID}", t);
+                        document.querySelector('.submit').innerText = "Submitted ("+t+")";
+                        document.querySelector('.submit').style.background = "#555";
+                    }
+                <\/script>
+            </body></html>
+        `);
+        state.windows.judges.push(win);
+    }
+
+</script>
+</body>
+</html>
