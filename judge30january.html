@@ -4044,6 +4044,76 @@ function downloadDetailedManualSheet() {
     link.click();
     document.body.removeChild(link);
 }
+    // ★ FIXED: PREVENT DUPLICATES & SAVE LOGIC ★
+function finalizeScore() {
+    // 1. ކަރަންޓް ކުއްޖާ ނެގުން
+    const currentStd = state.judging.currentStudentObj;
+    if(!currentStd || !currentStd.id) {
+        alert("No active student selected!");
+        return;
+    }
+
+    // 2. ޖަޖުންގެ މާކުސްތައް ޖަމާކުރުން
+    const liveScores = state.judging.liveScores; 
+    let totalScore = 0;
+    let judgeCount = 0;
+
+    for (let key in liveScores) {
+        if (liveScores.hasOwnProperty(key)) {
+            totalScore += parseFloat(liveScores[key]);
+            judgeCount++;
+        }
+    }
+
+    // 3. ފައިނަލް އެވްރެޖް ހެދުން
+    const finalAvg = judgeCount > 0 ? (totalScore / judgeCount).toFixed(2) : "0.00";
+
+    // 4. ސޭވް ކުރަންވީ ރެކޯޑް ތައްޔާރުކުރުން
+    const recordToSave = {
+        ...currentStd,
+        scores: {...liveScores},
+        finalScore: parseFloat(finalAvg),
+        savedAt: new Date().toISOString()
+    };
+
+    // ★ 5. ޑަބަލްވުން ހުއްޓުވުން (ANTI-DUPLICATION LOGIC) ★
+    // ލިސްޓުގައި މި އައިޑީ އޮތްތޯ ބެލުން
+    // (Ensure savedResults exists)
+    if (!state.judging.savedResults) {
+        state.judging.savedResults = [];
+    }
+
+    const existingIndex = state.judging.savedResults.findIndex(s => s.id === recordToSave.id);
+
+    if (existingIndex > -1) {
+        // CASE A: ކުރިން އެބައިން -> އަޕްޑޭޓް ކުރޭ
+        state.judging.savedResults[existingIndex] = recordToSave;
+        console.log(`Updated existing record for ${recordToSave.name}`);
+    } else {
+        // CASE B: އަލަށް އައި ކުއްޖެއް -> އިތުރު ކުރޭ
+        state.judging.savedResults.push(recordToSave);
+        console.log(`Added new record for ${recordToSave.name}`);
+    }
+
+    // 6. ސޭވްކޮށް ރިފްރެޝް ކުރުން
+    saveToLocal();
+    if(typeof updateSavedResultsList === 'function') {
+        updateSavedResultsList(); 
+    }
+    
+    // 7. ކާމިޔާބުވިކަން އެންގުން
+    const btn = document.getElementById('btnFinalize');
+    if(btn) {
+        btn.innerText = "Saved! ✅";
+        btn.disabled = true; // Prevent double clicking
+        setTimeout(() => {
+            btn.innerText = "✅ Save Student Result";
+            btn.disabled = false;
+        }, 2000);
+    }
+    
+    alert(`Saved Successfully!\nStudent: ${recordToSave.name}\nFinal Score: ${finalAvg}`);
+}
 </script>
 </body>
 </html>
