@@ -2289,74 +2289,130 @@
         else { s.innerText = `Q-${state.session.slots[state.session.activeIndex]?.id || "?"}`; s.style.color = "#00e676"; }
     }
 
-    function updateMirror() {
-        const gp = document.getElementById('gridPreview');
-        const mCont = document.getElementById('mirrorContainer');
-        const mImg = document.getElementById('mImg');
-        const mReady = document.getElementById('mReadyText');
-        const mFin = document.getElementById('mFinishText');
-        const wWarn = document.getElementById('adminWarn');
-        const banner = document.getElementById('adminBanner');
-        const mMemory = document.getElementById('mMemoryText');
-        
-        document.getElementById('mirrorLight').style.background = state.session.light ? '#00e676' : '#333';
+    // REPLACE OLD updateMirror WITH THIS:
+function updateMirror() {
+    const gp = document.getElementById('gridPreview');
+    const mCont = document.getElementById('mirrorContainer');
+    const mImg = document.getElementById('mImg');
+    const mReady = document.getElementById('mReadyText');
+    const mFin = document.getElementById('mFinishText');
+    const wWarn = document.getElementById('adminWarn');
+    const banner = document.getElementById('adminBanner');
+    const mMemory = document.getElementById('mMemoryText');
+    
+    // Check Mode
+    const displayMode = document.getElementById('displaySource') ? document.getElementById('displaySource').value : 'image';
 
-        if(state.theme) {
-            mCont.style.border = `10px ${state.theme.borderType} ${state.theme.accent}`;
-            mCont.style.background = '#fff'; 
-        }
-
-        if(state.grid.visible) {
-            mCont.style.display = 'none'; 
-            gp.style.display = 'grid';
-            updateGridPreview();
-            return;
-        } 
-        
-        gp.style.display = 'none'; 
-        mCont.style.display = 'flex';
-        
-        mImg.style.display = 'none';
-        mReady.style.display = 'none'; 
-        mFin.style.display = 'none'; 
-        wWarn.style.display = 'none';
-        banner.style.display = 'none';
-        mMemory.style.display = 'none';
-
-        if(state.session.phase === 'ready') {
-             mReady.style.display = 'block';
-             document.getElementById('mirrorStatus').innerText = "WAITING";
-             return;
-        }
-
-        if(state.session.phase === 'finished') {
-            mFin.style.display = 'block';
-            mFin.innerHTML = i18n.msgFinished[currentLang];
-            document.getElementById('mirrorStatus').innerText = "FINISHED";
-            return;
-        }
-
-        const q = state.session.slots[state.session.activeIndex];
-
-        if(q && state.session.phase === 'active') {
-            document.getElementById('mBook').innerText = q.book;
-            document.getElementById('mSurah').innerText = q.surah;
-            document.getElementById('mAyah').innerText = q.start + '-' + q.end;
-            banner.style.display = 'flex'; 
-
-            if(state.readingMode === 'memory') {
-                wWarn.style.display = 'block';
-                mMemory.style.display = 'block'; 
-                if(q.src) { mImg.src = q.src; mImg.style.display = 'block'; mImg.style.opacity = "0.2"; }
-            } else {
-                if(q.src) { mImg.src = q.src; mImg.style.display = 'block'; mImg.style.opacity = "1"; }
-            }
-            
-            document.getElementById('mirrorStatus').innerText = "LIVE READING";
-        } else {
-            document.getElementById('mirrorStatus').innerText = "IDLE";
-        }
+    // Create Text Container if not exists
+    let textDiv = document.getElementById('quranTextDiv');
+    if(!textDiv) {
+        textDiv = document.createElement('div');
+        textDiv.id = 'quranTextDiv';
+        textDiv.style.cssText = "width:90%; font-family: 'Amiri', 'AppFont', serif; font-size: 5vmin; line-height: 2.2; text-align: center; color: #000; direction: rtl; display: none; padding: 20px; overflow-y:auto; max-height:100%;";
+        document.querySelector('.mirror-img-container').appendChild(textDiv);
     }
+
+    document.getElementById('mirrorLight').style.background = state.session.light ? '#00e676' : '#333';
+
+    if(state.theme) {
+        mCont.style.border = `10px ${state.theme.borderType} ${state.theme.accent}`;
+        mCont.style.background = '#fff'; 
+    }
+
+    if(state.grid.visible) {
+        mCont.style.display = 'none'; 
+        gp.style.display = 'grid';
+        updateGridPreview();
+        return;
+    } 
+    
+    gp.style.display = 'none'; 
+    mCont.style.display = 'flex';
+    
+    // Reset Views
+    mImg.style.display = 'none';
+    textDiv.style.display = 'none';
+    mReady.style.display = 'none'; 
+    mFin.style.display = 'none'; 
+    wWarn.style.display = 'none';
+    banner.style.display = 'none';
+    mMemory.style.display = 'none';
+
+    if(state.session.phase === 'ready') {
+         mReady.style.display = 'block';
+         document.getElementById('mirrorStatus').innerText = "WAITING";
+         return;
+    }
+
+    if(state.session.phase === 'finished') {
+        mFin.style.display = 'block';
+        mFin.innerHTML = i18n.msgFinished[currentLang];
+        document.getElementById('mirrorStatus').innerText = "FINISHED";
+        return;
+    }
+
+    const q = state.session.slots[state.session.activeIndex];
+
+    if(q && state.session.phase === 'active') {
+        document.getElementById('mBook').innerText = q.book;
+        document.getElementById('mSurah').innerText = q.surah;
+        document.getElementById('mAyah').innerText = q.start + '-' + q.end;
+        banner.style.display = 'flex'; 
+
+        // --- DISPLAY LOGIC START ---
+        if(state.readingMode === 'memory') {
+            wWarn.style.display = 'block';
+            mMemory.style.display = 'block'; 
+            
+            // In memory mode, we can show faded text or image as hint (optional), 
+            // or just hide them. Here we hide text completely for strictness.
+             if(displayMode === 'text' && Object.keys(state.quranTextData).length > 0) {
+                 // Pre-render text but hide it
+                 let sNum = q.surahNum || getSurahNumberByName(q.surah);
+                 const txt = getVersesText(sNum, q.start, q.end);
+                 textDiv.innerHTML = txt;
+                 textDiv.style.display = 'block';
+                 textDiv.style.opacity = "0"; 
+            } else if(q.src) {
+                 mImg.src = q.src; 
+                 mImg.style.display = 'block'; 
+                 mImg.style.opacity = "0.05"; // Very faint hint
+            }
+        } else {
+            // Reading Mode
+            if(displayMode === 'text') {
+                 // Try to get Text
+                 let sNum = q.surahNum || getSurahNumberByName(q.surah);
+                 const txt = getVersesText(sNum, q.start, q.end);
+                 
+                 if(txt) {
+                    textDiv.innerHTML = txt;
+                    textDiv.style.display = 'block';
+                    textDiv.style.opacity = "1";
+                 } else {
+                    textDiv.innerHTML = "⚠️ Text data not loaded! Please upload 'quran-uthmani.txt'.";
+                    textDiv.style.display = 'block';
+                 }
+            } else {
+                // Image Mode
+                if(q.src) { 
+                    mImg.src = q.src; 
+                    mImg.style.display = 'block'; 
+                    mImg.style.opacity = "1"; 
+                } else {
+                    // Fallback to text if image missing but text available?
+                    textDiv.innerHTML = "⚠️ Image not found.";
+                    textDiv.style.display = 'block';
+                }
+            }
+        }
+        // --- DISPLAY LOGIC END ---
+        
+        document.getElementById('mirrorStatus').innerText = "LIVE READING";
+    } else {
+        document.getElementById('mirrorStatus').innerText = "IDLE";
+    }
+}
 
     function updateGridPreview() {
         const gp = document.getElementById('gridPreview');
