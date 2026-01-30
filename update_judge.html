@@ -3524,6 +3524,189 @@ function updateMirror() {
         link.click();
         document.body.removeChild(link);
     }
+    // --- QURAN TEXT & AUTO-GENERATOR FUNCTIONS (ADD TO BOTTOM) ---
+
+// 1. Text File Loader & Sequence Builder
+document.getElementById('quranTextFile').onchange = e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        const lines = evt.target.result.split('\n');
+        state.quranTextData = {};
+        state.quranSeq = []; // Reset sequence
+        let count = 0;
+        
+        lines.forEach(line => {
+            const parts = line.split('|'); 
+            if(parts.length >= 3) {
+                const sura = parseInt(parts[0].trim());
+                const ayah = parseInt(parts[1].trim());
+                const text = parts[2].trim();
+                
+                // Store Map for Display
+                state.quranTextData[`${sura}:${ayah}`] = text;
+                
+                // Store Sequence for Generator
+                state.quranSeq.push({ sura, ayah, text });
+                count++;
+            }
+        });
+        alert(`Text Database Loaded!\nTotal Verses: ${count}\nReady for Text Mode & Auto-Generation.`);
+        syncWindows();
+    };
+    reader.readAsText(file);
+};
+
+// 2. Toggle Generator UI
+function toggleGenUI() {
+    const mode = document.getElementById('qSourceMode').value;
+    const genUI = document.getElementById('genUI');
+    
+    if(mode === 'auto') {
+        genUI.classList.remove('hidden');
+        // Auto-switch display to Text Mode
+        if(document.getElementById('displaySource')) {
+            document.getElementById('displaySource').value = 'text';
+        }
+    } else {
+        genUI.classList.add('hidden');
+    }
+}
+
+// 3. Generate Questions Logic (3000 Questions)
+function generateInternalPool() {
+    // Check if text file is loaded
+    if(!state.quranSeq || state.quranSeq.length === 0) {
+        alert("⚠️ Please upload 'quran-uthmani.txt' first!");
+        return;
+    }
+
+    const totalNeeded = parseInt(document.getElementById('genCount').value) || 3000;
+    const lineOption = document.getElementById('genLineOptions').value;
+    const [minLines, maxLines] = lineOption.split('-').map(Number);
+    
+    // Get Syllabus Scope
+    const filterType = document.getElementById('filterType').value;
+    const scopeStart = parseInt(document.getElementById('scopeStart').value) || 1;
+    const scopeEnd = parseInt(document.getElementById('scopeEnd').value) || 114;
+
+    // Word Estimation (1 line ≈ 9 words)
+    const minWords = minLines * 9;
+    const maxWords = maxLines * 9;
+
+    // Reset Pools
+    state.qPool = [];
+    state.qDataMap = {};
+    state.filteredPool = []; 
+
+    let generatedCount = 0;
+    let attempts = 0;
+    const maxAttempts = totalNeeded * 200; // Increase attempts for safety
+
+    // Helper for Juz
+    const getJuz = (s) => Math.ceil(s * 30 / 114);
+
+    // Start Generation Loop
+    while(generatedCount < totalNeeded && attempts < maxAttempts) {
+        attempts++;
+        
+        // Pick random start
+        const randIdx = Math.floor(Math.random() * (state.quranSeq.length - 15));
+        const startObj = state.quranSeq[randIdx];
+
+        // Check Scope
+        let inScope = false;
+        if(filterType === 'surah') {
+            if(startObj.sura >= scopeStart && startObj.sura <= scopeEnd) inScope = true;
+        } else {
+            const j = getJuz(startObj.sura);
+            if(j >= scopeStart && j <= scopeEnd) inScope = true;
+        }
+
+        if(!inScope) continue;
+
+        // Verify Length
+        let currentWords = 0;
+        let endIndex = randIdx;
+        let valid = false;
+
+        for(let i = randIdx; i < state.quranSeq.length; i++) {
+            if(state.quranSeq[i].sura !== startObj.sura) break; // Same Surah constraint
+            
+            currentWords += state.quranSeq[i].text.split(' ').length;
+            endIndex = i;
+
+            if(currentWords >= minWords && currentWords <= maxWords) {
+                valid = true;
+                break;
+            }
+            if(currentWords > maxWords) break;
+        }
+
+        if(valid) {
+            const endObj = state.quranSeq[endIndex];
+            const qID = `Auto-${generatedCount + 1}`;
+            
+            const qData = {
+                id: qID,
+                book: getJuz(startObj.sura),
+                surah: getSurahName(startObj.sura),
+                surahNum: startObj.sura,
+                start: startObj.ayah,
+                end: endObj.ayah,
+                src: null,
+                imgRaw: ""
+            };
+
+            state.qDataMap[qID] = qData;
+            state.qPool.push(qID);
+            state.filteredPool.push(qID);
+            generatedCount++;
+        }
+    }
+
+    if(generatedCount > 0) {
+        alert(`✅ Success! Generated ${generatedCount} questions.\nMode: Text Mode active.`);
+        if(state.mode === 'student') reshuffleGrid();
+        renderSlots();
+    } else {
+        alert("⚠️ Failed to generate. Please check your Syllabus Scope.");
+    }
+}
+
+// 4. Helpers
+const SURAH_LIST_LOOKUP = [
+    "Al-Fatiha", "Al-Baqarah", "Ali 'Imran", "An-Nisa", "Al-Ma'idah", "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus", "Hud", "Yusuf", "Ar-Ra'd", "Ibrahim", "Al-Hijr", "An-Nahl", "Al-Isra", "Al-Kahf", "Maryam", "Ta-Ha", "Al-Anbiya", "Al-Hajj", "Al-Mu'minun", "An-Nur", "Al-Furqan", "Ash-Shu'ara", "An-Naml", "Al-Qasas", "Al-Ankabut", "Ar-Rum", "Luqman", "As-Sajdah", "Al-Ahzab", "Saba", "Fatir", "Ya-Sin", "As-Saffat", "Sad", "Az-Zumar", "Ghafir", "Fussilat", "Ash-Shura", "Az-Zukhruf", "Ad-Dukhan", "Al-Jathiyah", "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf", "Adh-Dhariyat", "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman", "Al-Waqi'ah", "Al-Hadid", "Al-Mujadila", "Al-Hashr", "Al-Mumtahanah", "As-Saff", "Al-Jumu'ah", "Al-Munafiqun", "At-Taghabun", "At-Talaq", "At-Tahrim", "Al-Mulk", "Al-Qalam", "Al-Haqqah", "Al-Ma'arij", "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddaththir", "Al-Qiyamah", "Al-Insan", "Al-Mursalat", "An-Naba", "An-Nazi'at", "Abasa", "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Inshiqaq", "Al-Buruj", "At-Tariq", "Al-A'la", "Al-Ghashiyah", "Al-Fajr", "Al-Balad", "Ash-Shams", "Al-Layl", "Ad-Duha", "Ash-Sharh", "At-Tin", "Al-Alaq", "Al-Qadr", "Al-Bayyinah", "Az-Zalzalah", "Al-Adiyat", "Al-Qari'ah", "At-Takathur", "Al-Asr", "Al-Humazah", "Al-Fil", "Quraysh", "Al-Ma'un", "Al-Kawthar", "Al-Kafirun", "An-Nasr", "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas"
+];
+
+function getSurahName(num) {
+    if(SURAH_LIST_LOOKUP && SURAH_LIST_LOOKUP[num-1]) return SURAH_LIST_LOOKUP[num-1];
+    return "Surah " + num;
+}
+
+function getSurahNumberByName(name) {
+    if(!name) return 1;
+    let cleanName = name.toString().replace(/^\d+\.\s*/, '').trim(); 
+    let idx = SURAH_LIST_LOOKUP.findIndex(s => s.toLowerCase() === cleanName.toLowerCase());
+    return idx !== -1 ? idx + 1 : 1;
+}
+
+function getVersesText(suraNum, startAyah, endAyah) {
+    let combinedText = "";
+    for(let i = parseInt(startAyah); i <= parseInt(endAyah); i++) {
+        const key = `${suraNum}:${i}`;
+        if(state.quranTextData[key]) {
+            combinedText += state.quranTextData[key] + ` <span style="color:#D4AF37; font-family:serif; margin:0 5px;">۝${toArabicNumerals(i)}</span> `;
+        }
+    }
+    return combinedText;
+}
+
+function toArabicNumerals(n) {
+    const ar = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+    return n.toString().split('').map(d => ar[d]).join('');
+}
 </script>
 </body>
 </html>
