@@ -3082,65 +3082,69 @@ function filterStudentList() {
     link.click();
     document.body.removeChild(link);
 }
-    // D. MASTER SHEET EXPORT (NO DOUBLES / FIXED)
+    // D. މާސްޓަރ ޝީޓް އެކްސްޕޯޓް (Export Master Sheet) - FINAL FIXED VERSION
 function exportMasterResultSheet() {
+    // 1. ނަތީޖާއެއް ހުރިތޯ ބެލުން
     if(!state.judging.savedResults || state.judging.savedResults.length === 0) {
         alert("No results to export! (މާކުސް ދެވިފައިވާ ކުދިންނެއް ނެތް)");
         return;
     }
 
-    // --- STEP 1: REMOVE DUPLICATES (FIX DOUBLING) ---
-    // We use a Map to keep only the LATEST entry for each Student ID
-    const uniqueMap = new Map();
-    state.judging.savedResults.forEach(item => {
-        // If ID exists, this will overwrite it with the latest data (fixing duplicates)
-        if(item.id) uniqueMap.set(item.id, item); 
-    });
-    // Convert back to array
-    const cleanList = Array.from(uniqueMap.values());
-
-    // --- STEP 2: GENERATE CSV ---
+    // 2. ހެޑަރތައް (Headers) - ތިބާ ބޭނުންފުޅުވި ތަރުތީބު
     let csv = "Serial No,Reg No,Age Group,Branch,Institution,Full Name,Gender,Address,ID Card,Contact,Parent Name,Parent Phone,Email,";
 
+    // ކެޓަގަރީތަކުގެ ހެޑަރ (Rubric Headers)
     if(state.judging.rubric) {
-        state.judging.rubric.forEach(r => { csv += `${r.name} (Avg),`; });
+        state.judging.rubric.forEach(r => {
+            csv += `${r.name} (Avg),`; 
+        });
     }
 
-    for(let i=1; i<=7; i++) { csv += `Judge ${i} Total,`; }
+    // ޖަޖުންގެ ޖުމްލަ ހެޑަރތައް (Judge 1 to 7)
+    for(let i=1; i<=7; i++) {
+        csv += `Judge ${i} Total,`;
+    }
 
+    // ފަހު ކޮލަމްތައް
     csv += "FINAL AVERAGE,RANK,REMARKS\n";
 
-    // Sort by Final Score
-    let sortedList = cleanList.sort((a, b) => b.finalScore - a.finalScore);
+    // 3. ޑޭޓާ ސޯޓްކުރުން (އެންމެ މަތިން މާކުސް ހޯދި ކުދިން ކުރިއަށް)
+    let sortedList = [...state.judging.savedResults].sort((a, b) => b.finalScore - a.finalScore);
 
+    // 4. ކޮންމެ ކުއްޖެއްގެ މަޢުލޫމާތު ލިޔުން (Rows)
     sortedList.forEach((s, index) => {
         let row = [];
         
-        row.push(index + 1); // Serial
+        // A. ކުއްޖާގެ މަޢުލޫމާތު (Personal Info) - New Order
+        row.push(index + 1); // 1. ސުމާރު ނަންބަރު (ރޭންކް ތަރުތީބުން)
         row.push(`"${s.reg||''}"`, `"${s.group||''}"`, `"${s.branch||''}"`, `"${s.institution||''}"`);
         row.push(`"${s.name||''}"`, `"${s.gender||''}"`, `"${s.address||''}"`, `"${s.id||''}"`);
         row.push(`"${s.phone||''}"`, `"${s.parent||''}"`, `"${s.parentPhone||''}"`, `"${s.email||''}"`);
 
-        // Rubric Placeholders
-        if(state.judging.rubric) { state.judging.rubric.forEach(() => row.push("-")); }
+        // B. ކެޓަގަރީތަކުގެ އެވްރެޖް (Placeholder)
+        if(state.judging.rubric) {
+            state.judging.rubric.forEach(() => row.push("-")); 
+        }
 
-        // Judges
+        // C. ޖަޖުންގެ ވަކިވަކި ޖުމްލަ (Judge Totals)
         for(let i=1; i<=7; i++) {
             let key = `Judge_${i}`; 
             let val = (s.scores && s.scores[key] !== undefined) ? s.scores[key] : "-";
             row.push(val);
         }
 
-        // Final
-        row.push(s.finalScore);
-        row.push(index + 1);
-        row.push("");
+        // D. ފައިނަލް ނަތީޖާ (Avg & Rank)
+        row.push(s.finalScore); // ޖުމްލަ އެވްރެޖް
+        row.push(index + 1);    // ރޭންކް (ވަނަ)
+        row.push("");           // ރިމާކްސް (ހުސްކޮށް)
 
+        // ރޯ ނިންމާލުން
         csv += row.join(",") + "\n";
     });
 
+    // 5. ފައިލް ޑައުންލޯޑް ކުރުން
     const dateStr = new Date().toISOString().split('T')[0];
-    const fileName = `Rasfahi_Master_CLEAN_${dateStr}.csv`;
+    const fileName = `Rasfahi_Master_NEW_FORMAT_${dateStr}.csv`;
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -3173,7 +3177,7 @@ function exportMasterResultSheet() {
         return list.sort((a, b) => b.finalScore - a.finalScore);
     }
 
-    // A. ADVANCED REPORT (FONT FIXED)
+    // ADVANCED REPORT WITH FARUUMA FONT
 function generateAdvancedReport(mode) {
     let list = getFilteredResults();
     
@@ -3188,12 +3192,8 @@ function generateAdvancedReport(mode) {
     const chiefName = document.getElementById('rptChief').value || "__________________";
     const judgeCount = parseInt(document.getElementById('rptJudgeCount').value) || 3;
     
-    // Get Text from Dropdown safely
-    const bSel = document.getElementById('rptFilterBranch');
-    const branchTxt = bSel.options[bSel.selectedIndex].text;
-    
-    const gSel = document.getElementById('rptFilterGroup');
-    const groupTxt = gSel.options[gSel.selectedIndex].text;
+    const branchTxt = document.getElementById('rptFilterBranch').options[document.getElementById('rptFilterBranch').selectedIndex].text;
+    const groupTxt = document.getElementById('rptFilterGroup').options[document.getElementById('rptFilterGroup').selectedIndex].text;
 
     let sigLines = '';
     for(let i=1; i<=judgeCount; i++) {
@@ -3206,15 +3206,11 @@ function generateAdvancedReport(mode) {
     <head>
         <title>Result Report</title>
         <style>
-            /* Load Noto Sans Thaana from Web as backup */
-            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
-            
-            body { 
-                /* Prioritize Faruuma, then Waheed, then Noto Sans */
-                font-family: 'Faruuma', 'Waheed', 'Noto Sans Thaana', sans-serif !important; 
-                padding: 40px; 
-                direction: rtl; 
+            @font-face {
+                font-family: 'Faruuma';
+                src: local('Faruuma'), local('Waheed'), url('https://fonts.googleapis.com/earlyaccess/notosansthaana.css');
             }
+            body { font-family: 'Faruuma', 'Noto Sans Thaana', sans-serif; padding: 40px; direction: rtl; }
             .header { text-align: center; margin-bottom: 30px; border-bottom: 3px double #000; padding-bottom: 20px; }
             h1 { margin: 5px 0; font-size: 26px; font-weight:bold; }
             h2 { margin: 5px 0; font-size: 20px; color: #333; }
@@ -3950,76 +3946,6 @@ function onStudentSelected(val) {
     } else {
         alert("Student not found! Please check the name.");
     }
-}
-    // B. MANUAL BLANK SHEET (FONT FIXED)
-function downloadManualScoreSheet() {
-    const rubric = state.judging.rubric;
-    const instName = document.getElementById('rptInstName').value || "މުއައްސަސާ";
-    const compName = document.getElementById('rptCompName').value || "ޤުރުއާން މުބާރާތް";
-    
-    let totalMax = 0; rubric.forEach(r => totalMax += r.max);
-    let rows = "";
-    rubric.forEach(r => {
-        rows += `<tr><td style="text-align:right; font-weight:bold;">${r.name}</td><td style="font-weight:bold;">${r.max}</td><td></td><td style="color:#ccc;">___________</td></tr>`;
-    });
-
-    const html = `
-    <!DOCTYPE html>
-    <html dir="rtl" lang="dv">
-    <head>
-        <title>Judge Score Sheet</title>
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
-            body { font-family: 'Faruuma', 'Waheed', 'Noto Sans Thaana', sans-serif !important; padding: 40px; direction: rtl; }
-            .sheet-container { border: 5px double #000; padding: 30px; height: 95vh; box-sizing: border-box; }
-            h1 { text-align: center; margin: 0; font-size: 24px; text-decoration: underline; }
-            h2 { text-align: center; margin: 5px 0 30px 0; font-size: 18px; color: #444; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; border: 1px solid #333; padding: 15px; background: #f9f9f9; }
-            .input-line { margin-bottom: 15px; font-size: 14px; font-weight: bold; }
-            .dotted { border-bottom: 2px dotted #000; display: inline-block; width: 60%; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #000; padding: 12px; text-align: center; vertical-align: middle; }
-            th { background: #eee; font-size: 15px; font-weight: bold; }
-            .total-row td { background: #333; color: #fff; font-weight: bold; font-size: 18px; }
-            .footer-sig { margin-top: 50px; display: flex; justify-content: space-between; }
-            @media print { button { display: none; } @page { size: A4 portrait; margin: 10mm; } }
-        </style>
-    </head>
-    <body>
-        <button onclick="window.print()" style="width:100%; padding:20px; font-size:20px; background:#002200; color:#fff; cursor:pointer; margin-bottom:20px;">🖨️ CLICK TO PRINT</button>
-        <div class="sheet-container">
-            <h1>${instName}</h1>
-            <h2>${compName} - ޖަޖުންގެ މާކުސް ޝީޓް</h2>
-            <div class="info-grid">
-                <div>
-                    <div class="input-line">ދަރިވަރުގެ ނަން: <span class="dotted"></span></div>
-                    <div class="input-line">އައި.ޑީ / ރެޖިސްޓްރީ: <span class="dotted" style="width:50%"></span></div>
-                    <div class="input-line">ގޮފި / ޢުމުރު: <span class="dotted"></span></div>
-                </div>
-                <div style="text-align:left;">
-                    <div class="input-line" style="direction:ltr;">Date: __________________</div>
-                    <div class="input-line" style="direction:ltr;">Judge Name: __________________</div>
-                    <div class="input-line" style="direction:ltr;">Judge ID: _________</div>
-                </div>
-            </div>
-            <table>
-                <thead><tr><th width="40%">ބައިތައް (Criteria)</th><th width="15%">ޖުމްލަ</th><th width="20%">ދޭ މާކުސް</th><th width="25%">ރިމާކްސް</th></tr></thead>
-                <tbody>
-                    ${rows}
-                    <tr class="total-row"><td style="text-align:right;">ޖުމްލަ (TOTAL)</td><td>${totalMax}</td><td></td><td></td></tr>
-                </tbody>
-            </table>
-            <div style="margin-top:40px; border:1px dashed #777; padding:15px; height:80px;"><strong>އިތުރު ފާހަގަތައް (General Remarks):</strong></div>
-            <div class="footer-sig">
-                <div style="text-align:center;">_______________________<br>ޖަޖުގެ ސޮއި</div>
-                <div style="text-align:center;"><div style="border:1px solid #000; height:50px; width:100px; margin:0 auto;"></div>އޮފިޝަލް ބޭނުމަށް</div>
-            </div>
-        </div>
-    </body>
-    </html>`;
-    const w = window.open("", "ManualSheet", "width=900,height=1000");
-    w.document.write(html);
-    w.document.close();
 }
 </script>
 </body>
