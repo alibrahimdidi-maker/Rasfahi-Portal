@@ -1355,42 +1355,45 @@
         syncWindows();
         saveToLocal(); // Auto save
     }
-    // Load Batch from CSV (Updated to read Institution Type)
-    function loadStudentBatch() {
-        const file = document.getElementById('batchCsv').files[0];
-        if(!file) return;
+    // B. ބެޗް އިމްޕޯޓް (Load Batch CSV) - Updated Logic
+function loadStudentBatch() {
+    const file = document.getElementById('batchCsv').files[0];
+    if(!file) { alert("Please select a CSV file first!"); return; }
+    
+    const r = new FileReader();
+    r.onload = e => {
+        const rows = e.target.result.split('\n');
+        state.allStudents = []; // ކުރިން ހުރި ޑޭޓާ ފޮހެލުން
         
-        const r = new FileReader();
-        r.onload = e => {
-            const rows = e.target.result.split('\n');
-            state.allStudents = [];
+        // ފުރަތަމަ ރޯ (Header) ދޫކޮށްލާފައި ދެން ހުރި ބައި ނެގުން
+        for(let i=1; i<rows.length; i++) {
+            const cols = rows[i].split(',');
+            if(cols.length < 5) continue; // ހުސް ރޯ އެއް ނަމަ ދޫކޮށްލާ
             
-            // Skipping header row 0
-            for(let i=1; i<rows.length; i++) {
-                const cols = rows[i].split(',');
-                if(cols.length < 2) continue; 
-                
-                state.allStudents.push({
-                    name: cols[0]?.trim(),
-                    id: cols[1]?.trim(),
-                    group: cols[2]?.trim(),
-                    branch: cols[3]?.trim(),
-                    age: cols[4]?.trim(),
-                    address: cols[5]?.trim(),
-                    phone: cols[6]?.trim(),
-                    parent: cols[7]?.trim(),
-                    parentPhone: cols[8]?.trim(),
-                    email: cols[9]?.trim(),
-                    // ★ Reading the new column (Index 10)
-                    instType: cols[10]?.trim() || "School" 
-                });
-            }
-            populateStudentSelector();
-            saveToLocal();
-            alert(`Loaded ${state.allStudents.length} students with Institution Types.`);
-        };
-        r.readAsText(file);
-    }
+            // ތިބާ އެދިލެއްވި މާސްޓަރ ޝީޓް ތަރުތީބުން ޑޭޓާ ނެގުން:
+            state.allStudents.push({
+                serial: cols[0]?.trim(),     // 1. ސުމާރު ނަންބަރ
+                reg: cols[1]?.trim(),        // 2. ރެޖިސްޓްރޭޝަން ނަންބަރ
+                group: cols[2]?.trim(),      // 3. ޢުމުރުފުރާ
+                branch: cols[3]?.trim(),     // 4. ކިޔަވާ ގޮފި
+                institution: cols[4]?.trim(),// 5. މައިވެރިވާ މުއައްސަސާ
+                name: cols[5]?.trim(),       // 6. ފުރިހަމަ ނަން
+                gender: cols[6]?.trim(),     // 7. ޖިންސު (އަންހެން/ފިރިހެން)
+                address: cols[7]?.trim(),    // 8. ދާއިމީ އެޑްރެސް
+                id: cols[8]?.trim(),         // 9. އައިޑީ ނަންބަރ
+                phone: cols[9]?.trim(),      // 10. ގުޅޭނެ ނަންބަރ
+                parent: cols[10]?.trim(),    // 11. ބެލެނިވެރިޔާގެ ނަން
+                parentPhone: cols[11]?.trim(),// 12. ބެލެނިވެރިޔާ ފޯނު
+                email: cols[12]?.trim()      // 13. އީމެއިލް އެޑްރެސް
+            });
+        }
+        
+        populateStudentSelector(); // ލިސްޓަށް ނަންތައް އެރުވުން
+        saveToLocal(); // އޮޓޯ ސޭވް
+        alert(`Successfully Loaded ${state.allStudents.length} Students!`);
+    };
+    r.readAsText(file);
+}
     function populateStudentSelector() {
         const sel = document.getElementById('studentSelector');
         sel.innerHTML = '<option value="">-- Manual Entry --</option>';
