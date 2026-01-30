@@ -3082,69 +3082,65 @@ function filterStudentList() {
     link.click();
     document.body.removeChild(link);
 }
-    // D. މާސްޓަރ ޝީޓް އެކްސްޕޯޓް (Export Master Sheet) - FINAL FIXED VERSION
+    // D. MASTER SHEET EXPORT (NO DOUBLES / FIXED)
 function exportMasterResultSheet() {
-    // 1. ނަތީޖާއެއް ހުރިތޯ ބެލުން
     if(!state.judging.savedResults || state.judging.savedResults.length === 0) {
         alert("No results to export! (މާކުސް ދެވިފައިވާ ކުދިންނެއް ނެތް)");
         return;
     }
 
-    // 2. ހެޑަރތައް (Headers) - ތިބާ ބޭނުންފުޅުވި ތަރުތީބު
+    // --- STEP 1: REMOVE DUPLICATES (FIX DOUBLING) ---
+    // We use a Map to keep only the LATEST entry for each Student ID
+    const uniqueMap = new Map();
+    state.judging.savedResults.forEach(item => {
+        // If ID exists, this will overwrite it with the latest data (fixing duplicates)
+        if(item.id) uniqueMap.set(item.id, item); 
+    });
+    // Convert back to array
+    const cleanList = Array.from(uniqueMap.values());
+
+    // --- STEP 2: GENERATE CSV ---
     let csv = "Serial No,Reg No,Age Group,Branch,Institution,Full Name,Gender,Address,ID Card,Contact,Parent Name,Parent Phone,Email,";
 
-    // ކެޓަގަރީތަކުގެ ހެޑަރ (Rubric Headers)
     if(state.judging.rubric) {
-        state.judging.rubric.forEach(r => {
-            csv += `${r.name} (Avg),`; 
-        });
+        state.judging.rubric.forEach(r => { csv += `${r.name} (Avg),`; });
     }
 
-    // ޖަޖުންގެ ޖުމްލަ ހެޑަރތައް (Judge 1 to 7)
-    for(let i=1; i<=7; i++) {
-        csv += `Judge ${i} Total,`;
-    }
+    for(let i=1; i<=7; i++) { csv += `Judge ${i} Total,`; }
 
-    // ފަހު ކޮލަމްތައް
     csv += "FINAL AVERAGE,RANK,REMARKS\n";
 
-    // 3. ޑޭޓާ ސޯޓްކުރުން (އެންމެ މަތިން މާކުސް ހޯދި ކުދިން ކުރިއަށް)
-    let sortedList = [...state.judging.savedResults].sort((a, b) => b.finalScore - a.finalScore);
+    // Sort by Final Score
+    let sortedList = cleanList.sort((a, b) => b.finalScore - a.finalScore);
 
-    // 4. ކޮންމެ ކުއްޖެއްގެ މަޢުލޫމާތު ލިޔުން (Rows)
     sortedList.forEach((s, index) => {
         let row = [];
         
-        // A. ކުއްޖާގެ މަޢުލޫމާތު (Personal Info) - New Order
-        row.push(index + 1); // 1. ސުމާރު ނަންބަރު (ރޭންކް ތަރުތީބުން)
+        row.push(index + 1); // Serial
         row.push(`"${s.reg||''}"`, `"${s.group||''}"`, `"${s.branch||''}"`, `"${s.institution||''}"`);
         row.push(`"${s.name||''}"`, `"${s.gender||''}"`, `"${s.address||''}"`, `"${s.id||''}"`);
         row.push(`"${s.phone||''}"`, `"${s.parent||''}"`, `"${s.parentPhone||''}"`, `"${s.email||''}"`);
 
-        // B. ކެޓަގަރީތަކުގެ އެވްރެޖް (Placeholder)
-        if(state.judging.rubric) {
-            state.judging.rubric.forEach(() => row.push("-")); 
-        }
+        // Rubric Placeholders
+        if(state.judging.rubric) { state.judging.rubric.forEach(() => row.push("-")); }
 
-        // C. ޖަޖުންގެ ވަކިވަކި ޖުމްލަ (Judge Totals)
+        // Judges
         for(let i=1; i<=7; i++) {
             let key = `Judge_${i}`; 
             let val = (s.scores && s.scores[key] !== undefined) ? s.scores[key] : "-";
             row.push(val);
         }
 
-        // D. ފައިނަލް ނަތީޖާ (Avg & Rank)
-        row.push(s.finalScore); // ޖުމްލަ އެވްރެޖް
-        row.push(index + 1);    // ރޭންކް (ވަނަ)
-        row.push("");           // ރިމާކްސް (ހުސްކޮށް)
+        // Final
+        row.push(s.finalScore);
+        row.push(index + 1);
+        row.push("");
 
-        // ރޯ ނިންމާލުން
         csv += row.join(",") + "\n";
     });
 
-    // 5. ފައިލް ޑައުންލޯޑް ކުރުން
     const dateStr = new Date().toISOString().split('T')[0];
-    const fileName = `Rasfahi_Master_NEW_FORMAT_${dateStr}.csv`;
+    const fileName = `Rasfahi_Master_CLEAN_${dateStr}.csv`;
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
