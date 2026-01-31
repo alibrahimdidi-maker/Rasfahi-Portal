@@ -4487,77 +4487,107 @@ function generateAdvancedReport(mode) {
     w.document.write(html);
     w.document.close();
 }
-    // --- SESSION ATTENDANCE / ANNOUNCEMENT LIST GENERATOR ---
+    // --- 4. SESSION ATTENDANCE / NOTICE BOARD LIST (ALIGNED WITH JUDGE SHEET) ---
 function generateSessionList() {
-    // 1. Get User Inputs
-    const dateInput = document.getElementById('sessDate').value;
-    const timeInput = document.getElementById('sessTime').value;
-    const sessionName = document.getElementById('sessName').value || "-";
+    // 1. INPUTS & VALIDATION
+    const dateEl = document.getElementById('sessDate');
+    const timeEl = document.getElementById('sessTime');
+    const nameEl = document.getElementById('sessName');
     
+    if(!dateEl || !timeEl) { alert("Error: HTML Elements Missing!"); return; }
+
+    const dateInput = dateEl.value;
+    const timeInput = timeEl.value;
+    const sessionName = nameEl.value || "-";
+    
+    // Filters (Must match Judge Sheet Logic)
     const filterBranch = document.getElementById('sessFilterBranch').value;
     const filterGroup = document.getElementById('sessFilterGroup').value;
     const filterGender = document.getElementById('sessFilterGender').value;
+    const filterInst = document.getElementById('sessFilterInst').value; // Institution Filter
 
-    // Calculate "Day" name (e.g. Sunday) from Date
-    let dayName = "-";
+    // Day Name Calculation
+    let dayName = "_______";
     if(dateInput) {
         const d = new Date(dateInput);
-        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-        // Dhivehi Days mapping if needed, currently using English or you can type manually
         const dvDays = ["އާދީއްތަ", "ހޯމަ", "އަންގާރަ", "ބުދަ", "ބުރާސްފަތި", "ހުކުރު", "ހޮނިހިރު"];
         dayName = dvDays[d.getDay()];
     }
 
-    // 2. Filter Students from Master List (state.allStudents)
-    // If state.allStudents is empty, try savedResults
+    // 2. GET & FILTER STUDENTS
+    // Use Saved Results if available (for consistent names), else Master List
     let students = (state.allStudents && state.allStudents.length > 0) 
                    ? state.allStudents 
                    : state.judging.savedResults;
 
     if(!students || students.length === 0) {
-        alert("No students found! Please load a Batch first.");
+        alert("ދަރިވަރުންގެ ލިސްޓެއް ނެތެވެ! (Please Load CSV First)");
         return;
     }
 
-    // Apply Filters
+    // ★ ALIGNED FILTER LOGIC (Same as Judge Sheet) ★
     let list = students.filter(s => {
         let matchBranch = filterBranch === "" || (s.branch && s.branch.trim() === filterBranch);
         let matchGroup = filterGroup === "" || (s.group && s.group.trim() === filterGroup);
         let matchGender = filterGender === "" || (s.gender && s.gender.trim() === filterGender);
-        return matchBranch && matchGroup && matchGender;
+        
+        // Inst Filter
+        let matchInst = true;
+        if(filterInst !== "") {
+            const instName = (s.institution || s.inst || "").toLowerCase();
+            const typeCheck = filterInst.toLowerCase();
+            if(instName.includes(typeCheck)) matchInst = true;
+            else if(filterInst === "Private" && (instName === "" || instName.includes("private") || instName.includes("amilla"))) matchInst = true;
+            else matchInst = false;
+        }
+
+        return matchBranch && matchGroup && matchGender && matchInst;
     });
 
     if(list.length === 0) {
-        alert("No students match the selected filters.");
+        alert("ތިޔަ ސެޝަނަށް/ފިލްޓަރަށް ފެތޭ ކުއްޖަކު ނެތެވެ.");
         return;
     }
 
-    // Sort by Reg No or Name
+    // Sort by Registry
     list.sort((a, b) => a.reg.localeCompare(b.reg));
 
-    // 3. Header Info
-    const instName = document.getElementById('rptInstName').value || "ޤުރުއާން މުބާރާތް";
-    const title = `${filterBranch} - ${filterGroup} (${filterGender || 'All'}) - ސެޝަން ލިސްޓު`;
+    // 3. HEADER INFO
+    const instName = document.getElementById('rptInstName').value || "މުއައްސަސާގެ ނަން";
+    const compName = document.getElementById('rptCompName').value || "ޤުރުއާން މުބާރާތް";
+    const title = "މުބާރާތުގެ ކިޔެވުމަށް ހާޒިރުވާންޖެހޭ ގޮތުގެ ތާވަލު";
 
-    // 4. Generate HTML
+    // 4. FONT SETUP
+    const customFontCSS = state.fontData ? `@font-face { font-family: 'Faruuma'; src: url('${state.fontData}'); }` : '';
+
+    // 5. GENERATE HTML
     const html = `
     <!DOCTYPE html>
     <html dir="rtl" lang="dv">
     <head>
-        <title>Session List</title>
+        <title>Session Attendance List</title>
         <style>
+            ${customFontCSS}
             @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
+            
             body { 
                 font-family: 'Faruuma', 'Waheed', 'Noto Sans Thaana', sans-serif !important;
-                padding: 20px;
-                direction: rtl; 
+                padding: 20px; direction: rtl; 
             }
-            h1, h2, h3 { text-align: center; margin: 5px; }
-            h1 { font-size: 24px; text-decoration: underline; }
+            h1 { font-size: 26px; text-decoration: underline; text-align:center; margin:5px; font-weight:bold; }
+            h2 { font-size: 20px; text-align:center; margin:5px; color:#333; }
+            h3 { font-size: 18px; text-align:center; margin-top:5px; text-decoration:underline; }
             
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
-            th { background: #eee; font-weight: bold; border: 1px solid #444; padding: 8px; font-size: 14px; }
-            td { border: 1px solid #444; padding: 6px; text-align: center; }
+            .meta-box {
+                border: 2px solid #000; padding: 15px; margin: 20px 0;
+                display: flex; justify-content: space-between; align-items: center;
+                font-weight: bold; font-size: 15px; background: #f0f0f0;
+            }
+            .meta-col { display:flex; flex-direction:column; gap:5px; }
+
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+            th { background: #ddd; font-weight: bold; border: 1px solid #000; padding: 8px; font-size: 15px; vertical-align: middle; }
+            td { border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; height:35px; }
             
             @media print { 
                 button { display: none; } 
@@ -4566,26 +4596,43 @@ function generateSessionList() {
         </style>
     </head>
     <body>
-        <button onclick="window.print()" style="padding:15px; width:100%; background:navy; color:white; font-size:18px; margin-bottom:20px; cursor:pointer;">🖨️ ޕްރިންޓް ކުރައްވާ</button>
+        <button onclick="window.print()" style="padding:15px; width:100%; background:navy; color:white; font-size:18px; margin-bottom:20px; cursor:pointer;">🖨️ ޕްރިންޓް (PRINT)</button>
 
         <h1>${instName}</h1>
-        <h2>${title}</h2>
+        <h2>${compName}</h2>
+        <h3>${title}</h3>
         
+        <div class="meta-box">
+            <div class="meta-col" style="text-align:right;">
+                <div>ތާރީޚް: ${dateInput || '_______'}</div>
+                <div>ދުވަސް: ${dayName}</div>
+                <div>ގަޑި: ${timeInput || '_______'}</div>
+            </div>
+            
+            <div class="meta-col" style="text-align:center; border-left:1px solid #ccc; border-right:1px solid #ccc; padding:0 20px;">
+                <div>ސެޝަން: ${sessionName}</div>
+                <div>ހޯލް: __________________</div>
+            </div>
+
+            <div class="meta-col" style="text-align:left;">
+                <div>ގޮފި: ${filterBranch || 'All'}</div>
+                <div>ޢުމުރު: ${filterGroup || 'All'}</div>
+                <div>ބާވަތް: ${filterInst || 'All'}</div>
+            </div>
+        </div>
+
         <table>
             <thead>
                 <tr>
                     <th width="3%">#</th>
                     <th width="8%">ރެޖިސްޓްރީ</th>
-                    <th width="20%">ފުރިހަމަ ނަން</th>
+                    <th width="22%">ފުރިހަމަ ނަން</th>
                     <th width="8%">އައި.ޑީ</th>
+                    <th width="15%">މުއައްސަސާ / ސްކޫލް</th>
                     <th width="5%">ޖިންސު</th>
-                    <th width="8%">ގޮފި</th>
-                    <th width="8%">ޢުމުރު</th>
-                    <th width="10%">ތާރީޚް</th>
-                    <th width="8%">ދުވަސް</th>
-                    <th width="8%">ގަޑި</th>
-                    <th width="12%">ދަންފަޅި</th>
-                    <th width="5%">ހާޒިރު</th>
+                    <th width="10%">ގޮފި/ޢުމުރު</th>
+                    <th width="10%">ހާޒިރު</th>
+                    <th width="19%">ރިމާކްސް</th>
                 </tr>
             </thead>
             <tbody>
@@ -4593,22 +4640,20 @@ function generateSessionList() {
                     <tr>
                         <td>${i+1}</td>
                         <td>${s.reg}</td>
-                        <td style="text-align:right; padding-right:10px;">${s.name}</td>
+                        <td style="text-align:right; padding-right:10px; font-weight:bold;">${s.name}</td>
                         <td>${s.id}</td>
+                        <td style="font-size:13px;">${s.institution || s.inst || '-'}</td>
                         <td>${s.gender}</td>
-                        <td>${s.branch}</td>
-                        <td>${s.group}</td>
-                        
-                        <td style="direction:ltr;">${dateInput || '-'}</td>
-                        <td>${dayName}</td>
-                        <td style="direction:ltr;">${timeInput || '-'}</td>
-                        <td>${sessionName}</td>
-                        <td>⬜</td> </tr>
+                        <td style="font-size:12px;">${s.branch}<br>${s.group}</td>
+                        <td>⬜</td> 
+                        <td></td>
+                    </tr>
                 `).join('')}
             </tbody>
         </table>
-        <div style="margin-top:20px; font-size:12px; color:#555;">
-            Total Students: ${list.length} | Generated on: ${new Date().toLocaleDateString()}
+        
+        <div style="margin-top:20px; font-size:12px; color:#555; text-align:center;">
+            ޖުމްލަ ބައިވެރިން: ${list.length} | ޕްރިންޓްކުރީ: ${new Date().toLocaleDateString()}
         </div>
     </body>
     </html>`;
