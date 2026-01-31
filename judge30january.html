@@ -5141,6 +5141,132 @@ function generateJudgeSessionSheet() {
     w.document.write(html);
     w.document.close();
 }
+    // ======================================================
+// ★ NEW FUNCTIONS FOR TEMPLATE & IMPORT (FIXED) ★
+// ======================================================
+
+// 1. BLANK MASTER TEMPLATE (EXACT MATCH WITH DUMMY)
+// ޑަމީ ފައިލް އާއި އެއްގޮތް، އެކަމަކު ހުސް ގޮޅިތައް ހުންނަ ފައިލެއް ޑައުންލޯޑްކުރުން
+function downloadMasterCSVTemplate() {
+    // A. HEADERS Setup
+    const criteria = [
+        { name: "Thilawa", max: 30 }, { name: "Tajweed", max: 20 }, 
+        { name: "Makhraj", max: 20 }, { name: "Sifa", max: 10 }, 
+        { name: "Fasaha", max: 10 }, { name: "Talaffuz", max: 5 }, { name: "Maqamat", max: 5 }
+    ];
+
+    let csv = "Serial No,Reg No,Age Group,Branch,Institution,Full Name,Gender,Address,ID Card,Contact,Parent Name,Parent Phone,Email,";
+
+    // 5 Judges Columns
+    for (let j = 1; j <= 5; j++) {
+        criteria.forEach(c => { csv += `J${j}-${c.name} (${c.max}),`; });
+        csv += `J${j}-TOTAL,`;
+    }
+
+    // Summary Columns
+    csv += "GRAND TOTAL (5 Judges),FINAL AVERAGE,RANK,REMARKS (Top list)\n";
+
+    // B. PLACEHOLDER ROW (Instructional Example)
+    let row = [];
+    // Personal Info
+    row.push("1", "REG-0000", "Under 6", "Balaiygen/Nubalai", "School Name", "Student Name", "Male/Female", "Island/City", "AXXXXXX", "Phone", "Parent Name", "Phone", "email@example.com");
+
+    // Judge Scores Placeholders
+    for (let j = 1; j <= 5; j++) {
+        criteria.forEach(c => { row.push(`0-${c.max}`); }); // e.g., 0-30
+        row.push("Total");
+    }
+
+    // Final Calc Placeholders
+    row.push("Auto-Calc", "Auto-Calc", "Auto-Calc", "Remarks");
+
+    csv += row.join(",") + "\n";
+
+    // C. DOWNLOAD
+    const fileName = `Rasfahi_Official_Data_Entry_Template.csv`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// 2. INTELLIGENT BATCH LOADER (FIXES REPORTING ISSUE)
+// މާސްޓަރ ޝީޓް ލޯޑުކުރާއިރު ނަތީޖާތައް ނެގުން
+function loadStudentBatch() {
+    const file = document.getElementById('batchCsv').files[0];
+    if(!file) { alert("Please select the CSV file first!"); return; }
+    
+    const r = new FileReader();
+    r.onload = e => {
+        const rows = e.target.result.split('\n');
+        
+        // Clear previous data
+        state.allStudents = []; 
+        state.judging.savedResults = []; 
+
+        let loadedCount = 0;
+        let withScoresCount = 0;
+
+        // Start from Row 1 (Skip Header)
+        for(let i=1; i<rows.length; i++) {
+            // Complex Split to handle commas inside quotes (Safe Parse)
+            let rowRaw = rows[i].trim();
+            if(!rowRaw) continue;
+
+            // Simplified split logic (works for generated dummy)
+            const cols = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+            if(!cols || cols.length < 13) continue;
+
+            // Remove quotes from values
+            const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
+
+            // 1. Create Student Object (Basic Info)
+            const sObj = {
+                serial: clean[0], reg: clean[1], group: clean[2], branch: clean[3],
+                institution: clean[4], name: clean[5], gender: clean[6], address: clean[7],
+                id: clean[8], phone: clean[9], parent: clean[10], parentPhone: clean[11], email: clean[12],
+                timestamp: new Date().toISOString()
+            };
+
+            // Add to Selection List (Always)
+            state.allStudents.push(sObj);
+
+            // 2. CHECK FOR SCORES (For Reports)
+            if(clean.length > 20) { 
+                // Final Average is typically the 3rd to last column
+                // Index from end: Last = Remarks, 2nd Last = Rank, 3rd Last = Final Avg
+                let finalAvgIndex = clean.length - 3; 
+                let finalScoreVal = parseFloat(clean[finalAvgIndex]);
+                
+                // If valid score exists, add to savedResults for Reporting
+                if(!isNaN(finalScoreVal)) {
+                    let resultObj = {
+                        ...sObj,
+                        finalScore: finalScoreVal
+                    };
+                    state.judging.savedResults.push(resultObj);
+                    withScoresCount++;
+                }
+            }
+            loadedCount++;
+        }
+        
+        populateStudentSelector(); // Update dropdown
+        saveToLocal(); // Save to memory
+        
+        let msg = `✅ Loaded ${loadedCount} students.`;
+        if(withScoresCount > 0) {
+            msg += `\n📊 ${withScoresCount} students have scores and are ready for Reports/Top Lists!`;
+        } else {
+            msg += `\n⚠️ No scores detected. Use 'Judge Screen' to enter marks.`;
+        }
+        alert(msg);
+    };
+    r.readAsText(file);
+}
 </script>
 </body>
 </html>
