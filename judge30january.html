@@ -3747,90 +3747,134 @@ function downloadManualScoreSheet() {
 
     // ★ މިތަނަށް ތިރީގައިވާ ކޯޑު ޕޭސްޓް ކުރައްވާ ★
 
-    // C. ފޭކް ޑޭޓާ ޖެނެރޭޓަރ (Fake Master Data Generator)
-    function generateDummyMasterSheet() {
-        // 1. Headers (Matching your requested format)
-        let csv = "Serial No,Reg No,Age Group,Branch,Institution,Full Name,Gender,Address,ID Card,Contact,Parent Name,Parent Phone,Email,";
+   // --- ADVANCED FAKE MASTER DATA GENERATOR (NATIONAL LEVEL) ---
+function generateDummyMasterSheet() {
+    // 1. CSV HEADERS (MUST MATCH IMPORT LOGIC)
+    // މި ހެޑަރތައް ހުންނާނީ ސޮފްޓްވެއަރއަށް އަލުން އިމްޕޯޓް ކުރެވޭ ގޮތަށެވެ.
+    let csv = "Serial No,Reg No,Age Group,Branch,Institution,Full Name,Gender,Address,ID Card,Contact,Parent Name,Parent Phone,Email,";
 
-        // Rubric Headers
-        const dummyRubric = (state.judging && state.judging.rubric && state.judging.rubric.length > 0) ? state.judging.rubric : [
-            {name:"Thilawa", max:30}, {name:"Tajweed", max:20}, {name:"Fasaha", max:10} // Fallback
-        ];
-        dummyRubric.forEach(r => csv += `${r.name} (Avg),`);
+    // Rubric Columns (Average placeholders - optional but kept for structure)
+    // Note: The logic below generates specific judge scores, so these avg cols can be placeholders
+    const rubricItems = [
+        "Thilawa (30)", "Tajweed (20)", "Makhraj (20)", "Sifa (10)", 
+        "Fasaha (10)", "Talaffuz (5)", "Maqamat (5)"
+    ];
+    rubricItems.forEach(r => csv += `${r} (Avg),`);
 
-        // Judge Totals (Assume 3 Judges for testing)
-        const judgeCount = 3;
-        for(let i=1; i<=judgeCount; i++) csv += `Judge ${i} Total,`;
+    // Judge Totals (Generating for 5 Judges to be safe)
+    for(let i=1; i<=5; i++) csv += `Judge ${i} Total,`;
 
-        csv += "FINAL AVERAGE,RANK,REMARKS\n";
+    csv += "FINAL AVERAGE,RANK,REMARKS\n";
 
-        // 2. Helper Arrays for Random Data
-        const names = ["Ahmed Ali", "Fathimath Zeena", "Mohamed Sinaan", "Aishath Yumna", "Ibrahim Rasheed", "Mariyam Naza", "Hassan Kinaan"];
-        const islands = ["Male'", "Hulhumale'", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo"];
-        const groups = ["Under 6", "Under 9", "Under 11", "Under 13", "General"];
-        const branches = ["Balaiygen", "Nubalai"];
-        const insts = ["Iskandhar School", "Arabiyya", "Majeedhiyya", "Villa College", "Private"];
+    // 2. DATA POOLS (For Random Generation)
+    const institutions = [
+        "Arabiyya School", "Iskandhar School", "Majeedhiyya School", "Aminiya School", 
+        "Jamaluddin School", "Kulliyya", "Villa College", "MNU", "IUM", 
+        "Fathura Quran Class", "Tharteel Academy", "Private Candidate"
+    ];
+    
+    const islands = ["Male'", "Hulhumale'", "Villingili", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Naifaru", "Eydhafushi"];
+    const branches = ["Balaiygen", "Nubalai"];
+    const groups = ["Under 6", "Under 9", "Under 11", "Under 13", "Under 16", "Under 19", "Under 21", "General"];
+    
+    const firstNames = ["Ahmed", "Mohamed", "Ibrahim", "Hassan", "Ali", "Abdulla", "Hussain", "Fathimath", "Aishath", "Mariyam", "Aminath", "Khadheeja", "Zainab", "Yusuf", "Easa", "Moosa"];
+    const lastNames = ["Rasheed", "Nazeer", "Fayaz", "Shareef", "Maniku", "Didi", "Saeed", "Zahir", "Riza", "Nasir", "Latheef", "Jameel"];
 
-        // 3. Generate 50 Dummy Students
-        let students = [];
-        for(let i=0; i<50; i++) {
-            let scores = [];
-            let total = 0;
-            
-            // Generate random scores for 3 judges
-            for(let j=0; j<judgeCount; j++) {
-                let s = (Math.random() * (100 - 60) + 60).toFixed(2); // Score between 60 and 100
-                scores.push(parseFloat(s));
-                total += parseFloat(s);
-            }
-            let finalAvg = (total / judgeCount).toFixed(2);
+    let students = [];
+    let serialCounter = 1;
 
-            students.push({
-                reg: `REG-${1000+i}`,
-                group: groups[Math.floor(Math.random()*groups.length)],
-                branch: branches[Math.floor(Math.random()*branches.length)],
-                inst: insts[Math.floor(Math.random()*insts.length)],
-                name: names[Math.floor(Math.random()*names.length)] + " " + i,
-                gender: Math.random() > 0.5 ? "Male" : "Female",
-                addr: islands[Math.floor(Math.random()*islands.length)],
-                id: `A${Math.floor(Math.random()*900000)+100000}`,
-                scores: scores,
-                finalScore: parseFloat(finalAvg)
+    // 3. GENERATION LOGIC (Balanced Distribution)
+    // Loop to ensure we get students in EVERY category/branch/institution combination
+    institutions.forEach(inst => {
+        branches.forEach(branch => {
+            groups.forEach(group => {
+                // Generate 2-3 students for EACH combination to fill the list
+                const count = Math.floor(Math.random() * 2) + 2; 
+                
+                for(let k=0; k<count; k++) {
+                    // Random Personal Details
+                    const fname = firstNames[Math.floor(Math.random() * firstNames.length)];
+                    const lname = lastNames[Math.floor(Math.random() * lastNames.length)];
+                    const fullName = `${fname} ${lname}`;
+                    const gender = (["Fathimath","Aishath","Mariyam","Aminath","Khadheeja","Zainab"].includes(fname)) ? "Female" : "Male";
+                    const addr = islands[Math.floor(Math.random() * islands.length)];
+                    const idCard = `A${Math.floor(Math.random() * 899999) + 100000}`;
+                    const regNo = `REG-${1000 + serialCounter}`;
+
+                    // --- REALISTIC SCORING ENGINE ---
+                    // Generate marks for 5 Judges
+                    let judgeScores = [];
+                    let scoreSum = 0;
+
+                    for(let j=1; j<=5; j++) {
+                        // Generate a "Base Ability" for the student (some represent strong students, some weak)
+                        // This makes the data look real (not just random noise)
+                        let ability = Math.random() * (100 - 65) + 65; // Ability between 65% and 100%
+                        
+                        // Add slight variation per judge (Subjectivity)
+                        let judgeVariance = (Math.random() * 10) - 5; // +/- 5 marks variation
+                        let finalJScore = Math.min(100, Math.max(0, ability + judgeVariance));
+                        
+                        judgeScores.push(finalJScore.toFixed(2));
+                        scoreSum += finalJScore;
+                    }
+
+                    let finalAvg = (scoreSum / 5).toFixed(2);
+
+                    students.push({
+                        serial: serialCounter++,
+                        reg: regNo,
+                        group: group,
+                        branch: branch,
+                        inst: inst,
+                        name: fullName,
+                        gender: gender,
+                        addr: addr,
+                        id: idCard,
+                        scores: judgeScores,
+                        final: parseFloat(finalAvg)
+                    });
+                }
             });
-        }
-
-        // 4. Sort by Final Score
-        students.sort((a, b) => b.finalScore - a.finalScore);
-
-        // 5. Build CSV Rows
-        students.forEach((s, idx) => {
-            let row = [];
-            row.push(idx + 1); // Serial (Rank Based)
-            row.push(s.reg, s.group, s.branch, s.inst, s.name, s.gender, s.addr, s.id, "7770000", "Parent Name", "7771111", "test@email.com");
-            
-            // Empty Rubric Avgs
-            dummyRubric.forEach(() => row.push("-"));
-
-            // Judge Scores
-            s.scores.forEach(sc => row.push(sc));
-
-            // Final
-            row.push(s.finalScore);
-            row.push(idx + 1); // Rank
-            row.push("Generated");
-
-            csv += row.join(",") + "\n";
         });
+    });
 
-        // 6. Download
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "Fake_Master_Data_For_Testing.csv";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
+    // 4. RANKING (Sort by Score)
+    students.sort((a, b) => b.final - a.final);
+
+    // 5. CONSTRUCT CSV ROWS
+    students.forEach((s, idx) => {
+        let rank = idx + 1;
+        let row = [];
+        
+        // Personal Info
+        row.push(s.serial, s.reg, s.group, s.branch, s.inst, s.name, s.gender, s.addr, s.id, "7770000", "Parent Name", "7771111", "test@email.com");
+        
+        // Empty Rubric Avgs (Placeholders)
+        rubricItems.forEach(() => row.push("-"));
+
+        // Judge Totals
+        s.scores.forEach(score => row.push(score));
+
+        // Final Result
+        row.push(s.final);
+        row.push(rank);
+        row.push(rank <= 3 ? "Top 3" : (rank <= 10 ? "Top 10" : "Participated"));
+
+        csv += row.join(",") + "\n";
+    });
+
+    // 6. DOWNLOAD FILE
+    const dateStr = new Date().toISOString().split('T')[0];
+    const fileName = `Rasfahi_National_Mock_Data_${dateStr}.csv`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
     // --- BULK JUDGE SHEET PRINTING (FARUUMA FONT) ---
 function printBulkJudgeSheets() {
     const judgeKey = document.getElementById('bulkJudgeSelect').value; // e.g., "Judge_1"
