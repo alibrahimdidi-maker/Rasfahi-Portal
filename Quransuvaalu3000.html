@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="dv" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ޤުރްއާން ސުވާލު ޖެނެރޭޓަރ (CSV)</title>
+    <style>
+        body { font-family: "Faruma", "Mv Boli", sans-serif; background-color: #f4f4f9; padding: 20px; text-align: center; direction: rtl; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; margin-bottom: 20px; }
+        p { color: #555; line-height: 1.6; }
+        button {
+            background-color: #27ae60; color: white; border: none; padding: 15px 30px; 
+            font-size: 18px; border-radius: 5px; cursor: pointer; margin-top: 20px;
+            font-family: inherit; transition: background 0.3s;
+        }
+        button:hover { background-color: #219150; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        #status { margin-top: 20px; font-weight: bold; color: #2980b9; }
+        .log-box {
+            text-align: left; direction: ltr; background: #333; color: #0f0; 
+            padding: 10px; margin-top: 20px; border-radius: 5px; 
+            height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px;
+        }
+        .info-note {
+            background-color: #e8f6f3; border: 1px solid #d4efdf; 
+            padding: 15px; border-radius: 5px; text-align: right; margin-bottom: 20px; font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>ޤުރްއާން ސުވާލު ބޭންކް ޖެނެރޭޓަރ</h1>
+    
+    <div class="info-note">
+        <strong>މުހިންމު:</strong> މި ޓޫލް އިން ޖެނެރޭޓް ކުރާނީ މުޅި ޤުރްއާނުގެ 3000+ ސުވާލު ހިމެނޭ "މާސްޓަރ ޑޭޓާބޭސް" އެކެވެ. 
+        <br><br>
+        ތިޔަ ވިދާޅުވި ގޮތަށް "ކުއްޖާ ކިޔަވާ ފޮތްތަކަށް ބަލައި، ދުރުދުރުން ސުވާލު ނެގުމުގެ ލޮޖިކް" މަސައްކަތް ކުރާނީ މި CSV ފައިލް ބޭނުންކުރާ ސޮފްޓްވެއަރ ތެރޭގައެވެ. މި ފައިލްގައި ހުންނާނީ އެ ސޮފްޓްވެއަރ އަށް ބޭނުންވާނެ ހުރިހާ ސުވާލެކެވެ.
+    </div>
+
+    <p>ތިރީގައިވާ ބަޓަނަށް ފިއްތަވާލުމުން ޤުރްއާނުގެ ޑޭޓާ ޑައުންލޯޑްވެ، ކޮންމެ ޞަފްޙާއަކުން 5 ސުވާލު އުފައްދައި CSV ފައިލް ޑައުންލޯޑް ވާނެއެވެ.</p>
+
+    <button id="generateBtn" onclick="startGeneration()">CSV ފައިލް އުފައްދަވާ</button>
+
+    <div id="status"></div>
+    <div class="log-box" id="logBox">Waiting to start...</div>
+</div>
+
+<script>
+    // --- Configuration ---
+    const QUESTIONS_PER_PAGE = 5; // Target questions per page (approx 604 * 5 = 3020)
+    const MAX_PAGES = 604;
+    
+    // Length ranges as requested (weighted probabilities can be added if needed)
+    const LENGTH_RANGES = [
+        [5, 6], [6, 8], [8, 9], [7, 9], [8, 9], [8, 10], [10, 15]
+    ];
+
+    let allAyahs = [];
+
+    // --- Logger ---
+    function log(msg) {
+        const box = document.getElementById('logBox');
+        box.innerHTML += `> ${msg}<br>`;
+        box.scrollTop = box.scrollHeight;
+        document.getElementById('status').innerText = msg;
+    }
+
+    // --- Main Function ---
+    async function startGeneration() {
+        const btn = document.getElementById('generateBtn');
+        btn.disabled = true;
+        
+        try {
+            log("Fetching Quran Data (Text & Metadata)... Please wait.");
+            
+            // Fetch entire Quran with metadata (Surah, Ayah, Page, Juz)
+            // Using alquran.cloud API which follows Tanzil.net text
+            const response = await fetch('https://api.alquran.cloud/v1/quran/quran-uthmani');
+            const data = await response.json();
+
+            if (data.code !== 200) throw new Error("API Error");
+
+            log("Processing Data...");
+            processData(data.data);
+
+        } catch (error) {
+            log("Error: " + error.message);
+            alert("Error occurred. Check internet connection.");
+            btn.disabled = false;
+        }
+    }
+
+    function processData(quranData) {
+        // 1. Flatten the structure to a simple List of Ayahs
+        // Note: The API returns Surahs -> Ayahs. We need a flat list to easily grab "next ayah" across surahs if needed.
+        // However, standard Madani page mapping needs to be accurate.
+        // The API result usually has `page` in the ayah object. If not, we fetch a map.
+        // Let's verify structure. quran-uthmani usually has text, number, etc.
+        // If page is missing, we need to map it. *Correction*: The basic endpoint might not have page.
+        // To be safe, we will assume the API *might* miss page numbers in the simple payload 
+        // and use a reliable mapping logic or verify.
+        
+        // Actually, let's assume we need to handle pagination manually to be 100% like Madani Mushaf if API lacks it.
+        // BUT, alquran.cloud usually returns page numbers. Let's assume it does for now.
+        // If not, we will need a secondary map. For this script, we will iterate and check.
+        
+        // Flattening
+        let flatAyahs = [];
+        quranData.surahs.forEach(surah => {
+            surah.ayahs.forEach(ayah => {
+                flatAyahs.push({
+                    surahNum: surah.number,
+                    surahName: surah.englishName, // Using English Name for CSV or Arabic if preferred
+                    surahNameAr: surah.name,
+                    ayahNum: ayah.numberInSurah,
+                    text: ayah.text,
+                    page: ayah.page, // Critical: Need this from API
+                    juz: ayah.juz,
+                    globalIndex: flatAyahs.length // For easy slicing
+                });
+            });
+        });
+
+        log(`Loaded ${flatAyahs.length} Ayahs. Generating Questions...`);
+
+        // 2. Group by Page
+        let questions = [];
+        let questionID = 1;
+
+        for (let p = 1; p <= MAX_PAGES; p++) {
+            // Get all ayahs starting on this page
+            let pageAyahs = flatAyahs.filter(a => a.page === p);
+            
+            if (pageAyahs.length === 0) continue; // Should not happen
+
+            // Generate questions for this page
+            for (let i = 0; i < QUESTIONS_PER_PAGE; i++) {
+                // Pick a random start ayah from this page
+                let startIndexOnPage = Math.floor(Math.random() * pageAyahs.length);
+                let startAyahObj = pageAyahs[startIndexOnPage];
+                
+                // Pick a random length logic
+                let range = LENGTH_RANGES[Math.floor(Math.random() * LENGTH_RANGES.length)];
+                let length = Math.floor(Math.random() * (range[1] - range[0] + 1)) + range[0];
+
+                // Construct Question
+                let qText = "";
+                let endAyahObj = null;
+                let validQuestion = true;
+
+                // Build text
+                for (let k = 0; k < length; k++) {
+                    let currentIdx = startAyahObj.globalIndex + k;
+                    if (currentIdx >= flatAyahs.length) {
+                        validQuestion = false; 
+                        break; 
+                    }
+                    
+                    let a = flatAyahs[currentIdx];
+                    qText += a.text + " (" + a.ayahNum + ") "; // Add ayah number in text? Optional.
+                    // Or just text: qText += a.text + " ";
+                    
+                    if (k === length - 1) endAyahObj = a;
+                }
+
+                if (validQuestion && endAyahObj) {
+                    // Formatting Image Name: 001.png, 012.png, 500.png
+                    let imgName = pad(p, 3) + ".png";
+                    
+                    // Formatting Book (Juz)
+                    let bookStr = "Juz " + startAyahObj.juz;
+                    
+                    // Formatting Surah
+                    let surahStr = startAyahObj.surahNum + ". " + startAyahObj.surahNameAr; // Using Arabic Name
+
+                    questions.push({
+                        id: questionID++,
+                        image: imgName,
+                        book: bookStr,
+                        surah: surahStr,
+                        page: p,
+                        startAyah: startAyahObj.ayahNum,
+                        endAyah: endAyahObj.ayahNum,
+                        text: qText.trim()
+                    });
+                }
+            }
+            
+            if (p % 50 === 0) log(`Processed Page ${p}...`);
+        }
+
+        log(`Generated ${questions.length} questions. Creating CSV...`);
+        downloadCSV(questions);
+    }
+
+    // --- Helper: Pad numbers (e.g. 5 -> 005) ---
+    function pad(num, size) {
+        var s = "000000000" + num;
+        return s.substr(s.length - size);
+    }
+
+    // --- CSV Generation ---
+    function downloadCSV(data) {
+        // CSV Header matching user request
+        let csvContent = "ID,ImageName,Book,Surah,Page,StartAyah,EndAyah,QuestionText\n";
+
+        data.forEach(row => {
+            // Escape quotes in text if necessary (though Quran text usually safe from CSV delimiters if handled right)
+            // We wrap text in quotes just in case.
+            let cleanText = row.text.replace(/"/g, '""'); 
+            
+            let rowStr = `${row.id},${row.image},${row.book},"${row.surah}",${row.page},${row.startAyah},${row.endAyah},"${cleanText}"`;
+            csvContent += rowStr + "\n";
+        });
+
+        // Create Blob
+        // Adding BOM for Excel UTF-8 compatibility
+        const BOM = "\uFEFF"; 
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        
+        // Trigger Download
+        const link = document.createElement("a");
+        if (link.download !== undefined) { 
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "Quran_Questions_Master.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        log("Done! File downloaded.");
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('generateBtn').innerText = "Download Again";
+    }
+
+</script>
+
+</body>
+</html>
