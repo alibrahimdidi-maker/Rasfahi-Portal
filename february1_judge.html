@@ -5648,124 +5648,10 @@ function generateJudgeSessionSheet() {
 }
     
 // ======================================================
-// ★ FIXED ULTIMATE UPDATE: NO "ANTS" ERROR ★
-// (Paste this inside the <script> tag, at the very bottom)
+// ★ FIXED & RESTORED LAYOUT (Quran Page + Judge Rubric) ★
+// Replace the entire 'getTemplate' function with this:
 // ======================================================
 
-// 1. OPEN JUDGE SCREEN (With Judge Name)
-function openSingleJudge() {
-    const judgeNum = document.getElementById('targetJudgeSelect').value;
-    const nameInput = document.getElementById('jName' + judgeNum); 
-    const judgeName = nameInput ? nameInput.value : ""; 
-
-    const windowName = `Judge_${judgeNum}`;
-    
-    // Create Title with Judge Name
-    let displayTitle = `JUDGE ${judgeNum}`;
-    if(judgeName) {
-        displayTitle += `<br><span style="font-size:20px; color:#fff; font-family:'AppFont';">${judgeName}</span>`;
-    }
-
-    let w = window.open("", windowName, "width=900,height=700");
-    
-    if(w) {
-        w.document.open();
-        // Inject Template with PDF Printing Logic
-        w.document.write(getTemplate(false, displayTitle)); 
-        w.document.close();
-        
-        w.judgeID = windowName;
-
-        if(!state.windows.judges) state.windows.judges = [];
-        const exists = state.windows.judges.some(win => win.judgeID === windowName);
-        if(!exists) state.windows.judges.push(w);
-    }
-    setTimeout(syncWindows, 500);
-}
-
-// 2. SAVE SCORES TO BROWSER & LINK TO MASTER SHEET
-window.submitJudgeScore = function(judgeId, totalScore) {
-    // A. Update Live Monitor
-    state.judging.liveScores[judgeId] = totalScore;
-    updateScoreMonitor();
-
-    // B. Save to LocalStorage (Browser Memory)
-    const currentStd = state.judging.currentStudentObj;
-    if (currentStd) {
-        if (!state.judging.savedResults) state.judging.savedResults = [];
-
-        // Check if student exists
-        let existingIndex = state.judging.savedResults.findIndex(s => s.id === currentStd.id);
-        let record = null;
-
-        if (existingIndex > -1) {
-            record = state.judging.savedResults[existingIndex];
-        } else {
-            record = { ...currentStd, scores: {}, finalScore: 0 };
-            state.judging.savedResults.push(record);
-        }
-
-        // Add Score to Record
-        if (!record.scores) record.scores = {};
-        record.scores[judgeId] = totalScore;
-
-        // Recalculate Final Average
-        let sum = 0;
-        let count = 0;
-        Object.values(record.scores).forEach(v => { sum += parseFloat(v); count++; });
-        record.finalScore = count > 0 ? (sum / count).toFixed(2) : 0;
-
-        saveToLocal(); // Persist Data
-        console.log(`Saved ${judgeId}: ${totalScore}`);
-    }
-}
-
-// 3. EXPORT FULL MASTER SHEET (WITH JUDGE COLUMNS)
-function exportMasterResultSheet() {
-    if(!state.judging.savedResults || state.judging.savedResults.length === 0) {
-        alert("No results to export!");
-        return;
-    }
-
-    // CSV Headers
-    let csv = "Serial No,Reg No,Age Group,Branch,Institution,Full Name,Gender,ID Card,";
-    for(let i=1; i<=7; i++) csv += `Judge ${i},`; // Columns for Judge 1-7
-    csv += "FINAL AVERAGE,RANK\n";
-
-    // Sort Data (High to Low)
-    let sortedList = [...state.judging.savedResults].sort((a, b) => b.finalScore - a.finalScore);
-
-    // Build Rows
-    sortedList.forEach((s, index) => {
-        let row = [];
-        row.push(index + 1);
-        row.push(`"${s.reg||''}"`, `"${s.group||''}"`, `"${s.branch||''}"`, `"${s.institution||''}"`);
-        row.push(`"${s.name||''}"`, `"${s.gender||''}"`, `"${s.id||''}"`);
-
-        // Add Judge Scores
-        for(let i=1; i<=7; i++) {
-            let key = `Judge_${i}`;
-            let val = (s.scores && s.scores[key]) ? s.scores[key] : "-";
-            row.push(val);
-        }
-
-        row.push(s.finalScore);
-        row.push(index + 1);
-        csv += row.join(",") + "\n";
-    });
-
-    // Download File
-    const fileName = `Rasfahi_Master_Scores_${new Date().toISOString().split('T')[0]}.csv`;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-// 4. UPDATED TEMPLATE GENERATOR (FIXED SCRIPT TAGS)
 function getTemplate(isCeremony = false, titleOverride = null) {
     const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
     let ceremonyFonts = '';
@@ -5779,10 +5665,10 @@ function getTemplate(isCeremony = false, titleOverride = null) {
     if(bStyle === 'custom' && state.borderData) borderCSS = `border: 4vmin solid transparent; border-image: url('${state.borderData}') 30 stretch;`;
     if(bStyle === 'none') borderCSS = "border:none;";
 
-    // Script to be injected into the popup window (Correctly Escaped)
+    // Script to be injected into the popup window
     const popupScript = `
         <script>
-            // ★ PDF PRINT LOGIC FOR JUDGE ★
+            // --- JUDGE LOGIC (PDF PRINT & SUBMIT) ---
             window.submitFinalScore = function() {
                 if(confirm("Submit Score & Print Sheet (PDF)?")) {
                     const score = calculateTotal();
@@ -5800,30 +5686,26 @@ function getTemplate(isCeremony = false, titleOverride = null) {
                     }
 
                     // 2. PREPARE FOR PRINTING (Clean UI)
-                    const originalBg = document.body.style.backgroundColor;
-                    const jSec = document.getElementById('judgeSection');
-                    
-                    // Style specifically for print
-                    document.body.style.background = "white"; 
-                    jSec.style.border = "none";
-                    jSec.style.width = "100%";
-                    jSec.style.margin = "0";
-                    jSec.style.boxShadow = "none";
+                    // We only want to print the Rubric Table & Header
+                    const style = document.createElement('style');
+                    style.innerHTML = \`
+                        @media print {
+                            body { background: white !important; overflow: visible !important; height: auto !important; }
+                            #judgeSection { display: block !important; width: 100% !important; border: none !important; margin:0 !important; box-shadow:none !important; }
+                            #topBar, #infoPanel, .royal-card, .judge-submit-btn, .deduct-btn { display: none !important; } 
+                            /* Hide the Quran Page & Sidebars during print */
+                        }
+                    \`;
+                    document.head.appendChild(style);
 
                     // Trigger Print Dialog
                     window.print();
-
-                    // Restore (Optional)
-                    setTimeout(() => {
-                        document.body.style.background = originalBg;
-                        jSec.style.border = "0.5vmin solid var(--accent)";
-                    }, 1000);
                 }
             }
         <\/script>
     `;
 
-    // Returning the Full HTML String
+    // Returning the Full HTML String (With Original Layout Restored)
     return `
     <!DOCTYPE html>
     <html lang="dv" dir="rtl">
@@ -5832,53 +5714,147 @@ function getTemplate(isCeremony = false, titleOverride = null) {
             ${fontFace} ${ceremonyFonts}
             @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
             @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+            
             body.lang-dv * { font-family: 'AppFont', 'Faruuma', 'Waheed', 'Noto Sans Thaana', sans-serif !important; }
             body.lang-ar * { font-family: 'Amiri', serif !important; }
             body.lang-en * { font-family: sans-serif !important; direction: ltr; }
-            :root { --bg-1: ${th.bg1}; --bg-2: ${th.bg2}; --accent: ${th.accent}; --border-type: ${th.borderType}; --txt-col: ${th.text}; }
-            body { margin:0; padding: 0; width: 100vw; height: 100vh; overflow:hidden; color:var(--txt-col); display:flex; background: #000; }
-            #judgeSection { display: none; width: 75vw; margin-top: 2vmin; background: #fff; border: 0.5vmin solid var(--accent); border-radius: 1vmin; padding: 2vmin; color: #000; }
-            .rubric-table { width: 100%; border-collapse: collapse; }
-            .rubric-table th { background: #eee; text-align: right; padding: 1vmin; }
-            .rubric-table td { border-bottom: 1px solid #ddd; padding: 1vmin; }
-            .deduct-btn { padding: 0.5vmin 1vmin; border: 1px solid #b71c1c; border-radius: 4px; cursor: pointer; font-size: 1.8vmin; background: #ffebee; color: #b71c1c; font-weight:bold; margin-left:2px; }
-            .deduct-btn:hover { background: #ef9a9a; color: #fff; }
-            .score-display { width: 8vmin; font-size: 2.5vmin; padding: 0.5vmin; text-align: center; font-weight: bold; border: 2px solid var(--bg-1); background: #eee; color: #333; float:left; }
-            .judge-submit-btn { width: 100%; padding: 2vmin; margin-top: 2vmin; background: #004d00; color: #fff; font-size: 3vmin; font-weight: bold; border: none; cursor: pointer; }
             
-            /* Print Styles for PDF */
-            @media print {
-                body { background: white !important; overflow: visible !important; height: auto !important; }
-                #judgeSection { display: block !important; width: 100% !important; border: none !important; }
-                .deduct-btn, button { display: none !important; } /* Hide buttons in PDF */
-                #idleScreen, #gridScreen, #readScreen { display: none !important; } /* Hide app UI */
+            :root { 
+                --bg-1: ${th.bg1}; --bg-2: ${th.bg2}; 
+                --accent: ${th.accent}; --border-type: ${th.borderType}; 
+                --txt-col: ${th.text}; 
             }
             
-            /* Reuse existing styles for Grid/Read screens from original code... */
-            #idleScreen, #gridScreen, #waitScreen, #readScreen, #finishScreen { display:none; width:100%; height:100%; }
-            #idleScreen { display:flex; flex-direction:column; align-items:center; justify-content:center; background: radial-gradient(circle, var(--bg-1), var(--bg-2)); }
-            /* ... (Other styles assumed present in logic) ... */
+            body { margin:0; padding: 0; width: 100vw; height: 100vh; overflow:hidden; color:var(--txt-col); display:flex; background: #000; }
+            
+            /* --- LAYOUT STRUCTURE --- */
+            #readScreen { display:none; width:100%; height:100%; flex-direction:column; background: radial-gradient(circle, var(--bg-1), var(--bg-2)); }
+            
+            #topBar { 
+                height: 12vh; width: 100%; 
+                background: linear-gradient(to bottom, var(--bg-1), #000); 
+                border-bottom: 0.5vmin solid var(--accent); 
+                display: flex; align-items: center; justify-content: center; 
+                box-shadow: 0 1vh 2vh rgba(0,0,0,0.8); z-index: 10;
+            }
+            #topStatusText { color: var(--accent); font-size: 4vmin; font-weight: bold; text-shadow: 0 0.5vmin 1vmin rgba(0,0,0,1); }
+
+            #contentArea { display: flex; height: 88vh; width: 100%; padding: 2vmin; box-sizing: border-box; }
+
+            /* SIDE PANEL (Question List) */
+            #infoPanel { 
+                width: 20vw; background: rgba(0,0,0,0.5); 
+                border: 0.3vmin solid var(--accent); border-radius: 1vmin; 
+                display: flex; flex-direction: column; margin-left: 1vw; 
+            }
+            .questions-list { flex: 1; overflow-y: auto; padding: 1vmin; }
+            .q-item { padding: 1.5vmin; margin-bottom: 1vmin; border-radius: 1vmin; border: 1px solid #444; background: rgba(0,0,0,0.6); transition: 0.3s; font-size: 2vmin; }
+            .q-item.active { border-color: var(--accent); background: linear-gradient(90deg, var(--bg-1), #000); }
+
+            /* MAIN AREA (Quran Card + Judge Section) */
+            #mainArea { 
+                flex: 1; display: flex; justify-content: flex-start; align-items: center; 
+                flex-direction: column; overflow-y: auto; position: relative;
+            }
+            
+            /* QURAN CARD (The Image) */
+            .royal-card {
+                width: 75vw; min-height: 50vh;
+                background: #fff; ${borderCSS}
+                border-radius: 1vmin; overflow-y: auto; overflow-x: hidden;
+                display: block; position: relative; margin-bottom: 20px;
+                box-shadow: 0 2vmin 5vmin rgba(0,0,0,0.7); flex-shrink: 0;
+            }
+            .royal-card img { width: 100%; height: auto; display: block; margin: 0; }
+            .royal-card.memory-mode { background: transparent; border: none; box-shadow: none; display: flex; justify-content: center; align-items: center; }
+            #memoryText { display:none; color: var(--accent); font-size: 5vw; text-shadow: 0 0 2vh var(--accent); text-align:center; }
+
+            /* JUDGE RUBRIC SECTION */
+            #judgeSection { 
+                display: none; width: 75vw; margin-top: 1vmin; margin-bottom: 2vmin;
+                background: #fff; border: 0.5vmin solid var(--accent); 
+                border-radius: 1vmin; padding: 2vmin; color: #000; 
+                box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            }
+            .rubric-table { width: 100%; border-collapse: collapse; }
+            .rubric-table th { background: #eee; text-align: right; padding: 1vmin; font-size: 1.8vmin; }
+            .rubric-table td { border-bottom: 1px solid #ddd; padding: 1vmin; font-size: 2vmin; }
+            
+            .deduct-btn { 
+                padding: 0.5vmin 1vmin; border: 1px solid #b71c1c; border-radius: 4px; cursor: pointer; 
+                font-size: 1.8vmin; background: #ffebee; color: #b71c1c; font-weight:bold; margin-left:5px;
+            }
+            .deduct-btn:hover { background: #ef9a9a; color: #fff; }
+            
+            .score-display { 
+                width: 8vmin; font-size: 2.5vmin; padding: 0.5vmin; text-align: center; font-weight: bold; 
+                border: 2px solid var(--bg-1); background: #eee; color: #333; float:left; 
+            }
+            
+            .judge-submit-btn { 
+                width: 100%; padding: 2vmin; margin-top: 2vmin; 
+                background: #004d00; color: #fff; font-size: 3vmin; font-weight: bold; 
+                border: none; cursor: pointer; border-radius: 5px;
+            }
+            .judge-submit-btn:hover { background: #006400; box-shadow: 0 0 15px #00e676; }
+
+            /* IDLE SCREEN */
+            #idleScreen { display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%; background: radial-gradient(circle, var(--bg-1), var(--bg-2)); }
+            
+            /* Other screens hidden for now */
+            #gridScreen, #waitScreen, #finishScreen { display:none; }
         </style>
     </head>
     <body oncontextmenu="return false;" class="lang-dv">
-        <div id="judgeSection">
-            <h1 id="judgeTitleDisplay" style="text-align:center; color:#b71c1c; border-bottom:2px solid #ccc; padding-bottom:10px; font-size:40px;">${titleOverride || "JUDGE SCREEN"}</h1>
-            <div style="background:#000; color:#fff; padding:10px; text-align:center; font-size:24px; margin-bottom:20px;">Student: <span id="jStudentName">---</span></div>
-            <table class="rubric-table">
-                <thead style="border-bottom: 2px solid var(--accent);">
-                    <tr><th>Category</th><th style="width:10%;">Max</th><th style="width:50%;">Deductions</th><th style="width:15%;">Score</th></tr>
-                </thead>
-                <tbody id="rubricTableBody"></tbody>
-            </table>
-            <div id="judgeTotalDisplay" style="text-align: right; font-size: 3vmin; font-weight: bold; margin-top: 1vmin; color: #b71c1c;">Total: 0</div>
-            <button class="judge-submit-btn" onclick="submitFinalScore()">✅ SUBMIT & PRINT PDF</button>
+        
+        <div id="idleScreen"><h1 style="font-size:8vw; color:var(--accent);">RASFAHI</h1></div>
+
+        <div id="readScreen">
+            <div id="topBar">
+                <div id="topStatusText">${titleOverride || "JUDGE SCREEN"}</div>
+            </div>
+            
+            <div id="contentArea">
+                <div id="infoPanel">
+                    <div style="padding:10px; color:#fff; text-align:center; border-bottom:1px solid #555;">
+                        <span style="color:#00e676; font-weight:bold;">Active Student:</span><br>
+                        <span id="jStudentName" style="font-size:1.5em;">---</span>
+                    </div>
+                    <div class="questions-list" id="qListContainer"></div>
+                </div>
+
+                <div id="mainArea">
+                    <div class="royal-card" id="mainScroll">
+                        <img id="qImg" src="">
+                        <h1 id="memoryText">(Memory Mode)</h1>
+                    </div>
+
+                    <div id="judgeSection">
+                        <h2 style="text-align:center; color:#b71c1c; border-bottom:2px solid #ccc; padding-bottom:10px;">JUDGE SCORE SHEET</h2>
+                        
+                        <table class="rubric-table">
+                            <thead style="border-bottom: 2px solid var(--accent);">
+                                <tr>
+                                    <th>Category</th>
+                                    <th style="width:10%;">Max</th>
+                                    <th style="width:50%;">Deductions</th>
+                                    <th style="width:15%;">Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rubricTableBody"></tbody>
+                        </table>
+                        
+                        <div id="judgeTotalDisplay" style="text-align: right; font-size: 3vmin; font-weight: bold; margin-top: 1vmin; color: #b71c1c;">Total: 0</div>
+                        <button class="judge-submit-btn" onclick="submitFinalScore()">✅ SUBMIT & PRINT PDF</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div id="idleScreen"><h1 style="font-size:8vw; color:var(--accent);">RASFAHI</h1></div>
-        
         <script>
             // --- JUDGE LOGIC ---
             let currentScores = {};
+            
             window.initJudgeRow = function(idx, max) {
                 if(!currentScores[idx]) currentScores[idx] = { max: max, deducted: 0 };
                 updateRowDisplay(idx);
@@ -5909,40 +5885,85 @@ function getTemplate(isCeremony = false, titleOverride = null) {
                 return total;
             }
             
-            // --- STATE UPDATE HANDLER ---
+            // --- STATE UPDATE HANDLER (RESTORED) ---
             window.updateState = function(d) {
-                // Simplified update handler for this block
                 const isJudge = window.name.includes('Judge');
                 const jSec = document.getElementById('judgeSection');
                 const idle = document.getElementById('idleScreen');
+                const read = document.getElementById('readScreen');
+                const qCard = document.getElementById('mainScroll');
                 
                 document.body.className = 'lang-' + (d.currentLang || 'dv');
                 
-                if(isJudge) {
-                    jSec.style.display = 'block';
+                // Show Correct Screen Logic
+                if(d.phase === 'active' || isJudge) {
                     idle.style.display = 'none';
-                    if(d.judging.currentStudentObj) document.getElementById('jStudentName').innerText = d.judging.currentStudentObj.name;
+                    read.style.display = 'flex';
                     
-                    // Render Rubric
-                    const tbody = document.getElementById('rubricTableBody');
-                    if(tbody.innerHTML === '' && d.judging.rubric) {
-                        d.judging.rubric.forEach((item, idx) => {
-                            const steps = d.judging.deductionSteps || [0.5, 1];
-                            let btnHtml = '';
-                            steps.forEach(step => { btnHtml += \`<button class="deduct-btn" onclick="addDeduction(\${idx}, \${step})">-\${step}</button> \`; });
-                            btnHtml += \`<button class="deduct-btn" style="color:#333; background:#ccc;" onclick="undoDeduction(\${idx})">Reset</button>\`;
-                            
-                            const row = document.createElement('tr');
-                            row.innerHTML = \`<td style="font-weight:bold;">\${item.name}</td><td>\${item.max}</td>
-                            <td>\${btnHtml} <span id="info_\${idx}" style="color:red; margin-left:10px;">-0.00</span></td>
-                            <td><div class="score-display" id="display_\${idx}">\${item.max}</div></td>\`;
-                            tbody.appendChild(row);
-                            initJudgeRow(idx, item.max);
-                        });
-                        calculateTotal();
+                    // Show Judge Section ONLY if it's a Judge Window
+                    if(isJudge) {
+                        jSec.style.display = 'block';
+                        qCard.style.height = '40vh'; // Shrink image to fit rubric
+                        if(d.judging.currentStudentObj) document.getElementById('jStudentName').innerText = d.judging.currentStudentObj.name;
+                        
+                        // Render Rubric
+                        const tbody = document.getElementById('rubricTableBody');
+                        if(tbody.innerHTML === '' && d.judging.rubric) {
+                            d.judging.rubric.forEach((item, idx) => {
+                                const steps = d.judging.deductionSteps || [0.5, 1];
+                                let btnHtml = '';
+                                steps.forEach(step => { btnHtml += \`<button class="deduct-btn" onclick="addDeduction(\${idx}, \${step})">-\${step}</button> \`; });
+                                btnHtml += \`<button class="deduct-btn" style="color:#333; background:#ccc;" onclick="undoDeduction(\${idx})">Reset</button>\`;
+                                
+                                const row = document.createElement('tr');
+                                row.innerHTML = \`<td style="font-weight:bold;">\${item.name}</td><td>\${item.max}</td>
+                                <td>\${btnHtml} <span id="info_\${idx}" style="color:red; margin-left:10px;">-0.00</span></td>
+                                <td><div class="score-display" id="display_\${idx}">\${item.max}</div></td>\`;
+                                tbody.appendChild(row);
+                                initJudgeRow(idx, item.max);
+                            });
+                            calculateTotal();
+                        }
+                    } else {
+                        // Student View
+                        jSec.style.display = 'none';
+                        qCard.style.height = 'auto';
+                        qCard.style.minHeight = '70vh';
                     }
+
+                    // Update Image / Q List
+                    const q = d.slots[d.activeIndex];
+                    if(q) {
+                        const img = document.getElementById('qImg');
+                        const memTxt = document.getElementById('memoryText');
+                        
+                        if(d.readingMode === 'memory') {
+                            qCard.classList.add('memory-mode');
+                            img.style.display = 'none';
+                            memTxt.style.display = 'block';
+                        } else {
+                            qCard.classList.remove('memory-mode');
+                            memTxt.style.display = 'none';
+                            if(q.src) { img.src = q.src; img.style.display = 'block'; }
+                        }
+                    }
+                    
+                    // Update List Sidebar
+                    const listC = document.getElementById('qListContainer');
+                    listC.innerHTML = '';
+                    d.slots.forEach((slot, idx) => {
+                        if(!slot) return; 
+                        let item = document.createElement('div');
+                        item.className = 'q-item ' + (idx === d.activeIndex ? 'active' : '');
+                        item.innerHTML = \`<div style="color:#00e676;">Q \${idx+1}</div>
+                            <div style="color:#fff;">\${slot.surah}</div>
+                            <div style="font-size:0.8em; color:#ccc;">Ayah: \${slot.start} - \${slot.end}</div>\`;
+                        listC.appendChild(item);
+                    });
+
                 } else {
-                    jSec.style.display = 'none';
+                    // IDLE
+                    read.style.display = 'none';
                     idle.style.display = 'flex';
                 }
             }
