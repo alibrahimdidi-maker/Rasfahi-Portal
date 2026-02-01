@@ -498,7 +498,35 @@
                     <button class="btn-green" onclick="toggleBell(true)" data-translate="btnBellStart">🔔 ފަށާ (ބެލް)</button>
                     <button class="btn-red" onclick="toggleBell(false)" data-translate="btnBellStop">🛑 ހުއްޓާ (ބެލް)</button>
                 </div>
+<hr style="border-color:#444; margin:10px 0;">
+<label style="color:#FFD700; font-size:12px;">★ ޤުރްއާން ވިއު (Mode):</label>
+<div style="display:flex; gap:5px; margin-bottom:5px;">
+    <button id="btnViewImg" class="btn-blue" onclick="setViewMode('image')">🖼️ ފޮޓޯ (Image)</button>
+    <button id="btnViewTxt" onclick="setViewMode('text')">📜 ޓެކްސްޓް (Text)</button>
+</div>
 
+<div id="textTools" style="display:none; background:#1a1a1a; padding:8px; border:1px dashed #FFD700; border-radius:5px; margin-bottom:5px;">
+    <div style="display:flex; gap:2px; margin-bottom:5px;">
+        <button onclick="adjustText('up')" style="font-size:16px;">⬆️</button>
+        <button onclick="adjustText('down')" style="font-size:16px;">⬇️</button>
+        <button onclick="adjustText('zoomIn')" style="font-size:16px;">🔍+</button>
+        <button onclick="adjustText('zoomOut')" style="font-size:16px;">🔍-</button>
+    </div>
+    <div style="display:flex; gap:5px; align-items:center;">
+        <button onclick="adjustText('center')" style="font-size:10px; flex:1;">↔ Center/Justify</button>
+        <input type="color" onchange="adjustText('color', this.value)" value="#ffffff" style="height:30px; width:40px; padding:0; border:none;">
+    </div>
+</div>
+
+<label style="color:#aaa;">ސިޔާސަތު (Reading Policy):</label>
+<select id="qPolicy" onchange="setPolicy(this.value)" style="background:#002200; color:#00e676; font-weight:bold; margin-bottom:10px;">
+    <option value="default">Default Spacing</option>
+    <option value="short">4-5 Ayahs (Large Spacing)</option>
+    <option value="medium">5-6 Ayahs (Medium Spacing)</option>
+    <option value="long">6-8 Ayahs (Compact)</option>
+    <option value="xl">8-10 Ayahs (Very Compact)</option>
+</select>
+<hr style="border-color:#444; margin:10px 0;">
                 <button style="margin-top:10px; background:#442222; border:1px solid #aa3333;" onclick="resetStudentSession()" data-translate="btnReset">🔄 އައު ދަރިވަރެއް (Reset)</button>
             </div>
 
@@ -6023,6 +6051,357 @@ function generateJudgeSessionSheet() {
                         document.getElementById('sName').innerText = s ? s.name + " (" + (s.instType||'') + ")" : "None";
                         
                         // Render Rubric if not done
+                        const rDiv = document.getElementById('rubricArea');
+                        if(rDiv.innerHTML === "") {
+                            let h = '<table><tr><th>Criteria</th><th>Max</th><th>Deduct</th><th>Score</th></tr>';
+                            d.judging.rubric.forEach((r,i) => {
+                                scores[i] = r.max;
+                                h += '<tr><td>'+r.name+'</td><td>'+r.max+'</td><td><button class="btn" onclick="adj('+i+',-0.5)">-0.5</button> <button class="btn" onclick="adj('+i+',-1)">-1</button></td><td id="sc'+i+'">'+r.max+'</td></tr>';
+                            });
+                            h += '</table>';
+                            rDiv.innerHTML = h;
+                        }
+                    ` : ''}
+                }
+
+                ${type === 'judge' ? `
+                    function adj(idx, val) {
+                        scores[idx] += val;
+                        if(scores[idx] < 0) scores[idx] = 0;
+                        document.getElementById('sc'+idx).innerText = scores[idx];
+                        calc();
+                    }
+                    function calc() {
+                        let tot = 0;
+                        for(let k in scores) tot += scores[k];
+                        document.getElementById('tot').innerText = tot;
+                    }
+                    function submit() {
+                        let tot = parseFloat(document.getElementById('tot').innerText);
+                        window.opener.submitJudgeScore('${extraId}', tot);
+                        document.body.innerHTML = "<h1 style='color:green; text-align:center;'>SCORE SUBMITTED: " + tot + "</h1>";
+                    }
+                ` : ''}
+            <\/script>
+        </body>
+        </html>`;
+    }
+    // =================================================================================
+    // ★ FINAL SCRIPT: TEXT MODE, ADJUSTMENTS & POLICY (MANUAL HTML VERSION) ★
+    // =================================================================================
+
+    // 1. Initialize New State Variables
+    state.viewMode = 'image'; // 'image' or 'text'
+    state.textSettings = {
+        size: 5,        // vmin unit
+        offset: 0,      // pixels Y-axis
+        align: 'center',
+        color: '#ffffff',
+        lineHeight: 1.8
+    };
+    state.policy = "default"; 
+
+    // 2. LOGIC FUNCTIONS (Connected to the new Sidebar Buttons)
+    window.setViewMode = function(mode) {
+        state.viewMode = mode;
+        // Update Button Styles
+        document.getElementById('btnViewImg').className = mode === 'image' ? 'btn-blue' : '';
+        document.getElementById('btnViewTxt').className = mode === 'text' ? 'btn-blue' : '';
+        
+        // Show/Hide Tools
+        const tools = document.getElementById('textTools');
+        if(tools) tools.style.display = mode === 'text' ? 'block' : 'none';
+        
+        updateMirror(); // Update Admin Screen
+        syncWindows();  // Update Student/Judge Screens
+    };
+
+    window.adjustText = function(action, val) {
+        if(action === 'up') state.textSettings.offset -= 20;
+        if(action === 'down') state.textSettings.offset += 20;
+        if(action === 'zoomIn') state.textSettings.size += 0.5;
+        if(action === 'zoomOut') state.textSettings.size -= 0.5;
+        if(action === 'center') state.textSettings.align = (state.textSettings.align === 'center') ? 'justify' : 'center';
+        if(action === 'color') state.textSettings.color = val;
+
+        updateMirror();
+        syncWindows();
+    };
+
+    window.setPolicy = function(p) {
+        state.policy = p;
+        // Adjust line height automatically based on policy
+        if(p === 'short') state.textSettings.lineHeight = 2.5;      // 4-5 Ayahs
+        if(p === 'medium') state.textSettings.lineHeight = 2.0;     // 5-6 Ayahs
+        if(p === 'long') state.textSettings.lineHeight = 1.6;       // 6-8 Ayahs
+        if(p === 'xl') state.textSettings.lineHeight = 1.4;         // 8-10 Ayahs
+        if(p === 'default') state.textSettings.lineHeight = 1.8;
+        
+        syncWindows();
+    };
+
+    // 3. UPDATED CSV LOADER (Reads Text from Column 8)
+    document.getElementById('csvQ').onchange = e => {
+        const r = new FileReader();
+        r.onload = ev => {
+            const rows = ev.target.result.split('\n');
+            state.qPool = []; state.qDataMap = {}; state.filteredPool = [];
+            
+            rows.slice(1).forEach(r => {
+                // Regex to handle commas inside quotes
+                const c = r.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g); 
+                if(!c || c.length < 2) return;
+                
+                const id = c[0].replace(/^"|"$/g, '').trim();
+                const imgRaw = c[1].replace(/^"|"$/g, '').trim();
+                
+                // Parse standard fields
+                const bookVal = c[2] ? c[2].replace(/^"|"$/g, '').trim() : "";
+                const bookNum = parseInt(bookVal.replace(/\D/g,'')) || 0;
+                const surahVal = c[3] ? c[3].replace(/^"|"$/g, '').trim() : "";
+                
+                let surahNum = 0;
+                const match = surahVal.match(/^(\d+)/);
+                if(match) surahNum = parseInt(match[1]);
+                
+                // ★ CAPTURE QURAN TEXT (Logic: Check Col 7 or 6) ★
+                let qText = "";
+                // If CSV has 8+ columns, assume text is at index 7 (Column 8)
+                if(c.length >= 8) {
+                    qText = c[7].replace(/^"|"$/g, '').trim(); 
+                }
+                // Fallback: If Col 8 is empty, check Col 7 (Index 6)
+                if(!qText && c[6]) qText = c[6].replace(/^"|"$/g, '').trim();
+
+                state.qDataMap[id] = { 
+                    id: id, 
+                    imgRaw: imgRaw, 
+                    src: null,
+                    book: bookVal, bookNum: bookNum,
+                    surah: surahVal, surahNum: surahNum,
+                    page: c[4]||"", start: c[5]||"", end: c[6]||"",
+                    text: qText // Store the text content
+                };
+                state.qPool.push(id);
+            });
+            rebindAllImages();
+            state.filteredPool = [...state.qPool];
+            applySyllabusFilter();
+            alert(`Loaded ${state.qPool.length} Questions (Text Mode Ready)`);
+        };
+        r.readAsText(e.target.files[0]);
+    };
+
+    // 4. UPDATE ADMIN MIRROR (Display Text in Admin Panel)
+    const originalUpdateMirror = updateMirror; 
+    updateMirror = function() {
+        const gp = document.getElementById('gridPreview');
+        const mCont = document.getElementById('mirrorContainer');
+        const q = state.session.slots[state.session.activeIndex];
+        
+        // Ensure message element exists
+        let msg = document.getElementById('mMsg');
+        if(!msg) { msg = document.createElement('h1'); msg.id = 'mMsg'; mCont.appendChild(msg); }
+
+        if(state.grid.visible) {
+            mCont.style.display = 'none'; gp.style.display = 'grid'; updateGridPreview(); return;
+        }
+        
+        gp.style.display = 'none'; mCont.style.display = 'flex';
+        mCont.innerHTML = ''; // Clear container
+
+        if (state.session.phase === 'ready') {
+            mCont.innerHTML = '<h1 style="color:#00e676; text-align:center; margin-top:50px;">READY TO START</h1>';
+            return;
+        }
+        if (state.session.phase === 'finished') {
+            mCont.innerHTML = '<h1 style="color:#ff5252; text-align:center; margin-top:50px;">FINISHED</h1>';
+            return;
+        }
+
+        if (q && state.session.phase === 'active') {
+            // Memory Mode
+            if(state.readingMode === 'memory') {
+                mCont.innerHTML = '<h1 style="color:#FFD700; text-align:center; margin-top:50px;">MEMORY TEST MODE<br>(Screen Hidden)</h1>';
+                if(q.text) mCont.innerHTML += `<div style="font-size:12px; color:#aaa; padding:10px; direction:rtl; text-align:center; border:1px solid #333; margin:10px;">${q.text.substring(0,100)}...</div>`;
+                return;
+            }
+
+            // Mushaf Mode: Check if Text or Image
+            if(state.viewMode === 'text' && q.text) {
+                const div = document.createElement('div');
+                div.style.width = "100%";
+                div.style.height = "100%";
+                div.style.padding = "20px";
+                div.style.overflowY = "auto";
+                div.style.textAlign = state.textSettings.align;
+                div.style.color = state.textSettings.color;
+                div.style.fontFamily = "'Amiri', 'Traditional Arabic', serif";
+                // Scale font for Admin view slightly smaller than projector
+                div.style.fontSize = (state.textSettings.size * 3) + "px"; 
+                div.style.lineHeight = state.textSettings.lineHeight;
+                div.style.marginTop = (state.textSettings.offset / 2) + "px"; // Scaled offset
+                div.innerText = q.text;
+                mCont.appendChild(div);
+            } else {
+                const img = document.createElement('img');
+                img.src = q.src;
+                img.style.width = "100%";
+                img.style.height = "auto";
+                mCont.appendChild(img);
+            }
+        } else {
+            mCont.innerHTML = '<h1 style="color:#aaa; text-align:center; margin-top:50px;">IDLE</h1>';
+        }
+    };
+
+    // 5. UPDATE SYNC WINDOWS (Send Settings to Child Windows)
+    syncWindows = function() {
+        const packet = { 
+            session: state.session, 
+            judging: state.judging,
+            readingMode: state.readingMode,
+            
+            // ★ New Data ★
+            viewMode: state.viewMode,
+            textSettings: state.textSettings,
+            fontData: state.fontData, // Send font to child
+            
+            grid: state.grid,
+            phase: state.session.phase,
+            light: state.session.light,
+            ceremony: { title: document.getElementById('ceremonyTitle') ? document.getElementById('ceremonyTitle').value : "" }
+        };
+
+        if(state.windows.student && !state.windows.student.closed) state.windows.student.updateState(packet);
+        if(state.windows.ceremony && !state.windows.ceremony.closed) state.windows.ceremony.updateState(packet);
+        state.windows.judges.forEach(w => { if(!w.closed) w.updateState(packet); });
+    };
+
+    // 6. UPDATE TEMPLATE (Child Window Logic for Text)
+    // Replaces previous getTemplate function entirely
+    getTemplate = function(type, extraId) {
+        return `
+        <!DOCTYPE html>
+        <html lang="dv" dir="rtl">
+        <head><style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+            
+            body { margin:0; background:#000; color:#fff; font-family:'Noto Sans Thaana'; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; overflow:hidden; }
+            .frame { border: 20px solid #D4AF37; width:90%; height:80%; display:flex; justify-content:center; align-items:center; position:relative; background:#fff; color:#000; border-radius:10px; overflow:hidden; }
+            
+            #img { max-height:95%; max-width:95%; object-fit:contain; }
+            
+            /* Text Container */
+            #qTextContainer {
+                width: 90%; height: 90%;
+                display: none; 
+                font-family: 'Amiri', serif;
+                direction: rtl;
+                overflow-y: hidden;
+                white-space: pre-wrap; 
+            }
+
+            /* Judge Specific */
+            table { width:100%; border-collapse:collapse; margin-top:10px; color:#000; }
+            td, th { border:1px solid #ccc; padding:10px; text-align:center; }
+            .btn { padding:10px; cursor:pointer; background:#eee; border:1px solid #999; }
+        </style></head>
+        <body>
+            ${type === 'student' ? `
+                <div id="content" class="frame">
+                    <h1 id="msg">WAITING</h1>
+                    <img id="img" style="display:none">
+                    <div id="qTextContainer"></div> 
+                </div>` 
+            : ''}
+
+            ${type === 'ceremony' ? '<h1 id="cTitle" style="color:#D4AF37; font-size:50px;"></h1><div class="frame" style="background:#001a33; border-color:#fff;"><h1 style="color:#D4AF37;">CEREMONY MODE</h1></div>' : ''}
+            
+            ${type === 'judge' ? `
+                <div style="background:#fff; padding:20px; width:95%; height:95%; color:#000; display:flex; flex-direction:column; overflow:auto;">
+                    <div style="flex:1; display:flex; gap:10px;">
+                        <div style="flex:1; border:2px solid #333; padding:5px; display:flex; justify-content:center; align-items:center; background:#eee;">
+                            <img id="img" style="display:none; max-height:100%;">
+                            <div id="qTextContainer" style="display:none; width:100%; height:100%; overflow:auto;"></div>
+                            <h2 id="msg" style="color:#555;">Waiting for Q...</h2>
+                        </div>
+                        
+                        <div style="flex:1; padding-left:10px;">
+                            <h1>${extraId}</h1>
+                            <h3>Student: <span id="sName">--</span></h3>
+                            <div id="rubricArea"></div>
+                            <h2 style="text-align:right;">Total: <span id="tot">0</span></h2>
+                            <button onclick="submit()" style="width:100%; padding:20px; background:green; color:white; font-size:20px;">SUBMIT SCORE</button>
+                        </div>
+                    </div>
+                </div>` 
+            : ''}
+            
+            <script>
+                let currentPacket = null;
+                let scores = {};
+
+                window.updateState = function(d) {
+                    currentPacket = d;
+                    
+                    const q = d.session.slots[d.session.activeIndex];
+                    const elImg = document.getElementById('img');
+                    const elTxt = document.getElementById('qTextContainer');
+                    const elMsg = document.getElementById('msg');
+                    
+                    // Student Light Logic
+                    if(d.session.light && document.getElementById('content')) document.body.style.background = "#004400";
+                    else if(document.getElementById('content')) document.body.style.background = "#000";
+
+                    if(q && d.session.phase === 'active') {
+                        if(d.readingMode === 'memory') {
+                            if(elImg) elImg.style.display='none';
+                            if(elTxt) elTxt.style.display='none';
+                            if(elMsg) { elMsg.style.display='block'; elMsg.innerText = "MEMORY RECITATION"; }
+                        } else {
+                            if(elMsg) elMsg.style.display='none';
+
+                            if(d.viewMode === 'text' && q.text) {
+                                // SHOW TEXT
+                                if(elImg) elImg.style.display='none';
+                                if(elTxt) {
+                                    elTxt.style.display = 'block';
+                                    elTxt.innerText = q.text;
+                                    
+                                    const s = d.textSettings;
+                                    elTxt.style.fontSize = s.size + "vmin"; 
+                                    elTxt.style.textAlign = s.align;
+                                    // Use black text for Judge (white bg), configured color for Student
+                                    elTxt.style.color = (document.body.style.backgroundColor === 'rgb(255, 255, 255)' || '${type}' === 'judge') ? '#000' : s.color;
+                                    
+                                    elTxt.style.transform = "translateY(" + s.offset + "px)";
+                                    elTxt.style.lineHeight = s.lineHeight;
+                                    
+                                    if('${type}' === 'judge') elTxt.style.fontSize = (s.size * 0.7) + "vmin";
+                                }
+                            } else {
+                                // SHOW IMAGE
+                                if(elTxt) elTxt.style.display='none';
+                                if(elImg) {
+                                    elImg.src = q.src;
+                                    elImg.style.display='block';
+                                }
+                            }
+                        }
+                    } else {
+                        if(elImg) elImg.style.display='none';
+                        if(elTxt) elTxt.style.display='none';
+                        if(elMsg) { elMsg.style.display='block'; elMsg.innerText = "RASFAHI JUDGE V26"; }
+                    }
+
+                    ${type === 'ceremony' ? `document.getElementById('cTitle').innerText = d.ceremony.title;` : ''}
+
+                    ${type === 'judge' ? `
+                        const s = d.judging.currentStudent;
+                        document.getElementById('sName').innerText = s ? s.name + " (" + (s.instType||'') + ")" : "None";
+                        
                         const rDiv = document.getElementById('rubricArea');
                         if(rDiv.innerHTML === "") {
                             let h = '<table><tr><th>Criteria</th><th>Max</th><th>Deduct</th><th>Score</th></tr>';
