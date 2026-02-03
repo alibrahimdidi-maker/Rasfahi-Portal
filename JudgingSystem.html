@@ -6056,6 +6056,357 @@ function getTemplate(isCeremony = false, windowTitle = "", jName = "", jRole = "
     </body>
     </html>`;
 }
+    // --- UPDATED TEMPLATE GENERATOR (WITH FULL DEDUCTION LOGIC) ---
+function getTemplate(isCeremony = false, windowTitle = "", jName = "", jRole = "") {
+    const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
+    
+    let ceremonyFonts = '';
+    if(isCeremony) {
+         if(state.ceremony.fonts.quran) ceremonyFonts += `@font-face { font-family: 'QuranFont'; src: url('${state.ceremony.fonts.quran}'); }`;
+         if(state.ceremony.fonts.trans) ceremonyFonts += `@font-face { font-family: 'TransFont'; src: url('${state.ceremony.fonts.trans}'); }`;
+    }
+
+    const bStyle = document.getElementById('borderStyle').value;
+    const th = state.theme || themeList[0]; 
+
+    let borderCSS = `border: 1.5vmin ${th.borderType} ${th.accent}; box-shadow: 0 0 5vmin ${th.accent}80;`;
+    if(bStyle === 'custom' && state.borderData) borderCSS = `border: 4vmin solid transparent; border-image: url('${state.borderData}') 30 stretch;`;
+    if(bStyle === 'none') borderCSS = "border:none;";
+
+    const displayRole = jRole || "JUDGE";
+    const displayName = jName || "--";
+
+    return `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <title>${windowTitle || "Rasfahi Screen"}</title>
+        <style>
+            ${fontFace}
+            ${ceremonyFonts}
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+
+            body.lang-dv * { font-family: 'AppFont', 'Faruuma', 'Waheed', 'Noto Sans Thaana', sans-serif !important; }
+            body.lang-ar * { font-family: 'Amiri', serif !important; }
+            body.lang-en * { font-family: sans-serif !important; direction: ltr; }
+
+            :root {
+                --bg-1: ${th.bg1}; --bg-2: ${th.bg2};
+                --accent: ${th.accent}; --border-type: ${th.borderType};
+                --txt-col: ${th.text};
+                --royal-gold: #D4AF37;
+            }
+            
+            * { box-sizing: border-box; }
+            body { 
+                margin:0; padding: 0;
+                width: 100vw; height: 100vh; 
+                overflow:hidden; 
+                color:var(--txt-col); 
+                display:flex; 
+                background: #000;
+            }
+
+            /* --- JUDGE SCREEN STYLES --- */
+            .judge-container {
+                display: grid;
+                grid-template-columns: 350px 1fr;
+                width: 100%; height: 100%;
+                background: #f4f4f9; color: #333;
+            }
+
+            .j-sidebar {
+                background: #fff;
+                border-left: 2px solid var(--royal-gold);
+                padding: 20px;
+                display: flex; flex-direction: column;
+                box-shadow: 5px 0 15px rgba(0,0,0,0.05);
+                overflow-y: auto;
+            }
+
+            .judge-id-card {
+                background: linear-gradient(135deg, #000, #222);
+                color: var(--royal-gold);
+                padding: 20px;
+                border-radius: 10px;
+                text-align: center;
+                margin-bottom: 25px;
+                border: 2px solid var(--royal-gold);
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            }
+            .j-icon { font-size: 30px; margin-bottom: 5px; color: #fff; }
+            .j-role-text { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 5px; }
+            .j-name-text { font-size: 22px; font-weight: bold; color: #fff; text-shadow: 0 1px 2px #000; }
+
+            .search-box { position: relative; margin-bottom: 20px; }
+            .search-input {
+                width: 100%; padding: 10px; border: 2px solid #ccc;
+                border-radius: 6px; font-size: 14px; text-align: right;
+            }
+            .search-input:focus { border-color: var(--royal-gold); outline: none; }
+            
+            .search-results {
+                position: absolute; top: 100%; left: 0; width: 100%;
+                background: white; border: 1px solid #ccc;
+                max-height: 200px; overflow-y: auto; z-index: 100;
+                display: none;
+            }
+            .s-item { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; }
+            .s-item:hover { background: #e3f2fd; }
+
+            .profile-card {
+                text-align: center; margin-bottom: 20px;
+                border: 1px solid #eee; padding: 15px; border-radius: 8px;
+                background: #fafafa;
+            }
+            .p-img {
+                width: 80px; height: 80px; border-radius: 50%;
+                background: #ddd; margin: 0 auto 10px auto;
+                object-fit: cover; border: 2px solid var(--royal-gold);
+            }
+            .p-name { font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #000; }
+            .p-meta { font-size: 12px; color: #666; margin-bottom: 2px; }
+            .p-badge { 
+                background: var(--royal-gold); color: white; padding: 2px 8px; 
+                border-radius: 10px; font-size: 10px; display: inline-block; margin-top: 5px;
+            }
+
+            .detail-grid { display: grid; grid-template-columns: 1fr; gap: 8px; text-align: right; }
+            .d-row { border-bottom: 1px dashed #ccc; padding-bottom: 2px; }
+            .d-lbl { font-size: 11px; color: #888; }
+            .d-val { font-size: 14px; font-weight: bold; }
+
+            .j-main { padding: 30px; overflow-y: auto; background: #fff; }
+            
+            .rubric-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            .rubric-table th { background: var(--royal-gold); color: #fff; padding: 10px; text-align: right; font-size:16px; }
+            .rubric-table td { border-bottom: 1px solid #eee; padding: 10px; vertical-align: middle; }
+            
+            .score-box { 
+                font-size: 24px; font-weight: bold; text-align: center; 
+                border: 2px solid var(--royal-gold); padding: 5px; border-radius: 5px; width: 80px; background:#fff;
+            }
+            .deduct-btn {
+                background: #ffebee; border: 1px solid #ffcdd2; color: #c62828;
+                padding: 8px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; margin-right: 5px;
+                display: inline-block; margin-bottom: 5px; font-size: 14px;
+            }
+            .deduct-btn:hover { background: #ef9a9a; color: white; }
+            .deduct-btn:active { transform: translateY(1px); }
+
+            .submit-btn {
+                width: 100%; padding: 15px; background: #004d40; color: white;
+                font-size: 20px; font-weight: bold; border: none; border-radius: 6px;
+                margin-top: 30px; cursor: pointer;
+            }
+            .submit-btn:hover { background: #00695c; }
+
+            body.is-judge #idleScreen, body.is-judge #gridScreen, body.is-judge #waitScreen, body.is-judge #readScreen, body.is-judge #finishScreen { display: none !important; }
+            body.is-judge #judgeContainer { display: grid !important; }
+            #judgeContainer { display: none; }
+            #royalFrame { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 9999; border: 2.5vmin solid var(--accent); box-shadow: inset 0 0 10vmin rgba(0,0,0,0.9); }
+            #idleScreen, #gridScreen, #waitScreen, #readScreen, #finishScreen { display:none; width:100%; height:100%; }
+        </style>
+    </head>
+    <body oncontextmenu="return false;" class="lang-dv">
+        
+        <div id="judgeContainer" class="judge-container">
+            <div class="j-sidebar">
+                <div class="judge-id-card">
+                    <div class="j-icon">⚖️</div>
+                    <div class="j-role-text">${displayRole}</div>
+                    <div class="j-name-text">${displayName}</div>
+                </div>
+
+                <div class="search-box">
+                    <input type="text" id="jSearch" class="search-input" placeholder="🔍 Search Student..." onkeyup="filterStudents(this.value)">
+                    <div id="jResults" class="search-results"></div>
+                </div>
+
+                <div class="profile-card">
+                    <img id="pPhoto" src="" class="p-img" onerror="this.style.display='none'">
+                    <div class="p-name" id="pName">-- Select Student --</div>
+                    <div class="p-meta" id="pID">ID: ---</div>
+                    <span class="p-badge" id="pGroup">Group</span>
+                </div>
+
+                <div class="detail-grid">
+                    <div class="d-row"><div class="d-lbl">Reg No</div><div class="d-val" id="pReg">---</div></div>
+                    <div class="d-row"><div class="d-lbl">Branch</div><div class="d-val" id="pBranch">---</div></div>
+                    <div class="d-row"><div class="d-lbl">Institution</div><div class="d-val" id="pInst">---</div></div>
+                    <div class="d-row"><div class="d-lbl">Address</div><div class="d-val" id="pAddr">---</div></div>
+                </div>
+            </div>
+
+            <div class="j-main">
+                <h1 style="border-bottom: 2px solid var(--royal-gold); padding-bottom: 10px;">JUDGE SCORING</h1>
+                <table class="rubric-table">
+                    <thead>
+                        <tr>
+                            <th>Criteria (ބައިތައް)</th>
+                            <th width="10%" style="text-align:center;">Max</th>
+                            <th width="50%">Deductions</th>
+                            <th width="15%" style="text-align:center;">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rubricBody"></tbody>
+                </table>
+                <div style="text-align:right; margin-top:20px; font-size:24px; font-weight:bold; color:#b71c1c;">
+                    Total: <span id="totalScoreDisplay">0.00</span>
+                </div>
+                <button class="submit-btn" onclick="submitFinalScore()">✅ SUBMIT SCORE</button>
+            </div>
+        </div>
+
+        ${!isCeremony ? `
+        <div id="idleScreen" style="display:flex; flex-direction:column; align-items:center; justify-content:center; background: radial-gradient(circle, var(--bg-1), var(--bg-2));">
+            <h1 style="font-size:8vw; color:var(--accent); text-shadow:0 0 3vh var(--accent);">RASFAHI</h1>
+        </div>
+        <div id="readScreen" style="background: radial-gradient(circle, var(--bg-1), var(--bg-2)); display:flex; flex-direction:column;">
+             <div id="mainArea" style="flex:1; display:flex; justify-content:center; align-items:center;">
+                 <div class="royal-card" style="${borderCSS}; width:80vw; height:80vh; background:#fff; overflow:hidden;">
+                    <img id="qImg" src="" style="width:100%; height:auto;">
+                    <h1 id="memoryText" style="display:none; text-align:center; font-size:5vw; color:#000;">(Memory Mode)</h1>
+                 </div>
+             </div>
+        </div>
+        ` : ''}
+
+        ${isCeremony ? `
+        <div id="ceremonyScreen" class="theme-0" style="display:flex; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:center; background: radial-gradient(circle at center, #002200, #000); padding: 4vmin; border: 2vmin double #D4AF37;">
+            <div class="ceremony-box" style="width:90%; height:90%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                <div id="cBody" style="width:100%;"></div>
+            </div>
+        </div>` : ''}
+
+        <script>
+            document.addEventListener('contextmenu', e => e.preventDefault());
+            let currentScores = {};
+            let activeStudent = null;
+
+            if(window.name && window.name.includes("Judge")) {
+                document.body.classList.add('is-judge');
+            }
+
+            window.filterStudents = function(query) {
+                if(!query) { document.getElementById('jResults').style.display='none'; return; }
+                const list = window.opener.state.allStudents;
+                const resDiv = document.getElementById('jResults');
+                resDiv.innerHTML = '';
+                const matches = list.filter(s => s.name.toLowerCase().includes(query.toLowerCase()) || s.id.toLowerCase().includes(query.toLowerCase()));
+                if(matches.length > 0) {
+                    resDiv.style.display = 'block';
+                    matches.forEach(s => {
+                        const div = document.createElement('div');
+                        div.className = 's-item';
+                        div.innerText = \`\${s.name} (\${s.id})\`;
+                        div.onclick = () => loadStudent(s);
+                        resDiv.appendChild(div);
+                    });
+                } else { resDiv.style.display = 'none'; }
+            }
+
+            window.loadStudent = function(student) {
+                activeStudent = student;
+                document.getElementById('jResults').style.display = 'none';
+                document.getElementById('jSearch').value = '';
+                document.getElementById('pName').innerText = student.name;
+                document.getElementById('pID').innerText = student.id;
+                document.getElementById('pReg').innerText = student.reg || '-';
+                document.getElementById('pGroup').innerText = student.group || '-';
+                document.getElementById('pBranch').innerText = student.branch || '-';
+                document.getElementById('pInst').innerText = student.institution || '-';
+                document.getElementById('pAddr').innerText = student.address || '-';
+                document.getElementById('pPhoto').src = "images/user_placeholder.png"; 
+                document.getElementById('pPhoto').style.display = 'block';
+                resetScoring();
+            }
+
+            // --- FULL DEDUCTION LOGIC RESTORED HERE ---
+            function resetScoring() {
+                currentScores = {};
+                // Get rubric settings from parent window
+                const rubric = window.opener.state.judging.rubric;
+                const steps = window.opener.state.judging.deductionSteps || [0.25, 0.5, 1, 2];
+                
+                const tbody = document.getElementById('rubricBody');
+                tbody.innerHTML = '';
+
+                rubric.forEach((r, idx) => {
+                    currentScores[idx] = { max: r.max, current: r.max };
+                    
+                    const row = document.createElement('tr');
+                    
+                    // Generate Deduction Buttons dynamically based on Settings
+                    let btns = '';
+                    steps.forEach(s => {
+                        btns += \`<span class="deduct-btn" onclick="deduct(\${idx}, \${s})">-\${s}</span>\`;
+                    });
+                    // Reset Button for the row
+                    btns += \`<span class="deduct-btn" style="background:#eee; color:#333; border-color:#ccc;" onclick="resetRow(\${idx})">Reset</span>\`;
+
+                    row.innerHTML = \`
+                        <td style="font-weight:bold; font-size:18px;">\${r.name}</td>
+                        <td style="text-align:center; font-weight:bold;">\${r.max}</td>
+                        <td>\${btns}</td>
+                        <td><div id="score_\${idx}" class="score-box">\${r.max}</div></td>
+                    \`;
+                    tbody.appendChild(row);
+                });
+                calcTotal();
+            }
+
+            window.deduct = function(idx, amt) {
+                if(!currentScores[idx]) return;
+                currentScores[idx].current -= amt;
+                if(currentScores[idx].current < 0) currentScores[idx].current = 0;
+                updateRow(idx);
+            }
+            window.resetRow = function(idx) {
+                if(!currentScores[idx]) return;
+                currentScores[idx].current = currentScores[idx].max;
+                updateRow(idx);
+            }
+            function updateRow(idx) {
+                document.getElementById('score_'+idx).innerText = currentScores[idx].current.toFixed(2);
+                calcTotal();
+            }
+            function calcTotal() {
+                let sum = 0;
+                for(let k in currentScores) sum += currentScores[k].current;
+                document.getElementById('totalScoreDisplay').innerText = sum.toFixed(2);
+            }
+            window.submitFinalScore = function() {
+                if(!activeStudent) { alert("Please select a student first!"); return; }
+                if(confirm("Confirm Score for " + activeStudent.name + "?")) {
+                    let total = document.getElementById('totalScoreDisplay').innerText;
+                    window.opener.submitJudgeScore(window.name, parseFloat(total));
+                    const btn = document.querySelector('.submit-btn');
+                    btn.innerText = "SUBMITTED (" + total + ")";
+                    btn.style.background = "#ccc";
+                    btn.disabled = true;
+                }
+            }
+            window.updateState = function(d) {
+                if(document.body.classList.contains('is-judge')) {
+                    if(d.judging && d.judging.currentStudentObj) {
+                        if(!activeStudent || activeStudent.id !== d.judging.currentStudentObj.id) {
+                            loadStudent(d.judging.currentStudentObj);
+                        }
+                    }
+                } else {
+                    if(d.phase === 'active') {
+                        document.getElementById('readScreen').style.display='flex';
+                        const q = d.slots[d.activeIndex];
+                        if(q && q.src) document.getElementById('qImg').src = q.src;
+                    }
+                }
+            }
+        <\/script>
+    </body>
+    </html>`;
+}
 </script>
 </body>
 </html>
