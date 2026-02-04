@@ -5646,6 +5646,265 @@ function generateJudgeSessionSheet() {
     w.document.write(html);
     w.document.close();
 }
+    // ===============================================================
+// ★ ULTIMATE UPGRADE: TEXT MODE VS IMAGE MODE TOGGLE ★
+// ===============================================================
+
+// 1. ADD NEW STATE VARIABLE
+state.useTextMode = false; // Default is Image Mode
+
+// 2. INJECT TOGGLE BUTTON INTO UI
+const livePanel = document.querySelector('#judgeControls');
+const toggleBtn = document.createElement('button');
+toggleBtn.id = 'btnToggleMode';
+toggleBtn.className = 'btn-purple';
+toggleBtn.style.marginTop = '5px';
+toggleBtn.style.border = '1px solid #7c4dff';
+toggleBtn.innerHTML = '🖼️ Image Mode (Active)';
+toggleBtn.onclick = function() { toggleTextScreenMode(); };
+
+// Insert button before the "Pick Question" button
+const pickBtn = document.querySelector('button[onclick="pickRandomQuestion()"]');
+if(pickBtn && pickBtn.parentNode) {
+    pickBtn.parentNode.insertBefore(toggleBtn, pickBtn);
+}
+
+// 3. FUNCTION TO TOGGLE MODE
+function toggleTextScreenMode() {
+    state.useTextMode = !state.useTextMode;
+    const btn = document.getElementById('btnToggleMode');
+    
+    if(state.useTextMode) {
+        btn.innerHTML = '🔤 Text Mode (Active)';
+        btn.className = 'btn-green'; // Visual indicator
+        alert("Switched to TEXT Mode.\nEnsure your CSV has Arabic Text in Column 8 (Index 7).");
+    } else {
+        btn.innerHTML = '🖼️ Image Mode (Active)';
+        btn.className = 'btn-purple';
+    }
+    syncWindows(); // Update screens immediately
+}
+
+// 4. OVERRIDE CSV PARSER TO READ TEXT COLUMN
+// We replace the onchange event to capture the extra text column
+document.getElementById('csvQ').onchange = e => {
+    const r = new FileReader();
+    r.onload = ev => {
+        const rows = ev.target.result.split('\n');
+        state.qPool = []; state.qUsed = []; state.filteredPool = [];
+        
+        rows.slice(1).forEach(r => {
+            // Smart split to handle commas inside quotes if any
+            const c = r.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || r.split(',');
+            if(!c || c.length < 2) return;
+            
+            // Clean quotes
+            const clean = c.map(val => val.replace(/^"|"$/g, '').trim());
+
+            const id = clean[0];
+            const imgRaw = clean[1] || "";
+            const bookVal = clean[2] || "";
+            const bookNum = parseInt(bookVal.replace(/\D/g,'')) || 0;
+            const surahVal = clean[3] || "";
+            let surahNum = 0;
+            
+            // Surah Number Logic
+            const match = surahVal.match(/^(\d+)/);
+            if(match) surahNum = parseInt(match[1]);
+            
+            // ★ NEW: READ ARABIC TEXT (Column 8 / Index 7) ★
+            // Format: ID, Img, Book, Surah, Page, Start, End, ARABIC_TEXT
+            let arabicText = "";
+            if(clean.length >= 8) {
+                arabicText = clean[7]; 
+            } else {
+                // If text is missing, use a fallback message
+                arabicText = `(Text not found for Q-${id})`; 
+            }
+
+            state.qDataMap[id] = { 
+                id: id, imgRaw: imgRaw, src: null,           
+                book: bookVal, bookNum: bookNum,
+                surah: surahVal, surahNum: surahNum,
+                page: clean[4], start: clean[5], end: clean[6],
+                textData: arabicText // Store the text
+            };
+            state.qPool.push(id);
+        });
+        
+        rebindAllImages();
+        state.filteredPool = [...state.qPool];
+        applySyllabusFilter(); 
+        alert("Questions Loaded with Text Support!\nTotal: " + state.qPool.length);
+    };
+    r.readAsText(e.target.files[0]);
+};
+
+// 5. OVERRIDE TEMPLATE GENERATOR TO SUPPORT TEXT DIV
+// This replaces the getTemplate function to include the Text Display Logic
+window.getTemplate = function(isCeremony = false, titleOverride = "") {
+    const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
+    
+    // Check if we have a specific Quran font loaded in Ceremony settings, use it for Text Mode
+    let quranFontUrl = state.ceremony.fonts.quran || state.fontData; 
+    let quranFontFace = quranFontUrl ? `@font-face { font-family: 'QuranTextFont'; src: url('${quranFontUrl}'); }` : '';
+
+    const bStyle = document.getElementById('borderStyle').value;
+    const th = state.theme || {bg1:'#001a33', bg2:'#000', accent:'#D4AF37', borderType:'double', text:'#fff'}; 
+
+    let borderCSS = `border: 1.5vmin ${th.borderType} ${th.accent}; box-shadow: 0 0 5vmin ${th.accent}80;`;
+    if(bStyle === 'custom' && state.borderData) borderCSS = `border: 4vmin solid transparent; border-image: url('${state.borderData}') 30 stretch;`;
+    if(bStyle === 'none') borderCSS = "border:none;";
+
+    return `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <style>
+            ${fontFace}
+            ${quranFontFace}
+            @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+
+            :root { --bg-1: ${th.bg1}; --bg-2: ${th.bg2}; --accent: ${th.accent}; --txt-col: ${th.text}; }
+            body { margin:0; width: 100vw; height: 100vh; overflow:hidden; color:var(--txt-col); display:flex; background: #000; font-family: 'AppFont', sans-serif; }
+            
+            #idleScreen, #gridScreen, #readScreen { display:none; width:100%; height:100%; }
+            
+            #idleScreen { display:flex; align-items:center; justify-content:center; background: radial-gradient(circle, var(--bg-1), var(--bg-2)); }
+            
+            #readScreen { flex-direction:column; background: radial-gradient(circle, var(--bg-1), var(--bg-2)); }
+            #topBar { height: 12vh; width: 100%; background: linear-gradient(to bottom, var(--bg-1), #000); border-bottom: 0.5vmin solid var(--accent); display: flex; align-items: center; justify-content: center; }
+            #topStatusText { color: var(--accent); font-size: 4vmin; font-weight: bold; }
+
+            #mainArea { flex: 1; display: flex; justify-content: center; align-items: center; width: 100%; }
+            
+            .royal-card {
+                width: 75vw; min-height: 50vh; background: #fff; ${borderCSS}
+                border-radius: 1vmin; display: flex; justify-content: center; align-items: center;
+                overflow: hidden; position: relative; padding: 2vmin;
+            }
+            .royal-card img { width: 100%; height: auto; display: block; }
+            
+            /* ★ NEW TEXT STYLES ★ */
+            #qTextDisplay {
+                display: none; /* Hidden by default */
+                font-family: 'QuranTextFont', 'Amiri', serif !important;
+                font-size: 8vmin;
+                line-height: 1.8;
+                color: #000;
+                text-align: center;
+                width: 100%;
+                direction: rtl;
+                padding: 20px;
+            }
+
+            /* Reuse Grid Styles */
+            #gridScreen { display:none; align-items:center; justify-content:center; flex-direction:column; background: radial-gradient(circle, var(--bg-1), #000); }
+            #gridContainer { display:grid; grid-template-columns: repeat(5, 1fr); gap: 1.5vmin; width: 85vw; height: 75vh; }
+            .grid-btn { background: linear-gradient(135deg, var(--accent), var(--bg-1)); border: 0.3vmin solid #fff; color: #fff; font-size: 5vmin; font-weight: bold; display:flex; justify-content:center; align-items:center; cursor:pointer; }
+            .grid-btn.taken { opacity: 0.1; pointer-events: none; }
+
+        </style>
+    </head>
+    <body>
+        <div id="idleScreen"><h1 style="font-size:8vw; color:var(--accent);">RASFAHI</h1></div>
+        
+        <div id="gridScreen">
+            <h1 style="color:var(--accent); font-size: 5vh;">ސުވާލު ނަންބަރު ނަގާ</h1>
+            <div id="gridContainer"></div>
+        </div>
+
+        <div id="readScreen">
+            <div id="topBar"><div id="topStatusText"></div></div>
+            <div id="mainArea">
+                <div class="royal-card">
+                    <img id="qImg" src="">
+                    <div id="qTextDisplay"></div> </div>
+            </div>
+        </div>
+
+        <script>
+            window.updateState = function(d) {
+                ['idleScreen','gridScreen','readScreen'].forEach(id=>document.getElementById(id).style.display='none');
+
+                if(d.grid.visible) {
+                    document.getElementById('gridScreen').style.display = 'flex';
+                    const gc = document.getElementById('gridContainer');
+                    gc.innerHTML = '';
+                    for(let i=1; i<=20; i++) {
+                        let b = document.createElement('div');
+                        b.className = 'grid-btn ' + (d.grid.taken.includes(i) ? 'taken' : '');
+                        b.innerText = i;
+                        b.onclick = () => window.opener.handleGridClick(i);
+                        gc.appendChild(b);
+                    }
+                } else if(d.phase === 'active') {
+                    document.getElementById('readScreen').style.display = 'flex';
+                    const q = d.slots[d.activeIndex];
+                    
+                    if(q) {
+                        const img = document.getElementById('qImg');
+                        const txt = document.getElementById('qTextDisplay');
+                        const status = document.getElementById('topStatusText');
+                        
+                        status.innerText = "Reading Question " + (d.activeIndex + 1);
+
+                        // ★ TOGGLE LOGIC ★
+                        if(d.useTextMode) {
+                            img.style.display = 'none';
+                            txt.style.display = 'block';
+                            // Show Arabic Text from CSV or fallback to ID
+                            txt.innerText = q.textData || ("(No Text) " + q.surah + " : " + q.start);
+                        } else {
+                            txt.style.display = 'none';
+                            img.style.display = 'block';
+                            img.src = q.src;
+                        }
+                    }
+                } else {
+                    document.getElementById('idleScreen').style.display = 'flex';
+                }
+            }
+        <\/script>
+    </body>
+    </html>`;
+};
+
+// 6. UPDATE SYNC FUNCTION TO PASS THE FLAG
+// We need to inject the 'useTextMode' flag into the data packet
+const oldSync = window.syncWindows;
+window.syncWindows = function() {
+    // We can't easily hook into the middle of the old function, so we reconstruct the packet logic
+    // or we modify the global state object directly before the old sync runs.
+    // The state object is global, so we just ensured 'useTextMode' is in state.
+    
+    // We need to make sure the packet created in syncWindows includes useTextMode.
+    // Since we cannot edit the existing syncWindows function inside the closure easily without copy-paste,
+    // let's redefine it fully to be safe (It's the same as before but adds the flag).
+    
+    const packet = {
+        slots: state.session.slots, 
+        activeIndex: state.session.activeIndex,
+        phase: state.session.phase, 
+        light: state.session.light,
+        grid: state.grid, 
+        readingMode: state.readingMode,
+        currentLang: currentLang, 
+        fontData: state.fontData,
+        judging: state.judging,
+        ceremony: state.ceremony,
+        
+        // ★ THE NEW FLAG ★
+        useTextMode: state.useTextMode 
+    };
+    
+    const send = w => { if(w && !w.closed && w.updateState) w.updateState(packet); };
+    send(state.windows.student);
+    send(state.windows.ceremony);
+    if(state.windows.judges) state.windows.judges.forEach(w => send(w));
+};
+
+alert("✅ System Upgraded: Text Mode Support Added!\nUse the new button in Live Control.");
 </script>
 </body>
 </html>
