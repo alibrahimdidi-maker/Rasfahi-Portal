@@ -5720,6 +5720,259 @@ function generateJudgeSessionSheet() {
     w.document.write(html);
     w.document.close();
 }
+    // ========================================================
+// ★ NEW FEATURES LOGIC (EXTRA SCREEN & ADMIN SCORING) ★
+// ========================================================
+
+// --- A. EXTRA SCREEN STATE ---
+state.extra = {
+    pool: [],       // Loaded from CSV
+    gridTaken: [],  // Numbers picked
+    currentQ: null, // Currently displayed question
+    settings: {
+        size: 5, posY: 0, posX: 0, color: '#ffffff'
+    },
+    window: null
+};
+
+// 1. CSV Loader for Extra Screen
+function loadExtraCSV(input) {
+    const file = input.files[0];
+    if(!file) return;
+    const r = new FileReader();
+    r.onload = e => {
+        const rows = e.target.result.split('\n');
+        state.extra.pool = [];
+        // Assuming Format: ID, Text/ImageName
+        rows.slice(1).forEach(row => {
+            const cols = row.split(',');
+            if(cols.length > 1) {
+                state.extra.pool.push({
+                    id: cols[0].trim(),
+                    content: cols[1].trim(), // Image name or Text
+                    // You can add more columns here if your CSV has range info
+                    details: cols.slice(2).join(' ') 
+                });
+            }
+        });
+        document.getElementById('extraStatus').innerText = `Loaded ${state.extra.pool.length} items.`;
+        extraGridReset(); // Reset grid when new file loads
+    };
+    r.readAsText(file);
+}
+
+// 2. Launch The Extra Screen
+function openExtraScreen() {
+    if(state.extra.window) state.extra.window.close();
+    
+    // Using the same font logic
+    const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
+    
+    const html = `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <style>
+            ${fontFace}
+            body { 
+                background: #000; color: #fff; margin: 0; overflow: hidden; 
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                font-family: 'AppFont', sans-serif;
+            }
+            #gridContainer { 
+                display: grid; grid-template-columns: repeat(5, 1fr); gap: 2vmin; 
+                width: 80vw; height: 80vh;
+            }
+            .grid-box {
+                background: #111; border: 2px solid #ff9800; border-radius: 10px;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 6vmin; color: #ff9800; cursor: pointer;
+                transition: 0.3s;
+            }
+            .grid-box:hover { background: #333; }
+            .grid-box.hidden { opacity: 0; pointer-events: none; }
+            
+            #contentDisplay {
+                display: none; position: absolute; top:0; left:0; width:100%; height:100%;
+                justify-content: center; align-items: center; text-align: center;
+            }
+            #qContent { transition: all 0.2s ease; }
+            img { max-width: 90%; max-height: 90%; }
+        </style>
+    </head>
+    <body>
+        <div id="gridContainer"></div>
+        <div id="contentDisplay"><div id="qContent"></div></div>
+
+        <script>
+            window.opener.initExtraScreen(window);
+            
+            function updateView(d) {
+                // Update Grid
+                const gc = document.getElementById('gridContainer');
+                const cd = document.getElementById('contentDisplay');
+                const qc = document.getElementById('qContent');
+
+                if(d.mode === 'grid') {
+                    cd.style.display = 'none';
+                    gc.style.display = 'grid';
+                    gc.innerHTML = '';
+                    for(let i=1; i<=20; i++) {
+                        let b = document.createElement('div');
+                        b.className = 'grid-box';
+                        if(d.taken.includes(i)) b.style.opacity = '0.1';
+                        b.innerText = i;
+                        b.onclick = () => window.opener.extraGridClick(i);
+                        gc.appendChild(b);
+                    }
+                } else {
+                    gc.style.display = 'none';
+                    cd.style.display = 'flex';
+                    
+                    // Apply Settings
+                    qc.style.color = d.settings.color;
+                    qc.style.fontSize = d.settings.size + 'vmin';
+                    qc.style.transform = \`translate(\${d.settings.posX}px, \${d.settings.posY}px)\`;
+                    
+                    // Content Logic (Image or Text)
+                    if(d.content.match(/\.(jpeg|jpg|gif|png)$/) != null) {
+                       // It's an image path (you might need to handle Blob URLs if local)
+                       // For simple text CSV, we display text
+                       qc.innerHTML = '<img src="' + d.content + '">';
+                    } else {
+                       qc.innerText = d.content;
+                    }
+                }
+            }
+        <\/script>
+    </body>
+    </html>`;
+
+    state.extra.window = window.open("", "ExtraScreen", "width=1000,height=700");
+    state.extra.window.document.write(html);
+    state.extra.window.document.close();
+}
+
+// 3. Logic Functions
+window.initExtraScreen = function(win) {
+    syncExtraScreen(); // Initial Sync
+};
+
+function extraGridReset() {
+    state.extra.gridTaken = [];
+    state.extra.currentQ = null;
+    syncExtraScreen('grid');
+}
+
+window.extraGridClick = function(num) {
+    if(state.extra.gridTaken.includes(num)) return;
+    state.extra.gridTaken.push(num);
+    
+    // Pick specific or random from pool
+    // Since this is a new feature, let's just pick random from loaded pool for now
+    if(state.extra.pool.length > 0) {
+        const rand = Math.floor(Math.random() * state.extra.pool.length);
+        state.extra.currentQ = state.extra.pool[rand];
+        // Remove used? optional.
+    } else {
+        state.extra.currentQ = { content: "No Data Loaded" };
+    }
+    
+    syncExtraScreen('content');
+};
+
+function updateExtraScreen(key, val) {
+    state.extra.settings[key] = val;
+    syncExtraScreen('content');
+}
+
+function extraNextQ() {
+    // Logic to move to next question if multiple selected
+    // For simplicity, returns to grid
+    syncExtraScreen('grid');
+}
+
+function syncExtraScreen(forceMode) {
+    if(!state.extra.window || state.extra.window.closed) return;
+    
+    const packet = {
+        mode: forceMode || (state.extra.currentQ ? 'content' : 'grid'),
+        taken: state.extra.gridTaken,
+        content: state.extra.currentQ ? state.extra.currentQ.content : "",
+        settings: state.extra.settings
+    };
+    state.extra.window.updateView(packet);
+}
+
+
+// --- B. ADMIN MANUAL SCORING LOGIC ---
+
+// 1. Render the manual inputs (Clone of Rubric)
+function renderAdminManualScoring() {
+    const container = document.getElementById('manualEntryContainer');
+    container.innerHTML = '';
+    
+    if(!state.judging.rubric || state.judging.rubric.length === 0) {
+        container.innerHTML = '<p style="color:#aaa;">No Rubric defined.</p>';
+        return;
+    }
+
+    state.judging.rubric.forEach((r, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = "display:flex; justify-content:space-between; margin-bottom:5px; align-items:center;";
+        
+        div.innerHTML = `
+            <span style="color:#ccc; font-size:14px;">${r.name} (${r.max}):</span>
+            <input type="number" class="manual-score-input" 
+                   data-max="${r.max}" 
+                   style="width:60px; padding:5px; text-align:center;" 
+                   placeholder="0" oninput="calcManualTotal()">
+        `;
+        container.appendChild(div);
+    });
+}
+
+// 2. Auto-Calculate Total in Admin Panel
+function calcManualTotal() {
+    const inputs = document.querySelectorAll('.manual-score-input');
+    let total = 0;
+    inputs.forEach(inp => {
+        let val = parseFloat(inp.value);
+        let max = parseFloat(inp.dataset.max);
+        if(isNaN(val)) val = 0;
+        if(val > max) { val = max; inp.value = max; } // Cap at max
+        total += val;
+    });
+    document.getElementById('manualTotalDisplay').innerText = total.toFixed(2);
+    return total;
+}
+
+// 3. Save to System (Same logic as Judge pressing Submit)
+function saveManualScore() {
+    if(!state.judging.currentStudentObj) {
+        alert("Please register/select a student first!");
+        return;
+    }
+    
+    const judgeID = document.getElementById('manualJudgeSelect').value;
+    const totalScore = calcManualTotal();
+    
+    // Save into the main judging system (Mixed with digital judges)
+    state.judging.liveScores[judgeID] = totalScore;
+    
+    // Update the existing monitor
+    updateScoreMonitor();
+    
+    alert(`Saved Score: ${totalScore} for ${judgeID}`);
+    
+    // Clear inputs
+    document.querySelectorAll('.manual-score-input').forEach(i => i.value = '');
+    document.getElementById('manualTotalDisplay').innerText = "0.00";
+}
+
+// INITIALIZER CALL
+// Call this once to setup the admin panel UI
+renderAdminManualScoring();
 </script>
 </body>
 </html>
