@@ -11824,6 +11824,75 @@ function generateDetailedRankedCSV() {
     link.click();
     document.body.removeChild(link);
 }
+    // --- DYNAMIC AVERAGING LOGIC (FIXED) ---
+function finalizeStudentResult() {
+    // 1. އެކްޓިވް ދަރިވަރެއް ހުރިތޯ ބެލުން
+    if(!state.judging.currentStudentObj) {
+        alert("Please select a student first!");
+        return;
+    }
+    
+    // 2. ޑައިނަމިކް ކަލްކިއުލޭޝަން (Dynamic Calculation)
+    // މިބައިން ބަލާނީ ކިތައް ޖަޖުންތޯ މާކުސް ދިނީ. 
+    // މިސާލަކަށް 2 ޖަޖުން ދީފިނަމަ ގެއްލާނީ 2 އިން. 5 ޖަޖުން ދީފިނަމަ 5 އިން.
+    
+    let sum = 0;
+    let activeJudgeCount = 0; // މާކުސް ދިން ޖަޖުންގެ އަދަދު
+
+    // liveScores ގެ ތެރޭގައި ހުރި ހުރިހާ މާކުހެއް ޗެކްކުރުން
+    for(let key in state.judging.liveScores) {
+        let score = parseFloat(state.judging.liveScores[key]);
+        
+        // މާކުހަކީ ނަންބަރެއްނަމަ އަދި 0 އަށްވުރެ މަތިނަމަ ގުނާނެ
+        if(!isNaN(score) && score > 0) {
+            sum += score;
+            activeJudgeCount++;
+        }
+    }
+    
+    // ޖަޖުން މާކުސް ނުދޭނަމަ ވޯނިންގ ދިނުން
+    if(activeJudgeCount === 0) {
+        if(!confirm("No judge scores entered. Save with 0?")) return;
+    }
+
+    // 3. ފައިނަލް އެވްރެޖް (ޖުމްލަ / ޖަޖުންގެ އަދަދު)
+    const finalScore = activeJudgeCount > 0 ? (sum / activeJudgeCount).toFixed(2) : 0;
+    
+    // 4. ސޭވްކުރަންޖެހޭ ޑޭޓާ ތައްޔާރުކުރުން
+    const resultRecord = {
+        ...state.judging.currentStudentObj, // ދަރިވަރުގެ މަޢުލޫމާތު
+        scores: {...state.judging.liveScores}, // ޖަޖުންގެ މާކުސްތައް
+        finalScore: parseFloat(finalScore),    // ޑައިނަމިކް އެވްރެޖް
+        judgeCount: activeJudgeCount,          // ކިތައް ޖަޖުންކަން ރެކޯޑްކުރުން (Optional)
+        savedAt: new Date().toISOString()
+    };
+    
+    // --- ޑުޕްލިކޭޓް ޗެކްކުރުން ---
+    const existingIndex = state.judging.savedResults.findIndex(r => r.id === resultRecord.id);
+
+    if(existingIndex >= 0) {
+        state.judging.savedResults[existingIndex] = resultRecord; // Update
+    } else {
+        state.judging.savedResults.push(resultRecord); // New Entry
+    }
+
+    // 5. ސޭވް & ފީޑްބެކް
+    saveToLocal();
+    
+    // ބަޓަން އަޕްޑޭޓް
+    const btn = document.getElementById('btnFinalize');
+    if(btn) {
+        btn.innerText = `✅ Saved! (Avg: ${finalScore})`;
+        btn.classList.remove('btn-green');
+        btn.style.backgroundColor = "#333";
+        btn.disabled = true;
+    }
+
+    alert(`Saved Successfully!\nActive Judges: ${activeJudgeCount}\nAverage Score: ${finalScore}`);
+    
+    // ޓޭބަލް ރިފްރެޝް
+    if(typeof renderMasterTable === 'function') renderMasterTable();
+}
 </script>
 </body>
 </html>
