@@ -11893,6 +11893,141 @@ function finalizeStudentResult() {
     // ޓޭބަލް ރިފްރެޝް
     if(typeof renderMasterTable === 'function') renderMasterTable();
 }
+    // --- 2000 STUDENTS GENERATOR (DYNAMIC AVERAGE LOGIC) ---
+function generateDetailedRankedCSV() {
+    const criteriaList = [
+        { name: "Thilawa", max: 30 }, { name: "Tajweed", max: 20 }, 
+        { name: "Makhraj", max: 20 }, { name: "Sifa", max: 10 }, 
+        { name: "Fasaha", max: 10 }, { name: "Talaffuz", max: 5 }, 
+        { name: "Maqamat", max: 5 }
+    ];
+
+    // Headers
+    let headers = [
+        "Serial No", "Reg No", "Age Group", "Branch", "Institution", 
+        "Full Name", "Gender", "Address", "ID Card", "Contact", 
+        "Parent Name", "Parent Phone", "Email"
+    ];
+
+    // Criteria Averages Headers
+    criteriaList.forEach(c => headers.push(`${c.name} (AVG)`));
+    
+    // Judge Totals Headers
+    for (let j = 1; j <= 5; j++) headers.push(`Judge ${j} Total`);
+
+    // Summary Headers
+    headers.push("ACTIVE JUDGES", "GRAND TOTAL", "FINAL AVERAGE", "RANK", "REMARKS");
+
+    const namesM = ["Ahmed", "Mohamed", "Ali", "Hussain", "Hassan", "Abdulla", "Ibrahim"];
+    const namesF = ["Fathimath", "Aishath", "Mariyam", "Aminath", "Zainab", "Hawwa"];
+    const groups = ["Under 6", "Under 9", "Under 11", "Under 13", "General"];
+    const branches = ["Balaiygen", "Nubalai"];
+
+    let allStudentsData = []; 
+
+    // Generate Rows
+    for (let i = 1; i <= 2000; i++) {
+        const isFem = Math.random() > 0.5;
+        const name = isFem ? namesF[i % namesF.length] : namesM[i % namesM.length];
+        
+        let studentObj = {
+            serial: i, reg: `REG-${1000 + i}`,
+            group: groups[i % groups.length],
+            branch: branches[i % branches.length],
+            inst: "School " + (i % 10),
+            name: `${name} Student ${i}`,
+            gender: isFem ? "Female" : "Male",
+            addr: "Island", id: `A000${i}`,
+            
+            judgeTotals: [], 
+            catAverages: [], 
+            grandTotal: 0,
+            activeJudges: 0 // To track how many judges scored
+        };
+
+        // ★ DYNAMIC LOGIC: Randomly decide how many judges are present (3 to 5)
+        // This simulates real life where not all 5 judges might be there
+        let judgesPresent = Math.floor(Math.random() * 3) + 3; // Random 3, 4, or 5
+        
+        let ability = Math.random() * (0.95 - 0.50) + 0.50; 
+        let totalForAllJudges = 0;
+        let criteriaSums = {}; 
+        criteriaList.forEach(c => criteriaSums[c.name] = 0);
+
+        for (let j = 1; j <= 5; j++) {
+            // If current judge number is greater than present count, give 0 marks (Absent)
+            if (j > judgesPresent) {
+                studentObj.judgeTotals.push("0.00"); // Empty score
+                continue; 
+            }
+
+            let judgeSum = 0;
+            let variance = (Math.random() * 0.1) - 0.05; 
+
+            criteriaList.forEach(c => {
+                let mark = c.max * (ability + variance);
+                mark = Math.max(0, Math.min(c.max, mark));
+                criteriaSums[c.name] += mark;
+                judgeSum += mark;
+            });
+
+            studentObj.judgeTotals.push(judgeSum.toFixed(2));
+            totalForAllJudges += judgeSum;
+        }
+
+        // Calculate Category Averages (Divide by Active Judges, NOT 5)
+        criteriaList.forEach(c => {
+            let avg = criteriaSums[c.name] / judgesPresent;
+            studentObj.catAverages.push(avg.toFixed(2));
+        });
+
+        studentObj.activeJudges = judgesPresent;
+        studentObj.grandTotal = totalForAllJudges;
+        
+        // ★ THE FIX: Divide by Active Judges Count
+        studentObj.finalAvg = totalForAllJudges / judgesPresent;
+        
+        allStudentsData.push(studentObj);
+    }
+
+    // Sort
+    allStudentsData.sort((a, b) => b.finalAvg - a.finalAvg);
+
+    // Build CSV
+    let csvRows = [];
+    csvRows.push(headers.join(",")); 
+
+    allStudentsData.forEach((s, index) => {
+        let rank = index + 1;
+        let remarks = (rank <= 10) ? "Top 10" : "";
+
+        let row = [
+            s.serial, s.reg, s.group, s.branch, s.inst, 
+            s.name, s.gender, s.addr, s.id, "777", "Parent", "777", "mail"
+        ];
+        let rowString = row.map(v => `"${v}"`).join(","); 
+        let catString = s.catAverages.join(",");
+        let judgesString = s.judgeTotals.join(",");
+        
+        // Add Active Judges Count to CSV to verify logic
+        let statsString = `${s.activeJudges},${s.grandTotal.toFixed(2)},${s.finalAvg.toFixed(2)},${rank},"${remarks}"`;
+
+        csvRows.push(`${rowString},${catString},${judgesString},${statsString}`);
+    });
+
+    // Download
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateStr = new Date().toISOString().split('T')[0];
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Rasfahi_Dynamic_Results_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 </script>
 </body>
 </html>
