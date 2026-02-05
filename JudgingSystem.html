@@ -11397,6 +11397,156 @@ saveSecretaryScore = function() {
     alert("Saved!");
     renderMasterTable(); // Refresh table to show new scores
 }
+    // --- FIXED LOGIC FOR LINKING & EXPORT ---
+
+// 1. Save Logic (Links to Master Sheet)
+function saveSecretaryScore() {
+    // Validation
+    if(!state.judging.currentStudentObj) {
+        alert("⚠️ Please select a student first!");
+        return;
+    }
+
+    const sID = state.judging.currentStudentObj.id;
+    const judgeID = document.getElementById('secJudgeSelect').value;
+    const score = calculateSecTotal();
+
+    // ★ CRITICAL FIX: Find student in Master List and Update ★
+    const studentIndex = state.allStudents.findIndex(s => s.id === sID);
+    
+    if(studentIndex > -1) {
+        // Create scores object if missing
+        if(!state.allStudents[studentIndex].scores) {
+            state.allStudents[studentIndex].scores = {};
+        }
+
+        // Update the specific judge's score
+        state.allStudents[studentIndex].scores[judgeID] = parseFloat(score.toFixed(2));
+
+        // Auto-Calculate Average
+        let total = 0; let count = 0;
+        const scores = state.allStudents[studentIndex].scores;
+        for(let j in scores) {
+            if(scores[j] !== undefined) {
+                total += parseFloat(scores[j]);
+                count++;
+            }
+        }
+        const finalAvg = count > 0 ? (total / count).toFixed(2) : 0;
+        state.allStudents[studentIndex].finalScore = finalAvg;
+
+        // Sync back to current object
+        state.judging.currentStudentObj = state.allStudents[studentIndex];
+        
+        // Auto Save to Browser Memory
+        saveToLocal();
+        
+        // Refresh Table if it exists
+        if(typeof renderMasterTable === 'function') renderMasterTable();
+
+        return true; // Success
+    } else {
+        alert("Error: Student not found in Master List!");
+        return false;
+    }
+}
+
+// 2. Export Logic (Reads from Master List)
+function exportMasterResultSheet() {
+    if(!state.allStudents || state.allStudents.length === 0) {
+        alert("No data to export!"); return;
+    }
+
+    let csv = "Rank,Serial,Reg No,Name,ID Card,Branch,Group,Institution,";
+    // Add Judge Columns Header
+    for(let i=1; i<=5; i++) csv += `Judge ${i},`;
+    csv += "FINAL SCORE,REMARKS\n";
+
+    // Sort by Score
+    let list = [...state.allStudents].sort((a,b) => b.finalScore - a.finalScore);
+
+    list.forEach((s, idx) => {
+        let row = [];
+        row.push(idx + 1); // Rank
+        row.push(s.serial || idx+1);
+        row.push(`"${s.reg}"`);
+        row.push(`"${s.name}"`);
+        row.push(`"${s.id}"`);
+        row.push(`"${s.branch}"`);
+        row.push(`"${s.group}"`);
+        row.push(`"${s.institution}"`);
+
+        // Judge Scores
+        for(let i=1; i<=5; i++) {
+            let key = `Judge_${i}`;
+            row.push(s.scores && s.scores[key] ? s.scores[key] : "");
+        }
+
+        row.push(s.finalScore || 0);
+        row.push(""); // Remarks
+
+        csv += row.join(",") + "\n";
+    });
+
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "Rasfahi_Master_Export.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// 3. UI Update (Deduction Chips)
+function renderSecretaryRubric() {
+    const tbody = document.getElementById('secRubricBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    secScores = {}; 
+
+    const rubric = state.judging.rubric;
+    const steps = state.judging.deductionSteps || [0.25, 0.5, 1]; // Default steps
+
+    rubric.forEach((r, idx) => {
+        secScores[idx] = { max: r.max, deducted: 0 };
+        const tr = document.createElement('tr');
+        
+        let btns = '';
+        steps.forEach(step => {
+            btns += `<span class="deduct-chip" onclick="addSecDeduction(${idx}, ${step})">-${step}</span>`;
+        });
+        btns += `<span class="reset-chip" onclick="resetSecRow(${idx})" title="Reset">↺</span>`;
+
+        tr.innerHTML = `
+            <td style="color:#fff; font-weight:bold; font-size:13px;">${r.name}</td>
+            <td style="text-align:center; color:#888;">${r.max}</td>
+            <td>${btns} <span id="secDedInfo_${idx}" style="color:#ff5252; font-weight:bold; margin-left:10px;"></span></td>
+            <td style="text-align:center;">
+                <span id="secScore_${idx}" style="color:#00e676; font-weight:bold; font-size:18px;">${r.max}</span>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+    calculateSecTotal();
+    
+    // Attempt to load existing score if student selected
+    loadExistingScore();
+}
+
+function loadExistingScore() {
+    if(!state.judging.currentStudentObj) return;
+    const jID = document.getElementById('secJudgeSelect').value;
+    const existing = state.judging.currentStudentObj.scores?.[jID];
+    
+    if(existing) {
+        // If score exists, just show total (complex rubric restoration is harder without saving detailed breakdown)
+        // For now, we show the saved total.
+        document.getElementById('secTotalDisplay').innerText = existing.toFixed(2);
+    } else {
+        calculateSecTotal(); // Reset to max
+    }
+}
 </script>
 </body>
 </html>
