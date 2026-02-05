@@ -11598,6 +11598,76 @@ function generateDetailedRankedCSV() {
     link.click();
     document.body.removeChild(link);
 }
+    // --- SAVING LOGIC (PREVENTS DUPLICATES) ---
+function finalizeStudentResult() {
+    // 1. އެކްޓިވް ދަރިވަރެއް ހުރިތޯ ބެލުން
+    if(!state.judging.currentStudentObj) {
+        alert("Please select a student first!");
+        return;
+    }
+    
+    // 2. މާކުސް ހިސާބުކުރުން
+    let sum = 0;
+    let count = 0;
+    for(let j in state.judging.liveScores) {
+        sum += state.judging.liveScores[j];
+        count++;
+    }
+    
+    // ޖަޖުން މާކުސް ނުދޭނަމަ ވޯނިންގ ދިނުން
+    if(count === 0) {
+        if(!confirm("No judge scores received. Save with 0?")) return;
+    }
+
+    const finalScore = count > 0 ? (sum / count).toFixed(2) : 0;
+    
+    // 3. ސޭވްކުރަންޖެހޭ ޑޭޓާ ތައްޔާރުކުރުން
+    const resultRecord = {
+        ...state.judging.currentStudentObj, // ދަރިވަރުގެ މަޢުލޫމާތު
+        scores: {...state.judging.liveScores}, // ޖަޖުންގެ މާކުސްތައް
+        finalScore: parseFloat(finalScore),    // ޖުމްލަ އެވްރެޖް
+        savedAt: new Date().toISOString()      // ސޭވްކުރި ގަޑި
+    };
+    
+    // ★ 4. ޑުޕްލިކޭޓް ޗެކްކުރުން (ANTI-DUPLICATE CHECK) ★
+    // ސޭވްކޮށްފައިވާ ލިސްޓުގައި މި ދަރިވަރުގެ އައިޑީ (ID) އޮތްތޯ ބެލުން
+    const existingIndex = state.judging.savedResults.findIndex(r => r.id === resultRecord.id);
+
+    if(existingIndex >= 0) {
+        // ކުރިން އޮތްނަމަ: އެ ރެކޯޑް އަޕްޑޭޓް ކުރޭ (އައު އެއްޗެއް އިތުރު ނުކުރާނެ)
+        state.judging.savedResults[existingIndex] = resultRecord;
+        console.log(`Updated existing record for: ${resultRecord.name}`);
+    } else {
+        // ނެތްނަމަ: އައު ރެކޯޑެއް ގޮތަށް އިތުރުކުރޭ
+        state.judging.savedResults.push(resultRecord);
+        console.log(`Added new record for: ${resultRecord.name}`);
+    }
+
+    // 5. ސޭވް & ރީސެޓް
+    saveToLocal(); // ބްރައުޒާ މެމޮރީއަށް ސޭވްކުރުން
+    
+    // ބަޓަންގެ ކުލަ ބަދަލުކޮށްލުން (Visual Feedback)
+    const btn = document.getElementById('btnFinalize');
+    if(btn) {
+        btn.innerText = "✅ Saved!";
+        btn.classList.remove('btn-green');
+        btn.style.backgroundColor = "#333"; // ގަދަ އަޅި ކުލަ
+        btn.disabled = true; // ★ ދެވަނަ ފަހަރަށް ފިއްތުން މަނާކުރުން
+    }
+
+    alert(`Saved Successfully!\nStudent: ${resultRecord.name}\nScore: ${finalScore}`);
+    
+    // 6. ސްކްރީން ސާފުކޮށްލުން (Optional: Remove if you want to keep student visible)
+    // document.getElementById('stdName').value = "";
+    // document.getElementById('stdID').value = "";
+    // state.judging.currentStudentObj = null;
+    // state.judging.liveScores = {};
+    // document.getElementById('currentStdLabel').innerText = "No student active.";
+    // document.getElementById('adminScoreMonitor').innerText = "Waiting...";
+    
+    // މާސްޓަރ ޓޭބަލް ރިފްރެޝް ކުރުން (އިންނަނަމަ)
+    if(typeof renderMasterTable === 'function') renderMasterTable();
+}
 </script>
 </body>
 </html>
