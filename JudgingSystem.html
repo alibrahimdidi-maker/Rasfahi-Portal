@@ -11032,6 +11032,146 @@ document.addEventListener('DOMContentLoaded', () => {
        renderSecretaryRubric(); // Render blank rubric
     }
 });
+    // --- ADVANCED SESSION QUEUE LOGIC ---
+
+let sessionQueue = [];      // Stores the filtered list of students
+let queueIndex = -1;        // Current position in the queue
+
+// 1. LOAD MASTER SHEET DIRECTLY
+function loadMasterSheetForQueue() {
+    const fileInput = document.getElementById('masterSheetInput');
+    if (!fileInput.files.length) { alert("Please select a CSV file!"); return; }
+
+    const r = new FileReader();
+    r.onload = e => {
+        const rows = e.target.result.split('\n');
+        state.allStudents = []; 
+
+        // Parse CSV (Same logic as before)
+        for(let i=1; i<rows.length; i++) {
+            let row = rows[i].trim();
+            if(!row) continue;
+            // Handle quotes
+            const cols = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+            if(cols && cols.length >= 6) {
+                const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
+                // Mapping: 0:Serial, 1:Reg, 2:Group, 3:Branch, 4:Inst, 5:Name, 6:Gender...
+                state.allStudents.push({
+                    serial: clean[0], reg: clean[1], group: clean[2], branch: clean[3],
+                    institution: clean[4], name: clean[5], gender: clean[6], address: clean[7],
+                    id: clean[8], phone: clean[9], parent: clean[10], parentPhone: clean[11], email: clean[12],
+                    scores: {} // Init empty scores
+                });
+            }
+        }
+        document.getElementById('queueStatus').innerText = `✅ Loaded ${state.allStudents.length} Students`;
+        alert("Master Sheet Loaded Successfully!");
+    };
+    r.readAsText(fileInput.files[0]);
+}
+
+// 2. CREATE SESSION QUEUE (FILTER)
+function createSessionQueue() {
+    const branch = document.getElementById('qBranch').value;
+    const group = document.getElementById('qGroup').value;
+
+    if(!branch || !group) { alert("Please select Branch and Age Group!"); return; }
+
+    // Filter students
+    sessionQueue = state.allStudents.filter(s => 
+        s.branch === branch && s.group === group
+    );
+
+    if(sessionQueue.length === 0) {
+        alert("No students found for this session!");
+        return;
+    }
+
+    // Sort by Reg No (Optional)
+    sessionQueue.sort((a,b) => a.reg.localeCompare(b.reg));
+
+    // UI Setup
+    document.getElementById('activeStudentControl').style.display = 'flex';
+    queueIndex = 0;
+    loadQueueStudent(0); // Load first student
+    
+    alert(`Session Started! ${sessionQueue.length} students in queue.`);
+}
+
+// 3. LOAD STUDENT INTO ACTIVE VIEW
+function loadQueueStudent(idx) {
+    if(idx < 0 || idx >= sessionQueue.length) return;
+    
+    const s = sessionQueue[idx];
+    queueIndex = idx;
+
+    // A. Update Visuals (Top Banner & Queue Panel)
+    document.getElementById('qName').innerText = s.name;
+    document.getElementById('qID').innerText = s.id;
+    document.getElementById('qRegNo').innerText = s.reg;
+    document.getElementById('qInst').innerText = s.institution;
+    document.getElementById('qCounter').innerText = `Student ${idx + 1} of ${sessionQueue.length}`;
+
+    // B. Set as System Active Student (Connects to Rubric)
+    state.judging.currentStudentObj = s;
+    state.judging.liveScores = s.scores || {}; // Load existing scores if any
+
+    // C. Fill Hidden Inputs (For compatibility with other functions)
+    document.getElementById('stdName').value = s.name;
+    document.getElementById('stdID').value = s.id;
+    // ... fill other inputs if needed
+
+    // D. RESET RUBRIC & BANNER
+    // This connects to the Secretary Panel logic we wrote earlier
+    if(typeof renderSecretaryRubric === 'function') {
+        renderSecretaryRubric(); 
+    }
+    
+    // Update the Royal Banner in Main View
+    document.getElementById('secName').innerText = s.name;
+    document.getElementById('secID').innerText = s.id;
+    document.getElementById('secReg').innerText = s.reg;
+    document.getElementById('secInst').innerText = s.institution;
+    document.getElementById('secBranch').innerText = s.branch;
+    document.getElementById('secGroup').innerText = s.group;
+    
+    document.getElementById('secTotalDisplay').innerText = "0.00"; // Reset total display
+}
+
+// 4. NAVIGATION CONTROLS
+function nextQueueStudent() {
+    if(queueIndex < sessionQueue.length - 1) {
+        loadQueueStudent(queueIndex + 1);
+    } else {
+        alert("End of List!");
+    }
+}
+
+function prevQueueStudent() {
+    if(queueIndex > 0) {
+        loadQueueStudent(queueIndex - 1);
+    }
+}
+
+// 5. ★ SAVE & AUTO-NEXT LOGIC (THE MAGIC FUNCTION) ★
+// Replace the old save function or update the button to call this
+function saveAndNext() {
+    // 1. Save Score
+    saveSecretaryScore(); // Calls the existing logic to save to master array
+
+    // 2. Visual Feedback & Delay
+    const btn = document.getElementById('btnSaveNext'); // Assuming you ID the button
+    
+    setTimeout(() => {
+        // 3. Auto Advance
+        if(queueIndex < sessionQueue.length - 1) {
+            nextQueueStudent();
+            // Optional: Play a sound or flash the screen
+        } else {
+            alert("Session Complete! All students graded.");
+        }
+    }, 1000); // 1 second delay to see "Saved" message
+}
 </script>
 </body>
 </html>
