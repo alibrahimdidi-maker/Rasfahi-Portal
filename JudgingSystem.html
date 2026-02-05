@@ -1591,7 +1591,18 @@
         
         <input type="file" id="masterSheetInput" accept=".csv" style="display:none;" onchange="loadMasterSheetTable()">
         <button class="btn-blue" onclick="document.getElementById('masterSheetInput').click()" style="padding:5px 10px; font-size:11px;">📂 Load CSV</button>
-        
+        <div class="ms-filter-bar">
+    <h4 style="color:#FFD700; margin:0; font-family:'Faruuma'; margin-right:10px;">މާސްޓަރ ޝީޓް:</h4>
+    
+    <input type="file" id="masterSheetInput" accept=".csv" style="display:none;" onchange="loadMasterSheetTable()">
+    <button class="btn-blue" onclick="document.getElementById('masterSheetInput').click()" style="padding:5px 10px; font-size:11px;">📂 Load CSV</button>
+    
+    <button class="btn-orange" onclick="generateDetailedRankedCSV()" style="padding:5px 10px; font-size:11px; border:1px solid #ff9800; margin-left:5px;">
+        🤖 Gen 2000 Dummy
+    </button>
+    <select id="filterBranch" ... > ... </select>
+    ...
+</div>
         <select id="filterBranch" onchange="renderMasterTable()" style="background:#000; color:#fff; border:1px solid #555; padding:5px;">
             <option value="">- ހުރިހާ ގޮތްޕެއް -</option>
             <option value="Balaiygen">Balaiygen (ބަލައިގެން)</option>
@@ -11459,6 +11470,140 @@ saveSecretaryScore = function() {
     // Visual Feedback
     alert("Saved!");
     renderMasterTable(); // Refresh table to show new scores
+}
+    // --- 2000 STUDENTS GENERATOR (FULL 5 JUDGES + RANKING) ---
+function generateDetailedRankedCSV() {
+    // 1. Scoring Criteria
+    const criteria = [
+        { name: "Thilawa", max: 30 }, 
+        { name: "Tajweed", max: 20 }, 
+        { name: "Makhraj", max: 20 }, 
+        { name: "Sifa", max: 10 }, 
+        { name: "Fasaha", max: 10 }, 
+        { name: "Talaffuz", max: 5 }, 
+        { name: "Maqamat", max: 5 }
+    ];
+
+    // 2. Prepare Headers
+    let headers = [
+        "Serial No", "Reg No", "Age Group", "Branch", "Institution", 
+        "Full Name", "Gender", "Address", "ID Card", "Contact", 
+        "Parent Name", "Parent Phone", "Email"
+    ];
+
+    // Add Columns for EACH Judge (J1 to J5)
+    for (let j = 1; j <= 5; j++) {
+        criteria.forEach(c => {
+            headers.push(`J${j}-${c.name}`);
+        });
+        headers.push(`J${j}-TOTAL`);
+    }
+
+    // Final Summary Columns
+    headers.push("GRAND TOTAL", "FINAL AVERAGE", "RANK", "REMARKS");
+
+    // 3. Data Pools
+    const namesM = ["Ahmed", "Mohamed", "Ali", "Hussain", "Hassan", "Abdulla", "Ibrahim", "Yusuf", "Ismail", "Zaid"];
+    const namesF = ["Fathimath", "Aishath", "Mariyam", "Aminath", "Zainab", "Hawwa", "Khadheeja", "Shifa", "Yumna"];
+    const lastNames = ["Rasheed", "Nazeer", "Fayaz", "Manik", "Didi", "Saeed", "Zahir", "Riza", "Nasir", "Waheed"];
+    const islands = ["Male'", "Hulhumale'", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Naifaru"];
+    const institutions = ["Arabiyya School", "Iskandhar School", "Majeedhiyya", "Aminiya", "Jamaluddin", "Ahmadhiyya", "Villa College", "MNU", "Quran Class"];
+    const groups = ["Under 6", "Under 9", "Under 11", "Under 13", "Under 16", "Under 19", "Under 21", "General"];
+    const branches = ["Balaiygen", "Nubalai"];
+
+    let allStudentsData = []; 
+
+    // 4. Generate 2000 Students
+    for (let i = 1; i <= 2000; i++) {
+        const isFem = Math.random() > 0.5;
+        const fName = isFem ? namesF[Math.floor(Math.random() * namesF.length)] : namesM[Math.floor(Math.random() * namesM.length)];
+        const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        
+        let studentObj = {
+            serial: i,
+            reg: `REG-${1000 + i}`,
+            group: groups[Math.floor(Math.random() * groups.length)],
+            branch: branches[Math.floor(Math.random() * branches.length)],
+            inst: institutions[Math.floor(Math.random() * institutions.length)],
+            name: `${fName} ${lName}`,
+            gender: isFem ? "Female" : "Male",
+            addr: islands[Math.floor(Math.random() * islands.length)],
+            id: `A${Math.floor(100000 + Math.random() * 900000)}`,
+            contact: "7770000", parent: "Parent Name", pPhone: "7771111", email: "test@mail.com",
+            
+            judgeScores: [], 
+            grandTotal: 0
+        };
+
+        // Base Ability (0.5 to 0.99)
+        let ability = Math.random() * (0.99 - 0.50) + 0.50; 
+        let totalForAllJudges = 0;
+
+        for (let j = 1; j <= 5; j++) {
+            let judgeSum = 0;
+            let judgeRowParts = []; 
+            let variance = (Math.random() * 0.1) - 0.05; 
+
+            criteria.forEach(c => {
+                let mark = c.max * (ability + variance);
+                mark += (Math.random() * 2) - 1;
+                mark = Math.max(0, Math.min(c.max, mark));
+                mark = Math.round(mark * 2) / 2; // Round to 0.5
+
+                judgeRowParts.push(mark.toFixed(2));
+                judgeSum += mark;
+            });
+
+            judgeRowParts.push(judgeSum.toFixed(2));
+            studentObj.judgeScores.push(judgeRowParts.join(","));
+            totalForAllJudges += judgeSum;
+        }
+
+        studentObj.grandTotal = totalForAllJudges;
+        studentObj.finalAvg = totalForAllJudges / 5;
+        allStudentsData.push(studentObj);
+    }
+
+    // 5. SORTING FOR RANK (High Score First)
+    allStudentsData.sort((a, b) => b.finalAvg - a.finalAvg);
+
+    // 6. Build Final CSV
+    let csvRows = [];
+    csvRows.push(headers.join(",")); 
+
+    allStudentsData.forEach((s, index) => {
+        let rank = index + 1;
+        let remarks = "";
+        if (rank <= 3) remarks = `Top ${rank} 🏆`;
+        else if (rank <= 10) remarks = "Top 10 🎖️";
+        else if (s.finalAvg > 90) remarks = "Mumthaz";
+
+        let row = [
+            s.serial, s.reg, s.group, s.branch, s.inst, 
+            s.name, s.gender, s.addr, s.id, s.contact, 
+            s.parent, s.pPhone, s.email
+        ];
+
+        let rowString = row.map(v => `"${v}"`).join(","); 
+        let judgesString = s.judgeScores.join(",");
+        let statsString = `${s.grandTotal.toFixed(2)},${s.finalAvg.toFixed(2)},${rank},"${remarks}"`;
+
+        csvRows.push(`${rowString},${judgesString},${statsString}`);
+    });
+
+    // 7. Download
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const d = new Date();
+    const dateStr = d.toISOString().split('T')[0];
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Rasfahi_Full_Ranked_Data_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 </script>
 </body>
