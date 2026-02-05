@@ -12972,6 +12972,130 @@ function generateDetailedRankedCSV() {
     
     alert("✅ Dummy Data Generated & Set as OFFICIAL Results!\n\nYou can now click 'Top 3', 'Top 5', or 'Full List' buttons to print reports.");
 }
+    // --- ULTIMATE DUMMY GENERATOR V2 (FIXED DOWNLOAD) ---
+function generateDetailedRankedCSV() {
+    // 1. Reset Memory (So reports work on new data)
+    state.allStudents = []; 
+    state.judging.savedResults = []; 
+
+    // Criteria Setup
+    const criteriaList = [
+        { name: "Thilawa", max: 30 }, { name: "Tajweed", max: 20 }, 
+        { name: "Makhraj", max: 20 }, { name: "Sifa", max: 10 }, 
+        { name: "Fasaha", max: 10 }, { name: "Talaffuz", max: 5 }, 
+        { name: "Maqamat", max: 5 }
+    ];
+
+    // --- PREPARE CSV CONTENT DIRECTLY ---
+    // Headers
+    let csvContent = "Serial No,Reg No,Age Group,Branch,Institution,Full Name,Gender,Address,ID Card,";
+    // Add Criteria Headers
+    criteriaList.forEach(c => csvContent += `${c.name} (AVG),`);
+    // Add Judge Headers
+    for(let j=1; j<=5; j++) csvContent += `Judge ${j} Total,`;
+    // Final Headers
+    csvContent += "GRAND TOTAL,FINAL AVERAGE,RANK,REMARKS\n";
+
+    // Data Sources
+    const names = ["Ahmed", "Ali", "Hassan", "Ibrahim", "Fathimath", "Aishath", "Mariyam", "Zainab"];
+    const groups = ["Under 6", "Under 9", "Under 11", "Under 13", "Under 16", "Under 19", "General"];
+    const branches = ["Balaiygen", "Nubalai"];
+    const insts = ["Arabiyya", "Majeedhiyya", "Aminiya", "Villa College", "Quran Class", "Private"];
+
+    // 2. GENERATE DATA LOOP
+    for (let i = 1; i <= 2000; i++) {
+        const name = names[i % names.length];
+        
+        let studentObj = {
+            serial: i, reg: `REG-${1000 + i}`,
+            group: groups[i % groups.length],
+            branch: branches[i % branches.length],
+            institution: insts[i % insts.length],
+            name: `${name} ${i}`,
+            gender: (i % 2 === 0) ? "Female" : "Male",
+            addr: "Male'", id: `A000${i}`,
+            
+            scores: {},          
+            detailedScores: {},  
+            finalScore: 0
+        };
+
+        let ability = Math.random() * (0.98 - 0.50) + 0.50; 
+        let grandTotal = 0;
+        let catSums = {}; // Track sums for averages
+        criteriaList.forEach(c => catSums[c.name] = 0);
+
+        // Generate Judge Scores
+        for (let j = 1; j <= 5; j++) {
+            let jKey = `Judge_${j}`;
+            let judgeTotal = 0;
+            let variance = (Math.random() * 0.1) - 0.05; 
+            
+            studentObj.detailedScores[jKey] = {};
+
+            criteriaList.forEach(c => {
+                let mark = c.max * (ability + variance);
+                mark = Math.max(0, Math.min(c.max, mark));
+                mark = parseFloat(mark.toFixed(2));
+
+                studentObj.detailedScores[jKey][c.name] = mark;
+                catSums[c.name] += mark; // Add to category sum
+                judgeTotal += mark;
+            });
+
+            judgeTotal = parseFloat(judgeTotal.toFixed(2));
+            studentObj.scores[jKey] = judgeTotal;
+            grandTotal += judgeTotal;
+        }
+
+        studentObj.finalScore = parseFloat((grandTotal / 5).toFixed(2));
+        
+        // Push to Memory (For Reports)
+        state.allStudents.push(studentObj);
+        state.judging.savedResults.push(studentObj);
+
+        // --- BUILD CSV ROW IMMEDIATELY ---
+        let row = [];
+        row.push(i, `"${studentObj.reg}"`, `"${studentObj.group}"`, `"${studentObj.branch}"`, `"${studentObj.institution}"`, `"${studentObj.name}"`, `"${studentObj.gender}"`, `"${studentObj.addr}"`, `"${studentObj.id}"`);
+
+        // Criteria Averages
+        criteriaList.forEach(c => {
+            let avg = (catSums[c.name] / 5).toFixed(2);
+            row.push(avg);
+        });
+
+        // Judge Totals
+        for(let j=1; j<=5; j++) row.push(studentObj.scores[`Judge_${j}`]);
+
+        // Final Stats
+        // (Note: Rank is estimated as Serial here for speed, real rank needs sort)
+        // Let's keep it simple for the dummy file
+        row.push(grandTotal.toFixed(2), studentObj.finalScore, "", ""); 
+
+        csvContent += row.join(",") + "\n";
+    }
+
+    // 3. Save to System Memory
+    saveToLocal();
+    if(typeof renderMasterTable === 'function') renderMasterTable();
+
+    // 4. ★ FORCE DOWNLOAD CSV ★
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    // Create filename with timestamp
+    const dateStr = new Date().toISOString().slice(0,19).replace(/:/g,"-");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Rasfahi_Dummy_Data_${dateStr}.csv`);
+    
+    // Trigger click
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert("✅ 2000 Students Generated!\n1. File Download Started.\n2. Data Loaded into System for Reports.");
+}
 </script>
 </body>
 </html>
