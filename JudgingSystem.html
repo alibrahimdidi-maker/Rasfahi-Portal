@@ -549,6 +549,112 @@
         padding: 20px;
         border-radius: 10px;
     }
+        /* --- ROYAL RUBRIC GRID SYSTEM (NO SCROLLING) --- */
+.rubric-grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Auto adjust columns */
+    gap: 10px;
+    padding: 5px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.rubric-card {
+    background: linear-gradient(145deg, #1a1f26, #0d1117);
+    border: 1px solid #334455;
+    border-radius: 8px;
+    padding: 10px;
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    transition: all 0.2s ease;
+}
+
+.rubric-card:hover {
+    border-color: #FFD700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.card-info {
+    flex: 1;
+}
+
+.card-title {
+    font-family: 'Faruuma', sans-serif;
+    font-size: 16px;
+    color: #fff;
+    margin-bottom: 5px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.card-max {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.card-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 5px;
+}
+
+.deduct-btn-mini {
+    background: #2a0000;
+    border: 1px solid #550000;
+    color: #ff5252;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.deduct-btn-mini:hover { background: #ff5252; color: white; }
+.deduct-btn-mini:active { transform: scale(0.95); }
+
+.reset-btn-mini {
+    background: #333;
+    border: 1px solid #555;
+    color: #aaa;
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 10px;
+}
+.reset-btn-mini:hover { background: #fff; color: #000; }
+
+.card-score-box {
+    text-align: center;
+    background: #000;
+    border: 2px solid #334455;
+    border-radius: 6px;
+    padding: 5px 10px;
+    min-width: 60px;
+}
+
+.card-score-val {
+    font-size: 22px;
+    font-weight: bold;
+    color: #00e676;
+    font-family: sans-serif;
+}
+
+.card-deducted {
+    font-size: 10px;
+    color: #ff5252;
+    height: 12px; /* Fixed height to prevent jump */
+}
+
+/* Make total box look grand */
+#secTotalDisplay {
+    text-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
+}
 </style>
 </head>
 
@@ -12027,6 +12133,58 @@ function generateDetailedRankedCSV() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+    // --- NEW ROYAL CARD STYLE RENDERER ---
+function renderSecretaryRubric() {
+    // 1. Target the Container (Assuming you change the HTML container ID or use existing)
+    // We will inject the grid into the same place where table was, replacing it.
+    const wrapper = document.querySelector('.sec-table-wrapper');
+    if (!wrapper) return;
+
+    // Clear old table content
+    wrapper.innerHTML = '<div id="rubricGrid" class="rubric-grid-container"></div>';
+    const grid = document.getElementById('rubricGrid');
+    
+    secScores = {}; // Reset local calculation memory
+
+    const rubric = state.judging.rubric;
+    const steps = state.judging.deductionSteps || [0.5, 1]; // Default steps if missing
+
+    rubric.forEach((r, idx) => {
+        // Initialize State
+        secScores[idx] = { max: r.max, deducted: 0 };
+
+        // Create Card Element
+        const card = document.createElement('div');
+        card.className = 'rubric-card';
+
+        // Generate Buttons HTML
+        let btnsHtml = '';
+        steps.forEach(step => {
+            btnsHtml += `<button class="deduct-btn-mini" onclick="addSecDeduction(${idx}, ${step})">-${step}</button>`;
+        });
+
+        // Card HTML Structure
+        card.innerHTML = `
+            <div class="card-info">
+                <div class="card-title">${r.name}</div>
+                <div class="card-max">Max Marks: ${r.max}</div>
+                <div class="card-actions">
+                    ${btnsHtml}
+                    <button class="reset-btn-mini" onclick="resetSecRow(${idx})" title="Reset">↺</button>
+                </div>
+            </div>
+            
+            <div class="card-score-box">
+                <div class="card-score-val" id="secScore_${idx}">${r.max}</div>
+                <div class="card-deducted" id="secDedInfo_${idx}"></div>
+            </div>
+        `;
+        
+        grid.appendChild(card);
+    });
+
+    calculateSecTotal(); // Update Total
 }
 </script>
 </body>
