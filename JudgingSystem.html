@@ -284,7 +284,20 @@
         /* Rubric Table Styles in Sidebar */
         .rubric-edit-row { display: grid; grid-template-columns: 2fr 1fr 30px; gap: 5px; margin-bottom: 5px; }
         .rubric-edit-row input { margin: 0; padding: 4px; }
-        
+        /* SECRETARY PANEL STYLES */
+.sec-deduct-btn {
+    background: #330000; border: 1px solid #550000; color: #ff5252;
+    padding: 2px 8px; margin-right: 3px; cursor: pointer; border-radius: 3px; font-weight: bold;
+}
+.sec-deduct-btn:hover { background: #550000; color: #fff; }
+.sec-deduct-btn:active { transform: scale(0.95); }
+
+.sec-reset-btn {
+    background: #222; border: 1px solid #444; color: #aaa;
+    padding: 2px 8px; cursor: pointer; border-radius: 3px;
+}
+.sec-row { border-bottom: 1px solid #222; }
+.sec-row:hover { background: rgba(255,255,255,0.02); }
         /* Auto Save Indicator */
         #autoSaveStatus {
             position: fixed; top: 10px; left: 10px; 
@@ -10714,6 +10727,153 @@ function openJudgeMirror() {
     // Slight delay to ensure window loads before sync
     setTimeout(syncExtraScreen, 500);
 }
+    // --- SECRETARY & ADMIN LOGIC (ADVANCED) ---
+
+let secScores = {}; // To hold current calculations
+
+// 1. Hook into the existing Student Selection to update Banner
+const originalPopulateForm = populateStudentForm; // Backup old function
+populateStudentForm = function(idx) {
+    originalPopulateForm(idx); // Call original to fill inputs
+    
+    // NEW: Update Royal Banner
+    if(idx !== "" && state.allStudents[idx]) {
+        const s = state.allStudents[idx];
+        document.getElementById('secStudentBanner').style.display = 'block';
+        document.getElementById('secName').innerText = s.name;
+        document.getElementById('secID').innerText = s.id;
+        document.getElementById('secReg').innerText = s.reg || "-";
+        document.getElementById('secAddr').innerText = s.address || "-";
+        document.getElementById('secInst').innerText = s.institution || s.inst || "Private";
+        document.getElementById('secBranch').innerText = s.branch || "-";
+        document.getElementById('secGroup').innerText = s.group || "-";
+        
+        // Reset Scoring for new student
+        renderSecretaryRubric();
+    }
+};
+
+// 2. Render Rubric with Deduction Buttons
+function renderSecretaryRubric() {
+    const tbody = document.getElementById('secRubricBody');
+    tbody.innerHTML = '';
+    secScores = {}; // Reset local memory
+
+    const rubric = state.judging.rubric;
+    const steps = state.judging.deductionSteps || [0.25, 0.5, 1];
+
+    rubric.forEach((r, idx) => {
+        // Initialize Score
+        secScores[idx] = { max: r.max, deducted: 0 };
+
+        const tr = document.createElement('tr');
+        tr.className = 'sec-row';
+        
+        // Buttons HTML
+        let btns = '';
+        steps.forEach(step => {
+            btns += `<button class="sec-deduct-btn" onclick="addSecDeduction(${idx}, ${step})">-${step}</button>`;
+        });
+        btns += `<button class="sec-reset-btn" onclick="resetSecRow(${idx})">↺</button>`;
+
+        tr.innerHTML = `
+            <td style="color:#fff; font-weight:bold;">${r.name}</td>
+            <td style="text-align:center; color:#888;">${r.max}</td>
+            <td>${btns} <span id="secDedInfo_${idx}" style="color:#ff5252; font-size:11px; margin-left:5px;"></span></td>
+            <td style="text-align:center;">
+                <span id="secScore_${idx}" style="color:#00e676; font-weight:bold; font-size:16px;">${r.max}</span>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+    calculateSecTotal();
+}
+
+// 3. Calculation Logic
+function addSecDeduction(idx, amount) {
+    if(!secScores[idx]) return;
+    
+    // Increase deduction
+    secScores[idx].deducted += amount;
+    
+    // Cap at Max (Cannot deduct more than max marks)
+    if(secScores[idx].deducted > secScores[idx].max) {
+        secScores[idx].deducted = secScores[idx].max;
+    }
+    updateSecRow(idx);
+}
+
+function resetSecRow(idx) {
+    if(secScores[idx]) {
+        secScores[idx].deducted = 0;
+        updateSecRow(idx);
+    }
+}
+
+function updateSecRow(idx) {
+    const data = secScores[idx];
+    const final = data.max - data.deducted;
+    
+    // Update UI
+    document.getElementById(`secScore_${idx}`).innerText = final.toFixed(2);
+    document.getElementById(`secDedInfo_${idx}`).innerText = data.deducted > 0 ? `(-${data.deducted.toFixed(2)})` : '';
+    
+    calculateSecTotal();
+}
+
+function calculateSecTotal() {
+    let total = 0;
+    for(let key in secScores) {
+        total += (secScores[key].max - secScores[key].deducted);
+    }
+    document.getElementById('secTotalDisplay').innerText = total.toFixed(2);
+    return total;
+}
+
+// 4. Save to Master System
+function saveSecretaryScore() {
+    // Validation
+    if(!state.judging.currentStudentObj) {
+        alert("Please select a student first!");
+        return;
+    }
+
+    const judgeID = document.getElementById('secJudgeSelect').value;
+    const finalScore = calculateSecTotal();
+
+    // ★ LINK TO MASTER SHEET ★
+    // This updates the main judging memory, just like a digital judge
+    state.judging.liveScores[judgeID] = parseFloat(finalScore.toFixed(2));
+    
+    // Trigger Auto-Save & Updates
+    updateScoreMonitor(); // Updates the admin panel summary
+    saveToLocal(); // Saves to browser memory
+    
+    // Visual Feedback
+    const btn = document.querySelector('#secretaryPanel .btn-green');
+    const oldText = btn.innerText;
+    btn.innerText = "✅ SAVED!";
+    btn.style.background = "#fff";
+    btn.style.color = "#000";
+    
+    setTimeout(() => {
+        btn.innerText = oldText;
+        btn.style.background = ""; // Reset to CSS default
+        btn.style.color = "";
+    }, 1500);
+}
+
+// Initialize on Load
+document.addEventListener('DOMContentLoaded', () => {
+    // If there is already an active student loaded from cache, render banner
+    if(state.judging.currentStudentObj) {
+       // We need to re-trigger the banner logic manually if needed, 
+       // but typically 'populateStudentForm' handles it when selecting from list.
+       renderSecretaryRubric();
+    } else {
+       renderSecretaryRubric(); // Render blank rubric
+    }
+});
 </script>
 </body>
 </html>
