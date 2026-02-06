@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="dv" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Rasfahi Generator (Fixed Arabic Sort)</title>
+    <style>
+        body { font-family: "Segoe UI", Tahoma, sans-serif; background: #0d1117; color: #e6edf3; padding: 20px; direction: ltr; }
+        .container { max-width: 700px; margin: 0 auto; background: #161b22; padding: 30px; border-radius: 10px; border: 1px solid #30363d; }
+        h1 { color: #FFD700; text-align: center; border-bottom: 2px solid #30363d; padding-bottom: 15px; }
+        label { display: block; margin-top: 15px; color: #58a6ff; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 12px; background: #0d1117; border: 1px solid #30363d; color: #fff; border-radius: 6px; }
+        button { width: 100%; padding: 15px; margin-top: 25px; background: #238636; color: white; border: none; font-size: 16px; cursor: pointer; border-radius: 6px; font-weight: bold; }
+        button:hover { background: #2ea043; }
+        .status { margin-top: 20px; padding: 10px; border-radius: 5px; text-align: center; display: none; background: #1f6feb; color: white;}
+        .note { font-size: 12px; color: #8b949e; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>ރަސްފަހި ސުވާލު ޖެނެރޭޓަރ (ފިކްސްޑް)</h1>
+    
+    <label>1. ޤުރްއާން ޓެކްސްޓް ފައިލް (quran-uthmani.txt):</label>
+    <input type="file" id="fileInput" accept=".txt">
+
+    <label>2. ސުވާލުގެ ދިގުމިން (ފޮޅުވަތް / އާޔަތް):</label>
+    <select id="rangeSelect">
+        <option value="4,5">4 - 5 ފޮޅުވަތް (ކީ ސްޓޭޖް 1)</option>
+        <option value="5,6">5 - 6 ފޮޅުވަތް (ކީ ސްޓޭޖް 2)</option>
+        <option value="6,7">6 - 7 ފޮޅުވަތް (ކީ ސްޓޭޖް 3)</option>
+        <option value="7,8">7 - 8 ފޮޅުވަތް (ކީ ސްޓޭޖް 4)</option>
+        <option value="8,10" selected>8 - 10 ފޮޅުވަތް (ސާނަވީ)</option>
+        <option value="10,15">10 - 15 ފޮޅުވަތް (މަތީ ސާނަވީ)</option>
+        <option value="custom">އަމިއްލަ ގޮތަކަށް (Custom)</option>
+    </select>
+
+    <div id="customBox" style="display:none; margin-top:10px; border-top:1px dashed #444; padding-top:10px;">
+        <div style="display:flex; gap:10px;">
+            <input type="number" id="custMin" placeholder="Min" value="3">
+            <input type="number" id="custMax" placeholder="Max" value="5">
+        </div>
+    </div>
+
+    <label>3. ޖެނެރޭޓްކުރާނެ ގޮތް:</label>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <div style="flex:1">
+            <span style="font-size:12px; color:#aaa;">ކޮންމެ ފޮތަކުން ނަގާނެ ޢަދަދު:</span>
+            <input type="number" id="qsPerJuz" value="100">
+        </div>
+    </div>
+    <div class="note">މިހާރު އިން ގޮތުން މުޅި ޤުރްއާނުން ގާތްގަނޑަކަށް 3000 (30x100) ސުވާލު އުފެދޭނެއެވެ.</div>
+
+    <button onclick="generateFixedCSV()">GENERATE & DOWNLOAD CSV 📥</button>
+    <div id="status" class="status"></div>
+</div>
+
+<script>
+    // Arabic Surah Names
+    const surahNamesAr = [
+        "", "الفاتحة", "البقرة", "آل عمران", "النساء", "المائدة", "الأنعام", "الأعراف", "الأنفال", "التوبة", "يونس",
+        "هود", "يوسف", "الرعد", "إبراهيم", "الحجر", "النحل", "الإسراء", "الكهف", "مريم", "طه",
+        "الأنبياء", "الحج", "المؤمنون", "النور", "الفرقان", "الشعراء", "النمل", "القصص", "العنكبوت", "الروم",
+        "لقمان", "السجدة", "الأحزاب", "سبأ", "فاطر", "يس", "الصافات", "ص", "الزمر", "غافر",
+        "فصلت", "الشورى", "الزخرف", "الدخان", "الجاثية", "الأحقاف", "محمد", "الفتح", "الحجرات", "ق",
+        "الذاريات", "الطور", "النجم", "القمر", "الرحمن", "الواقعة", "الحديد", "المجادلة", "الحشر", "الممتحنة",
+        "الصف", "الجمعة", "المنافقون", "التغابن", "الطلاق", "التحريم", "الملك", "القلم", "الحاقة", "المعارج",
+        "نوح", "الجن", "المزمل", "المدثر", "القيامة", "الإنسان", "المسلات", "النبأ", "النازعات", "عبس",
+        "التكوير", "الإنفطار", "المطففين", "الإنشقاق", "البروج", "الطارق", "الأعلى", "الغاشية", "الفجر", "البلد",
+        "الشمس", "الليل", "الضحى", "الشرح", "التين", "العلق", "القدر", "البينة", "الزلزلة", "العاديات",
+        "القارعة", "التكاثر", "العصر", "الهمزة", "الفيل", "قريش", "الماعون", "الكوثر", "الكافرون", "النصر",
+        "المسد", "الإخلاص", "الفلق", "الناس"
+    ];
+
+    // Juz Start Mapping
+    const juzStart = [
+        {j:1, s:1, a:1}, {j:2, s:2, a:142}, {j:3, s:2, a:253}, {j:4, s:3, a:93}, {j:5, s:4, a:24},
+        {j:6, s:4, a:148}, {j:7, s:5, a:82}, {j:8, s:6, a:111}, {j:9, s:7, a:88}, {j:10, s:8, a:41},
+        {j:11, s:9, a:93}, {j:12, s:11, a:6}, {j:13, s:12, a:53}, {j:14, s:15, a:1}, {j:15, s:17, a:1},
+        {j:16, s:18, a:75}, {j:17, s:21, a:1}, {j:18, s:23, a:1}, {j:19, s:25, a:21}, {j:20, s:27, a:56},
+        {j:21, s:29, a:46}, {j:22, s:33, a:31}, {j:23, s:36, a:28}, {j:24, s:39, a:32}, {j:25, s:41, a:47},
+        {j:26, s:46, a:1}, {j:27, s:51, a:31}, {j:28, s:58, a:1}, {j:29, s:67, a:1}, {j:30, s:78, a:1}
+    ];
+
+    document.getElementById('rangeSelect').addEventListener('change', function() {
+        document.getElementById('customBox').style.display = (this.value === 'custom') ? 'block' : 'none';
+    });
+
+    function getJuz(surah, ayah) {
+        let currentJuz = 30;
+        for (let i = 0; i < juzStart.length; i++) {
+            if (surah < juzStart[i].s || (surah === juzStart[i].s && ayah < juzStart[i].a)) {
+                currentJuz = i; 
+                break;
+            }
+        }
+        return currentJuz === 0 ? 1 : currentJuz;
+    }
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    function generateFixedCSV() {
+        const fileInput = document.getElementById('fileInput');
+        const statusDiv = document.getElementById('status');
+        
+        if (!fileInput.files.length) {
+            alert("Please select the 'quran-uthmani.txt' file first!");
+            return;
+        }
+
+        let minL, maxL;
+        const rangeVal = document.getElementById('rangeSelect').value;
+        if(rangeVal === 'custom') {
+            minL = parseInt(document.getElementById('custMin').value);
+            maxL = parseInt(document.getElementById('custMax').value);
+        } else {
+            const parts = rangeVal.split(',');
+            minL = parseInt(parts[0]);
+            maxL = parseInt(parts[1]);
+        }
+
+        const targetPerJuz = parseInt(document.getElementById('qsPerJuz').value);
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const content = e.target.result;
+            const lines = content.split('\n');
+            const quran = [];
+
+            lines.forEach(line => {
+                const p = line.split('|');
+                if (p.length >= 3) {
+                    quran.push({
+                        surah: parseInt(p[0]),
+                        ayah: parseInt(p[1]),
+                        text: p.slice(2).join('|').trim()
+                    });
+                }
+            });
+
+            let allCandidates = [];
+
+            for (let i = 0; i < quran.length; i++) {
+                let len = Math.floor(Math.random() * (maxL - minL + 1)) + minL;
+                if (i + len > quran.length) continue;
+
+                const startObj = quran[i];
+                const endObj = quran[i + len - 1];
+                
+                if (startObj.surah !== endObj.surah) continue; 
+
+                let qText = "";
+                for(let k=0; k<len; k++) {
+                    qText += quran[i+k].text + " \u06DD ";
+                }
+
+                let juz = getJuz(startObj.surah, startObj.ayah);
+                
+                // --- FIX FOR SOFTWARE SORTING ---
+                // We add the Surah NUMBER before the Arabic Name.
+                // e.g. "2. البقرة" instead of just "البقرة"
+                // The software uses parseInt() on the name, so "2." allows it to detect ID correctly.
+                let surahName = `${startObj.surah}. ${surahNamesAr[startObj.surah]}`;
+
+                allCandidates.push({
+                    juz: juz,
+                    surah: surahName,
+                    start: startObj.ayah,
+                    end: endObj.ayah,
+                    text: qText.replace(/"/g, '""'),
+                    page: 0
+                });
+            }
+
+            let finalQuestions = [];
+            let qID = 1;
+
+            for (let j = 1; j <= 30; j++) {
+                let juzPool = allCandidates.filter(q => q.juz === j);
+                shuffleArray(juzPool);
+                let selected = juzPool.slice(0, targetPerJuz);
+                selected.forEach(q => {
+                    q.finalID = qID++;
+                    finalQuestions.push(q);
+                });
+            }
+
+            // CSV Header matching software V6/V8/V10/V12
+            let csv = "ID,Juz,Page,Surah,Start,End,Text\n";
+            
+            finalQuestions.forEach(q => {
+                csv += `${q.finalID},${q.juz},${q.page},"${q.surah}",${q.start},${q.end},"${q.text}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Rasfahi_Questions_Fixed_${minL}-${maxL}_Lines.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = `✅ CSV Generated! Total Questions: ${finalQuestions.length}`;
+        };
+
+        reader.readAsText(fileInput.files[0]);
+    }
+</script>
+
+</body>
+</html>
