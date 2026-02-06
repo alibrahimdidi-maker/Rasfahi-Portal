@@ -13096,6 +13096,395 @@ function generateDetailedRankedCSV() {
     
     alert("✅ 2000 Students Generated!\n1. File Download Started.\n2. Data Loaded into System for Reports.");
 }
+    function openExtraScreen() {
+    if(state.extra.window) state.extra.window.close();
+    
+    const fontCSS = `
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cinzel:wght@700&display=swap');
+        @font-face { font-family: 'Faruuma'; src: local('Faruuma'), url('https://fonts.googleapis.com/earlyaccess/notosansthaana.css'); } 
+    `;
+    
+    const html = `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <title>Student Screen</title>
+        <style>
+            ${fontCSS}
+            * { box-sizing: border-box; }
+            body { 
+                margin: 0; overflow: hidden; background: #000;
+                font-family: 'Amiri', serif;
+                display: flex; height: 100vh; width: 100vw;
+                cursor: pointer; /* Hand cursor to indicate clickable */
+                user-select: none;
+            }
+
+            /* --- LAYOUTS --- */
+            #gridContainer {
+                width: 100%; height: 100%;
+                display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; 
+                padding: 50px; 
+                background: radial-gradient(circle, #002200, #000);
+                align-content: center;
+            }
+            .grid-box {
+                background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(0,0,0,0.8));
+                border: 2px solid #FFD700; border-radius: 15px;
+                display: flex; justify-content: center; align-items: center;
+                font-size: 4vw; color: #FFD700; 
+                font-family: 'Cinzel', serif; font-weight: bold;
+                box-shadow: 0 0 20px rgba(0,0,0,0.5);
+                transition: all 0.3s;
+            }
+            .grid-box:hover { transform: scale(1.05); background: #FFD700; color: #000; }
+            .grid-box.taken { opacity: 0; pointer-events: none; transform: scale(0); }
+
+            /* --- READING SCREEN --- */
+            #readContainer { width: 100%; height: 100%; display: none; flex-direction: row; }
+            
+            #sideBar {
+                width: 25%; height: 100%;
+                background: #0a0a0a; border-left: 3px solid #FFD700;
+                padding: 20px; display: flex; flex-direction: column; gap: 15px;
+            }
+            #sbHeader {
+                color: #FFD700; font-family: 'Faruuma', sans-serif;
+                font-size: 1.2vw; text-align: center; margin-bottom: 20px;
+                border-bottom: 1px dashed #555; padding-bottom: 10px;
+            }
+            .q-card {
+                border: 1px solid #333; padding: 15px; border-radius: 8px;
+                background: #111; color: #777; transition: 0.3s;
+            }
+            .q-card.active {
+                border-color: #FFD700; background: #001a00; color: #fff;
+                box-shadow: 0 0 15px rgba(212,175,55,0.2);
+            }
+            .q-title { font-family: 'Cinzel', serif; font-size: 14px; color: #FFD700; }
+            .q-info { font-size: 18px; font-weight:bold; margin-top:5px; }
+
+            /* --- MAIN CONTENT --- */
+            #mainContent {
+                flex: 1; display: flex; flex-direction: column;
+                justify-content: center; align-items: center;
+                position: relative; padding: 40px;
+            }
+
+            #topBanner {
+                position: absolute; top: 0; left: 0; width: 100%;
+                height: 80px; background: linear-gradient(90deg, #000, #1a1a1a, #000);
+                border-bottom: 2px solid #FFD700;
+                display: flex; justify-content: space-around; align-items: center;
+                color: #FFD700; font-family: 'Cinzel', serif;
+                direction: ltr; opacity: 0; transition: 0.5s;
+            }
+            .b-item { text-align: center; }
+            .b-label { font-size: 10px; color: #888; text-transform:uppercase; }
+            .b-val { font-size: 20px; font-weight: bold; }
+
+            /* TEXT/IMAGE AREA */
+            #displayText {
+                width: 100%; height: 100%;
+                display: flex; justify-content: center; align-items: center;
+                font-size: 6vw; line-height: 2.0; color: #fff;
+                font-weight: bold; text-align: center;
+                opacity: 0; transition: opacity 0.5s;
+                direction: rtl; 
+            }
+            
+            #displayText img {
+                max-width: 100%; max-height: 100%;
+                object-fit: contain;
+                box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            }
+
+            .hifz-badge {
+                font-family: 'Faruuma', sans-serif;
+                font-size: 5vw; color: #FFD700;
+                border: 4px double #FFD700; padding: 40px;
+                border-radius: 20px; background: rgba(0,0,0,0.5);
+            }
+        </style>
+    </head>
+    <body> 
+        <div id="gridContainer"></div>
+
+        <div id="readContainer">
+            <div id="sideBar">
+                <div id="sbHeader"></div>
+                <div id="sideList"></div>
+            </div>
+            <div id="mainContent">
+                <div id="topBanner">
+                    <div class="b-item"><div class="b-label">Surah</div><div class="b-val" id="dSurah">-</div></div>
+                    <div class="b-item"><div class="b-label">Ayah</div><div class="b-val" id="dAyah">-</div></div>
+                    <div class="b-item"><div class="b-label">Juz</div><div class="b-val" id="dJuz">-</div></div>
+                </div>
+                <div id="displayText"></div>
+            </div>
+        </div>
+
+        <script>
+            // ★ TOGGLE FULLSCREEN LOGIC (CLICK ANYWHERE) ★
+            document.onclick = function() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(e => console.log(e));
+                } else {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                }
+            };
+
+            window.opener.initExtra(window);
+
+            function renderGrid(taken) {
+                const gc = document.getElementById('gridContainer'); gc.innerHTML = '';
+                for(let i=1; i<=20; i++) {
+                    let b = document.createElement('div');
+                    b.className = 'grid-box ' + (taken.includes(i) ? 'taken' : '');
+                    b.innerText = i;
+                    // Note: Click propagates to document.onclick to trigger FS
+                    b.onclick = () => window.opener.extraGridClick(i);
+                    gc.appendChild(b);
+                }
+            }
+
+            function updateView(d) {
+                const gridDiv = document.getElementById('gridContainer');
+                const readDiv = document.getElementById('readContainer');
+                const txt = document.getElementById('displayText');
+                const banner = document.getElementById('topBanner');
+                const sideList = document.getElementById('sideList');
+                const sbHeader = document.getElementById('sbHeader');
+
+                sbHeader.innerText = (d.settings.mode === 'hifz') ? "ނުބަލައި ކިޔެވުމަށް އިޚްތިޔާރުކުރި ސުވާލުތައް" : "ބަލައިގެން ކިޔެވުމަށް އިޚްތިޔާރުކުރި ސުވާލުތައް";
+
+                if (d.phase === 'grid') {
+                    gridDiv.style.display = 'grid';
+                    readDiv.style.display = 'none';
+                    renderGrid(d.taken);
+                } else {
+                    gridDiv.style.display = 'none';
+                    readDiv.style.display = 'flex';
+
+                    sideList.innerHTML = '';
+                    d.selection.forEach((q, i) => {
+                        let div = document.createElement('div');
+                        div.className = 'q-card ' + (i===d.currentIdx ? 'active' : '');
+                        div.innerHTML = \`<div class="q-title">Question \${i+1}</div>
+                                           <div class="q-info">\${q.surah}</div>
+                                           <div style="font-size:12px;">Ayah: \${q.start}</div>\`;
+                        sideList.appendChild(div);
+                    });
+
+                    if (d.phase === 'ready') {
+                        txt.style.opacity = '1';
+                        txt.className = 'hifz-badge';
+                        txt.innerHTML = "ފަނޑިޔާރުން ފަށަންދެން މަޑުކުރައްވާ";
+                        banner.style.opacity = '0';
+                    } 
+                    else if (d.phase === 'reading') {
+                        const cur = d.selection[d.currentIdx];
+                        if(cur) {
+                            banner.style.opacity = '1';
+                            document.getElementById('dSurah').innerText = cur.surah;
+                            document.getElementById('dAyah').innerText = cur.start + '-' + cur.end;
+                            document.getElementById('dJuz').innerText = cur.juz || "-";
+
+                            txt.style.opacity = '1';
+                            if (d.settings.mode === 'hifz') {
+                                txt.className = 'hifz-badge';
+                                txt.innerHTML = "ނުބަލައި ކިޔެވުމުގެ ގޮފި<br><span style='font-size:20px; color:#aaa;'>(Reciting from Memory)</span>";
+                            } else {
+                                txt.className = '';
+                                if(cur.image && cur.image.includes('.png')) {
+                                    txt.innerHTML = \`<img src="quran_images/\${cur.image}">\`;
+                                } else {
+                                    txt.innerText = cur.text || "Text not found";
+                                }
+                            }
+                            
+                            txt.style.fontSize = d.settings.zoom + 'vw';
+                            txt.style.transform = \`translate(\${d.settings.textX}px, \${d.settings.textY}px)\`;
+                        }
+                    }
+                }
+            }
+        <\/script>
+    </body>
+    </html>`;
+
+    state.extra.window = window.open("", "ExtraScreen", "width=1280,height=720");
+    state.extra.window.document.write(html);
+    state.extra.window.document.close();
+    
+    setTimeout(syncExtraScreen, 500);
+}
+    function openJudgeMirror() {
+    if(state.extra.judgeWindow) state.extra.judgeWindow.close();
+
+    const fontCSS = `
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cinzel:wght@700&display=swap');
+    `;
+
+    const html = `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <title>Judge Screen</title>
+        <style>
+            ${fontCSS}
+            * { box-sizing: border-box; }
+            body { 
+                margin: 0; overflow: hidden; background: #1a1a1a;
+                font-family: 'Amiri', serif;
+                display: flex; height: 100vh; width: 100vw;
+                cursor: pointer; /* Clickable cursor */
+                user-select: none;
+            }
+            
+            #judgeHeader {
+                position: absolute; top: 0; width: 100%; height: 50px;
+                background: #330033; border-bottom: 2px solid #d500f9;
+                display: flex; justify-content: space-between; align-items: center;
+                padding: 0 20px; color: #fff; font-family: sans-serif; font-weight:bold;
+                z-index: 10;
+            }
+
+            #container { display: flex; width: 100%; height: 100%; padding-top: 50px; }
+            
+            #sidePanel {
+                width: 20%; background: #222; border-left: 1px solid #444;
+                padding: 10px; overflow-y: auto;
+            }
+            .q-item {
+                background: #333; padding: 10px; margin-bottom: 5px; border-radius: 4px; color: #ccc;
+            }
+            .q-item.active { background: #d500f9; color: #fff; font-weight:bold; }
+
+            #mainView {
+                flex: 1; display: flex; flex-direction: column; 
+                justify-content: center; align-items: center; 
+                background: #000; position: relative;
+            }
+            
+            #infoBar {
+                margin-bottom: 10px; font-size: 16px; color: #d500f9; 
+                font-family: 'Cinzel', serif; background:#111; padding:5px 20px; border-radius:15px; border:1px solid #333;
+            }
+
+            #quranContent {
+                width: 90%; height: 85%;
+                display: flex; justify-content: center; align-items: center;
+                border: 2px solid #333; border-radius: 10px;
+                background: #fff; 
+                overflow: hidden;
+            }
+            
+            #quranContent img {
+                max-width: 100%; max-height: 100%; object-fit: contain;
+            }
+            
+            #quranContent div {
+                font-size: 3vw; color: #000; text-align: center; width: 90%;
+            }
+
+            #statusOverlay {
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); color: #d500f9;
+                display: flex; justify-content: center; align-items: center;
+                font-size: 30px; font-weight: bold; z-index: 5;
+            }
+        </style>
+    </head>
+    <body onclick="toggleFS()">
+        <div id="judgeHeader">
+            <span>JUDGE MONITOR</span>
+            <span id="modeInd" style="color:#aaa;">-</span>
+        </div>
+
+        <div id="statusOverlay">WAITING...</div>
+
+        <div id="container">
+            <div id="sidePanel"></div>
+            <div id="mainView">
+                <div id="infoBar">
+                    <span id="jSurah">-</span> | Ayah: <span id="jAyah">-</span>
+                </div>
+                <div id="quranContent"></div>
+            </div>
+        </div>
+
+        <script>
+            // ★ TOGGLE FULLSCREEN LOGIC (CLICK ANYWHERE) ★
+            document.onclick = function() {
+                toggleFS();
+            };
+
+            function toggleFS() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(e => console.log(e));
+                } else {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                }
+            }
+
+            window.opener.initExtra(window);
+
+            function updateView(d) {
+                const overlay = document.getElementById('statusOverlay');
+                const sidePanel = document.getElementById('sidePanel');
+                const content = document.getElementById('quranContent');
+                
+                document.getElementById('modeInd').innerText = d.settings.mode.toUpperCase();
+
+                if (d.phase === 'grid') {
+                    overlay.style.display = 'flex';
+                    overlay.innerText = "STUDENT SELECTING...";
+                } 
+                else if (d.phase === 'ready') {
+                    overlay.style.display = 'flex';
+                    overlay.innerText = "READY";
+                    renderSideList(d);
+                }
+                else if (d.phase === 'reading') {
+                    overlay.style.display = 'none';
+                    renderSideList(d);
+                    
+                    const cur = d.selection[d.currentIdx];
+                    if(cur) {
+                        if(cur.image && cur.image.includes('.png')) {
+                             content.innerHTML = \`<img src="quran_images/\${cur.image}">\`;
+                        } else {
+                             content.innerHTML = \`<div>\${cur.text}</div>\`;
+                        }
+                        
+                        document.getElementById('jSurah').innerText = cur.surah;
+                        document.getElementById('jAyah').innerText = cur.start + '-' + cur.end;
+                    }
+                }
+            }
+
+            function renderSideList(d) {
+                const sp = document.getElementById('sidePanel');
+                sp.innerHTML = '';
+                d.selection.forEach((q, i) => {
+                    let div = document.createElement('div');
+                    div.className = 'q-item ' + (i === d.currentIdx ? 'active' : '');
+                    div.innerText = \`Q\${i+1}: \${q.surah}\`;
+                    sp.appendChild(div);
+                });
+            }
+        <\/script>
+    </body>
+    </html>`;
+
+    state.extra.judgeWindow = window.open("", "JudgeMirror", "width=1000,height=700");
+    state.extra.judgeWindow.document.write(html);
+    state.extra.judgeWindow.document.close();
+    
+    setTimeout(syncExtraScreen, 500);
+}
 </script>
 </body>
 </html>
