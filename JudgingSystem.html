@@ -13415,7 +13415,210 @@ function downloadDetailedManualSheet() {
         alert("Sheet Error: " + e.message);
     }
 }
-    
+// =========================================================================
+// ★ RASFAHI ULTIMATE - REALISTIC FULL DATA SAMPLE & EXPORT (V13) ★
+// =========================================================================
+
+// --- 0. RUBRIC DEFINITION (Standard) ---
+function getSafeRubricList() {
+    // These match the column headers exactly
+    return [
+        { name: "Thilawa", max: 30 }, 
+        { name: "Tajweed", max: 20 }, 
+        { name: "Makhraj", max: 20 }, 
+        { name: "Sifa", max: 10 }, 
+        { name: "Fasaha", max: 10 }, 
+        { name: "Talaffuz", max: 5 }, 
+        { name: "Maqamat", max: 5 }
+    ];
+}
+
+// --- 1. GENERATE REALISTIC SAMPLE DATA (WITH FULL BREAKDOWN) ---
+function generateDummyMasterSheet() {
+    try {
+        if(typeof state === 'undefined') { alert("State Error! Refresh."); return; }
+        
+        // Clear existing data
+        state.allStudents = []; 
+        state.judging.savedResults = []; 
+
+        const criteriaList = getSafeRubricList(); 
+        
+        // Strict Institution Types
+        const instTypes = ["School", "Office", "NGO", "University", "Private"];
+        const names = ["Ahmed", "Ali", "Hassan", "Ibrahim", "Fathimath", "Aishath", "Mariyam", "Zainab"];
+        const groups = ["Under 6", "Under 9", "Under 11", "Under 13", "Under 16", "Under 19", "General"];
+        const branches = ["Balaiygen", "Nubalai"];
+
+        // Generate 2000 Rows
+        for (let i = 1; i <= 2000; i++) {
+            const name = names[i % names.length];
+            const iType = instTypes[i % instTypes.length];
+            
+            // Create Student Object
+            let studentObj = {
+                serial: i, 
+                reg: `REG-${1000 + i}`,
+                name: `${name} ${i}`, 
+                id: `A000${i}`, 
+                gender: (i%2==0)?"Female":"Male",
+                group: groups[i % groups.length], 
+                branch: branches[i % branches.length],
+                address: "Male'", 
+                instType: iType, 
+                institution: iType, 
+                contact: "7770000", parent: "Parent", pPhone: "7770000", email: "test@mail.com",
+                
+                // Important Containers
+                scores: {}, 
+                detailedScores: {}, 
+                finalScore: 0
+            };
+
+            // --- MARK GENERATION LOGIC ---
+            let grandTotal = 0;
+            // Determine a "Skill Level" for this student (e.g., 60% to 95%)
+            let skillLevel = Math.random() * (0.95 - 0.60) + 0.60; 
+
+            // Loop through 5 Judges
+            for (let j = 1; j <= 5; j++) {
+                let jKey = `Judge_${j}`;
+                studentObj.detailedScores[jKey] = {}; // Init Judge Object
+                
+                let judgeTotal = 0;
+                // Minor variance per judge (so they don't give exact same marks)
+                let judgeVariance = (Math.random() * 0.1) - 0.05; 
+
+                // Loop through Criteria (Thilawa, Tajweed...)
+                criteriaList.forEach(c => {
+                    // Calculate mark based on skill + variance
+                    let rawMark = c.max * (skillLevel + judgeVariance);
+                    // Ensure it stays within 0 to Max
+                    let finalMark = Math.max(0, Math.min(c.max, rawMark));
+                    // Round to 2 decimals
+                    finalMark = parseFloat(finalMark.toFixed(2));
+                    
+                    // ★ STORE THE DETAILED MARK ★
+                    studentObj.detailedScores[jKey][c.name] = finalMark;
+                    
+                    judgeTotal += finalMark;
+                });
+
+                // Store Judge Total
+                judgeTotal = parseFloat(judgeTotal.toFixed(2));
+                studentObj.scores[jKey] = judgeTotal;
+                grandTotal += judgeTotal;
+            }
+
+            // Calculate Final Average
+            studentObj.finalScore = parseFloat((grandTotal / 5).toFixed(2));
+            
+            // Save to State
+            state.allStudents.push(studentObj);
+            state.judging.savedResults.push(studentObj);
+        }
+
+        saveToLocal();
+        if(typeof renderMasterTable === 'function') renderMasterTable();
+
+        alert(`✅ Sample Data Generated!\n- 2000 Students\n- Full Marks for 5 Judges (Thilawa, Tajweed, etc.)\n- Ready to Export.`);
+
+    } catch (e) {
+        alert("Gen Error: " + e.message);
+    }
+}
+
+// --- 2. EXPORT FULL LIST (WITH EVERY SINGLE MARK) ---
+function exportMasterResultSheet() {
+    try {
+        let sourceData = state.allStudents.length > 0 ? state.allStudents : state.judging.savedResults;
+        if (!sourceData || sourceData.length === 0) { alert("No data to export! Please Generate Sample Data first."); return; }
+
+        const criteriaList = getSafeRubricList();
+        
+        // --- 1. BUILD HEADERS (DYNAMICALLY) ---
+        let csv = "Serial No,Reg No,Age Group,Branch,Institution Type,Full Name,Gender,Address,ID Card,Contact,Parent Name,Parent Phone,Email,";
+        
+        // Loop 5 Judges
+        for(let j=1; j<=5; j++) {
+            // Add columns: J1-Thilawa, J1-Tajweed, etc.
+            criteriaList.forEach(c => {
+                csv += `J${j}-${c.name},`;
+            });
+            // Add Judge Total
+            csv += `J${j}-TOTAL,`;
+        }
+        
+        csv += "GRAND TOTAL (5 Judges),FINAL AVERAGE,RANK,REMARKS\n";
+
+        // Sort by Rank
+        sourceData.sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
+
+        // --- 2. BUILD ROWS ---
+        sourceData.forEach((s, idx) => {
+            let row = [];
+            
+            // Student Info
+            row.push(
+                idx + 1, 
+                `"${s.reg||''}"`, `"${s.group||''}"`, `"${s.branch||''}"`, 
+                `"${s.instType||s.institution||''}"`, // Institution Type
+                `"${s.name||''}"`, `"${s.gender||''}"`, `"${s.address||''}"`, 
+                `"${s.id||''}"`, `"${s.phone||''}"`, 
+                `"${s.parent||''}"`, `"${s.parentPhone||''}"`, `"${s.email||''}"`
+            );
+
+            let grandTotal = 0;
+            let activeJudges = 0;
+
+            // Loop 5 Judges
+            for(let j=1; j<=5; j++) {
+                let jKey = `Judge_${j}`;
+                let jTotalCalculated = 0;
+
+                // Loop Criteria (Thilawa, Tajweed...)
+                criteriaList.forEach(c => {
+                    let markVal = "";
+                    // Retrieve the specific mark we generated earlier
+                    if(s.detailedScores && s.detailedScores[jKey] && s.detailedScores[jKey][c.name] !== undefined) {
+                        markVal = s.detailedScores[jKey][c.name];
+                        jTotalCalculated += parseFloat(markVal);
+                    }
+                    // ★ PUSH MARK TO CSV CELL ★
+                    row.push(markVal);
+                });
+
+                // Push Judge Total
+                // Use calculated total from details if available, else fallback to score object
+                let displayTotal = jTotalCalculated > 0 ? jTotalCalculated.toFixed(2) : (s.scores && s.scores[jKey] ? s.scores[jKey] : "");
+                row.push(displayTotal);
+
+                if(parseFloat(displayTotal) > 0) {
+                    grandTotal += parseFloat(displayTotal);
+                    activeJudges++;
+                }
+            }
+
+            // Final Stats
+            let finalAvg = s.finalScore || (activeJudges > 0 ? (grandTotal/activeJudges).toFixed(2) : 0);
+            row.push(grandTotal.toFixed(2), finalAvg, idx + 1, "");
+            
+            csv += row.join(",") + "\n";
+        });
+
+        // --- 3. DOWNLOAD ---
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Rasfahi_FULL_ORIGINAL_DATA_SAMPLE_${new Date().toISOString().slice(0,10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch(e) {
+        alert("Export Error: " + e.message);
+    }
+}    
 </script>
 </body>
 </html>
