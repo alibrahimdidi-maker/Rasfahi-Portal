@@ -14278,6 +14278,178 @@ function exportCompleteRubricBackup() {
     link.click();
     document.body.removeChild(link);
 }
+    // =========================================================================
+// ★ ULTIMATE FIX: DETAILED SCORING & EXPORT SYSTEM (V26.0 FINAL) ★
+// =========================================================================
+
+// 1. IMPROVED SAVE FUNCTION (CAPTURES ALL DETAILS FROM SECRETARY PANEL)
+function saveSecretaryScore() {
+    // A. Check Student
+    if(!state.judging.currentStudentObj) {
+        alert("Please select a student first! (ދަރިވަރަކު ނެތް)");
+        return;
+    }
+
+    const judgeID = document.getElementById('secJudgeSelect').value; 
+    const currentID = state.judging.currentStudentObj.id;
+    let totalScore = 0;
+    let detailsObj = {}; // Stores breakdown like { "Thilawa": 10, "Tajweed": 5 }
+
+    // B. Capture Marks from Rubric Logic
+    // We iterate through the rubric settings to get exact values
+    if(state.judging.rubric) {
+        state.judging.rubric.forEach((r, idx) => {
+            let val = 0;
+            // Check if secScores (the calculation variable) exists
+            if (typeof secScores !== 'undefined' && secScores[idx]) {
+                val = secScores[idx].max - secScores[idx].deducted;
+            } else {
+                val = r.max; // Default to max if untouched
+            }
+            
+            // ★ FORCE RECORDING THE DETAIL ★
+            // Ensure we use the exact name from settings
+            detailsObj[r.name] = parseFloat(val.toFixed(2));
+            totalScore += val;
+        });
+    }
+
+    totalScore = parseFloat(totalScore.toFixed(2));
+
+    // C. Save to Master List
+    const sIdx = state.allStudents.findIndex(s => s.id === currentID);
+
+    if (sIdx > -1) {
+        if (!state.allStudents[sIdx].scores) state.allStudents[sIdx].scores = {};
+        if (!state.allStudents[sIdx].detailedScores) state.allStudents[sIdx].detailedScores = {};
+
+        // 1. Save Total
+        state.allStudents[sIdx].scores[judgeID] = totalScore;
+
+        // 2. Save Details (CRITICAL FIX)
+        state.allStudents[sIdx].detailedScores[judgeID] = detailsObj; 
+
+        // 3. Update Final Average
+        let sum = 0, count = 0;
+        for (let j in state.allStudents[sIdx].scores) {
+            let v = state.allStudents[sIdx].scores[j];
+            if(v > 0) { sum += v; count++; }
+        }
+        state.allStudents[sIdx].finalScore = count > 0 ? parseFloat((sum / count).toFixed(2)) : 0;
+        
+        // Backup to savedResults
+        const savedIdx = state.judging.savedResults.findIndex(s => s.id === currentID);
+        if(savedIdx > -1) {
+            state.judging.savedResults[savedIdx] = state.allStudents[sIdx];
+        } else {
+            state.judging.savedResults.push(state.allStudents[sIdx]);
+        }
+    }
+
+    // D. Feedback
+    saveToLocal();
+    if(typeof renderMasterTable === 'function') renderMasterTable();
+
+    const btn = document.querySelector('#secretaryPanel .btn-green');
+    if(btn) {
+        let old = btn.innerText;
+        btn.innerText = `✅ SAVED! (${totalScore})`;
+        setTimeout(() => { btn.innerText = old; }, 1000);
+    }
+}
+
+// 2. THE ULTIMATE EXPORTER (PULLS FROM DETAILED MEMORY)
+function exportCompleteRubricBackup() {
+    // Source Selection
+    let data = (state.allStudents && state.allStudents.length > 0) ? state.allStudents : state.judging.savedResults;
+    if (!data || data.length === 0) { alert("No Data Found!"); return; }
+
+    // Get Rubric Names dynamically from settings
+    let rubricNames = [];
+    if(state.judging.rubric && state.judging.rubric.length > 0) {
+        rubricNames = state.judging.rubric.map(r => r.name);
+    } else {
+        // Fallback default
+        rubricNames = ["Thilawa", "Tajweed", "Makhraj", "Sifa", "Fasaha", "Talaffuz", "Maqamat", "Quality"];
+    }
+
+    // --- CSV HEADER ---
+    let csv = "Serial,Reg No,Name,Institution,Gender,Group,Branch,";
+    // 5 Judges Loop
+    for (let j = 1; j <= 5; j++) {
+        rubricNames.forEach(name => {
+            csv += `J${j}-${name},`; // The detailed column
+        });
+        csv += `J${j}-TOTAL,`; // The total column
+    }
+    csv += "FINAL AVERAGE,RANK\n";
+
+    // --- CSV ROWS ---
+    data.forEach((s, idx) => {
+        let row = [
+            idx + 1, `"${s.reg||''}"`, `"${s.name||''}"`, `"${s.institution||s.instType||''}"`,
+            `"${s.gender||''}"`, `"${s.group||''}"`, `"${s.branch||''}"`
+        ];
+
+        let grandTotal = 0;
+        let activeJudges = 0;
+
+        for (let j = 1; j <= 5; j++) {
+            let jKey = `Judge_${j}`;
+            let jTotalCalculated = 0;
+
+            // Iterate Rubric Names
+            rubricNames.forEach(name => {
+                let val = "";
+                // Check deep structure for the mark
+                if (s.detailedScores && s.detailedScores[jKey] && s.detailedScores[jKey][name] !== undefined) {
+                    val = s.detailedScores[jKey][name];
+                }
+                row.push(val); // Push mark to CSV
+                
+                if(val !== "" && !isNaN(val)) jTotalCalculated += parseFloat(val);
+            });
+
+            // Handle Total
+            let displayTotal = jTotalCalculated > 0 ? jTotalCalculated.toFixed(2) : (s.scores && s.scores[jKey] ? s.scores[jKey] : "");
+            row.push(displayTotal);
+
+            if(parseFloat(displayTotal) > 0) {
+                grandTotal += parseFloat(displayTotal);
+                activeJudges++;
+            }
+        }
+
+        // Final Stats
+        let finalAvg = s.finalScore || (activeJudges > 0 ? (grandTotal/activeJudges).toFixed(2) : "0.00");
+        row.push(finalAvg);
+        row.push(idx + 1);
+
+        csv += row.join(",") + "\n";
+    });
+
+    // --- DOWNLOAD ---
+    const fileName = `Rasfahi_ULTIMATE_EXPORT_${new Date().toISOString().slice(0,10)}.csv`;
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// 3. AUTO-ADD BUTTON TO UI (TO ENSURE YOU CLICK THE RIGHT ONE)
+setTimeout(() => {
+    const container = document.getElementById('secretaryPanel'); // Or header
+    if(container) {
+        const btn = document.createElement('button');
+        btn.innerHTML = "📥 DOWNLOAD FULL DETAILED CSV";
+        btn.style.cssText = "position:absolute; top:10px; right:200px; background:purple; color:white; padding:10px; font-weight:bold; border:2px solid white; z-index:9999;";
+        btn.onclick = exportCompleteRubricBackup;
+        document.body.appendChild(btn); // Adds to top right of screen
+    }
+}, 2000);
 </script>
 </body>
 </html>
