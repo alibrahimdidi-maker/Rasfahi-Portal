@@ -1302,7 +1302,9 @@
         <div id="adminScoreMonitor" style="font-size:12px; color:#aaa; margin-top:5px;">Waiting for judges...</div>
         <button class="btn-green" id="btnFinalize" style="margin-top:5px;" onclick="finalizeStudentResult()">✅ Save Student Result</button>
     </div>
-
+<button onclick="exportCompleteRubricBackup()" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: 2px solid #fff; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 5px;">
+    📥 FULL RUBRIC BACKUP (CSV)
+</button>
     <hr style="border-color:#333; margin:8px 0;">
 
     <label style="color:#FFD700;">1. Report Headers (ރިޕޯޓުގެ މަޢުލޫމާތު):</label>
@@ -14098,6 +14100,105 @@ function generateDummyMasterSheet() {
         renderMasterTable();
 
     } catch (e) { alert("Gen Error: " + e.message); }
+}
+    // --- ULTIMATE RUBRIC BACKUP EXPORTER (ALL JUDGES & CRITERIA) ---
+function exportCompleteRubricBackup() {
+    // 1. ޑޭޓާ ހުރިތޯ ބެލުން
+    // މާސްޓަރ ލިސްޓަށް އިސްކަންދޭނެ، ނެތްނަމަ ސޭވްކޮށްފައިވާ ނަތީޖާ ނަގާނެ
+    let data = (state.allStudents && state.allStudents.length > 0) ? state.allStudents : state.judging.savedResults;
+    
+    if (!data || data.length === 0) {
+        alert("އެކްސްޕޯޓް ކުރާނެ ޑޭޓާއެއް ނެތެވެ! (No data found to export)");
+        return;
+    }
+
+    // 2. ރުބްރިކް ކެޓަގަރީތައް ނެގުން
+    // ސެޓިންގސްގައި ހެދިފައިވާ ގޮތަށް އޮޓޮމެޓިކުން ނަގާނެ
+    let rubricNames = [];
+    if(state.judging.rubric && state.judging.rubric.length > 0) {
+        rubricNames = state.judging.rubric.map(r => r.name);
+    } else {
+        // ސެޓިންގސް ނެތްނަމަ ޑިފޯލްޓް ނަންތައް
+        rubricNames = ["Thilawa", "Tajweed", "Makhraj", "Sifa", "Fasaha", "Talaffuz", "Maqamat", "Quality"];
+    }
+
+    // 3. CSV ހެޑަރތައް ތައްޔާރުކުރުން
+    let csv = "Serial,Reg No,Name,Institution,Gender,Group,Branch,";
+
+    // ކޮންމެ ޖަޖަކަށް (1-5) ހުރިހާ ކެޓަގަރީއެއްގެ ކޮލަމް ހެދުން
+    for (let j = 1; j <= 5; j++) {
+        rubricNames.forEach(name => {
+            csv += `J${j}-${name},`; // e.g., J1-Thilawa, J1-Tajweed
+        });
+        csv += `J${j}-TOTAL,`; // ޖަޖުގެ ޖުމްލަ
+    }
+    csv += "FINAL AVERAGE,RANK\n";
+
+    // 4. ދަރިވަރުންގެ މަޢުލޫމާތާއި މާކުސްތައް ލިޔުން
+    data.forEach((s, idx) => {
+        let row = [
+            idx + 1,
+            `"${s.reg || ''}"`,
+            `"${s.name || ''}"`,
+            `"${s.institution || s.instType || ''}"`,
+            `"${s.gender || ''}"`,
+            `"${s.group || ''}"`,
+            `"${s.branch || ''}"`
+        ];
+
+        let grandTotal = 0;
+        let activeJudges = 0;
+
+        // 5 ޖަޖުންނަށް ލޫޕް ހިންގުން
+        for (let j = 1; j <= 5; j++) {
+            let jKey = `Judge_${j}`;
+            let jTotalCalculated = 0;
+
+            // ކޮންމެ ކެޓަގަރީއެއްގެ މާކުސް ނެގުން
+            rubricNames.forEach(name => {
+                let val = "";
+                // Detailed Scores އޮބްޖެކްޓް ތެރޭގައި މާކުސް އިންތޯ ބެލުން
+                if (s.detailedScores && s.detailedScores[jKey] && s.detailedScores[jKey][name] !== undefined) {
+                    val = s.detailedScores[jKey][name];
+                }
+                
+                row.push(val); // މާކުސް ކޮލަމަށް ލުން
+                
+                if(val !== "" && !isNaN(val)) {
+                    jTotalCalculated += parseFloat(val);
+                }
+            });
+
+            // ޖަޖުގެ ޖުމްލަ
+            let displayTotal = jTotalCalculated > 0 ? jTotalCalculated.toFixed(2) : (s.scores && s.scores[jKey] ? s.scores[jKey] : "");
+            row.push(displayTotal);
+
+            if(parseFloat(displayTotal) > 0) {
+                grandTotal += parseFloat(displayTotal);
+                activeJudges++;
+            }
+        }
+
+        // ފައިނަލް އެވްރެޖް
+        let finalAvg = s.finalScore || (activeJudges > 0 ? (grandTotal / activeJudges).toFixed(2) : "0.00");
+        row.push(finalAvg);
+        row.push(idx + 1); // ރޭންކް (ވަގުތީ)
+
+        csv += row.join(",") + "\n";
+    });
+
+    // 5. ފައިލް ޑައުންލޯޑް ކުރުން
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const fileName = `Rasfahi_Full_Rubric_Backup_${dateStr}.csv`;
+    
+    // Add BOM for Excel Dhivehi Support
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 </script>
 </body>
