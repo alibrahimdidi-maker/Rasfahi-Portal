@@ -13623,12 +13623,12 @@ function exportMasterResultSheet() {
     }
 }
 // =========================================================================
-// ★ ULTIMATE RAW EXPORT: 35 COLUMNS (5 JUDGES x 7 CRITERIA) ★
+// ★ RASFAHI FINAL FIX: DYNAMIC DHIVEHI RUBRIC EXPORT ★
 // =========================================================================
 
 function downloadRubricMatrix() {
     try {
-        // 1. GET DATA
+        // 1. DATA CHECK
         let data = [];
         if (typeof state !== 'undefined') {
             if (state.allStudents && state.allStudents.length > 0) data = state.allStudents;
@@ -13640,23 +13640,35 @@ function downloadRubricMatrix() {
             return;
         }
 
-        // 2. DEFINE RUBRIC (Your 7 Categories)
-        // Ensure these match your system settings exactly
-        const rubricParts = ["Thilawa", "Tajweed", "Makhraj", "Sifa", "Fasaha", "Talaffuz", "Maqamat"];
-        
-        // 3. BUILD CSV HEADER (The 35 Columns)
+        // 2. GET EXACT RUBRIC NAMES FROM SETTINGS (The Fix)
+        // This grabs "ތިލާވަތު (Thilawa)" exactly as it is in your code.
+        let rubricNames = [];
+        if (state.judging && state.judging.rubric) {
+            rubricNames = state.judging.rubric.map(r => r.name);
+        }
+
+        // Fallback if settings are empty
+        if (rubricNames.length === 0) {
+            rubricNames = ["Thilawa", "Tajweed", "Makhraj", "Sifa", "Fasaha", "Talaffuz", "Maqamat"];
+        }
+
+        // 3. BUILD CSV HEADER
+        // We use the exact names for the header columns
         let csv = "Serial,Reg No,Name,Institution Type,Gender,";
 
         // Loop J1 to J5
         for (let j = 1; j <= 5; j++) {
-            rubricParts.forEach(part => {
-                csv += `J${j}-${part},`; // Example: J1-Thilawa, J1-Tajweed...
+            rubricNames.forEach(name => {
+                // Remove Dhivehi for cleaner CSV Header if you want, or keep it.
+                // Here we keep it full to ensure matching, but you can clean it later in Excel.
+                let cleanHeader = name.replace(/,/g, ""); // Remove commas from header just in case
+                csv += `J${j}-${cleanHeader},`; 
             });
-            csv += `J${j}-TOTAL,`; // Judge Total
+            csv += `J${j}-TOTAL,`;
         }
         csv += "FINAL AVERAGE\n";
 
-        // 4. BUILD ROWS (Extracting Raw Marks)
+        // 4. BUILD ROWS (Extracting Marks using EXACT Keys)
         data.forEach((s, idx) => {
             let row = [];
             
@@ -13675,35 +13687,28 @@ function downloadRubricMatrix() {
             // --- LOOP THROUGH 5 JUDGES ---
             for (let j = 1; j <= 5; j++) {
                 let jKey = `Judge_${j}`; 
-                let judgeObj = (s.detailedScores && s.detailedScores[jKey]) ? s.detailedScores[jKey] : {};
                 let jTotalCalculated = 0;
 
-                // --- LOOP THROUGH 7 CRITERIA ---
-                rubricParts.forEach(part => {
-                    let rawMark = "";
+                // --- LOOP THROUGH RUBRIC NAMES ---
+                rubricNames.forEach(exactKey => {
+                    let mark = "";
 
-                    // ★ DIRECT CHECK: Is the mark there? ★
-                    if (judgeObj[part] !== undefined) {
-                        rawMark = judgeObj[part]; // Found exact match
-                    } 
-                    // Case-insensitive check (e.g. 'thilawa' vs 'Thilawa')
-                    else {
-                        let lowerKey = Object.keys(judgeObj).find(k => k.toLowerCase() === part.toLowerCase());
-                        if (lowerKey) {
-                            rawMark = judgeObj[lowerKey];
+                    // ★ THE MATCHING LOGIC ★
+                    if (s.detailedScores && s.detailedScores[jKey]) {
+                        // Check exact match (e.g. "ތިލާވަތު (Thilawa)")
+                        if (s.detailedScores[jKey][exactKey] !== undefined) {
+                            mark = s.detailedScores[jKey][exactKey];
                         }
                     }
 
-                    row.push(rawMark); // Add to CSV Column
+                    row.push(mark); // Add to CSV Column
 
-                    if (rawMark !== "" && !isNaN(rawMark)) {
-                        jTotalCalculated += parseFloat(rawMark);
+                    if (mark !== "" && !isNaN(mark)) {
+                        jTotalCalculated += parseFloat(mark);
                     }
                 });
 
                 // --- JUDGE TOTAL ---
-                // If we found rubric marks, use the calculated total. 
-                // If not, check if a manual total exists.
                 let finalJTotal = 0;
                 if (jTotalCalculated > 0) {
                     finalJTotal = jTotalCalculated;
@@ -13727,7 +13732,7 @@ function downloadRubricMatrix() {
         });
 
         // 5. DOWNLOAD FILE
-        const fileName = `Rasfahi_Raw_Matrix_35Cols_${new Date().toISOString().slice(0,10)}.csv`;
+        const fileName = `Rasfahi_Full_Rubric_Matrix_${new Date().toISOString().slice(0,10)}.csv`;
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
