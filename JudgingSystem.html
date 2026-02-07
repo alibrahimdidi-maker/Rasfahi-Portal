@@ -13623,12 +13623,12 @@ function exportMasterResultSheet() {
     }
 }
 // =========================================================================
-// ★ INTELLIGENT RUBRIC EXPORT (AUTO-DETECTS YOUR CRITERIA NAMES) ★
+// ★ ULTIMATE RAW EXPORT: 35 COLUMNS (5 JUDGES x 7 CRITERIA) ★
 // =========================================================================
 
 function downloadRubricMatrix() {
     try {
-        // 1. GET DATA SOURCE
+        // 1. GET DATA
         let data = [];
         if (typeof state !== 'undefined') {
             if (state.allStudents && state.allStudents.length > 0) data = state.allStudents;
@@ -13636,45 +13636,27 @@ function downloadRubricMatrix() {
         }
 
         if (data.length === 0) {
-            alert("⚠️ No student data found to export! Please load or generate data first.");
+            alert("⚠️ No Data Found! (ޑޭޓާއެއް ނެތް)");
             return;
         }
 
-        // 2. INTELLIGENT RUBRIC DETECTION
-        // Instead of hardcoding "Thilawa", we ask the system what the rubric is.
-        let activeRubric = [];
+        // 2. DEFINE RUBRIC (Your 7 Categories)
+        // Ensure these match your system settings exactly
+        const rubricParts = ["Thilawa", "Tajweed", "Makhraj", "Sifa", "Fasaha", "Talaffuz", "Maqamat"];
         
-        if (state.judging && state.judging.rubric && state.judging.rubric.length > 0) {
-            // Option A: Use the System's Current Rubric Settings
-            activeRubric = state.judging.rubric.map(r => r.name);
-        } else {
-            // Option B: Fallback (If settings are empty, try to guess from the first student's data)
-            let firstStudent = data[0];
-            if (firstStudent.detailedScores && firstStudent.detailedScores["Judge_1"]) {
-                activeRubric = Object.keys(firstStudent.detailedScores["Judge_1"]);
-            } else {
-                // Option C: Final Fallback
-                activeRubric = ["Thilawa", "Tajweed", "Makhraj", "Sifa", "Fasaha", "Talaffuz", "Maqamat"];
-            }
-        }
-
-        console.log("Detected Rubric for Export:", activeRubric); // For Debugging
-
-        // 3. CONSTRUCT CSV HEADER
+        // 3. BUILD CSV HEADER (The 35 Columns)
         let csv = "Serial,Reg No,Name,Institution Type,Gender,";
 
-        // Loop 5 Judges
+        // Loop J1 to J5
         for (let j = 1; j <= 5; j++) {
-            // Add columns based on YOUR system's rubric names
-            activeRubric.forEach(part => {
-                csv += `J${j}-${part},`; 
+            rubricParts.forEach(part => {
+                csv += `J${j}-${part},`; // Example: J1-Thilawa, J1-Tajweed...
             });
-            // Add Judge Total
-            csv += `J${j}-TOTAL,`;
+            csv += `J${j}-TOTAL,`; // Judge Total
         }
         csv += "FINAL AVERAGE\n";
 
-        // 4. CONSTRUCT DATA ROWS
+        // 4. BUILD ROWS (Extracting Raw Marks)
         data.forEach((s, idx) => {
             let row = [];
             
@@ -13690,61 +13672,62 @@ function downloadRubricMatrix() {
             let grandTotal = 0;
             let activeJudgesCount = 0;
 
-            // Loop 5 Judges
+            // --- LOOP THROUGH 5 JUDGES ---
             for (let j = 1; j <= 5; j++) {
-                let jKey = `Judge_${j}`;
+                let jKey = `Judge_${j}`; 
+                let judgeObj = (s.detailedScores && s.detailedScores[jKey]) ? s.detailedScores[jKey] : {};
                 let jTotalCalculated = 0;
 
-                // Loop through the DETECTED Rubric parts
-                activeRubric.forEach(part => {
-                    let mark = ""; 
-                    
-                    // ★ ROBUST SEARCH FOR MARKS ★
-                    // Sometimes marks are saved as 'thilawa' (lowercase) or 'Thilawa' (Capital)
-                    if (s.detailedScores && s.detailedScores[jKey]) {
-                        
-                        // Try Exact Match
-                        if (s.detailedScores[jKey][part] !== undefined) {
-                            mark = s.detailedScores[jKey][part];
-                        } 
-                        // Try Lowercase Match (if exact fails)
-                        else if (s.detailedScores[jKey][part.toLowerCase()] !== undefined) {
-                            mark = s.detailedScores[jKey][part.toLowerCase()];
+                // --- LOOP THROUGH 7 CRITERIA ---
+                rubricParts.forEach(part => {
+                    let rawMark = "";
+
+                    // ★ DIRECT CHECK: Is the mark there? ★
+                    if (judgeObj[part] !== undefined) {
+                        rawMark = judgeObj[part]; // Found exact match
+                    } 
+                    // Case-insensitive check (e.g. 'thilawa' vs 'Thilawa')
+                    else {
+                        let lowerKey = Object.keys(judgeObj).find(k => k.toLowerCase() === part.toLowerCase());
+                        if (lowerKey) {
+                            rawMark = judgeObj[lowerKey];
                         }
                     }
-                    
-                    row.push(mark); // Push to CSV
-                    if(mark !== "") jTotalCalculated += parseFloat(mark);
+
+                    row.push(rawMark); // Add to CSV Column
+
+                    if (rawMark !== "" && !isNaN(rawMark)) {
+                        jTotalCalculated += parseFloat(rawMark);
+                    }
                 });
 
-                // Add Judge Total (Use calculated if details exist, else use saved total)
-                let displayTotal = jTotalCalculated > 0 ? jTotalCalculated.toFixed(2) : (s.scores && s.scores[jKey] ? s.scores[jKey] : "0.00");
-                
-                row.push(displayTotal);
-                
-                if(parseFloat(displayTotal) > 0) {
-                    grandTotal += parseFloat(displayTotal);
+                // --- JUDGE TOTAL ---
+                // If we found rubric marks, use the calculated total. 
+                // If not, check if a manual total exists.
+                let finalJTotal = 0;
+                if (jTotalCalculated > 0) {
+                    finalJTotal = jTotalCalculated;
+                } else if (s.scores && s.scores[jKey]) {
+                    finalJTotal = parseFloat(s.scores[jKey]);
+                }
+
+                row.push(finalJTotal > 0 ? finalJTotal.toFixed(2) : "0.00");
+
+                if (finalJTotal > 0) {
+                    grandTotal += finalJTotal;
                     activeJudgesCount++;
                 }
             }
 
-            // Final Average
+            // --- FINAL AVERAGE ---
             let finalAvg = (activeJudgesCount > 0) ? (grandTotal / 5).toFixed(2) : "0.00";
             row.push(finalAvg);
 
             csv += row.join(",") + "\n";
         });
 
-        // 5. DIAGNOSTIC ALERT (Just once, to help you see if it worked)
-        if(data.length > 0) {
-             let sampleS = data[0];
-             let sampleJ = sampleS.detailedScores ? JSON.stringify(sampleS.detailedScores["Judge_1"]) : "No Details";
-             // alert(`Debug Info:\nSystem Rubric: ${activeRubric.join(", ")}\nFirst Student Data (J1): ${sampleJ}`);
-             // (Uncomment the line above if you still get empty sheets to see what's wrong)
-        }
-
-        // 6. DOWNLOAD
-        const fileName = `Rasfahi_Smart_Matrix_${new Date().toISOString().slice(0,10)}.csv`;
+        // 5. DOWNLOAD FILE
+        const fileName = `Rasfahi_Raw_Matrix_35Cols_${new Date().toISOString().slice(0,10)}.csv`;
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
@@ -13755,7 +13738,6 @@ function downloadRubricMatrix() {
 
     } catch (e) {
         alert("Export Error: " + e.message);
-        console.error(e);
     }
 }
 </script>
