@@ -13105,51 +13105,39 @@ function generateDetailedRankedCSV() {
     alert("✅ 2000 Students Generated!\n1. File Download Started.\n2. Data Loaded into System for Reports.");
 }
     // =========================================================================
-// ★ RASFAHI DYNAMIC DATA SUITE (AUTO-ALIGNS WITH MENU RUBRIC) ★
+// ★ RASFAHI ULTIMATE FIXED SUITE (ALIGNED COLUMNS V5) ★
 // =========================================================================
 
-// --- HELPER: GET CURRENT RUBRIC ---
-function getActiveRubric() {
-    // ޕެނަލް 7 ގައި ސެޓްކޮށްފައިވާ ރުބްރިކް ނަގާނީ މިތަނުން
-    if (state.judging.rubric && state.judging.rubric.length > 0) {
-        return state.judging.rubric;
-    }
-    // އެއްވެސް އެއްޗެއް ސެޓްނުކުރާނަމަ ޑިފޯލްޓް
-    return [
-        { name: "Thilawa", max: 30 }, { name: "Tajweed", max: 20 }, 
-        { name: "Makhraj", max: 20 }, { name: "Sifa", max: 10 }, 
-        { name: "Fasaha", max: 10 }, { name: "Talaffuz", max: 5 }, { name: "Maqamat", max: 5 }
-    ];
-}
-
-// --- 1. BLANK TEMPLATE GENERATOR (Dynamic) ---
+// --- 1. BLANK TEMPLATE GENERATOR (CORRECTED ORDER) ---
 function downloadMasterCSVTemplate() {
-    const criteria = getActiveRubric(); // ★ Get from Settings
+    const criteria = getActiveRubric(); 
 
-    let csv = "Serial No,Reg No,Age Group,Branch,Institution,Inst Type,Full Name,Gender,Address,ID Card,Contact,Parent Name,Parent Phone,Email,";
+    // ★ FIXED COLUMN ORDER: Name comes BEFORE School/Rubric
+    let csv = "Serial No,Reg No,Full Name,ID Card,Gender,Age Group,Branch,Address,Institution,Inst Type,Contact,Parent Name,Parent Phone,Email,";
 
-    // 5 Judges Dynamic Columns
+    // Dynamic Rubric Columns (Average)
+    criteria.forEach(c => { csv += `${c.name} (AVG),`; });
+
+    // 5 Judges Total Columns
     for (let j = 1; j <= 5; j++) {
-        criteria.forEach(c => { csv += `J${j}-${c.name} (${c.max}),`; });
-        csv += `J${j}-TOTAL,`;
+        csv += `Judge ${j} Total,`;
     }
 
     csv += "GRAND TOTAL,FINAL AVERAGE,RANK,REMARKS\n";
 
-    // Placeholder Row
+    // Placeholder Row (Must match header order exactly)
     let row = [];
-    row.push("1", "REG-0000", "Under 6", "Balaiygen", "School Name", "School", "Student Name", "Male", "Island", "AXXXXXX", "Phone", "Parent", "Phone", "Email");
+    row.push("1", "REG-001", "Student Name", "AXXXXXX", "Male", "Under 6", "Balaiygen", "Male'", "Arabiyya School", "School", "7770000", "Parent Name", "7770000", "email@test.com");
     
-    // Fill Blanks based on Rubric Size
-    for (let j = 1; j <= 5; j++) {
-        criteria.forEach(() => row.push(""));
-        row.push(""); // Total
-    }
-    row.push("","","","");
+    // Fill Scores with blanks
+    criteria.forEach(() => row.push("")); // Avg placeholders
+    for (let j = 1; j <= 5; j++) row.push(""); // Judge totals
+    
+    row.push("","","",""); // Final stats
 
     csv += row.join(",") + "\n";
 
-    const fileName = `Rasfahi_Dynamic_Template.csv`;
+    const fileName = `Rasfahi_Master_Template_FIXED.csv`;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -13159,30 +13147,26 @@ function downloadMasterCSVTemplate() {
     document.body.removeChild(link);
 }
 
-// --- 2. DUMMY DATA GENERATOR (Dynamic Scoring) ---
+// --- 2. DUMMY DATA GENERATOR (ALIGNED) ---
 function generateDummyMasterSheet() {
     state.allStudents = []; 
     state.judging.savedResults = []; 
+    const criteriaList = getActiveRubric(); 
 
-    const criteriaList = getActiveRubric(); // ★ Use Active Rubric
-
-    // Build Headers Dynamically
-    let csvContent = "Serial No,Reg No,Age Group,Branch,Institution,Inst Type,Full Name,Gender,Address,ID Card,";
+    // ★ FIXED HEADERS
+    let csvContent = "Serial No,Reg No,Full Name,ID Card,Gender,Age Group,Branch,Address,Institution,Inst Type,Contact,Parent Name,Parent Phone,Email,";
     
-    // Create Judge Columns based on Active Rubric
-    for(let j=1; j<=5; j++) {
-        criteriaList.forEach(c => csvContent += `J${j}-${c.name},`);
-        csvContent += `J${j}-TOTAL,`;
-    }
+    // Detailed Headers
+    criteriaList.forEach(c => csvContent += `${c.name} (AVG),`);
+    for(let j=1; j<=5; j++) csvContent += `Judge ${j} Total,`;
     csvContent += "GRAND TOTAL,FINAL AVERAGE,RANK,REMARKS\n";
 
     const names = ["Ahmed", "Ali", "Hassan", "Ibrahim", "Fathimath", "Aishath", "Mariyam", "Zainab"];
-    const groups = ["Under 6", "Under 9", "Under 11", "Under 13", "Under 16", "Under 19", "General"];
+    const groups = ["Under 6", "Under 9", "Under 11", "Under 13", "Under 16", "General"];
     const branches = ["Balaiygen", "Nubalai"];
-    
     const instMap = [
         { name: "Arabiyya School", type: "School" }, { name: "Majeedhiyya", type: "School" },
-        { name: "Villa College", type: "University" }, { name: "Fathura Class", type: "Quran Class" },
+        { name: "Villa College", type: "University" }, { name: "Quran Class", type: "Class" },
         { name: "Private Candidate", type: "Private" }
     ];
 
@@ -13192,21 +13176,21 @@ function generateDummyMasterSheet() {
         
         let studentObj = {
             serial: i, reg: `REG-${1000 + i}`,
-            group: groups[i % groups.length],
-            branch: branches[i % branches.length],
-            institution: instData.name,
-            instType: instData.type,
-            name: `${name} ${i}`,
-            gender: (i % 2 === 0) ? "Female" : "Male",
-            addr: "Male'", id: `A000${i}`,
+            name: `${name} ${i}`, id: `A000${i}`, gender: (i%2==0)?"Female":"Male",
+            group: groups[i % groups.length], branch: branches[i % branches.length],
+            address: "Male'",
+            institution: instData.name, instType: instData.type,
+            contact: "7770000", parent: "Parent", pPhone: "7770000", email: "test@mail.com",
+            
             scores: {}, detailedScores: {}, finalScore: 0
         };
 
         let ability = Math.random() * (0.98 - 0.50) + 0.50; 
         let grandTotal = 0;
-        let csvScoreString = ""; 
+        let catSums = {}; 
+        criteriaList.forEach(c => catSums[c.name] = 0);
 
-        // Generate Scores based on Active Rubric Max Marks
+        // Generate Scores
         for (let j = 1; j <= 5; j++) {
             let jKey = `Judge_${j}`;
             let judgeTotal = 0;
@@ -13214,20 +13198,18 @@ function generateDummyMasterSheet() {
             studentObj.detailedScores[jKey] = {};
 
             criteriaList.forEach(c => {
-                // Generate score proportional to Max marks
                 let mark = c.max * (ability + variance);
                 mark = Math.max(0, Math.min(c.max, mark));
                 mark = parseFloat(mark.toFixed(2));
                 
                 studentObj.detailedScores[jKey][c.name] = mark;
-                csvScoreString += `${mark},`; // Add to CSV
+                catSums[c.name] += mark; 
                 judgeTotal += mark;
             });
 
             judgeTotal = parseFloat(judgeTotal.toFixed(2));
             studentObj.scores[jKey] = judgeTotal;
             grandTotal += judgeTotal;
-            csvScoreString += `${judgeTotal},`; // Add Total to CSV
         }
 
         studentObj.finalScore = parseFloat((grandTotal / 5).toFixed(2));
@@ -13235,11 +13217,24 @@ function generateDummyMasterSheet() {
         state.allStudents.push(studentObj);
         state.judging.savedResults.push(studentObj);
 
-        // Build Row
-        let rowStart = `${i},"${studentObj.reg}","${studentObj.group}","${studentObj.branch}","${studentObj.institution}","${studentObj.instType}","${studentObj.name}","${studentObj.gender}","${studentObj.addr}","${studentObj.id}",`;
-        let rowEnd = `${grandTotal.toFixed(2)},${studentObj.finalScore},"",""`;
+        // --- BUILD ROW (STRICT ORDER) ---
+        let row = [];
+        // 1. Personal Info (14 Cols)
+        row.push(i, `"${studentObj.reg}"`, `"${studentObj.name}"`, `"${studentObj.id}"`, `"${studentObj.gender}"`, `"${studentObj.group}"`, `"${studentObj.branch}"`, `"${studentObj.address}"`, `"${studentObj.institution}"`, `"${studentObj.instType}"`, `"${studentObj.contact}"`, `"${studentObj.parent}"`, `"${studentObj.pPhone}"`, `"${studentObj.email}"`);
         
-        csvContent += rowStart + csvScoreString + rowEnd + "\n";
+        // 2. Criteria Averages
+        criteriaList.forEach(c => {
+            let avg = (catSums[c.name] / 5).toFixed(2);
+            row.push(avg);
+        });
+
+        // 3. Judge Totals
+        for(let j=1; j<=5; j++) row.push(studentObj.scores[`Judge_${j}`]);
+
+        // 4. Final Stats
+        row.push(grandTotal.toFixed(2), studentObj.finalScore, "", ""); 
+
+        csvContent += row.join(",") + "\n";
     }
 
     saveToLocal();
@@ -13248,41 +13243,38 @@ function generateDummyMasterSheet() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `Rasfahi_Dynamic_Dummy.csv`;
+    link.download = `Rasfahi_Dummy_Aligned.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    alert("✅ Generated 2000 Students aligned with your Rubric Settings!");
+    alert("✅ 2000 Students Generated (Columns Aligned)!");
 }
 
-// --- 3. EXPORT FULL MASTER (Aligned with Settings) ---
+// --- 3. EXPORT FULL MASTER (ALIGNED) ---
 function exportMasterResultSheet() {
-    let sourceData = (state.allStudents && state.allStudents.length > 0) ? [...state.allStudents] : [...state.judging.savedResults];
+    let sourceData = [];
+    if (state.allStudents && state.allStudents.length > 0) sourceData = [...state.allStudents];
+    else if (state.judging.savedResults && state.judging.savedResults.length > 0) sourceData = [...state.judging.savedResults];
+
     if (sourceData.length === 0) { alert("No data to export!"); return; }
 
-    const criteriaList = getActiveRubric(); // ★ Matches System Settings
-
-    // Build Headers
-    let csv = "Serial No,Reg No,Age Group,Branch,Institution,Inst Type,Full Name,Gender,Address,ID Card,";
+    const criteriaList = getActiveRubric();
     
-    // Average Columns
+    // ★ FIXED HEADERS
+    let csv = "Serial No,Reg No,Full Name,ID Card,Gender,Age Group,Branch,Address,Institution,Inst Type,Contact,Parent Name,Parent Phone,Email,";
+    
     criteriaList.forEach(c => csv += `${c.name} (AVG),`);
-    
-    // Judge Breakdown Columns (Requested Details)
-    for(let j=1; j<=5; j++) {
-        criteriaList.forEach(c => csv += `J${j}-${c.name},`);
-        csv += `J${j}-TOTAL,`;
-    }
-
+    for(let j=1; j<=5; j++) csv += `Judge ${j} Total,`;
     csv += "GRAND TOTAL,FINAL AVERAGE,RANK,REMARKS\n";
 
     sourceData.sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
 
     sourceData.forEach((s, idx) => {
         let row = [];
-        row.push(idx + 1, `"${s.reg||''}"`, `"${s.group||''}"`, `"${s.branch||''}"`, `"${s.institution||s.inst||''}"`, `"${s.instType||''}"`, `"${s.name||''}"`, `"${s.gender||''}"`, `"${s.address||''}"`, `"${s.id||''}"`);
+        // 1. Personal Info (14 Cols) - Must match Header Order
+        row.push(idx + 1, `"${s.reg||''}"`, `"${s.name||''}"`, `"${s.id||''}"`, `"${s.gender||''}"`, `"${s.group||''}"`, `"${s.branch||''}"`, `"${s.address||''}"`, `"${s.institution||s.inst||''}"`, `"${s.instType||''}"`, `"${s.phone||''}"`, `"${s.parent||''}"`, `"${s.parentPhone||''}"`, `"${s.email||''}"`);
 
-        // 1. Criteria Averages
+        // 2. Criteria Averages
         criteriaList.forEach(c => {
             let sum = 0; let count = 0;
             if (s.detailedScores) {
@@ -13296,30 +13288,12 @@ function exportMasterResultSheet() {
             row.push(avg);
         });
 
-        // 2. Full Judge Breakdown (Details + Total)
+        // 3. Judge Totals
         let grandTotal = 0; let activeJudges = 0;
-        
         for(let j=1; j<=5; j++) {
-            let jKey = `Judge_${j}`;
-            let jTotal = 0;
-
-            // Individual Criteria Marks for this Judge
-            criteriaList.forEach(c => {
-                let mark = "";
-                if(s.detailedScores && s.detailedScores[jKey] && s.detailedScores[jKey][c.name] !== undefined) {
-                    mark = s.detailedScores[jKey][c.name];
-                    jTotal += parseFloat(mark);
-                }
-                row.push(mark);
-            });
-
-            // Judge Total
-            let savedTotal = (s.scores && s.scores[jKey]) ? parseFloat(s.scores[jKey]) : 0;
-            if(jTotal === 0 && savedTotal > 0) jTotal = savedTotal; // Fallback to simple total if details missing
-
-            row.push(jTotal > 0 ? jTotal.toFixed(2) : "");
-            
-            if(jTotal > 0) { grandTotal += jTotal; activeJudges++; }
+            let val = (s.scores && s.scores[`Judge_${j}`]) ? s.scores[`Judge_${j}`] : "0";
+            row.push(val);
+            if(parseFloat(val) > 0) { grandTotal += parseFloat(val); activeJudges++; }
         }
 
         let finalAvg = s.finalScore || (activeJudges > 0 ? (grandTotal/activeJudges).toFixed(2) : 0);
@@ -13330,17 +13304,81 @@ function exportMasterResultSheet() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `Rasfahi_Full_Report_Detailed.csv`;
+    link.download = `Rasfahi_Full_Report_Aligned.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-// --- 4. MANUAL SHEET (Dynamic Alignment) ---
-function downloadDetailedManualSheet() {
-    const criteria = getActiveRubric(); // ★ Use Settings
+// --- 4. BATCH LOADER (UPDATED INDEX MAPPING) ---
+function loadStudentBatch() {
+    const file = document.getElementById('batchCsv').files[0];
+    if(!file) { alert("Please select the CSV file first!"); return; }
+    
+    const r = new FileReader();
+    r.onload = e => {
+        const rows = e.target.result.split('\n');
+        state.allStudents = []; state.judging.savedResults = []; 
+        let loadedCount = 0; let withScoresCount = 0;
 
-    let csv = "Serial No,Reg No,Age Group,Branch,Institution,Inst Type,Full Name,Gender,Address,ID Card,Contact,Parent Name,Parent Phone,Email,";
+        for(let i=1; i<rows.length; i++) {
+            let rowRaw = rows[i].trim();
+            if(!rowRaw) continue;
+            const cols = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+            if(!cols || cols.length < 14) continue; // Minimum required columns
+
+            const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
+            
+            // ★ CORRECTED MAPPING TO MATCH NEW ORDER ★
+            // Order: Serial(0), Reg(1), Name(2), ID(3), Gender(4), Group(5), Branch(6), Addr(7), Inst(8), Type(9), Cont(10), Par(11), PPh(12), Mail(13)
+            const sObj = {
+                serial: clean[0], 
+                reg: clean[1], 
+                name: clean[2], // Name is now Index 2
+                id: clean[3], 
+                gender: clean[4],
+                group: clean[5], 
+                branch: clean[6], 
+                address: clean[7],
+                institution: clean[8], 
+                instType: clean[9],
+                phone: clean[10], 
+                parent: clean[11], 
+                parentPhone: clean[12], 
+                email: clean[13],
+                timestamp: new Date().toISOString()
+            };
+
+            state.allStudents.push(sObj);
+
+            // Check for scores (Columns start after Index 13)
+            if(clean.length > 20) { 
+                let finalAvgIndex = clean.length - 3; 
+                let finalScoreVal = parseFloat(clean[finalAvgIndex]);
+                
+                if(!isNaN(finalScoreVal)) {
+                    let resultObj = { ...sObj, finalScore: finalScoreVal };
+                    state.judging.savedResults.push(resultObj);
+                    withScoresCount++;
+                }
+            }
+            loadedCount++;
+        }
+        
+        populateStudentSelector();
+        saveToLocal();
+        alert(`✅ Loaded ${loadedCount} students (Aligned).\n📊 ${withScoresCount} records with scores.`);
+    };
+    r.readAsText(file);
+}
+
+// --- 5. A3 MANUAL SHEET (ALIGNED) ---
+function downloadDetailedManualSheet() {
+    const criteria = getActiveRubric(); 
+
+    let csv = "Serial No,Reg No,Full Name,ID Card,Gender,Age Group,Branch,Address,Institution,Inst Type,Contact,Parent Name,Parent Phone,Email,";
+    
+    // 5 Judges Detailed Columns
     for (let j = 1; j <= 5; j++) {
         criteria.forEach(c => { csv += `J${j}-${c.name} (${c.max}),`; });
         csv += `J${j}-TOTAL,`;
@@ -13352,33 +13390,21 @@ function downloadDetailedManualSheet() {
 
     students.forEach((s, index) => {
         let row = [];
-        row.push(index + 1, `"${s.reg || ''}"`, `"${s.group || ''}"`, `"${s.branch || ''}"`, `"${s.institution || s.inst || ''}"`, `"${s.instType || ''}"`, `"${s.name || ''}"`, `"${s.gender || ''}"`, `"${s.address || s.addr || ''}"`, `"${s.id || ''}"`, `"${s.phone || ''}"`, `"${s.parent || ''}"`, `"${s.parentPhone || ''}"`, `"${s.email || ''}"`);
+        // Info matching new order
+        row.push(index + 1, `"${s.reg || ''}"`, `"${s.name || ''}"`, `"${s.id || ''}"`, `"${s.gender || ''}"`, `"${s.group || ''}"`, `"${s.branch || ''}"`, `"${s.address || ''}"`, `"${s.institution || s.inst || ''}"`, `"${s.instType || ''}"`, `"${s.phone || ''}"`, `"${s.parent || ''}"`, `"${s.parentPhone || ''}"`, `"${s.email || ''}"`);
 
-        if (s.detailedScores) {
-             for(let j=1; j<=5; j++) {
-                 let jKey = `Judge_${j}`; let jTotal = 0;
-                 criteria.forEach(c => {
-                     let val = "";
-                     if(s.detailedScores[jKey] && s.detailedScores[jKey][c.name]) {
-                         val = s.detailedScores[jKey][c.name]; jTotal += parseFloat(val);
-                     }
-                     row.push(val);
-                 });
-                 row.push(s.scores[jKey] || jTotal || "");
-             }
-        } else {
-            for (let j = 1; j <= 5; j++) {
-                criteria.forEach(() => row.push("")); 
-                let jKey = `Judge_${j}`;
-                row.push(s.scores ? (s.scores[jKey] || "") : "");
-            }
+        // Blank Scores
+        for (let j = 1; j <= 5; j++) {
+            criteria.forEach(() => row.push("")); 
+            let jKey = `Judge_${j}`;
+            row.push(s.scores ? (s.scores[jKey] || "") : "");
         }
         let finalAvg = s.finalScore || "";
         row.push("", finalAvg, "", "");
         csv += row.join(",") + "\n";
     });
 
-    const fileName = `Rasfahi_A3_Manual_Dynamic.csv`;
+    const fileName = `Rasfahi_A3_Manual_Aligned.csv`;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -13386,137 +13412,6 @@ function downloadDetailedManualSheet() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-}
-
-// --- 5. BATCH LOADER (Standard) ---
-function loadStudentBatch() {
-    const file = document.getElementById('batchCsv').files[0];
-    if(!file) { alert("Please select the CSV file first!"); return; }
-    const r = new FileReader();
-    r.onload = e => {
-        const rows = e.target.result.split('\n');
-        state.allStudents = []; state.judging.savedResults = []; 
-        let loadedCount = 0; let withScoresCount = 0;
-        for(let i=1; i<rows.length; i++) {
-            let rowRaw = rows[i].trim();
-            if(!rowRaw) continue;
-            const cols = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-            if(!cols || cols.length < 13) continue;
-            const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
-            const sObj = {
-                serial: clean[0], reg: clean[1], group: clean[2], branch: clean[3],
-                institution: clean[4], instType: clean[5], name: clean[6], gender: clean[7], 
-                address: clean[8], id: clean[9], phone: clean[10], parent: clean[11], 
-                parentPhone: clean[12], email: clean[13], timestamp: new Date().toISOString()
-            };
-            state.allStudents.push(sObj);
-            if(clean.length > 20) { 
-                let finalAvgIndex = clean.length - 3; 
-                let finalScoreVal = parseFloat(clean[finalAvgIndex]);
-                if(!isNaN(finalScoreVal)) {
-                    let resultObj = { ...sObj, finalScore: finalScoreVal };
-                    state.judging.savedResults.push(resultObj);
-                    withScoresCount++;
-                }
-            }
-            loadedCount++;
-        }
-        populateStudentSelector();
-        saveToLocal();
-        alert(`✅ Loaded ${loadedCount} students.\n📊 ${withScoresCount} records with scores.`);
-    };
-    r.readAsText(file);
-}
-
-// --- 6. REPORT GENERATOR (PDF) ---
-function generateAdvancedReport(mode) {
-    // 1. Get filtered list
-    const fBranch = document.getElementById('rptFilterBranch').value;
-    const fGroup = document.getElementById('rptFilterGroup').value;
-    const fInst = document.getElementById('rptFilterInstType').value;
-    let source = (state.judging.savedResults.length > 0) ? state.judging.savedResults : state.allStudents;
-    let list = source.filter(r => {
-        let b = (fBranch === "All") ? true : (r.branch && r.branch.includes(fBranch));
-        let g = (fGroup === "All") ? true : (r.group === fGroup);
-        let i = true;
-        if(fInst !== "All") {
-            if(r.instType) i = (r.instType === fInst);
-            else {
-                let n = (r.institution || r.inst || "").toLowerCase();
-                if(fInst === "Private") i = (n.includes("private") || n.includes("amilla") || n === "");
-                else i = n.includes(fInst.toLowerCase());
-            }
-        }
-        return b && g && i;
-    }).sort((a, b) => b.finalScore - a.finalScore);
-
-    let titleSuffix = "(މުޅި ލިސްޓު)";
-    if(mode === 'top3') { list = list.slice(0, 3); titleSuffix = "(ގަދަ 3)"; }
-    if(mode === 'top5') { list = list.slice(0, 5); titleSuffix = "(ގަދަ 5)"; }
-
-    if(list.length === 0) { alert("މި ކެޓަގަރީގައި އެއްވެސް ދަރިވަރަކު ނެތެވެ!"); return; }
-
-    const instName = document.getElementById('rptInstName').value || "މުއައްސަސާގެ ނަން";
-    const compName = document.getElementById('rptCompName').value || "ނަތީޖާ ޝީޓް";
-    const judgeCount = parseInt(document.getElementById('rptJudgeCount').value) || 3;
-    const branchTxt = document.getElementById('rptFilterBranch').options[document.getElementById('rptFilterBranch').selectedIndex].text;
-    const groupTxt = document.getElementById('rptFilterGroup').options[document.getElementById('rptFilterGroup').selectedIndex].text;
-    const instTxt = document.getElementById('rptFilterInstType').options[document.getElementById('rptFilterInstType').selectedIndex].text;
-    const chiefName = document.getElementById('rptChief').value || "__________________";
-
-    let sigLines = '';
-    for(let i=1; i<=judgeCount; i++) sigLines += `<div class="sig-box"><div class="line"></div><div class="label">ފަނޑިޔާރު ${i}</div></div>`;
-
-    const customFontCSS = state.fontData ? `@font-face { font-family: 'Faruuma'; src: url('${state.fontData}'); }` : '';
-
-    const html = `
-    <!DOCTYPE html>
-    <html dir="rtl" lang="dv">
-    <head>
-        <title>Result Report</title>
-        <style>
-            ${customFontCSS}
-            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
-            body { font-family: 'Faruuma', 'Waheed', 'Noto Sans Thaana', sans-serif !important; padding: 40px; direction: rtl; }
-            .header { text-align: center; margin-bottom: 30px; border-bottom: 3px double #000; padding-bottom: 20px; }
-            h1 { margin: 5px 0; font-size: 26px; font-weight:bold; }
-            .report-info-box { border: 1px solid #000; padding: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; background: #f9f9f9; font-weight: bold; font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-            th, td { border: 1px solid #444; padding: 8px; text-align: center; vertical-align: middle; }
-            th { background: #eee; font-weight: bold; font-size: 15px; }
-            tr:nth-child(1) td { background: #fffbe6; font-weight:bold; } 
-            .footer { margin-top: 50px; }
-            .judges-grid { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
-            .sig-box { width: 30%; text-align: center; margin-bottom: 30px; }
-            .line { border-bottom: 1px dotted #000; margin-bottom: 5px; height: 40px; }
-            @media print { button { display: none; } body { -webkit-print-color-adjust: exact; } }
-        </style>
-    </head>
-    <body>
-        <button onclick="window.print()" style="position:fixed; top:10px; left:10px; padding:10px 20px; background:blue; color:white; cursor:pointer;">🖨️ PRINT</button>
-        <div class="header"><h1>${instName}</h1><h2>${compName}</h2><h3>ނަތީޖާ ޝީޓް ${titleSuffix}</h3></div>
-        <div class="report-info-box">
-            <div>ގޮފި: ${branchTxt}</div><div>ޢުމުރުފުރާ: ${groupTxt}</div><div>ބާވަތް: ${instTxt}</div><div>ތާރީޚް: ${new Date().toLocaleDateString()}</div>
-        </div>
-        <table>
-            <thead><tr><th width="5%">ވަނަ</th><th width="10%">ރެޖިސްޓްރީ</th><th width="25%">ދަރިވަރުގެ ނަން</th><th width="10%">އައި.ޑީ</th><th width="20%">މުއައްސަސާ</th><th width="5%">ބާވަތް</th><th width="10%">ޖުމްލަ މާކުސް</th><th width="15%">ރިމާކްސް</th></tr></thead>
-            <tbody>
-                ${list.map((s, i) => `<tr>
-                        <td>${i+1}</td><td>${s.reg || "-"}</td><td style="text-align:right; padding-right:10px;">${s.name}</td><td>${s.id}</td>
-                        <td style="text-align:right; font-size:11px;">${s.institution || s.inst || "-"}</td>
-                        <td style="font-size:11px;">${s.instType || "-"}</td>
-                        <td><b>${s.finalScore}</b></td><td></td>
-                    </tr>`).join('')}
-            </tbody>
-        </table>
-        <div class="footer">
-            <div style="text-align:left; margin-bottom:30px;">އިސް ފަނޑިޔާރު: ________________ ${chiefName}</div>
-            <div class="judges-grid">${sigLines}</div>
-        </div>
-    </body>
-    </html>`;
-    const w = window.open("", "Report", "width=1100,height=800");
-    w.document.write(html); w.document.close();
 }
 </script>
 </body>
