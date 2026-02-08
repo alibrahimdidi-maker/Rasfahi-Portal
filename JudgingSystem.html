@@ -1302,7 +1302,9 @@
         <div id="adminScoreMonitor" style="font-size:12px; color:#aaa; margin-top:5px;">Waiting for judges...</div>
         <button class="btn-green" id="btnFinalize" style="margin-top:5px;" onclick="finalizeStudentResult()">✅ Save Student Result</button>
     </div>
-
+<button class="btn-purple" style="width:100%; margin-top:5px; margin-bottom:10px; padding:12px; font-weight:bold; border:2px solid #d500f9; background: linear-gradient(to bottom, #4a148c, #000);" onclick="printBulkRubricMatrix()">
+        🖨️ ޕްރިންޓް ފުލް މެޓްރިކްސް (ALL JUDGES SHEET)
+    </button>
     <hr style="border-color:#333; margin:8px 0;">
 
     <label style="color:#FFD700;">1. Report Headers (ރިޕޯޓުގެ މަޢުލޫމާތު):</label>
@@ -13890,6 +13892,193 @@ function downloadRubricMatrix() {
         }
     }
 });
+    // --- BULK DETAILED MATRIX PRINT (ALL JUDGES & CRITERIA) ---
+function printBulkRubricMatrix() {
+    // 1. ޑޭޓާ ނެގުން
+    // މާސްޓަރ ލިސްޓް ނުވަތަ ސޭވްކޮށްފައިވާ ނަތީޖާ ލިސްޓް ނެގުން
+    let students = (state.allStudents && state.allStudents.length > 0) ? state.allStudents : state.judging.savedResults;
+
+    if (!students || students.length === 0) {
+        alert("މާކުސް ދީފައިވާ ދަރިވަރަކު ނެތެވެ. (No data found!)");
+        return;
+    }
+
+    // ރުބްރިކް (މާކުސްދޭ ބައިތައް) ނެގުން
+    const rubric = state.judging.rubric || [
+        {name:"Thilawa", max:30}, {name:"Tajweed", max:20}, 
+        {name:"Makhraj", max:20}, {name:"Sifa", max:10}, 
+        {name:"Fasaha", max:10}, {name:"Talaffuz", max:5}, {name:"Maqamat", max:5}
+    ];
+
+    // ހެޑަރ މަޢުލޫމާތު
+    const instName = document.getElementById('rptInstName').value || "ރަސްފަހި ޤުރްއާން މުބާރާތް";
+    const compName = document.getElementById('rptCompName').value || "މާކުސް ޝީޓް (ފުރިހަމަ ތަފްޞީލް)";
+
+    // 2. ޝީޓްތައް ތައްޔާރުކުރުން (HTML Loop)
+    let pagesHTML = "";
+
+    students.forEach((s, idx) => {
+        // Page Break Logic (ފަހު ޞަފްޙާ ނޫން ކޮންމެ ޞަފްޙާއެއްގެ ފަހަތަށް ޕޭޖް ބްރޭކް ލުން)
+        const breakStyle = (idx < students.length - 1) ? "page-break-after: always;" : "";
+
+        // ޓޭބަލްގެ ބޮޑުބައި (Body) ހެދުން
+        let tableRows = "";
+        let grandTotalSum = 0; // ދަރިވަރުގެ ޖުމްލަ
+
+        // ކޮންމެ ޖަޖެއްގެ ޖުމްލަ ބެލުމަށް
+        let judgeTotals = {1:0, 2:0, 3:0, 4:0, 5:0};
+
+        rubric.forEach(r => {
+            let rowCells = "";
+            let rowSum = 0; // މި ބައިގެ (މިސާލަކަށް ތިލާވަތުގެ) އެވްރެޖް ހޯދުމަށް
+            let activeJ = 0;
+
+            // Loop Judges 1 to 5
+            for(let j=1; j<=5; j++) {
+                let jKey = `Judge_${j}`;
+                let score = "-";
+                
+                // ޑީޓެއިލްޑް ސްކޯ އިންނަނަމަ ނަގާ
+                if(s.detailedScores && s.detailedScores[jKey] && s.detailedScores[jKey][r.name] !== undefined) {
+                    score = s.detailedScores[jKey][r.name];
+                    judgeTotals[j] += parseFloat(score); // ޖަޖުގެ ޖުމްލައަށް އިތުރުކުރޭ
+                    rowSum += parseFloat(score);
+                    activeJ++;
+                }
+                
+                rowCells += `<td>${score}</td>`;
+            }
+
+            // Calculate Average for this Row (Criteria)
+            let avg = activeJ > 0 ? (rowSum / activeJ).toFixed(2) : "-";
+
+            tableRows += `
+            <tr>
+                <td style="text-align:right; font-weight:bold;">${r.name} <span style="font-size:10px; color:#777;">(${r.max})</span></td>
+                ${rowCells}
+                <td style="background:#f0f0f0; font-weight:bold;">${avg}</td>
+            </tr>`;
+        });
+
+        // ޖުމްލަ މާކުސް ރޯ (Total Row)
+        let totalRowCells = "";
+        let finalSum = 0;
+        let finalCount = 0;
+
+        for(let j=1; j<=5; j++) {
+            let val = judgeTotals[j];
+            let display = val > 0 ? val.toFixed(2) : "-";
+            totalRowCells += `<td style="font-weight:bold; color:#000;">${display}</td>`;
+            
+            if(val > 0) { finalSum += val; finalCount++; }
+        }
+
+        let finalAvg = s.finalScore || (finalCount > 0 ? (finalSum / finalCount).toFixed(2) : "0.00");
+
+        // Generate Single Sheet HTML
+        pagesHTML += `
+        <div class="sheet-page" style="${breakStyle}">
+            <div class="sheet-header">
+                <h1>${instName}</h1>
+                <h2>${compName}</h2>
+                <div style="margin-top:10px; border:1px solid #000; padding:10px; display:flex; justify-content:space-between; font-weight:bold; font-size:14px;">
+                    <span>ނަން: ${s.name}</span>
+                    <span>އައިޑީ: ${s.id}</span>
+                    <span>ގޮފި: ${s.branch} (${s.group})</span>
+                </div>
+            </div>
+
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th width="25%">ބައިތައް (Criteria)</th>
+                        <th width="12%">Judge 1</th>
+                        <th width="12%">Judge 2</th>
+                        <th width="12%">Judge 3</th>
+                        <th width="12%">Judge 4</th>
+                        <th width="12%">Judge 5</th>
+                        <th width="15%">Average</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                    <tr style="background:#ddd;">
+                        <td style="text-align:right; font-weight:bold;">TOTAL</td>
+                        ${totalRowCells}
+                        <td style="font-size:18px; font-weight:bold; border:2px solid #000;">${finalAvg}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="footer-section">
+                <div class="sig-box">_________________<br>އިދާރީ މޭޒު</div>
+                <div class="sig-box">_________________<br>އިސް ފަނޑިޔާރު</div>
+            </div>
+            
+            <div style="text-align:center; font-size:10px; margin-top:20px; color:#aaa;">
+                System Generated Detailed Report - Serial: ${s.serial || idx+1}
+            </div>
+        </div>
+        `;
+    });
+
+    // 3. ވިންޑޯ ހުޅުވުން (Full HTML)
+    const fullHTML = `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <title>Full Mark Sheets</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&display=swap');
+            @font-face { font-family: 'Faruuma'; src: local('Faruuma'), url('https://fonts.googleapis.com/earlyaccess/notosansthaana.css'); }
+            
+            body { 
+                font-family: 'Faruuma', 'Noto Sans Thaana', sans-serif; 
+                margin: 0; padding: 20px; background: #ccc; direction: rtl;
+            }
+            
+            .sheet-page {
+                background: white; width: 210mm; min-height: 297mm; 
+                padding: 40px; margin: 0 auto 20px auto; 
+                box-sizing: border-box; position: relative;
+            }
+
+            h1, h2 { text-align: center; margin: 5px 0; }
+            h1 { font-size: 24px; text-decoration: underline; }
+            h2 { font-size: 18px; color: #444; }
+
+            .matrix-table { 
+                width: 100%; border-collapse: collapse; margin-top: 30px; font-size: 13px; 
+            }
+            .matrix-table th { background: #333; color: #fff; padding: 8px; border: 1px solid #000; }
+            .matrix-table td { border: 1px solid #000; padding: 8px; text-align: center; }
+
+            .footer-section {
+                margin-top: 50px; display: flex; justify-content: space-around;
+            }
+            .sig-box { text-align: center; font-size: 12px; }
+
+            @media print {
+                body { background: none; padding: 0; }
+                .sheet-page { margin: 0; width: 100%; height: 100%; box-shadow: none; }
+                button { display: none; }
+            }
+        </style>
+    </head>
+    <body>
+        <button onclick="window.print()" style="position:fixed; top:0; left:0; width:100%; padding:15px; background:navy; color:white; font-size:20px; font-weight:bold; cursor:pointer; z-index:999;">
+            🖨️ CLICK TO PRINT / SAVE AS PDF
+        </button>
+        <br><br>
+        ${pagesHTML}
+    </body>
+    </html>
+    `;
+
+    const w = window.open("", "BulkMatrix", "width=1200,height=900");
+    w.document.write(fullHTML);
+    w.document.close();
+}
 </script>
 </body>
 </html>
