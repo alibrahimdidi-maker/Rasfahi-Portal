@@ -14428,6 +14428,88 @@ function saveSecretaryScore() {
         }, 1500);
     }
 }
+    // --- FIXED SAVE FUNCTION (SAVES DETAILED BREAKDOWN) ---
+function saveSecretaryScore() {
+    // 1. ދަރިވަރަކު ނެތްނަމަ ހުއްޓުވުން
+    if(!state.judging.currentStudentObj) {
+        alert("Please select a student first! (ދަރިވަރަކު އިޚްތިޔާރުކުރައްވާ)");
+        return;
+    }
+
+    const judgeID = document.getElementById('secJudgeSelect').value; // e.g. "Judge_1"
+    const currentID = state.judging.currentStudentObj.id;
+    
+    // 2. ކާޑުތަކުން ވަކިވަކި މާކުސްތައް ނެގުން (CRITICAL STEP)
+    let totalScore = 0;
+    let detailsObj = {}; // މި ތަނަށް އެޅޭނީ: { "Thilawa": 29, "Tajweed": 19... }
+
+    if(state.judging.rubric && typeof secScores !== 'undefined') {
+        state.judging.rubric.forEach((r, idx) => {
+            // ކޮންމެ ބައެއްގެ މާކުސް ވަކިން ހިސާބުކުރުން (Max - Deducted)
+            const val = secScores[idx].max - secScores[idx].deducted;
+            
+            // ޑީޓެއިލްސް އޮބްޖެކްޓަށް ނަން (e.g. "Thilawa") އާއެކު ލުން
+            detailsObj[r.name] = parseFloat(val.toFixed(2));
+            
+            totalScore += val;
+        });
+    } else {
+        totalScore = 0;
+    }
+    
+    totalScore = parseFloat(totalScore.toFixed(2));
+
+    // 3. ލައިވް މެމަރީ (Live Judge View) އަޕްޑޭޓްކުރުން
+    if (!state.judging.liveScores) state.judging.liveScores = {};
+    state.judging.liveScores[judgeID] = totalScore;
+
+    // 4. ★ މާސްޓަރ ލިސްޓަށް ތަފްޞީލު ސޭވްކުރުން (THE FIX) ★
+    // މިބައި އިތުރުކުރުމުން ރިޕޯޓްތަކުގެ ކޮލަމްތަކަށް ޑޭޓާ އަރާނެއެވެ.
+    
+    const sIdx = state.allStudents.findIndex(s => s.id === currentID);
+
+    if (sIdx > -1) {
+        // A. ޖުމްލަ މާކުސް ސޭވްކުރުން
+        if (!state.allStudents[sIdx].scores) state.allStudents[sIdx].scores = {};
+        state.allStudents[sIdx].scores[judgeID] = totalScore;
+
+        // B. ★ ވަކިވަކި ބައިތަކުގެ މާކުސް ސޭވްކުރުން ★
+        if (!state.allStudents[sIdx].detailedScores) state.allStudents[sIdx].detailedScores = {};
+        state.allStudents[sIdx].detailedScores[judgeID] = detailsObj; 
+
+        // C. ފައިނަލް އެވްރެޖް ވަގުތުން އަޕްޑޭޓް ކުރުން
+        let sum = 0; let count = 0;
+        for (let j in state.allStudents[sIdx].scores) {
+            let v = state.allStudents[sIdx].scores[j];
+            if(v > 0) { sum += v; count++; }
+        }
+        state.allStudents[sIdx].finalScore = count > 0 ? parseFloat((sum / count).toFixed(2)) : 0;
+    }
+
+    // 5. ސޭވްކޮށް ރިފްރެޝް ކުރުން
+    saveToLocal(); 
+    
+    // ތިރީގައި އިންނަ ޓޭބަލް ރިފްރެޝް ކުރުން
+    if(typeof renderMasterTable === 'function') {
+        renderMasterTable(); 
+    }
+
+    // 6. ވިޝުއަލް ފީޑްބެކް (ބަޓަންއަށް)
+    // (ބަޓަންގެ ނަމާއި އައިޑީ ޗެކްކޮށްލައްވާ، މިތާ މި އިނީ އާންމުކޮށް އިންނަ ނަން)
+    const saveBtn = document.querySelector('#secretaryPanel .btn-green') || document.getElementById('btnSaveNext');
+    if(saveBtn) {
+        const oldTxt = saveBtn.innerText;
+        saveBtn.innerText = `✅ SAVED! (${totalScore})`;
+        saveBtn.style.background = "#fff";
+        saveBtn.style.color = "#000";
+        
+        setTimeout(() => {
+            saveBtn.innerText = oldTxt;
+            saveBtn.style.background = ""; 
+            saveBtn.style.color = "";
+        }, 1500);
+    }
+}
 </script>
 </body>
 </html>
