@@ -14074,6 +14074,252 @@ function openExtraScreen() {
                 </div>
             </div>
         </div>
+        // --- 4. OPEN SCREEN (FIXED: GRID VISIBLE + NO EXIT ON CLICK) ---
+function openExtraScreen() {
+    if(state.extra.window) state.extra.window.close();
+    
+    const fontCSS = `
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cinzel:wght@700&display=swap');
+        @font-face { font-family: 'Faruuma'; src: local('Faruuma'), url('https://fonts.googleapis.com/earlyaccess/notosansthaana.css'); } 
+    `;
+    
+    const html = `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <title>Student Screen</title>
+        <style>
+            ${fontCSS}
+            body { 
+                margin: 0; overflow: hidden; background: #000;
+                font-family: 'Amiri', serif;
+                display: flex; height: 100vh; width: 100vw;
+                cursor: pointer;
+            }
+
+            /* --- MAIN BORDER CONTAINER (THIN GOLD) --- */
+            #royalWrapper {
+                width: 100vw; height: 100vh;
+                background: #002200; /* Dark Green Base */
+                border: 3px solid #FFD700; /* THIN GOLD BORDER */
+                box-sizing: border-box;
+                display: flex; align-items: center; justify-content: center;
+                position: relative;
+            }
+            
+            /* DECORATIVE INNER LINE */
+            #innerLine {
+                position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
+                border: 1px solid rgba(255,255,255,0.5); /* Thin White Line */
+                pointer-events: none; z-index: 0;
+            }
+
+            /* --- 1. GRID SCREEN --- */
+            #gridContainer {
+                width: 90%; height: 80%;
+                display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; 
+                z-index: 2; align-content: center;
+            }
+            .grid-box {
+                background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(0,0,0,0.5));
+                border: 2px solid #FFD700; border-radius: 10px;
+                display: flex; justify-content: center; align-items: center;
+                font-size: 5vw; color: #FFD700; cursor: pointer;
+                font-family: 'Cinzel', serif; font-weight: bold;
+                box-shadow: 0 0 25px rgba(0,0,0,0.5); transition: 0.3s;
+            }
+            .grid-box:hover { transform: scale(1.1); background: #FFD700; color: #000; }
+            .grid-box.taken { opacity: 0; transform: scale(0); pointer-events: none; }
+
+            /* --- 2. READING SCREEN --- */
+            #readContainer { width: 100%; height: 100%; display: none; flex-direction: row; z-index: 2; }
+            
+            #sideBar {
+                width: 25%; height: 100%; background: rgba(0,0,0,0.8); 
+                border-left: 2px solid #FFD700; padding: 20px; display: flex; flex-direction: column; gap: 15px;
+            }
+            #sbHeader { color: #FFD700; font-family: 'Faruuma', sans-serif; font-size: 1.5vw; text-align: center; border-bottom: 1px dashed #aaa; padding-bottom: 10px; }
+            .q-card { border: 1px solid #555; padding: 15px; border-radius: 5px; background: rgba(0,0,0,0.5); color: #ccc; }
+            .q-card.active { border-color: #FFD700; background: rgba(255,215,0,0.1); color: #fff; }
+
+            #mainContent { flex: 1; display: flex; justify-content: center; align-items: center; position:relative; }
+            
+            #topBanner {
+                position: absolute; top: 0; left: 0; width: 100%;
+                height: 80px; background: linear-gradient(90deg, #000, #1a1a1a, #000);
+                border-bottom: 2px solid #FFD700;
+                display: flex; justify-content: space-around; align-items: center;
+                color: #FFD700; font-family: 'Cinzel', serif;
+                direction: ltr; opacity: 0; transition: 0.5s;
+            }
+            .b-item { text-align: center; }
+            .b-label { font-size: 10px; color: #888; text-transform:uppercase; }
+            .b-val { font-size: 20px; font-weight: bold; }
+
+            /* ROYAL BOX (Uses Theme CSS) */
+            #royalBox {
+                padding: 30px; display: flex; justify-content: center; align-items: center;
+                overflow: hidden; transition: all 0.3s;
+                position: relative;
+            }
+            
+            #displayText {
+                width: 100%; height: 100%; overflow-y: auto;
+                text-align: center; font-weight: bold;
+                line-height: 2.2; direction: rtl;
+                white-space: pre-wrap; 
+                display: flex; align-items: center; justify-content: center;
+                transition: font-size 0.3s, color 0.3s, transform 0.3s;
+            }
+            #displayText::-webkit-scrollbar { width: 8px; }
+            #displayText::-webkit-scrollbar-thumb { background: #FFD700; border-radius: 4px; }
+            #displayText.scroll-active { display: block; } 
+
+            .hifz-badge { font-family: 'Faruuma', sans-serif; font-size: 4vw; color: #FFD700; text-align:center; margin:auto; }
+
+        </style>
+    </head>
+    <body>
+        <div id="royalWrapper">
+            <div id="innerLine"></div>
+            <div id="gridContainer"></div>
+            <div id="readContainer">
+                <div id="sideBar"><div id="sbHeader"></div><div id="sideList"></div></div>
+                <div id="mainContent">
+                    <div id="topBanner">
+                        <div class="b-item"><div class="b-label">Surah</div><div class="b-val" id="dSurah">-</div></div>
+                        <div class="b-item"><div class="b-label">Ayah</div><div class="b-val" id="dAyah">-</div></div>
+                        <div class="b-item"><div class="b-label">Juz</div><div class="b-val" id="dJuz">-</div></div>
+                    </div>
+                    <div id="royalBox"><div id="displayText"></div></div>
+                </div>
+            </div>
+        </div>
+        <script>
+            // ★ FULLSCREEN FIX: ENTER ONLY (Never Exit on Click) ★
+            document.addEventListener('click', function() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(e => console.log(e));
+                }
+            });
+
+            // Init call to parent
+            if(window.opener) window.opener.initExtra(window);
+
+            function renderGrid(taken) {
+                const gc = document.getElementById('gridContainer'); 
+                if(!gc) return;
+                gc.innerHTML = '';
+                for(let i=1; i<=20; i++) {
+                    let b = document.createElement('div');
+                    b.className = 'grid-box ' + (taken.includes(i) ? 'taken' : '');
+                    b.innerText = i;
+                    b.onclick = () => { if(window.opener) window.opener.extraGridClick(i); };
+                    gc.appendChild(b);
+                }
+            }
+
+            function updateView(d) {
+                const gridDiv = document.getElementById('gridContainer');
+                const readDiv = document.getElementById('readContainer');
+                const box = document.getElementById('royalBox');
+                const txt = document.getElementById('displayText');
+                const banner = document.getElementById('topBanner');
+                const sbHeader = document.getElementById('sbHeader');
+                const sideList = document.getElementById('sideList');
+                
+                // --- 1. APPLY ADJUSTMENTS ---
+                if(box) {
+                    box.style.width = d.settings.boxW + '%';
+                    box.style.height = d.settings.boxH + '%';
+                }
+                
+                if(txt) {
+                    txt.style.color = d.settings.textColor;
+                    txt.style.fontSize = d.settings.zoom + 'vw';
+                    txt.style.transform = \`translate(\${d.settings.textX}px, \${d.settings.textY}px)\`;
+                }
+
+                if(sbHeader) {
+                    sbHeader.innerText = (d.settings.mode === 'hifz') ? 
+                    "ނުބަލައި ކިޔެވުމަށް އިޚްތިޔާރުކުރި ސުވާލުތައް" : 
+                    "ބަލައިގެން ކިޔެވުމަށް އިޚްތިޔާރުކުރި ސުވާލުތައް";
+                }
+
+                // --- 2. PHASE LOGIC ---
+                if (d.phase === 'grid') {
+                    if(gridDiv) gridDiv.style.display = 'grid'; 
+                    if(readDiv) readDiv.style.display = 'none';
+                    renderGrid(d.taken);
+                } else {
+                    if(gridDiv) gridDiv.style.display = 'none'; 
+                    if(readDiv) readDiv.style.display = 'flex';
+                    
+                    if(sideList) {
+                        sideList.innerHTML = '';
+                        d.selection.forEach((q, i) => {
+                            let div = document.createElement('div');
+                            div.className = 'q-card ' + (i===d.currentIdx ? 'active' : '');
+                            div.innerHTML = \`<div style="font-family:'Cinzel',serif; font-size:12px; color:#FFD700">Question \${i+1}</div>
+                                               <div style="font-size:16px;">\${q.surah}</div>
+                                               <div style="font-size:12px; color:#aaa">Ayah: \${q.start}</div>\`;
+                            sideList.appendChild(div);
+                        });
+                    }
+
+                    // APPLY THEME CSS
+                    if(d.themeData && box) {
+                        const cw = box.style.width; const ch = box.style.height;
+                        box.style.cssText = d.themeData.box;
+                        box.style.width = cw; box.style.height = ch;
+                    }
+
+                    if(d.phase === 'ready') {
+                        if(txt) {
+                            txt.className = 'hifz-badge'; txt.innerText = "ފަނޑިޔާރުން ފަށަންދެން މަޑުކުރައްވާ";
+                            txt.style.transform = 'none'; txt.style.color = '#FFD700';
+                        }
+                        if(box) {
+                            box.style.border = 'none'; box.style.background = 'transparent'; box.style.boxShadow = 'none';
+                        }
+                        if(banner) banner.style.opacity = '0';
+                    } else if(d.phase === 'reading') {
+                        const cur = d.selection[d.currentIdx];
+                        if(cur) {
+                            if(banner) {
+                                banner.style.opacity = '1';
+                                document.getElementById('dSurah').innerText = cur.surah;
+                                document.getElementById('dAyah').innerText = cur.start + '-' + cur.end;
+                                document.getElementById('dJuz').innerText = cur.juz;
+                            }
+
+                            if(d.settings.mode === 'hifz') {
+                                txt.className = 'hifz-badge'; 
+                                txt.innerHTML = "ނުބަލައި ކިޔެވުމުގެ ގޮފި<br><span style='font-size:20px;'>(Reciting from Memory)</span>";
+                                txt.style.transform = 'none'; txt.style.color = '#FFD700';
+                            } else {
+                                txt.className = '';
+                                txt.innerText = cur.text;
+                                txt.style.color = d.settings.textColor;
+                                
+                                // Scroll Check
+                                if(txt.scrollHeight > txt.clientHeight) txt.classList.add('scroll-active');
+                                else txt.classList.remove('scroll-active');
+                            }
+                        }
+                    }
+                }
+            }
+        <\/script>
+    </body>
+    </html>`;
+    
+    state.extra.window = window.open("", "Extra", "width=1280,height=720");
+    state.extra.window.document.write(html);
+    state.extra.window.document.close();
+    
+    setTimeout(syncExtraScreen, 500);
+}
 </script>
 </body>
 </html>
