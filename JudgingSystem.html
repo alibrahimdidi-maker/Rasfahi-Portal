@@ -13929,17 +13929,137 @@ document.addEventListener('click', function() {
     // ނޯޓް: ފުލް ސްކްރީން ވެފައި ހުއްޓަސް، މި ކޯޑުން އޭގެން ނުނިކުންނާނެއެވެ.
     // ނުކުންނަވާނީ ކީބޯޑުން Esc ފިއްތަވައިގެންނެވެ.
 });
-    // --- FULLSCREEN LOCK SCRIPT (ONE WAY ONLY) ---
-document.addEventListener('click', function() {
-    // ޗެކް ކުރަނީ މިހާރު ފުލްސްކްރީން ވެފައިތޯ ނުވަތަ ނޫންތޯ
-    if (!document.fullscreenElement) {
-        // ފުލްސްކްރީން ނޫންނަމަ، ފުލްސްކްރީން އަށް ބަދަލުކުރޭ
-        document.documentElement.requestFullscreen().catch(err => {
-            console.log("Error attempting to enable full-screen mode: " + err.message);
-        });
-    }
-    // އެލްސް (else) ބައި ނުލުމުން، ދެވަނަ ފަހަރަށް ކްލިކް ކުރިޔަސް ނުނިކުމެވޭނެއެވެ.
-});
+<script>
+            // --- FULLSCREEN LOCK SCRIPT (PERMANENT) ---
+            
+            // 1. ސްކްރީން ހުޅުވޭއިރު އޮޓޯއިން ސިންކް ކުރުން
+            window.opener.initExtra(window);
+
+            // 2. ކްލިކް އިވެންޓް - ހަމައެކަނި ވަނުމަށް (ނުކުތުން ބަންދު)
+            document.addEventListener('click', function(e) {
+                // ކްލިކްގެ އަސްލު ބޭނުން ހުއްޓުވުން (Safety)
+                // e.preventDefault(); 
+
+                // ފުލް ސްކްރީން ނޫންނަމަ، ވަދޭ
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.log("Fullscreen Error: " + err.message);
+                    });
+                }
+                // މިތަނުގައި else { exit... } ނެތުމުން، ދެވަނަ ފަހަރަށް ކްލިކް ކޮށްގެން ނުނިކުމެވޭނެ
+            });
+
+            // --- GRID RENDER LOGIC ---
+            function renderGrid(taken) {
+                const gc = document.getElementById('gridContainer');
+                if(!gc) return;
+                gc.innerHTML = '';
+                for(let i=1; i<=20; i++) {
+                    let b = document.createElement('div');
+                    b.className = 'grid-box ' + (taken.includes(i) ? 'taken' : '');
+                    b.innerText = i;
+                    // ގްރިޑަށް ފިއްތިޔަސް ފުލްސްކްރީން އަށް ބުރޫ ނާރާނެހެން ހެދުން
+                    b.onclick = (e) => { 
+                        e.stopPropagation(); // ސްކްރީން ކްލިކް އިވެންޓް ހުއްޓުވުން
+                        if(window.opener) window.opener.extraGridClick(i); 
+                        
+                        // ގްރިޑަށް ފިއްތާއިރު ފުލްސްކްރީން ނޫންނަމަ، ފުލްސްކްރީން ކޮށްލާ (Optional Safety)
+                        if (!document.fullscreenElement) {
+                            document.documentElement.requestFullscreen().catch(()=>{});
+                        }
+                    };
+                    gc.appendChild(b);
+                }
+            }
+
+            // --- VIEW UPDATER ---
+            function updateView(d) {
+                const gridDiv = document.getElementById('gridContainer');
+                const readDiv = document.getElementById('readContainer');
+                const box = document.getElementById('royalBox');
+                const txt = document.getElementById('displayText');
+                const sbHeader = document.getElementById('sbHeader');
+                const sideList = document.getElementById('sideList');
+                const banner = document.getElementById('topBanner');
+
+                // Apply Settings
+                if(box) {
+                    box.style.width = d.settings.boxW + '%';
+                    box.style.height = d.settings.boxH + '%';
+                }
+                if(txt) {
+                    txt.style.color = d.settings.textColor;
+                    txt.style.fontSize = d.settings.zoom + 'vw';
+                    txt.style.transform = `translate(${d.settings.textX}px, ${d.settings.textY}px)`;
+                }
+                
+                if(sbHeader) {
+                    sbHeader.innerText = (d.settings.mode === 'hifz') ? 
+                    "ނުބަލައި ކިޔެވުން (Hifz)" : "ބަލައިގެން ކިޔެވުން (Tilawa)";
+                }
+
+                // Phase Logic
+                if (d.phase === 'grid') {
+                    if(gridDiv) gridDiv.style.display = 'grid'; 
+                    if(readDiv) readDiv.style.display = 'none';
+                    renderGrid(d.taken);
+                } else {
+                    if(gridDiv) gridDiv.style.display = 'none'; 
+                    if(readDiv) readDiv.style.display = 'flex';
+                    
+                    // Sidebar List
+                    if(sideList) {
+                        sideList.innerHTML = '';
+                        d.selection.forEach((q, i) => {
+                            let div = document.createElement('div');
+                            div.className = 'q-card ' + (i===d.currentIdx ? 'active' : '');
+                            div.innerHTML = `<div class="q-title">Q ${i+1}</div><div style="font-size:16px;">${q.surah}</div>`;
+                            sideList.appendChild(div);
+                        });
+                    }
+
+                    // Apply Theme
+                    if(d.themeData && box) {
+                        const cw = box.style.width; const ch = box.style.height;
+                        box.style.cssText = d.themeData.box;
+                        box.style.width = cw; box.style.height = ch;
+                    }
+
+                    // Ready vs Reading
+                    if(d.phase === 'ready') {
+                        if(txt) {
+                            txt.className = 'hifz-badge'; 
+                            txt.innerText = "ފަނޑިޔާރުން ފަށަންދެން މަޑުކުރައްވާ";
+                            txt.style.transform = 'none'; txt.style.color = '#FFD700';
+                        }
+                        if(box) { box.style.border = 'none'; box.style.background = 'transparent'; box.style.boxShadow = 'none'; }
+                        if(banner) banner.style.opacity = '0';
+                    } else if(d.phase === 'reading') {
+                        const cur = d.selection[d.currentIdx];
+                        if(banner) {
+                            banner.style.opacity = '1';
+                            document.getElementById('dSurah').innerText = cur.surah;
+                            document.getElementById('dAyah').innerText = cur.start + '-' + cur.end;
+                            document.getElementById('dJuz').innerText = cur.juz;
+                        }
+
+                        if(txt) {
+                            if(d.settings.mode === 'hifz') {
+                                txt.className = 'hifz-badge'; 
+                                txt.innerHTML = "ނުބަލައި ކިޔެވުމުގެ ގޮފި<br><span style='font-size:20px;'>(Reciting from Memory)</span>";
+                                txt.style.transform = 'none'; txt.style.color = '#FFD700';
+                            } else {
+                                txt.className = '';
+                                txt.innerText = cur.text;
+                                txt.style.color = d.settings.textColor;
+                                // Scroll Check
+                                if(txt.scrollHeight > txt.clientHeight) txt.classList.add('scroll-active');
+                                else txt.classList.remove('scroll-active');
+                            }
+                        }
+                    }
+                }
+            }
 </script>
 </body>
 </html>
