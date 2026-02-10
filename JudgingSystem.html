@@ -15498,44 +15498,65 @@ function renderMasterTable() {
         tbody.appendChild(row);
     });
 }
-    // --- FIXED 5-JUDGE MATRIX SYSTEM (STRICT EMPTY MODE) ---
+   // ========================================================
+// ★ COMPLETE FIXED MATRIX SYSTEM (PRINT + JUDGE 1 FIX) ★
+// ========================================================
 
-// 1. Open Modal & RESET Judge 1 Defaults
+// 1. OPEN MATRIX (With Print Button & Student Info)
 function openMatrixInput() {
     if(!state.judging.currentStudentObj) {
-        alert("Please select a student first!"); return;
+        alert("Please select a student first! (ދަރިވަރަކު އިޚްތިޔާރުކުރައްވާ)"); return;
     }
+
     const s = state.judging.currentStudentObj;
-
-    // Reset Modal
     const modalID = 'matrixModal';
-    let modal = document.getElementById(modalID);
-    if(modal) modal.remove();
+    
+    // Remove old modal if exists
+    let oldModal = document.getElementById(modalID);
+    if(oldModal) oldModal.remove();
 
-    modal = document.createElement('div');
+    // Create New Modal
+    let modal = document.createElement('div');
     modal.id = modalID;
     modal.innerHTML = `
         <div class="matrix-container">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:10px;">
                 <h2 style="color:#FFD700; margin:0; font-family:'Faruuma';">🖐️ 5 ޖަޖުންގެ މާކުސް (Matrix Entry)</h2>
-                <button class="btn-red" onclick="closeMatrixInput()">✖ CLOSE</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-blue" onclick="printMatrixCurrentStudent()">🖨️ PRINT SHEET</button>
+                    <button class="btn-red" onclick="closeMatrixInput()">✖ CLOSE</button>
+                </div>
             </div>
 
             <div style="background:#001a00; border:1px solid #00e676; padding:10px; border-radius:6px; margin-bottom:15px; display:grid; grid-template-columns: 2fr 1fr 1fr; gap:10px; font-size:13px; color:#fff;">
-                <div><strong style="font-size:16px; color:#FFD700;">${s.name}</strong><br><span style="color:#00e676;">${s.reg}</span> | ${s.id}</div>
-                <div><strong>${s.branch}</strong> - ${s.group}<br>${s.institution || s.inst || 'Private'}</div>
-                <div>${s.address || '-'}</div>
+                <div>
+                    <div style="color:#aaa; font-size:11px;">Name & Reg:</div>
+                    <strong style="font-size:18px; color:#FFD700;">${s.name}</strong> <br>
+                    <span style="color:#00e676;">${s.reg || '-'}</span> | ${s.id || '-'}
+                </div>
+                <div>
+                    <div style="color:#aaa; font-size:11px;">Category:</div>
+                    <strong>${s.branch}</strong> - ${s.group} <br>
+                    ${s.institution || s.inst || 'Private'}
+                </div>
+                <div>
+                    <div style="color:#aaa; font-size:11px;">Judge Status:</div>
+                    <span id="judgeStatusText" style="color:#ccc;">Waiting to save...</span>
+                </div>
             </div>
 
             <div id="matrixGridArea"></div>
 
-            <div style="margin-top:10px; text-align:right;">
-                <span id="saveStatus" style="color:#00e676; margin-right:10px; font-weight:bold; display:none;">✅ Saved!</span>
-                <button class="btn-green" style="padding:15px 40px; font-size:16px;" onclick="saveMatrixScores()">💾 SAVE ALL SCORES</button>
+            <div style="margin-top:15px; text-align:right; border-top:1px solid #333; padding-top:10px;">
+                <span id="saveStatus" style="color:#00e676; margin-right:15px; font-weight:bold; display:none; font-size:18px;">✅ ALL SAVED!</span>
+                <button class="btn-green" style="padding:15px 50px; font-size:18px; font-weight:bold;" onclick="saveMatrixScores()">
+                    💾 SAVE ALL & UPDATE
+                </button>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
+
     renderMatrixTable();
     document.getElementById(modalID).style.display = 'flex';
 }
@@ -15545,7 +15566,7 @@ function closeMatrixInput() {
     if(m) m.style.display = 'none';
 }
 
-// 2. Render Table (ENSURE INPUTS ARE EMPTY)
+// 2. RENDER TABLE (Clean Inputs - No 100 Bug)
 function renderMatrixTable() {
     const rubric = state.judging.rubric;
     const area = document.getElementById('matrixGridArea');
@@ -15554,7 +15575,7 @@ function renderMatrixTable() {
     let html = `<table class="matrix-table" style="width:100%; border-collapse:collapse; color:#fff;">
         <thead>
             <tr>
-                <th style="width:250px; text-align:left; background:#222; color:#FFD700; padding:10px; border:1px solid #444;">Criteria</th>`;
+                <th style="width:250px; text-align:left; background:#222; color:#FFD700; padding:10px; border:1px solid #444;">Criteria (ބައިތައް)</th>`;
     
     for(let j=1; j<=5; j++) html += `<th style="background:#111; border:1px solid #444; color:#aaa;">Judge ${j}</th>`;
     html += `</tr></thead><tbody>`;
@@ -15569,7 +15590,7 @@ function renderMatrixTable() {
             let jKey = `Judge_${j}`;
             let val = ""; 
 
-            // Only fill if EXACT data exists (No Auto-Fill)
+            // Only fill if data actually exists in memory
             if (s.detailedScores && s.detailedScores[jKey] && s.detailedScores[jKey][r.name] !== undefined) {
                 val = s.detailedScores[jKey][r.name];
             }
@@ -15587,14 +15608,14 @@ function renderMatrixTable() {
         html += `</tr>`;
     });
 
-    // Total Row (Calculate from saved data or show 0)
+    // TOTAL ROW
     html += `<tr style="background:#1a1a1a; height:50px;">
-                <td style="text-align:right; font-weight:bold; padding-right:10px;">TOTAL:</td>`;
+                <td style="text-align:right; font-weight:bold; padding-right:10px; color:#fff;">TOTAL:</td>`;
     
     for(let j=1; j<=5; j++) {
-        let displayTotal = (s.scores && s.scores[`Judge_${j}`]) ? s.scores[`Judge_${j}`] : "0.00";
+        let preTotal = (s.scores && s.scores[`Judge_${j}`]) ? s.scores[`Judge_${j}`] : "0.00";
         html += `<td style="text-align:center; font-weight:bold; color:#FFD700; font-size:20px; border:1px solid #444;">
-                    <span id="mTotal_${j}">${displayTotal}</span>
+                    <span id="mTotal_${j}">${preTotal}</span>
                  </td>`;
     }
     html += `</tr></tbody></table>`;
@@ -15602,7 +15623,7 @@ function renderMatrixTable() {
     area.innerHTML = html;
 }
 
-// 3. Calculation (Strict Logic)
+// 3. CALCULATION (Real-time)
 window.calcMatrixTotal = function(jNum) {
     const inputs = document.querySelectorAll(`.matrix-input.j-col-${jNum}`);
     let sum = 0;
@@ -15610,21 +15631,21 @@ window.calcMatrixTotal = function(jNum) {
         let v = parseFloat(inp.value);
         let max = parseFloat(inp.dataset.max);
         
-        if (isNaN(v)) { v = 0; } // Treat empty as 0
-        else if (v > max) { v = max; inp.value = max; inp.style.backgroundColor = "#330000"; }
-        else { inp.style.backgroundColor = "#000"; }
-        
+        if (isNaN(v)) { v = 0; } // Empty = 0
+        else {
+            if(v > max) { v = max; inp.value = max; inp.style.backgroundColor = "#330000"; }
+            else { inp.style.backgroundColor = "#000"; }
+        }
         sum += v;
     });
     document.getElementById(`mTotal_${jNum}`).innerText = sum.toFixed(2);
 }
 
-// 4. Save Logic (Fixes the Master Sheet 100 bug)
+// 4. SAVE LOGIC (Fixes Judge 1 Bug)
 window.saveMatrixScores = function() {
     const sIdx = state.allStudents.findIndex(s => s.id === state.judging.currentStudentObj.id);
-    if(sIdx === -1) return;
+    if(sIdx === -1) { alert("Student not found!"); return; }
 
-    // Initialize objects
     if(!state.allStudents[sIdx].scores) state.allStudents[sIdx].scores = {};
     if(!state.allStudents[sIdx].detailedScores) state.allStudents[sIdx].detailedScores = {};
 
@@ -15639,10 +15660,11 @@ window.saveMatrixScores = function() {
         const inputs = document.querySelectorAll(`.matrix-input.j-col-${j}`);
         inputs.forEach(inp => {
             let v = parseFloat(inp.value);
-            if(!isNaN(v)) {
+            if(!isNaN(v)) { // If it's a number (even 0), we count it
                 jTotal += v;
                 details[inp.dataset.criteria] = v;
-                hasData = true; // Flag that this judge entered marks
+                // Check if the input is not just an empty string
+                if(inp.value.trim() !== "") hasData = true;
             }
         });
 
@@ -15653,30 +15675,122 @@ window.saveMatrixScores = function() {
             state.allStudents[sIdx].scores[jKey] = jTotal;
             state.allStudents[sIdx].detailedScores[jKey] = details;
             
-            // Sync with live memory
+            // Sync Live Memory
             state.judging.liveScores[jKey] = jTotal;
             
             grandTotal += jTotal;
             activeJudges++;
         } else {
-            // ★ IMPORTANT FIX: If no data, set to 0 (Overwrites any old 100)
+            // ★ FORCE RESET TO 0 if empty (Fixes 100 bug) ★
             state.allStudents[sIdx].scores[jKey] = 0;
             state.allStudents[sIdx].detailedScores[jKey] = {};
-            // Also clear live memory for this judge
-            if(state.judging.liveScores[jKey]) delete state.judging.liveScores[jKey];
+            if(state.judging.liveScores[jKey]) state.judging.liveScores[jKey] = 0;
         }
     }
 
-    // Final Calc
+    // Calc Final Avg
     let finalAvg = activeJudges > 0 ? (grandTotal / activeJudges).toFixed(2) : 0;
     state.allStudents[sIdx].finalScore = parseFloat(finalAvg);
 
+    // Save & Refresh
     saveToLocal();
     if(typeof renderMasterTable === 'function') renderMasterTable();
 
+    // Feedback
     const status = document.getElementById('saveStatus');
     status.style.display = 'inline';
-    setTimeout(() => { status.style.display = 'none'; }, 1500);
+    status.innerText = `✅ Saved! (Avg: ${finalAvg})`;
+    setTimeout(() => { status.style.display = 'none'; }, 2000);
+}
+
+// 5. PRINT SHEET FUNCTION (Restored)
+function printMatrixCurrentStudent() {
+    const s = state.judging.currentStudentObj;
+    if(!s) return;
+
+    const rubric = state.judging.rubric;
+    
+    // Build Rows from current INPUT values (what you see is what you print)
+    let tableRows = "";
+    rubric.forEach(r => {
+        tableRows += `<tr><td style="text-align:left; font-weight:bold;">${r.name} (${r.max})</td>`;
+        for(let j=1; j<=5; j++) {
+            const inp = document.querySelector(`.matrix-input.j-col-${j}[data-criteria="${r.name}"]`);
+            let val = inp ? inp.value : "";
+            tableRows += `<td>${val}</td>`;
+        }
+        tableRows += `</tr>`;
+    });
+
+    // Totals Row
+    let totalRow = `<tr style="background:#eee; font-weight:bold;"><td>TOTAL</td>`;
+    for(let j=1; j<=5; j++) {
+        let tot = document.getElementById(`mTotal_${j}`).innerText;
+        totalRow += `<td>${tot}</td>`;
+    }
+    totalRow += `</tr>`;
+
+    const html = `
+    <html>
+    <head>
+        <title>Score Sheet - ${s.name}</title>
+        <style>
+            body { font-family: sans-serif; padding: 20px; direction: rtl; }
+            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+            .info-box { border: 1px solid #000; padding: 15px; margin-bottom: 20px; display:flex; justify-content: space-between; font-weight:bold; font-size:14px; background:#f9f9f9; }
+            table { width: 100%; border-collapse: collapse; text-align: center; font-size: 14px; direction: ltr; }
+            th, td { border: 1px solid #000; padding: 10px; }
+            th { background: #ddd; }
+            @media print { button { display:none; } body { -webkit-print-color-adjust: exact; } }
+        </style>
+    </head>
+    <body>
+        <button onclick="window.print()" style="margin-bottom:10px; font-size:20px; padding:10px; width:100%; background:navy; color:white; cursor:pointer;">🖨️ Print Sheet</button>
+        
+        <div class="header">
+            <h2>${document.getElementById('rptInstName').value || "Quran Competition"}</h2>
+            <h3>Score Sheet</h3>
+        </div>
+
+        <div class="info-box">
+            <div>
+                ނަން: ${s.name} <br>
+                ރެޖިސްޓްރީ: ${s.reg || '-'}
+            </div>
+            <div>
+                ގޮފި: ${s.branch} <br>
+                ޢުމުރު: ${s.group}
+            </div>
+            <div>
+                އައިޑީ: ${s.id} <br>
+                މުއައްސަސާ: ${s.institution || '-'}
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:250px; text-align:left;">Criteria</th>
+                    <th>Judge 1</th><th>Judge 2</th><th>Judge 3</th><th>Judge 4</th><th>Judge 5</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tableRows}
+                ${totalRow}
+            </tbody>
+        </table>
+
+        <div style="margin-top:50px; display:flex; justify-content:space-between;">
+            <div style="text-align:center; width:200px; border-top:1px solid #000; padding-top:5px;">Admin Signature</div>
+            <div style="text-align:center; width:200px; border-top:1px solid #000; padding-top:5px;">Chief Judge</div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    const w = window.open("", "_blank", "width=900,height=800");
+    w.document.write(html);
+    w.document.close();
 }
 </script>
 </body>
