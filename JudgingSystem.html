@@ -15792,6 +15792,290 @@ function printMatrixCurrentStudent() {
     w.document.write(html);
     w.document.close();
 }
+    // ========================================================
+// ★ FINAL FIX: PRINT BUTTON + JUDGE 1 RESET ★
+// ========================================================
+
+// 1. MATRIX WINDOW (With Print Button & Header)
+function openMatrixInput() {
+    if(!state.judging.currentStudentObj) {
+        alert("Please select a student first!"); return;
+    }
+    const s = state.judging.currentStudentObj;
+    const modalID = 'matrixModal';
+    
+    let old = document.getElementById(modalID);
+    if(old) old.remove();
+
+    let modal = document.createElement('div');
+    modal.id = modalID;
+    modal.innerHTML = `
+        <div class="matrix-container">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:10px;">
+                <h2 style="color:#FFD700; margin:0; font-family:'Faruuma';">🖐️ 5 ޖަޖުންގެ މާކުސް (Matrix Entry)</h2>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-blue" onclick="printMatrixCurrentStudent()">🖨️ PRINT / PDF</button>
+                    <button class="btn-red" onclick="closeMatrixInput()">✖ CLOSE</button>
+                </div>
+            </div>
+
+            <div style="background:#001a00; border:1px solid #00e676; padding:10px; border-radius:6px; margin-bottom:15px; display:grid; grid-template-columns: 2fr 1fr 1fr; gap:10px; font-size:13px; color:#fff;">
+                <div>
+                    <div style="color:#aaa; font-size:11px;">Name:</div>
+                    <strong style="font-size:16px; color:#FFD700;">${s.name}</strong> (${s.reg})
+                </div>
+                <div>
+                    <div style="color:#aaa; font-size:11px;">Group/Branch:</div>
+                    ${s.branch} - ${s.group}
+                </div>
+                <div>
+                     <div style="color:#aaa; font-size:11px;">ID:</div>
+                     ${s.id}
+                </div>
+            </div>
+
+            <div id="matrixGridArea"></div>
+
+            <div style="margin-top:15px; text-align:right; border-top:1px solid #333; padding-top:10px;">
+                <span id="saveStatus" style="color:#00e676; margin-right:15px; font-weight:bold; display:none;">✅ SAVED!</span>
+                <button class="btn-green" style="padding:15px 50px; font-size:18px;" onclick="saveMatrixScores()">
+                    💾 SAVE & UPDATE MASTER
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    renderMatrixTable();
+    document.getElementById(modalID).style.display = 'flex';
+}
+
+function closeMatrixInput() {
+    const m = document.getElementById('matrixModal');
+    if(m) m.style.display = 'none';
+}
+
+// 2. RENDER TABLE (Clean Inputs)
+function renderMatrixTable() {
+    const rubric = state.judging.rubric;
+    const area = document.getElementById('matrixGridArea');
+    const s = state.judging.currentStudentObj;
+    
+    let html = `<table class="matrix-table" style="width:100%; border-collapse:collapse; color:#fff;">
+        <thead>
+            <tr>
+                <th style="width:250px; text-align:left; background:#222; color:#FFD700; padding:10px; border:1px solid #444;">Criteria</th>`;
+    
+    for(let j=1; j<=5; j++) html += `<th style="background:#111; border:1px solid #444; color:#aaa;">Judge ${j}</th>`;
+    html += `</tr></thead><tbody>`;
+
+    rubric.forEach((r, rIdx) => {
+        html += `<tr>
+            <td style="text-align:left; font-weight:bold; padding:8px; border:1px solid #333; color:#eee;">${r.name} (${r.max})</td>`;
+        
+        for(let j=1; j<=5; j++) {
+            let jKey = `Judge_${j}`;
+            let val = ""; 
+            // Only fill if data exists
+            if (s.detailedScores && s.detailedScores[jKey] && s.detailedScores[jKey][r.name] !== undefined) {
+                val = s.detailedScores[jKey][r.name];
+            }
+            html += `<td style="border:1px solid #333; padding:0;">
+                <input type="number" class="matrix-input j-col-${j}" 
+                       data-judge="${j}" data-criteria="${r.name}" data-max="${r.max}"
+                       step="0.5" min="0" max="${r.max}"
+                       value="${val}" placeholder="-"
+                       style="width:100%; height:45px; background:#000; border:none; color:#00e676; text-align:center; font-weight:bold; font-size:18px;"
+                       oninput="calcMatrixTotal(${j})">
+            </td>`;
+        }
+        html += `</tr>`;
+    });
+
+    // Total Row
+    html += `<tr style="background:#1a1a1a; height:50px;"><td style="text-align:right; font-weight:bold;">TOTAL:</td>`;
+    for(let j=1; j<=5; j++) {
+        let savedTot = (s.scores && s.scores[`Judge_${j}`]) ? s.scores[`Judge_${j}`] : "0.00";
+        // ★ BUG FIX: If showing 100 but details are empty, force display 0.00
+        if(parseFloat(savedTot) === 100 && (!s.detailedScores || !s.detailedScores[`Judge_${j}`])) savedTot = "0.00";
+        
+        html += `<td style="text-align:center; font-weight:bold; color:#FFD700; font-size:20px; border:1px solid #444;">
+                    <span id="mTotal_${j}">${savedTot}</span>
+                 </td>`;
+    }
+    html += `</tr></tbody></table>`;
+    area.innerHTML = html;
+}
+
+// 3. CALCULATION
+window.calcMatrixTotal = function(jNum) {
+    const inputs = document.querySelectorAll(`.matrix-input.j-col-${jNum}`);
+    let sum = 0;
+    inputs.forEach(inp => {
+        let v = parseFloat(inp.value);
+        let max = parseFloat(inp.dataset.max);
+        if (isNaN(v)) { v = 0; } 
+        else {
+            if(v > max) { v = max; inp.value = max; inp.style.backgroundColor = "#330000"; }
+            else { inp.style.backgroundColor = "#000"; }
+        }
+        sum += v;
+    });
+    document.getElementById(`mTotal_${jNum}`).innerText = sum.toFixed(2);
+}
+
+// 4. SAVE LOGIC (STRICT OVERWRITE - FIXES 100 BUG)
+window.saveMatrixScores = function() {
+    const sIdx = state.allStudents.findIndex(s => s.id === state.judging.currentStudentObj.id);
+    if(sIdx === -1) return;
+
+    if(!state.allStudents[sIdx].scores) state.allStudents[sIdx].scores = {};
+    if(!state.allStudents[sIdx].detailedScores) state.allStudents[sIdx].detailedScores = {};
+
+    let grandTotal = 0;
+    let activeJudges = 0;
+
+    for(let j=1; j<=5; j++) {
+        let jTotal = 0;
+        let hasData = false;
+        let details = {}; 
+
+        const inputs = document.querySelectorAll(`.matrix-input.j-col-${j}`);
+        inputs.forEach(inp => {
+            let v = parseFloat(inp.value);
+            // If field is not empty, we consider it entered
+            if(inp.value.trim() !== "") {
+                if(isNaN(v)) v = 0;
+                jTotal += v;
+                details[inp.dataset.criteria] = v;
+                hasData = true;
+            }
+        });
+
+        let jKey = `Judge_${j}`;
+        
+        if (hasData) {
+            jTotal = parseFloat(jTotal.toFixed(2));
+            state.allStudents[sIdx].scores[jKey] = jTotal;
+            state.allStudents[sIdx].detailedScores[jKey] = details;
+            state.judging.liveScores[jKey] = jTotal;
+            
+            grandTotal += jTotal;
+            activeJudges++;
+        } else {
+            // ★ CRITICAL FIX: If no data, FORCE 0 (This overwrites the 100) ★
+            state.allStudents[sIdx].scores[jKey] = 0;
+            state.allStudents[sIdx].detailedScores[jKey] = {};
+            if(state.judging.liveScores[jKey]) state.judging.liveScores[jKey] = 0;
+        }
+    }
+
+    let finalAvg = activeJudges > 0 ? (grandTotal / activeJudges).toFixed(2) : 0;
+    state.allStudents[sIdx].finalScore = parseFloat(finalAvg);
+
+    saveToLocal();
+    
+    // Update Main Admin Table
+    if(typeof renderMasterTable === 'function') renderMasterTable();
+
+    // Re-render internal matrix total row to show 0.00
+    renderMatrixTable(); 
+
+    const status = document.getElementById('saveStatus');
+    status.style.display = 'inline';
+    status.innerText = `✅ SAVED! (Avg: ${finalAvg})`;
+    setTimeout(() => { status.style.display = 'none'; }, 2000);
+}
+
+// 5. PRINT FUNCTION (RESTORED)
+function printMatrixCurrentStudent() {
+    const s = state.judging.currentStudentObj;
+    if(!s) return;
+
+    const rubric = state.judging.rubric;
+    let tableRows = "";
+    
+    rubric.forEach(r => {
+        tableRows += `<tr><td style="text-align:left; font-weight:bold;">${r.name} (${r.max})</td>`;
+        for(let j=1; j<=5; j++) {
+            const inp = document.querySelector(`.matrix-input.j-col-${j}[data-criteria="${r.name}"]`);
+            let val = inp ? inp.value : "";
+            tableRows += `<td>${val}</td>`;
+        }
+        tableRows += `</tr>`;
+    });
+
+    let totalRow = `<tr style="background:#eee; font-weight:bold;"><td>TOTAL</td>`;
+    for(let j=1; j<=5; j++) {
+        let tot = document.getElementById(`mTotal_${j}`).innerText;
+        totalRow += `<td>${tot}</td>`;
+    }
+    totalRow += `</tr>`;
+
+    const html = `
+    <html><head><title>Score Sheet</title>
+    <style>body{font-family:sans-serif;padding:20px;direction:rtl;}table{width:100%;border-collapse:collapse;text-align:center;direction:ltr;}th,td{border:1px solid #000;padding:8px;}@media print{button{display:none;}}</style>
+    </head><body>
+    <button onclick="window.print()" style="padding:10px 20px;font-size:20px;">🖨️ Print</button>
+    <h2 style="text-align:center;">Score Sheet: ${s.name}</h2>
+    <div style="margin-bottom:20px;"><strong>Reg:</strong> ${s.reg} | <strong>Branch:</strong> ${s.branch}</div>
+    <table><thead><tr><th style="text-align:left;">Criteria</th><th>J1</th><th>J2</th><th>J3</th><th>J4</th><th>J5</th></tr></thead>
+    <tbody>${tableRows}${totalRow}</tbody></table>
+    </body></html>`;
+
+    const w = window.open("", "_blank", "width=900,height=800");
+    w.document.write(html);
+    w.document.close();
+}
+
+// 6. MAIN ADMIN TABLE FIX (Ensures 100 doesn't show up in main list)
+function renderMasterTable() {
+    const fBranch = document.getElementById('filterBranch').value;
+    const fGroup = document.getElementById('filterGroup').value;
+    const tbody = document.getElementById('masterTableBody');
+    tbody.innerHTML = '';
+
+    let displayList = state.allStudents.filter(s => {
+        return (fBranch === "" || s.branch === fBranch) && (fGroup === "" || s.group === fGroup);
+    });
+    displayList.sort((a,b) => (b.finalScore || 0) - (a.finalScore || 0));
+    document.getElementById('tableCount').innerText = displayList.length;
+
+    displayList.forEach((s, idx) => {
+        let row = document.createElement('tr');
+        if(state.judging.currentStudentObj && s.id === state.judging.currentStudentObj.id) row.classList.add('selected-row');
+
+        // Helper to clean score (prevent 100 ghost)
+        const getScore = (key) => {
+            let val = (s.scores && s.scores[key] !== undefined) ? s.scores[key] : '-';
+            // ★ Safety Check: If 100 but no detailed marks, show 0 or -
+            if (val === 100 || val === "100") {
+                 if (!s.detailedScores || !s.detailedScores[key] || Object.keys(s.detailedScores[key]).length === 0) {
+                     return 0; 
+                 }
+            }
+            return val;
+        };
+
+        row.innerHTML = `
+            <td>${idx + 1}</td>
+            <td>${s.reg || ''}</td>
+            <td style="text-align:left; font-weight:bold;">${s.name}</td>
+            <td>${s.id}</td>
+            <td>${s.branch}</td>
+            <td>${s.group}</td>
+            <td style="text-align:left;">${s.institution || s.inst || ''}</td>
+            <td>${getScore('Judge_1')}</td>
+            <td>${getScore('Judge_2')}</td>
+            <td>${getScore('Judge_3')}</td>
+            <td>${getScore('Judge_4')}</td>
+            <td>${getScore('Judge_5')}</td>
+            <td style="font-weight:bold; color:#00e676;">${s.finalScore || '-'}</td>
+            <td style="color:#FFD700;">${(s.finalScore > 0) ? (idx + 1) : "-"}</td>
+        `;
+        row.onclick = () => selectStudentForGrading(s);
+        tbody.appendChild(row);
+    });
+}
 </script>
 </body>
 </html>
