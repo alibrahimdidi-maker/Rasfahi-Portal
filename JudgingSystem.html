@@ -14521,7 +14521,157 @@ function generateDetailedReportHTML(student) {
     
     return html;
 }
+// ======================================================
+// ★ UPDATED DATA TOOLS (MATCHING UPLOADED CSV FORMAT) ★
+// ======================================================
 
+// --- 1. BLANK TEMPLATE GENERATOR ---
+function downloadMasterCSVTemplate() {
+    try {
+        // Criteria List (Must match the columns in your CSV)
+        const criteriaList = ["Thilawa", "Tajweed", "Makhraj", "Sifa", "Fasaha", "Talaffuz", "Maqamat"];
+        
+        // 1. Build Headers
+        let csv = "Serial No,Reg No,Age Group,Branch,Institution Type,Full Name,Gender,Address,ID Card,Contact,Parent Name,Parent Phone,Email,";
+        
+        // 5 Judges Columns (Criteria + Total)
+        for (let j = 1; j <= 5; j++) {
+            criteriaList.forEach(c => { csv += `J${j}-${c},`; });
+            csv += `J${j}-TOTAL,`;
+        }
+        
+        // Final Summary Headers
+        csv += "GRAND TOTAL,FINAL AVERAGE,RANK,REMARKS\n";
+
+        // 2. Create Sample Row (Blank Scores)
+        let row = ["1", "REG-001", "Under 6", "Balaiygen", "School", "Student Name", "Male", "Male'", "AXXXXXX", "7770000", "Parent Name", "7770000", "email@test.com"];
+        
+        // Add Empty Cells for Scores
+        // (7 Criteria + 1 Total) * 5 Judges = 40 Empty Cells
+        for(let i=0; i < 40; i++) row.push(""); 
+        
+        // Final Summary Empty Cells
+        row.push("","","","");
+
+        csv += row.join(",") + "\n";
+
+        // 3. Download File
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+        link.download = `Rasfahi_Master_Template.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (e) { alert("Error generating template: " + e.message); }
+}
+
+// --- 2. DUMMY DATA GENERATOR (2000 STUDENTS - FULL DETAILS) ---
+function generateDetailedRankedCSV() {
+    // 1. Reset System Memory
+    state.allStudents = []; 
+    state.judging.savedResults = []; 
+
+    // 2. Criteria Configuration (Matching your Rubric)
+    const criteriaConfig = [
+        { name: "Thilawa", max: 30 },
+        { name: "Tajweed", max: 20 },
+        { name: "Makhraj", max: 20 },
+        { name: "Sifa", max: 10 },
+        { name: "Fasaha", max: 10 },
+        { name: "Talaffuz", max: 5 },
+        { name: "Maqamat", max: 5 }
+    ];
+
+    // 3. Prepare CSV Header
+    let csvContent = "Serial No,Reg No,Age Group,Branch,Institution Type,Full Name,Gender,Address,ID Card,Contact,Parent Name,Parent Phone,Email,";
+    
+    // Judge Headers
+    for (let j = 1; j <= 5; j++) {
+        criteriaConfig.forEach(c => csvContent += `J${j}-${c.name},`);
+        csvContent += `J${j}-TOTAL,`;
+    }
+    csvContent += "GRAND TOTAL,FINAL AVERAGE,RANK,REMARKS\n";
+
+    // 4. Random Data Pools
+    const names = ["Ahmed", "Ali", "Hassan", "Ibrahim", "Fathimath", "Aishath", "Mariyam", "Zainab"];
+    const groups = ["Under 6", "Under 9", "Under 11", "Under 13", "Under 16", "Under 19", "General"];
+    const branches = ["Balaiygen", "Nubalai"];
+    const instTypes = ["School", "Office", "NGO", "University", "Private"];
+
+    // 5. Generate 2000 Rows Loop
+    for (let i = 1; i <= 2000; i++) {
+        const name = names[i % names.length];
+        const iType = instTypes[i % instTypes.length];
+        
+        // Create Student Object
+        let studentObj = {
+            serial: i, reg: `REG-${1000 + i}`,
+            name: `${name} ${i}`, id: `A000${i}`, gender: (i%2==0)?"Female":"Male",
+            group: groups[i % groups.length], branch: branches[i % branches.length],
+            institution: iType, instType: iType,
+            address: "Male'", contact: "7770000", parent: "Parent", pPhone: "7770000", email: "test@mail.com",
+            scores: {}, detailedScores: {}, finalScore: 0
+        };
+
+        // Mark Generation Logic
+        let ability = Math.random() * (0.98 - 0.60) + 0.60; // Random Skill Level
+        let grandTotal = 0;
+        let csvScoreString = "";
+
+        // Loop 5 Judges
+        for (let j = 1; j <= 5; j++) {
+            let jKey = `Judge_${j}`;
+            let judgeTotal = 0;
+            let variance = (Math.random() * 0.1) - 0.05; // Human variance
+            
+            studentObj.detailedScores[jKey] = {};
+
+            // Loop Criteria
+            criteriaConfig.forEach(c => {
+                let mark = c.max * (ability + variance);
+                mark = Math.max(0, Math.min(c.max, mark)); // Cap within limits
+                mark = parseFloat(mark.toFixed(2)); // Round to 2 decimals
+
+                // Store in object for Reports
+                studentObj.detailedScores[jKey][c.name] = mark;
+                
+                judgeTotal += mark;
+                csvScoreString += `${mark},`; // Add to CSV String
+            });
+
+            judgeTotal = parseFloat(judgeTotal.toFixed(2));
+            studentObj.scores[jKey] = judgeTotal;
+            grandTotal += judgeTotal;
+            csvScoreString += `${judgeTotal},`; // Add Judge Total to CSV
+        }
+
+        studentObj.finalScore = parseFloat((grandTotal / 5).toFixed(2));
+        
+        // Push to System Memory (So buttons work immediately)
+        state.allStudents.push(studentObj);
+        state.judging.savedResults.push(studentObj);
+
+        // Build CSV Row
+        let rowStart = `${i},"${studentObj.reg}","${studentObj.group}","${studentObj.branch}","${studentObj.instType}","${studentObj.name}","${studentObj.gender}","${studentObj.address}","${studentObj.id}","${studentObj.contact}","${studentObj.parent}","${studentObj.pPhone}","${studentObj.email}",`;
+        let rowEnd = `${grandTotal.toFixed(2)},${studentObj.finalScore},"",""`;
+        
+        csvContent += rowStart + csvScoreString + rowEnd + "\n";
+    }
+
+    // 6. Update System & Trigger Download
+    saveToLocal();
+    if(typeof renderMasterTable === 'function') renderMasterTable();
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }));
+    link.download = `Rasfahi_Full_Dummy_Data.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert("✅ 2000 Students Generated!\nFile matches your uploaded format perfectly.");
+}
 </script>
 </body>
 </html>
