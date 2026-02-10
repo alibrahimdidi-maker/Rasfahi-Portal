@@ -15256,6 +15256,105 @@ function printMatrixCurrentStudent() {
     w.document.write(html);
     w.document.close();
 }
+    // --- FIXED 1: RENDER TABLE (Clean Inputs) ---
+function renderMatrixTable() {
+    const rubric = state.judging.rubric;
+    const area = document.getElementById('matrixGridArea');
+    const s = state.judging.currentStudentObj;
+    
+    // ޓޭބަލް ހެޑަރ (Table Header)
+    let html = `<table class="matrix-table" style="width:100%; border-collapse:collapse; color:#fff;">
+        <thead>
+            <tr>
+                <th style="width:250px; text-align:left; background:#222; color:#FFD700; padding:10px; border:1px solid #444;">
+                    Criteria (ބައިތައް)
+                </th>`;
+    
+    // Judge Headers (J1 - J5)
+    for(let j=1; j<=5; j++) {
+        html += `<th style="background:#111; border:1px solid #444; color:#aaa;">Judge ${j}</th>`;
+    }
+    html += `</tr></thead><tbody>`;
+
+    // Rows Logic
+    rubric.forEach((r, rIdx) => {
+        html += `<tr>
+            <td style="text-align:left; font-weight:bold; padding:8px; border:1px solid #333; color:#eee;">
+                ${r.name} <span style="float:right; color:#666; font-size:11px;">(/ ${r.max})</span>
+            </td>`;
+        
+        for(let j=1; j<=5; j++) {
+            let jKey = `Judge_${j}`;
+            let val = ""; // Default to Empty (Not 0, Not Max)
+
+            // ކުރިން މާކުހެއް ދީފައި އިންނަމަ އެ ނެގުން
+            if (s.detailedScores && s.detailedScores[jKey] && s.detailedScores[jKey][r.name] !== undefined) {
+                val = s.detailedScores[jKey][r.name];
+            }
+
+            // Input Field
+            html += `<td style="border:1px solid #333; padding:0;">
+                <input type="number" class="matrix-input j-col-${j}" 
+                       id="inp_${j}_${rIdx}"
+                       data-judge="${j}" data-criteria="${r.name}" data-max="${r.max}"
+                       step="0.5" min="0" max="${r.max}"
+                       value="${val}"
+                       placeholder="-"
+                       style="width:100%; height:45px; background:#000; border:none; color:#00e676; text-align:center; font-weight:bold; font-size:18px;"
+                       onfocus="this.select()"
+                       oninput="calcMatrixTotal(${j})">
+            </td>`;
+        }
+        html += `</tr>`;
+    });
+
+    // Total Row (Initialize with 0.00)
+    html += `<tr style="background:#1a1a1a; height:50px;">
+                <td style="text-align:right; font-weight:bold; padding-right:10px; color:#fff;">TOTAL:</td>`;
+    
+    for(let j=1; j<=5; j++) {
+        // ކުރިން ސޭވްކޮށްފައިވާ ޓޯޓަލް ނެގުން
+        let preTotal = (s.scores && s.scores[`Judge_${j}`]) ? s.scores[`Judge_${j}`] : "0.00";
+        
+        html += `<td style="text-align:center; font-weight:bold; color:#FFD700; font-size:20px; border:1px solid #444;">
+                    <span id="mTotal_${j}">${preTotal}</span>
+                 </td>`;
+    }
+    html += `</tr></tbody></table>`;
+
+    area.innerHTML = html;
+}
+
+// --- FIXED 2: CALCULATION (Zero if Empty) ---
+window.calcMatrixTotal = function(jNum) {
+    // Select inputs ONLY for this specific judge column
+    const inputs = document.querySelectorAll(`.matrix-input.j-col-${jNum}`);
+    let sum = 0;
+    
+    inputs.forEach(inp => {
+        // މުހިންމު: ހުސްކޮށް އިންނަމަ 0 އަށް ބަދަލުކުރޭ، ނޫނީ ނަންބަރު ނަގާ
+        let v = parseFloat(inp.value);
+        let max = parseFloat(inp.dataset.max);
+        
+        if (isNaN(v)) {
+            v = 0; // Fix: If NaN (empty), count as 0, NOT Max
+        } else {
+            // Validation: Max އަށްވުރެ މަތިވިޔަ ނުދިނުން
+            if(v > max) { 
+                v = max; 
+                inp.value = max; 
+                inp.style.backgroundColor = "#330000"; // Warn color
+            } else {
+                inp.style.backgroundColor = "#000"; // Normal
+            }
+        }
+        sum += v;
+    });
+    
+    // ޓޯޓަލް އަޕްޑޭޓް ކުރުން
+    const totalEl = document.getElementById(`mTotal_${jNum}`);
+    if(totalEl) totalEl.innerText = sum.toFixed(2);
+}
 </script>
 </body>
 </html>
