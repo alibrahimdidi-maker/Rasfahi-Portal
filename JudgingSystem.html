@@ -1395,14 +1395,30 @@ button,
         <button class="btn-purple" onclick="generateAdvancedReport('all')">📄 Full List</button>
     </div>
 
-<button class="btn-green" onclick="exportMasterResultSheet()">📥 Export FULL Master CSV</button>
+<div style="border: 1px solid #ccc; padding: 15px; background-color: #f8f9fa; border-radius: 8px; margin-top: 20px;">
+    
+    <h3 style="margin-top: 0; text-align: center;">Reports & Export</h3>
+    
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+        
+        <button class="btn-green" onclick="exportMasterResultSheet()" style="padding: 10px 15px; flex: 1; min-width: 200px;">
+            📥 Export FULL CSV
+        </button>
 
-<button class="btn-cyan" style="margin-top:5px; background:#00bcd4; color:black;" onclick="downloadDetailedManualSheet()">
-    📊 A3 Manual Master Sheet (5 Judges)
-</button>
-                <button class="btn-purple" style="width:100%; margin-top:5px; border: 2px solid #fff; font-weight:bold;" onclick="printFullRubricBreakdown()">
-    📑 PRINT FULL STUDENT RUBRIC (DETAILED)
-</button>
+        <button class="btn-cyan" onclick="downloadDetailedManualSheet()" style="background:#00bcd4; color:black; padding: 10px 15px; border: none; border-radius: 4px; flex: 1; min-width: 200px;">
+            📊 A3 Manual Sheet
+        </button>
+
+        <button onclick="printMasterScoreSheet5Judges()" style="background-color: #007bff; color: white; padding: 10px 15px; border: none; cursor: pointer; border-radius: 4px; flex: 1; min-width: 200px;">
+            🖨️ Print 5-Judge Master
+        </button>
+    </div>
+
+    <button class="btn-purple" onclick="printFullRubricBreakdown()" style="width:100%; margin-top: 10px; padding: 12px; border: 2px solid #6f42c1; background-color: #6f42c1; color: white; font-weight:bold; border-radius: 4px; cursor: pointer;">
+        📑 PRINT FULL STUDENT RUBRIC (DETAILED BREAKDOWN)
+    </button>
+
+</div>
 <hr style="border-color:#333; margin:8px 0;">
 <label style="color:#FFD700; font-family:'Faruuma';">★ ސެޝަން މެނޭޖްމަންޓް (ނޯޓިސް ބޯޑު & ޖަޖް ޝީޓް):</label>
 
@@ -14520,6 +14536,171 @@ function generateDetailedReportHTML(student) {
     html += `</tbody></table>`;
     
     return html;
+}
+    function printMasterScoreSheet5Judges() {
+    // 1. ދަރިވަރުން ނެތްނަމަ އެންގުން
+    if (!state.allStudents || state.allStudents.length === 0) {
+        alert("No students found to generate report!");
+        return;
+    }
+
+    // 2. މާކުސްގެ ގޮތުން ދަރިވަރުން ތަރުތީބުކުރުން (Ranking Logic)
+    // އެންމެ މަތިން މާކުސް ހޯދި ކުދިން އެންމެ ކުރިއަށް
+    const rankedStudents = [...state.allStudents].sort((a, b) => {
+        return (b.finalScore || 0) - (a.finalScore || 0);
+    });
+
+    // 3. ޕްރިންޓް ކުރާ ވިންޑޯ ހުޅުވުން
+    const printWin = window.open('', '_blank');
+    
+    // 4. ރިޕޯޓްގެ ޑިޒައިން (CSS & HTML)
+    let htmlContent = `
+    <html>
+    <head>
+        <title>Master Score Sheet - 5 Judges</title>
+        <style>
+            body { font-family: "Calibri", "Arial", sans-serif; padding: 20px; direction: rtl; }
+            h1, h3 { text-align: center; margin: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+            th, td { border: 1px solid #000; padding: 8px; text-align: center; }
+            th { background-color: #f0f0f0; font-weight: bold; }
+            .rank-col { background-color: #e8f5e9; font-weight: bold; width: 50px; }
+            .name-col { text-align: left; padding-left: 10px; font-weight: bold; width: 250px;}
+            .total-col { background-color: #fff3e0; font-weight: bold; }
+            .avg-col { background-color: #e3f2fd; font-weight: bold; font-size: 1.1em; }
+            
+            /* Print Settings */
+            @media print {
+                @page { size: landscape; margin: 10mm; } /* ލޭންޑްސްކޭޕް ކޮށް ޕްރިންޓް ކުރުމަށް */
+                button { display: none; }
+                body { -webkit-print-color-adjust: exact; }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>މުބާރާތުގެ ނަތީޖާ ޝީޓް (މާސްޓަރ ލިސްޓް)</h1>
+        <h3>ތާރީޚް: ${new Date().toLocaleDateString()}</h3>
+        <hr>
+
+        <table>
+            <thead>
+                <tr>
+                    <th class="rank-col">ވަނަ</th>
+                    <th class="name-col" style="text-align:right;">ދަރިވަރުގެ ނަން</th>
+                    <th>ޖަޖު 1</th>
+                    <th>ޖަޖު 2</th>
+                    <th>ޖަޖު 3</th>
+                    <th>ޖަޖު 4</th>
+                    <th>ޖަޖު 5</th>
+                    <th class="total-col">ޖުމްލަ</th>
+                    <th class="avg-col">އެވްރެޖް</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    // 5. ދަރިވަރުންގެ ލިސްޓް ލޫޕްކޮށްގެން ޑޭޓާ އެޅުން
+    rankedStudents.forEach((student, index) => {
+        // A. 5 ޖަޖުންގެ މާކުސް ނެގުން (Scores extraction)
+        // ޖަޖުންގެ އައިޑީތައް ހުންނަ ގޮތް: "Judge_1", "Judge_2"...
+        let j1 = (student.scores && student.scores["Judge_1"]) ? student.scores["Judge_1"] : 0;
+        let j2 = (student.scores && student.scores["Judge_2"]) ? student.scores["Judge_2"] : 0;
+        let j3 = (student.scores && student.scores["Judge_3"]) ? student.scores["Judge_3"] : 0;
+        let j4 = (student.scores && student.scores["Judge_4"]) ? student.scores["Judge_4"] : 0;
+        let j5 = (student.scores && student.scores["Judge_5"]) ? student.scores["Judge_5"] : 0;
+
+        // B. ޖުމްލަ ހެދުން (Grand Total)
+        let grandTotal = j1 + j2 + j3 + j4 + j5;
+        grandTotal = parseFloat(grandTotal.toFixed(2)); // ދެ ޕޮއިންޓަށް
+
+        // C. އެވްރެޖް ނެގުން (Average)
+        // student.finalScore ގައި މިހާރުވެސް އެވްރެޖް އިންނާނެ ކަމަށް ބަލަނީ
+        let average = student.finalScore || 0; 
+
+        // 0 އިންނަ ތަންތަނުގައި "-" ދެއްކުމަށް (Optional formatting)
+        const formatScore = (s) => s > 0 ? s : "-";
+
+        htmlContent += `
+            <tr>
+                <td class="rank-col">${index + 1}</td>
+                <td class="name-col" style="text-align:right;">${student.name}</td>
+                <td>${formatScore(j1)}</td>
+                <td>${formatScore(j2)}</td>
+                <td>${formatScore(j3)}</td>
+                <td>${formatScore(j4)}</td>
+                <td>${formatScore(j5)}</td>
+                <td class="total-col">${formatScore(grandTotal)}</td>
+                <td class="avg-col">${average}</td>
+            </tr>
+        `;
+    });
+
+    htmlContent += `
+            </tbody>
+        </table>
+        
+        <br><br>
+        <div style="display: flex; justify-content: space-between; margin-top: 50px;">
+            <div style="text-align: center;">____________________<br>ސޮއި</div>
+            <div style="text-align: center;">____________________<br>ތާރީޚް</div>
+        </div>
+
+        <script>
+            // ޕޭޖް ލޯޑްވުމުން އޮޓޮމެޓިކުން ޕްރިންޓް ޑައިލޮގް ހުޅުވުން
+            window.onload = function() { window.print(); }
+        </script>
+    </body>
+    </html>
+    `;
+
+    // 6. ލިޔުނު އެއްޗެހި ވިންޑޯއަށް އެޅުން
+    printWin.document.write(htmlContent);
+    printWin.document.close();
+}
+// މި ކޯޑުކޮޅު ތިބޭފުޅާގެ ސްކްރިޕްޓް ފައިލްގެ އެންމެ ތިރިއަށް ލައްވާށެވެ.
+
+function printFullRubricBreakdown() {
+    // 1. ދަރިވަރުން ނެތްނަމަ އެންގުން
+    if (!state.allStudents || state.allStudents.length === 0) {
+        alert("No students to print!");
+        return;
+    }
+
+    // 2. ޕްރިންޓް ވިންޑޯ ހުޅުވުން
+    const win = window.open('', '_blank');
+    
+    let html = `<html><head><title>Detailed Rubric Report</title>
+    <style>
+        body { font-family: Arial; direction: rtl; padding: 20px; }
+        .student-block { page-break-after: always; border: 2px solid #000; padding: 20px; margin-bottom: 20px; }
+        h2, h4 { margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #333; padding: 5px; text-align: center; }
+    </style>
+    </head><body>`;
+
+    // 3. ހުރިހާ ދަރިވަރުންނަށް ލޫޕް ޖަހައިގެން ރިޕޯޓް ހެދުން
+    state.allStudents.forEach((s, i) => {
+        html += `<div class="student-block">
+                    <h2>${s.name} (Index: ${s.indexNumber || i+1})</h2>
+                    <h4>House/Group: ${s.house || '-'}</h4>
+                    <hr>`;
+        
+        // ★ ކުރިން އަޅުގަނޑު ދިން ފަންކްޝަން މިތާ ގޮވާލަނީ ★
+        // (ޔަގީން ކުރައްވާ generateDetailedReportHTML ފަންކްޝަން ކޯޑުގައި އިންތޯ)
+        if(typeof generateDetailedReportHTML === 'function') {
+            html += generateDetailedReportHTML(s);
+        } else {
+            html += "<p>Error: Helper function not found.</p>";
+        }
+
+        html += `</div>`;
+    });
+
+    html += `<script>window.onload = function(){ window.print(); }<\/script></body></html>`;
+
+    win.document.write(html);
+    win.document.close();
 }
 </script>
 </body>
