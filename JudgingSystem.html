@@ -16665,7 +16665,86 @@ function openMatrixInput() {
     renderMatrixTable();
     document.getElementById(modalID).style.display = 'flex';
 }
+// ==========================================
+// ★ STAR RATING SYSTEM (V3 - FINAL SAFE) ★
+// ==========================================
 
+// 1. Setup the window object safely
+if (typeof state.windows === 'undefined') state.windows = {};
+state.windows.starScreen = null;
+
+// 2. The Launch Function
+function openStarScreen() {
+    const starHtml = `
+    <!DOCTYPE html>
+    <html lang="dv">
+    <head>
+        <meta charset="UTF-8">
+        <title>Star View</title>
+        <style>
+            body { margin: 0; overflow: hidden; background: radial-gradient(circle at center, #001a33, #000); height: 100vh; width: 100vw; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-family: sans-serif; }
+            #starContainer { display: flex; gap: 30px; justify-content: center; align-items: center; min-height: 300px; }
+            .star { font-size: 15vw; color: rgba(255,255,255,0.05); text-shadow: 0 0 20px rgba(0,0,0,0.5); transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0.6); opacity: 0.5; }
+            .star.active { color: #FFD700; text-shadow: 0 0 50px #FFD700, 0 0 100px #FFD700; transform: scale(1.1); opacity: 1; }
+            #scoreText { margin-top: 40px; font-size: 6vw; font-weight: bold; color: #FFD700; opacity: 0; transition: 1.5s; text-shadow: 0 0 20px #000; }
+        </style>
+    </head>
+    <body>
+        <div id="starContainer">
+            <div class="star" id="st1">★</div>
+            <div class="star" id="st2">★</div>
+            <div class="star" id="st3">★</div>
+            <div class="star" id="st4">★</div>
+            <div class="star" id="st5">★</div>
+        </div>
+        <div id="scoreText">AVERAGE: <span id="val">0.00</span></div>
+        <script>
+            window.updateStars = function(score) {
+                const stars = [{id:'st1',min:75},{id:'st2',min:80},{id:'st3',min:85},{id:'st4',min:90},{id:'st5',min:95}];
+                document.getElementById('val').innerText = score.toFixed(2);
+                document.getElementById('scoreText').style.opacity = score >= 75 ? "1" : "0";
+                stars.forEach((s, idx) => {
+                    const el = document.getElementById(s.id);
+                    el.classList.remove('active');
+                    if (score >= s.min) { setTimeout(() => { el.classList.add('active'); }, idx * 300); }
+                });
+            };
+            window.resetStars = function() {
+                document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+                document.getElementById('scoreText').style.opacity = "0";
+            };
+        <\/script>
+    </body>
+    </html>`;
+
+    state.windows.starScreen = window.open("", "StarScreen", "width=1200,height=800");
+    if (state.windows.starScreen) {
+        state.windows.starScreen.document.open();
+        state.windows.starScreen.document.write(starHtml);
+        state.windows.starScreen.document.close();
+    } else {
+        alert("⚠️ Popup Blocked!");
+    }
+}
+
+// 3. Logic to auto-trigger stars
+// We use an interval or hook into the existing save button instead of overriding
+setInterval(() => {
+    if (state.windows.starScreen && !state.windows.starScreen.closed) {
+        // Calculate average from liveScores
+        let sum = 0; let count = 0;
+        for(let j in state.judging.liveScores) {
+            let val = parseFloat(state.judging.liveScores[j]);
+            if(!isNaN(val) && val > 0) { sum += val; count++; }
+        }
+        let avg = count > 0 ? (sum / count) : 0;
+        
+        // Sync to star screen if average is calculated
+        if(avg >= 75 && state.windows.starScreen.updateStars) {
+            state.windows.starScreen.updateStars(avg);
+        }
+    }
+}, 2000); // Check every 2 seconds for new marks
 </script>
 </body>
 </html>
