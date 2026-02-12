@@ -17017,6 +17017,138 @@ syncExtraScreen = function(forceMode) {
     if(oldSyncExtraScreen) oldSyncExtraScreen(forceMode); // ކުރިން ހުރި ސިންކް މަސައްކަތް ކުރާނެ
     syncExtraToJudges(); // ޖަޖުންގެ ސްކްރީނަށްވެސް ފޮނުވާނެ
 };
+    // ===============================================================
+// ★ FINAL CONSOLIDATED SYNC LOGIC (EXTRA SCREEN TO JUDGE MIRROR) ★
+// ===============================================================
+
+// 1. ޖަޖުންގެ ސްކްރީން ހުޅުވާ ފަންކްޝަން (Updated with Quran Box)
+function openJudgeMirror() {
+    if(state.windows.judgeMirror) state.windows.judgeMirror.close();
+
+    const mirrorHtml = `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <title>Judge Mirror View</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+            body { margin: 0; padding: 0; background: #000d1a; color: #fff; font-family: sans-serif; overflow: hidden; height: 100vh; width: 100vw; }
+            .header { background: #001a33; padding: 15px; text-align: center; border-bottom: 2px solid #D4AF37; font-size: 24px; color: #D4AF37; font-weight: bold; }
+            
+            #contentArea { 
+                display: flex; flex-direction: column; align-items: center; justify-content: center; 
+                height: calc(100vh - 120px); padding: 20px; box-sizing: border-box; 
+            }
+
+            /* އާޔަތް ފެންނަ ހުދު ގޮޅި */
+            #quranText {
+                width: 90%; height: 75%;
+                background: #fff; color: #000;
+                border: 10px double #D4AF37; border-radius: 15px;
+                display: none; align-items: center; justify-content: center;
+                text-align: center; font-size: 3.5vw; line-height: 2.2;
+                font-weight: bold; padding: 40px; box-sizing: border-box;
+                overflow-y: auto; white-space: pre-wrap;
+                font-family: 'Amiri', serif; 
+                box-shadow: 0 0 30px #000;
+            }
+
+            #statusMsg { font-size: 40px; color: #00e676; text-align: center; }
+            
+            #infoBar { 
+                position: fixed; bottom: 0; width: 100%; 
+                background: #001a33; padding: 15px; text-align: center; 
+                font-size: 22px; color: #FFD700; border-top: 2px solid #D4AF37; 
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">ފަނޑިޔާރުންގެ މޮނިޓަރ (Viewing Only)</div>
+        
+        <div id="contentArea">
+            <div id="statusMsg">މަޑުކޮށްލައްވާ...</div>
+            <div id="quranText"></div> 
+        </div>
+
+        <div id="infoBar">
+            ސޫރަތް: <span id="sName">-</span> | 
+            އާޔަތް: <span id="aNo">-</span> | 
+            ޖުޒު: <span id="jNo">-</span>
+        </div>
+
+        <script>
+            // ޝާހީ ސްކްރީނުން ޑޭޓާ ފޮނުވުމުން އަޕްޑޭޓްކުރާ ފަންކްޝަން
+            window.updateJudgeMirrorFromExtra = function(d) {
+                const msg = document.getElementById('statusMsg');
+                const qText = document.getElementById('quranText');
+                const sName = document.getElementById('sName');
+                const aNo = document.getElementById('aNo');
+                const jNo = document.getElementById('jNo');
+
+                if (d.phase === 'grid') {
+                    qText.style.display = 'none';
+                    msg.style.display = 'block';
+                    msg.innerText = "ދަރިވަރު ސުވާލު ނަގަނީ...";
+                    sName.innerText = "-"; aNo.innerText = "-"; jNo.innerText = "-";
+                } 
+                else if (d.phase === 'reading') {
+                    msg.style.display = 'none';
+                    qText.style.display = 'flex';
+                    qText.innerText = d.ayahText || "";
+                    sName.innerText = d.surahName || "-";
+                    aNo.innerText = d.ayahRange || "-";
+                    jNo.innerText = d.juzName || "-";
+                } 
+                else {
+                    qText.style.display = 'none';
+                    msg.style.display = 'block';
+                    msg.innerText = "މަޑުކޮށްލައްވާ...";
+                }
+            };
+        <\/script>
+    </body>
+    </html>`;
+
+    state.windows.judgeMirror = window.open("", "JudgeMirror", "width=1280,height=800");
+    if (state.windows.judgeMirror) {
+        state.windows.judgeMirror.document.open();
+        state.windows.judgeMirror.document.write(mirrorHtml);
+        state.windows.judgeMirror.document.close();
+    }
+}
+
+// 2. ޝާހީ ސްކްރީނުން ޖަޖުންގެ މޮނިޓަރަށް ޑޭޓާ ފޮނުވާ ފަންކްޝަން
+function syncExtraToJudges() {
+    if (state.windows.judgeMirror && !state.windows.judgeMirror.closed) {
+        const currentQ = state.extra.selection[state.extra.currentIndex];
+        if(!currentQ) {
+             // ސުވާލެއް ނެތްނަމަ ގްރިޑް ހާލަތު ފޮނުވާ
+             state.windows.judgeMirror.updateJudgeMirrorFromExtra({ phase: state.extra.phase });
+             return;
+        }
+
+        const packet = {
+            phase: state.extra.phase,
+            currentIdx: state.extra.currentIndex,
+            ayahText: currentQ.text, 
+            surahName: currentQ.surah,
+            ayahRange: currentQ.start + " - " + currentQ.end,
+            juzName: currentQ.juz
+        };
+
+        if(state.windows.judgeMirror.updateJudgeMirrorFromExtra) {
+            state.windows.judgeMirror.updateJudgeMirrorFromExtra(packet);
+        }
+    }
+}
+
+// 3. ޝާހީ ސްކްރީންގެ 'syncExtraScreen' ފަންކްޝަންގެ ތެރެއަށް މި ލޮޖިކް ގުޅުވާލުން
+const oldSyncExtraScreen = syncExtraScreen;
+syncExtraScreen = function(forceMode) {
+    if(typeof oldSyncExtraScreen === 'function') oldSyncExtraScreen(forceMode);
+    syncExtraToJudges(); // ޖަޖުންގެ މޮނިޓަރަށް ޑޭޓާ ފޮނުވާ
+};
 </script>
 </body>
 </html>
