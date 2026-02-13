@@ -17212,6 +17212,74 @@ function recalcMatrixJudgeTotal(jNum) {
     inputs.forEach(inp => { if(inp.value !== "") { sum += parseFloat(inp.value); active = true; } });
     document.getElementById(`mTotal_${jNum}`).innerText = active ? sum.toFixed(2) : "0.00";
 }
+    // ===============================================================
+// ★ NEW ADDITIONS: LIVE QURAN VIEW & MATRIX SYNC (V13) ★
+// ===============================================================
+
+// 1. SYNC EXTRA SCREEN TO MAIN ADMIN LIVE VIEW (ރުބްރިކްގެ ބަދަލުގައި އާޔަތް ފެންނަ ބައި)
+function syncExtraToJudges() {
+    const currentQ = state.extra.selection[state.extra.currentIndex];
+    const liveBox = document.getElementById('mainLiveQuranBox');
+    const statusLabel = document.getElementById('liveStatusLabel');
+
+    if(!currentQ) {
+        if(liveBox) liveBox.innerText = "ދަރިވަރު ސުވާލު ނަގަނީ...";
+        if(statusLabel) statusLabel.innerText = "SELECTING...";
+        return;
+    }
+
+    // މެއިން އެޑްމިންގެ ގޮޅިއަށް އާޔަތް ލުން
+    if(liveBox) {
+        if(state.extra.settings.mode === 'hifz') {
+            liveBox.innerHTML = `
+                <div style="color:#FFD700; border:1px dashed #555; padding:10px; font-size: 1.5vw;">
+                    ޙިފްޡު މޯޑް: ދަރިވަރަށް އާޔަތެއް ނުފެންނާނެ
+                </div>
+                <div style="margin-top:15px; opacity:0.8;">${currentQ.text}</div>`;
+        } else {
+            liveBox.innerText = currentQ.text;
+        }
+    }
+    if(statusLabel) statusLabel.innerText = "READING: " + currentQ.surah;
+
+    // ޖަޖުންގެ މޮނިޓަރަށްވެސް ޑޭޓާ ފޮނުވުން
+    if (state.windows.judgeMirror && !state.windows.judgeMirror.closed) {
+        const packet = {
+            phase: state.extra.phase,
+            currentIdx: state.extra.currentIndex,
+            ayahText: currentQ.text,
+            surahName: currentQ.surah,
+            ayahRange: currentQ.start + " - " + currentQ.end,
+            juzName: currentQ.juz,
+            settings: state.extra.settings
+        };
+        if(state.windows.judgeMirror.updateJudgeMirrorFromExtra) {
+            state.windows.judgeMirror.updateJudgeMirrorFromExtra(packet);
+        }
+    }
+}
+
+// 2. DASH CLICK FOR FULL MARKS (މެޓްރިކްސް ތެރެއިން ޑޭޝް އަށް ފިއްތާލުމުން ފުލް މާކުސް އަރާގޮތް ހެދުން)
+window.setFullMarks = function(j, rIdx, max) {
+    const inp = document.getElementById(`inp_${j}_${rIdx}`);
+    const disp = document.getElementById(`mScore_${j}_${rIdx}`);
+    const cell = document.getElementById(`cell_${j}_${rIdx}`);
+    
+    if(!inp || !disp) return;
+
+    inp.value = max.toFixed(2);
+    disp.innerText = max.toFixed(2);
+    if(cell) cell.style.background = "rgba(0,230,118,0.1)"; // ފެހި ކުލަ
+    
+    // ޖުމްލަ މާކުސް އަލުން ހިސާބުކުރުން
+    if(typeof recalcMatrixJudgeTotal === 'function') recalcMatrixJudgeTotal(j);
+};
+
+// 3. RENDER SECRETARY RUBRIC (ރުބްރިކް ބައި ނެތްކަން ޔަގީންކުރުން)
+// މެއިން އެޑްމިން އިން ރުބްރިކް ގްރިޑް ނެގުމުން އެރަރއެއް ނައުމަށްޓަކައި
+function renderSecretaryRubric() {
+    if (!document.getElementById('rubricGrid')) return; 
+}
 // --- FORCE SYNC LOGIC ---
 
 // 1. ޝާހީ ސްކްރީނުން އާޔަތް ބަދަލުކުރާ ފަންކްޝަންތަކާ ގުޅުވާލުން
