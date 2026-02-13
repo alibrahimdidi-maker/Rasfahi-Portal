@@ -17280,6 +17280,70 @@ window.setFullMarks = function(j, rIdx, max) {
 function renderSecretaryRubric() {
     if (!document.getElementById('rubricGrid')) return; 
 }
+    // ===============================================================
+// ★ LIVE QURAN FEED CONNECTION SCRIPT ★
+// ===============================================================
+
+// ޝާހީ ސްކްރީނުން އާޔަތް ބަދަލުކުރުމުން މި ފަންކްޝަން ހިނގާނެ
+function syncExtraToJudges() {
+    // 1. މިވަގުތު ހޮވާފައިވާ އާޔަތުގެ މަޢުލޫމާތު ނެގުން
+    const currentQ = state.extra.selection[state.extra.currentIndex];
+    const liveBox = document.getElementById('mainLiveQuranBox');
+    const statusLabel = document.getElementById('liveStatusLabel');
+
+    // ގޮޅި ނެތްނަމަ ހުއްޓާލުން
+    if (!liveBox) return;
+
+    if (!currentQ) {
+        liveBox.innerText = "ދަރިވަރު ސުވާލު ނަގަނީ...";
+        if (statusLabel) statusLabel.innerText = "SELECTING...";
+        return;
+    }
+
+    // 2. އާޔަތުގެ ލިޔުންކޮޅު ގޮޅިއަށް ފޮނުވުން
+    if (state.extra.settings.mode === 'hifz') {
+        // ޙިފްޡު މޯޑުގައި ނަމަ، އެޑްމިންއަށް އެނގޭނެހެން ކުޑަ ނޯޓަކާއެކު އާޔަތް ދެއްކުން
+        liveBox.innerHTML = `
+            <div style="color:#FFD700; border:1px dashed #444; padding:15px; font-size: 1.2vw; margin-bottom: 20px; border-radius: 8px;">
+                ޙިފްޡު މޯޑް: ދަރިވަރުގެ ސްކްރީނަށް އާޔަތެއް ނުފެންނާނެ
+            </div>
+            <div style="font-size: 3vw;">${currentQ.text}</div>`;
+    } else {
+        // ތިލާވަތު މޯޑުގައި ސީދާ އާޔަތް ދެއްކުން
+        liveBox.innerText = currentQ.text;
+    }
+
+    // 3. މަތީގައި އިންނަ ސްޓޭޓަސް ބަދަލުކުރުން
+    if (statusLabel) {
+        statusLabel.innerText = "READING: " + currentQ.surah + " (" + currentQ.start + "-" + currentQ.end + ")";
+    }
+
+    // 4. ޖަޖުންގެ މޮނިޓަރުތަކަށްވެސް މި މަޢުލޫމާތު ފޮނުވުން (Mirror Sync)
+    if (state.windows.judgeMirror && !state.windows.judgeMirror.closed) {
+        const packet = {
+            phase: state.extra.phase,
+            currentIdx: state.extra.currentIndex,
+            ayahText: currentQ.text,
+            surahName: currentQ.surah,
+            ayahRange: currentQ.start + " - " + currentQ.end,
+            juzName: currentQ.juz,
+            settings: state.extra.settings
+        };
+        
+        // ޖަޖް ވިންޑޯގައި މި ފަންކްޝަން އިންނަމަ ހިންގުން
+        if (state.windows.judgeMirror.updateJudgeMirrorFromExtra) {
+            state.windows.judgeMirror.updateJudgeMirrorFromExtra(packet);
+        }
+    }
+}
+
+// ސިސްޓަމްގެ އެހެން ދިމާލަކުން މި ފަންކްޝަން ގޮވާލާކަން ޔަގީންކުރުން
+// މިސާލަކަށް Extra settings ބަދަލުވާއިރުވެސް އަޕްޑޭޓްކުރުން
+const originalUpdateExtraDisplay = typeof updateExtraDisplay === 'function' ? updateExtraDisplay : null;
+window.updateExtraDisplay = function() {
+    if (originalUpdateExtraDisplay) originalUpdateExtraDisplay();
+    syncExtraToJudges(); // އަލަށް ހެދި ގޮޅި އަޕްޑޭޓްކުރުން
+};
 </script>
 </body>
 </html>
