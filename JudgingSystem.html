@@ -17419,7 +17419,114 @@ if (state.extra.phase === 'reading' && currentQ) {
     `;
     liveBox.scrollTop = 0;
 }
+// --- IMPROVED BATCH LOADER: LOADS INFO + EXISTING SCORES ---
+function loadStudentBatch() {
+    const file = document.getElementById('batchCsv').files[0];
+    if(!file) { alert("Please select the CSV file first!"); return; }
+    
+    const r = new FileReader();
+    r.onload = e => {
+        try {
+            const rows = e.target.result.split('\n');
+            state.allStudents = []; // Reset Master List
+            
+            // މާކުސް ދޭ ބައިތައް (މިއީ ފައިލްގައި ހުރި ތަރުތީބު)
+            const criteriaList = ["Thilawa", "Tajweed", "Makhraj", "Sifa", "Fasaha", "Talaffuz", "Maqamat"];
 
+            for(let i=1; i<rows.length; i++) {
+                let rowRaw = rows[i].trim();
+                if(!rowRaw) continue;
+
+                // ސީ.އެސް.ވީ ރަނގަޅަށް ބައިކުރުން
+                const cols = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if(!cols || cols.length < 13) continue;
+                const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
+
+                // ދަރިވަރުގެ އަސާސީ މަޢުލޫމާތު (0-12)
+                const sObj = {
+                    serial: clean[0], reg: clean[1], group: clean[2], branch: clean[3],
+                    instType: clean[4], institution: clean[4], 
+                    name: clean[5], gender: clean[6], address: clean[7],
+                    id: clean[8], phone: clean[9], parent: clean[10], parentPhone: clean[11], email: clean[12],
+                    scores: {}, 
+                    detailedScores: {}, // މިއީ މެޓްރިކްސްއަށް ބޭނުންވާ ތަފްޞީލު
+                    finalScore: 0
+                };
+
+                // ★ ފައިލްގައި މާކުސް ހުރިނަމަ އެ ޑޭޓާ ނެގުން ★
+                // ފައިލްގެ ކޮލަމް 13 އިން ފެށިގެން ހުންނާނީ މާކުސްތައް
+                if (clean.length > 20) {
+                    let colIdx = 13; // މާކުސް ފެށޭ އިންޑެކްސް
+                    let grandSum = 0;
+                    let judgeCount = 0;
+
+                    for (let j = 1; j <= 5; j++) {
+                        let jKey = `Judge_${j}`;
+                        let jTotal = 0;
+                        let hasJData = false;
+                        sObj.detailedScores[jKey] = {};
+
+                        // ކޮންމެ ކްރައިޓީރިއާއެއްގެ މާކުސް ނެގުން
+                        criteriaList.forEach(crit => {
+                            let mark = parseFloat(clean[colIdx]);
+                            if (!isNaN(mark)) {
+                                sObj.detailedScores[jKey][crit] = mark;
+                                jTotal += mark;
+                                hasJData = true;
+                            }
+                            colIdx++;
+                        });
+
+                        // ޖަޖުގެ ޖުމްލަ މާކުސް (J-TOTAL ކޮލަމް ސްކިޕްކުރުން ނުވަތަ ޗެކްކުރުން)
+                        let jTotalFromFile = parseFloat(clean[colIdx]);
+                        if (hasJData) {
+                            sObj.scores[jKey] = !isNaN(jTotalFromFile) ? jTotalFromFile : parseFloat(jTotal.toFixed(2));
+                            grandSum += sObj.scores[jKey];
+                            judgeCount++;
+                        }
+                        colIdx++; // Move to next judge
+                    }
+                    // ފައިނަލް އެވްރެޖް ސެޓްކުރުން
+                    if (judgeCount > 0) sObj.finalScore = parseFloat((grandSum / judgeCount).toFixed(2));
+                }
+
+                state.allStudents.push(sObj);
+            }
+            
+            // އަޕްޑޭޓްތައް ހިންގުން
+            populateStudentSelector();
+            if(typeof renderMasterTable === 'function') renderMasterTable();
+            saveToLocal();
+            
+            alert(`✅ Success! Loaded ${state.allStudents.length} students.\n(Existing marks have been restored)`);
+        } catch(err) { 
+            console.error(err);
+            alert("Error: File format is incorrect."); 
+        }
+    };
+    r.readAsText(file);
+}
+    // --- ADD THIS TO YOUR MASTER TABLE RENDER LOGIC ---
+function renderMasterTable() {
+    const fBranch = document.getElementById('filterBranch').value;
+    const fGroup = document.getElementById('filterGroup').value;
+    const tbody = document.getElementById('masterTableBody');
+    
+    tbody.innerHTML = '';
+
+    let displayList = state.allStudents.filter(s => {
+        let matchFilter = (fBranch === "" || s.branch === fBranch) && (fGroup === "" || s.group === fGroup);
+        
+        // ★ މިބައިން މާކުސް ނެތް ކުދިން އެކަނި ފެންނަ ގޮތް ހެދިދާނެ ★
+        // (އެއްވެސް ޖަޖެއްގެ މާކުސް ނެތްނަމަ އެއީ ނުނިމޭ ކުދިން)
+        return matchFilter;
+    });
+
+    // މާކުސް ދީފައިވާ ކުދިން އެންމެ ތިރިއަށް ލާފައި، ނުނިމޭ ކުދިން މައްޗަށް ގެނައުން
+    displayList.sort((a, b) => (a.finalScore || 0) - (b.finalScore || 0));
+
+    // ... (ބާކީ ޓޭބަލް ރެންޑަރ ކުރާ ބައި)
+}
 </script>
 </body>
 </html>
