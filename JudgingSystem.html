@@ -17487,6 +17487,72 @@ function loadStudentBatch() {
     };
     r.readAsText(file);
 }
+    function loadStudentBatch() {
+    const file = document.getElementById('batchCsv').files[0];
+    if(!file) { alert("Please select the CSV file first!"); return; }
+    
+    const r = new FileReader();
+    r.onload = e => {
+        try {
+            const rows = e.target.result.split('\n');
+            state.allStudents = []; 
+            state.judging.savedResults = []; // ކުރީގެ ނަތީޖާތައް ސާފުކޮށްލުން
+
+            for(let i = 1; i < rows.length; i++) {
+                let rowRaw = rows[i].trim();
+                if(!rowRaw) continue;
+
+                // CSV ފައިލްގެ ކޮލަމްތައް ވަކިކުރުން
+                const cols = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if(!cols || cols.length < 13) continue;
+                const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
+                
+                // ދަރިވަރުގެ އަސާސީ މަޢުލޫމާތު
+                const sObj = {
+                    serial: clean[0], 
+                    reg: clean[1], 
+                    group: clean[2], 
+                    branch: clean[3],
+                    institution: clean[4], 
+                    name: clean[5], 
+                    gender: clean[6], 
+                    address: clean[7],
+                    id: clean[8],
+                    scores: {}, 
+                    finalScore: 0
+                };
+
+                // ★ ކުރިން ދީފައިވާ މާކުސްތައް ފައިލުން ނަގައި މެމޮރީއަށް ލުން ★
+                // 16 އިން 20 އަށް ހުންނާނީ 5 ޖަޖުންގެ ޖުމްލަ މާކުސް
+                if(clean[16] && parseFloat(clean[16]) > 0) sObj.scores['Judge_1'] = parseFloat(clean[16]);
+                if(clean[17] && parseFloat(clean[17]) > 0) sObj.scores['Judge_2'] = parseFloat(clean[17]);
+                if(clean[18] && parseFloat(clean[18]) > 0) sObj.scores['Judge_3'] = parseFloat(clean[18]);
+                if(clean[19] && parseFloat(clean[19]) > 0) sObj.scores['Judge_4'] = parseFloat(clean[19]);
+                if(clean[20] && parseFloat(clean[20]) > 0) sObj.scores['Judge_5'] = parseFloat(clean[20]);
+                
+                // ފައިނަލް އެވްރެޖް (ކޮލަމް 22)
+                if(clean[22] && parseFloat(clean[22]) > 0) {
+                    sObj.finalScore = parseFloat(clean[22]);
+                    // މާކުސް ހުރި ކުދިން ސޭވްޑް ލިސްޓަށް ލުމުން، މާސްޓަރ ޓޭބަލްއިން އެކުދިން ފާހަގަވާނެ
+                    state.judging.savedResults.push(sObj);
+                }
+
+                state.allStudents.push(sObj);
+            }
+            
+            // ޔޫއައި އަޕްޑޭޓްކުރުން
+            populateStudentSelector(); 
+            renderMasterTable();      
+            saveToLocal(); // ބްރައުޒާގެ މެމޮރީގައި ރައްކާކުރުން           
+            
+            alert(`✅ ކުރީގެ މާކުސްތަކާއެކު ${state.allStudents.length} ދަރިވަރުން ލޯޑުވެއްޖެ!`);
+        } catch(err) { 
+            console.error(err);
+            alert("Error: ފައިލްގެ ފޯމެޓް ދިމައެއް ނުވޭ."); 
+        }
+    };
+    r.readAsText(file);
+}
 </script>
 </body>
 </html>
