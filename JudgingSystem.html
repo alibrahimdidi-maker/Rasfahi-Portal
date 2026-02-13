@@ -16969,37 +16969,43 @@ window.saveMatrixScores = function() {
         }, 1000);
     }
 }
-// --- JUDGE 1 GHOST MARK FIX ---
-// މި ފަންކްޝަނުން މެޓްރިކްސް ހުޅުވާއިރު ޖަޖް 1 ގެ ޑޭޓާ ސާފުކޮށްދޭނެ
-const originalOpenMatrixInput = openMatrixInput;
-openMatrixInput = function() {
-    if(state.judging.currentStudentObj) {
-        let s = state.judging.currentStudentObj;
+// --- JUDGE 1 TOTAL REFLECTION FIX ---
+// މިއީ ސޭވްކުރާ ވަގުތު ޖަޖް 1 ގެ މާކުސް 100 އަށް ބަދަލުވިޔަ ނުދިނުމަށް ބޭނުންކުރާ ބައެއް
+
+const originalSaveMatrix = saveMatrixScores;
+window.saveMatrixScores = function() {
+    // 1. މެޓްރިކްސް ޓޭބަލުން ޖަޖް 1 ގެ މިވަގުތުގެ ޖުމްލަ ނެގުން
+    const j1TotalElement = document.getElementById('mTotal_1');
+    if (j1TotalElement && state.judging.currentStudentObj) {
+        let actualJ1Total = parseFloat(j1TotalElement.innerText);
         let jKey = 'Judge_1';
         
-        // ޖަޖް 1 ގެ ތަފްޞީލީ މާކުހެއް ނެތްނަމަ، އޭނާގެ ޓޯޓަލް 0 އަށް ބަދަލުކުރުން
-        if (!s.detailedScores || !s.detailedScores[jKey] || Object.keys(s.detailedScores[jKey]).length === 0) {
-            if(s.scores) s.scores[jKey] = 0;
-            if(state.judging.liveScores) state.judging.liveScores[jKey] = 0;
+        // 2. ސިސްޓަމްގެ މެމޮރީގައިވާ 100 ފޮހެލާފައި، ޙަޤީޤީ ޖުމްލަ ލުން
+        state.judging.liveScores[jKey] = actualJ1Total;
+        
+        // 3. މާސްޓަރ ލިސްޓުގެ ތެރޭގައިވެސް މި އަދަދު އަޕްޑޭޓްކުރުން
+        const sID = state.judging.currentStudentObj.id;
+        const sIdx = state.allStudents.findIndex(s => s.id === sID);
+        if (sIdx > -1) {
+            if(!state.allStudents[sIdx].scores) state.allStudents[sIdx].scores = {};
+            state.allStudents[sIdx].scores[jKey] = actualJ1Total;
         }
     }
-    // ކުރިން ހުރި ފަންކްޝަން ހިންގުން
-    originalOpenMatrixInput();
+
+    // 4. އަސްލު ސޭވް ފަންކްޝަން ހިންގުން
+    originalSaveMatrix();
+    
+    // 5. ވަގުތުން މެއިން އެޑްމިން ޓޭބަލް ރިފްރެޝްކުރުން
+    if(typeof renderMasterTable === 'function') renderMasterTable();
 };
 
-// ޑިޑަކްޓް ކުރާއިރު ވަގުތުން ލައިވް ސްކޯ އަޕްޑޭޓްކުރުން
-const originalApplyDeduction = applyMatrixDeduction;
-applyMatrixDeduction = function(jNum, rIdx, amount, maxVal) {
-    // އަސްލު ޑިޑަކްޝަން ހިންގުން
-    originalApplyDeduction(jNum, rIdx, amount, maxVal);
-    
-    // ޖަޖް 1 އަށް ޚާއްޞަކޮށް ލައިވް ސިންކް ހެދުން
-    let jKey = `Judge_${jNum}`;
-    let totalSpan = document.getElementById(`mTotal_${jNum}`);
-    if(totalSpan) {
-        let currentTotal = parseFloat(totalSpan.innerText);
-        state.judging.liveScores[jKey] = currentTotal;
-    }
+// މެޓްރިކްސް ހުޅުވާއިރު ޖަޖް 1 ގެ ޖުމްލަ އޮޓޯއިން އަލުން ހިސާބުކުރުން
+const originalOpenMatrix = openMatrixInput;
+window.openMatrixInput = function() {
+    originalOpenMatrix();
+    setTimeout(() => {
+        if(typeof calcMatrixTotal === 'function') calcMatrixTotal(1);
+    }, 100);
 };
 </script>
 </body>
