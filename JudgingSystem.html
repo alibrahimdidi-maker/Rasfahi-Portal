@@ -17419,6 +17419,76 @@ if (state.extra.phase === 'reading' && currentQ) {
     `;
     liveBox.scrollTop = 0;
 }
+    function loadStudentBatch() {
+    const file = document.getElementById('batchCsv').files[0];
+    if(!file) { alert("Please select the CSV file first!"); return; }
+    
+    const r = new FileReader();
+    r.onload = e => {
+        try {
+            const rows = e.target.result.split('\n');
+            state.allStudents = []; 
+            state.judging.savedResults = []; 
+
+            for(let i = 1; i < rows.length; i++) {
+                let rowRaw = rows[i].trim();
+                if(!rowRaw) continue;
+
+                // ތިޔަ ފޮނުއްވި ފައިލްގައި ހުރިގޮތަށް ކޮމާއަށް ބަލައިގެން ޑޭޓާ ވަކިކުރުން
+                const clean = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g).map(c => c.replace(/^"|"$/g, '').trim());
+                
+                // ތިޔަ ފޮނުއްވި CSV ފައިލްގެ ކޮލަމްތަކުގެ ތަރުތީބު (Index):
+                // 0:Serial, 1:RegNo, 2:AgeGroup, 3:Branch, 4:Inst, 5:FullName, 6:Gender, 7:Address, 8:IDCard
+                // 9-15: Criteria Averages
+                // 16:Judge 1, 17:Judge 2, 18:Judge 3, 19:Judge 4, 20:Judge 5
+                // 21:GRAND TOTAL, 22:FINAL AVERAGE
+
+                const sObj = {
+                    serial: clean[0], 
+                    reg: clean[1], 
+                    group: clean[2], 
+                    branch: clean[3],
+                    institution: clean[4], 
+                    name: clean[5], 
+                    gender: clean[6], 
+                    address: clean[7],
+                    id: clean[8],
+                    scores: {}, 
+                    finalScore: 0
+                };
+
+                // ★ ޖަޖުންގެ މާކުސްތައް ނެގުން (ކޮލަމް 16 އިން 20 އަށް)
+                if(clean[16]) sObj.scores['Judge_1'] = parseFloat(clean[16]) || 0;
+                if(clean[17]) sObj.scores['Judge_2'] = parseFloat(clean[17]) || 0;
+                if(clean[18]) sObj.scores['Judge_3'] = parseFloat(clean[18]) || 0;
+                if(clean[19]) sObj.scores['Judge_4'] = parseFloat(clean[19]) || 0;
+                if(clean[20]) sObj.scores['Judge_5'] = parseFloat(clean[20]) || 0;
+                
+                // ★ ފައިނަލް އެވްރެޖް ނެގުން (ކޮލަމް 22)
+                if(clean[22]) {
+                    sObj.finalScore = parseFloat(clean[22]) || 0;
+                }
+
+                // މާކުސް ހުރި ކުދިން އެކަނި ރިޕޯޓް ލިސްޓަށް ލުން
+                if(sObj.finalScore > 0) {
+                    state.judging.savedResults.push(sObj);
+                }
+
+                state.allStudents.push(sObj);
+            }
+            
+            populateStudentSelector(); 
+            renderMasterTable();      
+            saveToLocal();            
+            
+            alert(`✅ Success: Loaded ${state.allStudents.length} students with previous marks.`);
+        } catch(err) { 
+            console.error(err);
+            alert("Error: Make sure the file format is correct."); 
+        }
+    };
+    r.readAsText(file);
+}
 </script>
 </body>
 </html>
