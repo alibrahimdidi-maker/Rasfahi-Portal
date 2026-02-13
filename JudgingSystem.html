@@ -17280,7 +17280,41 @@ window.setFullMarks = function(j, rIdx, max) {
 function renderSecretaryRubric() {
     if (!document.getElementById('rubricGrid')) return; 
 }
+// --- FORCE SYNC LOGIC ---
 
+// 1. ޝާހީ ސްކްރީނުން އާޔަތް ބަދަލުކުރާ ފަންކްޝަންތަކާ ގުޅުވާލުން
+const originalNextAyah = typeof nextAyah === 'function' ? nextAyah : null;
+window.nextAyah = function() {
+    if(originalNextAyah) originalNextAyah();
+    syncExtraToJudges(); // ވަގުތުން އެޑްމިން ގޮޅި އަޕްޑޭޓްކުރުން
+};
+
+const originalPrevAyah = typeof prevAyah === 'function' ? prevAyah : null;
+window.prevAyah = function() {
+    if(originalPrevAyah) originalPrevAyah();
+    syncExtraToJudges();
+};
+
+const originalSelectQuestion = typeof selectQuestion === 'function' ? selectQuestion : null;
+window.selectQuestion = function(idx) {
+    if(originalSelectQuestion) originalSelectQuestion(idx);
+    syncExtraToJudges();
+};
+
+// 2. ސިސްޓަމްގެ ސްޓޭޓް ބަދަލުވޭތޯ ބަލައި އަޕްޑޭޓްކުރުން (Observer)
+// މި ބައިން ކޮންމެ 500 މިލިސިކުންތަކުން އެޑްމިން ގޮޅީގައި އާޔަތް އިންތޯ ޗެކްކުރާނެ
+setInterval(() => {
+    const liveBox = document.getElementById('mainLiveQuranBox');
+    if (liveBox && state.extra.selection && state.extra.selection[state.extra.currentIndex]) {
+        const currentAyah = state.extra.selection[state.extra.currentIndex].text;
+        
+        // ގޮޅީގައި އާޔަތް ނެތްނަމަ ނުވަތަ ބަދަލުވެފައިވާނަމަ އަޕްޑޭޓްކުރުން
+        if (liveBox.innerText === "ދަރިވަރު ކިޔަވަން ފެށުމުން އާޔަތް މިތަނުން ފެންނާނެއެވެ." || 
+            liveBox.innerText === "ދަރިވަރު ސުވާލު ނަގަނީ...") {
+            syncExtraToJudges();
+        }
+    }
+}, 1000);
 </script>
 </body>
 </html>
