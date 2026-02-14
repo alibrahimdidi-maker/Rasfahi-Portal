@@ -17565,6 +17565,121 @@ function exportFullMasterSheet() {
 
 // 3. RE-LINKING: އެހެން ފަންކްޝަންތައް މިއާ ގުޅުވާލުން
 document.getElementById('masterSheetInput').onchange = loadStudentBatch;
+    // =========================================================================
+// ★ ENHANCED MATRIX SYSTEM (V25 - LARGE TEXT & CLICK TO DEDUCT) ★
+// =========================================================================
+
+// 1. RENDER MATRIX (Compact Layout, Large Numbers)
+function renderMatrixTable() {
+    const rubric = state.judging.rubric;
+    const area = document.getElementById('matrixGridArea');
+    const s = state.judging.currentStudentObj;
+    const studentData = state.allStudents.find(x => x.id === s.id) || s;
+
+    let html = `<table class="matrix-table" style="width:100%; border-collapse:collapse; color:#fff; table-layout: fixed;">
+        <thead>
+            <tr>
+                <th style="width:180px; text-align:left; background:#222; color:#FFD700; padding:10px; border:1px solid #444; font-size:14px;">Criteria</th>`;
+    
+    for(let j=1; j<=5; j++) {
+        html += `<th style="background:#111; border:1px solid #444; color:#aaa; font-size:14px;">Judge ${j}</th>`;
+    }
+    html += `</tr></thead><tbody>`;
+
+    rubric.forEach((r, rIdx) => {
+        html += `<tr style="height: 60px;">
+            <td style="text-align:left; font-weight:bold; padding:5px 10px; border:1px solid #333; color:#eee; font-size:15px; line-height:1.2;">
+                ${r.name} <br><small style="color:#FFD700; font-size:11px;">Max: ${r.max}</small>
+            </td>`;
+        
+        for(let j=1; j<=5; j++) {
+            let jKey = `Judge_${j}`;
+            let currentVal = ""; 
+
+            if (studentData.detailedScores && studentData.detailedScores[jKey] && studentData.detailedScores[jKey][r.name] !== undefined) {
+                currentVal = studentData.detailedScores[jKey][r.name];
+            }
+
+            let displayVal = (currentVal === "") ? "-" : currentVal;
+            let bgColor = (currentVal === "") ? "rgba(0,0,0,0.4)" : "rgba(0,230,118,0.15)";
+
+            html += `<td id="cell_${j}_${rIdx}" style="border:1px solid #333; padding:4px; text-align:center; background:${bgColor}; transition: 0.2s;">
+                <div id="mScore_${j}_${rIdx}" 
+                     onclick="setFullMarks(${j}, ${rIdx}, ${r.max})"
+                     style="font-size:32px; font-weight:900; color:#00e676; cursor:pointer; margin-bottom:4px; line-height:1;">${displayVal}</div>
+                
+                <div style="display:flex; justify-content:center; gap:3px;">
+                    <button class="sec-deduct-btn" style="flex:1; padding:6px 0 !important; font-size:12px !important;" onclick="applyMatrixDeduction(${j}, ${rIdx}, 0.25, ${r.max})">.25</button>
+                    <button class="sec-deduct-btn" style="flex:1; padding:6px 0 !important; font-size:12px !important;" onclick="applyMatrixDeduction(${j}, ${rIdx}, 0.5, ${r.max})">.5</button>
+                    <button class="sec-deduct-btn" style="flex:1; padding:6px 0 !important; font-size:12px !important;" onclick="applyMatrixDeduction(${j}, ${rIdx}, 1.0, ${r.max})">1</button>
+                </div>
+                
+                <input type="hidden" class="matrix-input j-col-${j}" id="inp_${j}_${rIdx}" value="${currentVal}" data-criteria="${r.name}" data-max="${r.max}">
+            </td>`;
+        }
+        html += `</tr>`;
+    });
+
+    // TOTAL ROW
+    html += `<tr style="background:#111; height:60px;">
+                <td style="text-align:right; font-weight:bold; padding-right:15px; color:#FFD700; font-size:16px;">TOTAL:</td>`;
+    for(let j=1; j<=5; j++) {
+        let savedScore = (studentData.scores && studentData.scores[`Judge_${j}`]) ? studentData.scores[`Judge_${j}`] : 0;
+        let displayTotal = (savedScore > 0) ? parseFloat(savedScore).toFixed(2) : "0.00";
+        html += `<td style="text-align:center; font-weight:bold; color:#FFD700; font-size:28px; border:1px solid #444; background:#000;">
+                    <span id="mTotal_${j}">${displayTotal}</span>
+                 </td>`;
+    }
+    html += `</tr></tbody></table>`;
+    area.innerHTML = html;
+}
+
+// 2. CLICK TO DEDUCT (Calculates automatically)
+window.applyMatrixDeduction = function(j, rIdx, amt, max) {
+    const inp = document.getElementById(`inp_${j}_${rIdx}`);
+    const disp = document.getElementById(`mScore_${j}_${rIdx}`);
+    const cell = document.getElementById(`cell_${j}_${rIdx}`);
+    
+    // Start from Max if empty
+    let cur = inp.value === "" ? parseFloat(max) : parseFloat(inp.value);
+    let newVal = Math.max(0, cur - amt);
+    
+    inp.value = newVal.toFixed(2);
+    disp.innerText = newVal.toFixed(2);
+    cell.style.background = "rgba(0,230,118,0.2)";
+    
+    recalcMatrixJudgeTotal(j);
+};
+
+// 3. SET FULL MARKS (Reset specific cell to max)
+window.setFullMarks = function(j, rIdx, max) {
+    const inp = document.getElementById(`inp_${j}_${rIdx}`);
+    const disp = document.getElementById(`mScore_${j}_${rIdx}`);
+    const cell = document.getElementById(`cell_${j}_${rIdx}`);
+    
+    inp.value = max.toFixed(2);
+    disp.innerText = max.toFixed(2);
+    cell.style.background = "rgba(0,230,118,0.2)";
+    
+    recalcMatrixJudgeTotal(j);
+};
+
+// 4. JUDGE TOTAL CALCULATION
+function recalcMatrixJudgeTotal(jNum) {
+    const inputs = document.querySelectorAll(`.matrix-input.j-col-${jNum}`);
+    let sum = 0; 
+    let active = false;
+    
+    inputs.forEach(inp => { 
+        if(inp.value !== "") { 
+            sum += parseFloat(inp.value); 
+            active = true; 
+        } 
+    });
+    
+    const totalVal = active ? sum.toFixed(2) : "0.00";
+    document.getElementById(`mTotal_${jNum}`).innerText = totalVal;
+}
 </script>
 </body>
 </html>
