@@ -18115,6 +18115,93 @@ function generateDetailedRankedCSV() {
     link.click();
     document.body.removeChild(link);
 }
+    function loadStudentBatch() {
+    const file = document.getElementById('batchCsv').files[0] || document.getElementById('masterSheetInput').files[0];
+    if(!file) { alert("Please select a CSV file first!"); return; }
+    
+    const r = new FileReader();
+    r.onload = e => {
+        try {
+            const rows = e.target.result.split(/\r?\n/); // ރޯތައް ވަކިކުރުން
+            if(rows.length < 2) return;
+
+            // 1. ހެޑަރތައް ދެނެގަތުން
+            const headers = rows[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+            const findCol = (name) => headers.findIndex(h => h.includes(name.toLowerCase()));
+
+            const idx = {
+                reg: findCol("reg no"),
+                name: findCol("full name"),
+                group: findCol("age group"),
+                branch: findCol("branch"),
+                inst: findCol("institution type"),
+                id: findCol("id card"),
+                gender: findCol("gender"),
+                address: findCol("address"),
+                j1: findCol("judge 1 total"),
+                j2: findCol("judge 2 total"),
+                j3: findCol("judge 3 total"),
+                j4: findCol("judge 4 total"),
+                j5: findCol("judge 5 total"),
+                avg: findCol("final average")
+            };
+
+            state.allStudents = []; 
+            state.judging.savedResults = []; 
+
+            for(let i = 1; i < rows.length; i++) {
+                let rowRaw = rows[i].trim();
+                if(!rowRaw) continue;
+
+                // ★ މުހިންމު ބަދަލު: ސްޕާޓް ކޮމާ ސްޕްލިޓް ރޫލް ★
+                // މި ރޫލުން " " ގެ ތެރޭގައި ހުންނަ އެއްޗެހި ރަނގަޅަށް ވަކިކޮށްދޭނެ
+                const cols = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if(!cols) continue;
+                
+                // ގޮޅިތަކުން ބޭކާރު ކޯޓްސް ފޮހެލުން
+                const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
+                
+                const sObj = {
+                    reg: idx.reg > -1 ? (clean[idx.reg] || "") : "",
+                    name: idx.name > -1 ? (clean[idx.name] || "") : "", // ފުލް ނަން މިތަނަށް އަންނާނެ
+                    group: idx.group > -1 ? (clean[idx.group] || "") : "",
+                    branch: idx.branch > -1 ? (clean[idx.branch] || "") : "",
+                    institution: idx.inst > -1 ? (clean[idx.inst] || "") : "",
+                    id: idx.id > -1 ? (clean[idx.id] || "") : "ID-"+i,
+                    gender: idx.gender > -1 ? (clean[idx.gender] || "") : "",
+                    address: idx.address > -1 ? (clean[idx.address] || "") : "",
+                    scores: {}, 
+                    detailedScores: {},
+                    finalScore: 0
+                };
+
+                // މާކުސްތައް އެޑްކުރުން
+                if(idx.j1 > -1 && clean[idx.j1]) sObj.scores['Judge_1'] = parseFloat(clean[idx.j1]);
+                if(idx.j2 > -1 && clean[idx.j2]) sObj.scores['Judge_2'] = parseFloat(clean[idx.j2]);
+                if(idx.j3 > -1 && clean[idx.j3]) sObj.scores['Judge_3'] = parseFloat(clean[idx.j3]);
+                if(idx.j4 > -1 && clean[idx.j4]) sObj.scores['Judge_4'] = parseFloat(clean[idx.j4]);
+                if(idx.j5 > -1 && clean[idx.j5]) sObj.scores['Judge_5'] = parseFloat(clean[idx.j5]);
+                
+                if(idx.avg > -1 && clean[idx.avg]) {
+                    sObj.finalScore = parseFloat(clean[idx.avg]);
+                    if(sObj.finalScore > 0) state.judging.savedResults.push(sObj);
+                }
+
+                state.allStudents.push(sObj);
+            }
+            
+            if(typeof populateStudentSelector === 'function') populateStudentSelector(); 
+            if(typeof renderMasterTable === 'function') renderMasterTable();       
+            saveToLocal(); 
+            
+            alert(`✅ ކާމިޔާބު! ${state.allStudents.length} ކުދިންގެ ފުލް ނަމާއި މާކުސް ސިންކްވެއްޖެ.`);
+        } catch(err) { 
+            console.error(err);
+            alert("Error: ޑޭޓާ ކިޔުމުގައި މައްސަލައެއް ދިމާވެއްޖެ."); 
+        }
+    };
+    r.readAsText(file);
+}
 </script>
 </body>
 </html>
