@@ -17227,6 +17227,86 @@ function recalcMatrixJudgeTotal(jNum) {
     inputs.forEach(inp => { if(inp.value !== "") { sum += parseFloat(inp.value); active = true; } });
     document.getElementById(`mTotal_${jNum}`).innerText = active ? sum.toFixed(2) : "0.00";
 }
+    function loadStudentBatch() {
+    const file = document.getElementById('batchCsv').files[0];
+    if(!file) { alert("Please select the CSV file first!"); return; }
+    
+    const r = new FileReader();
+    r.onload = e => {
+        try {
+            const rows = e.target.result.split('\n');
+            if(rows.length < 2) return;
+
+            // 1. ހެޑަރތައް ނަގައި ކޮލަމްތައް ހުރި ތަން ދެނެގަތުން
+            const headers = rows[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+            
+            // ކޮލަމް އިންޑެކްސްތައް ހޯދުން
+            const idx = {
+                reg: headers.indexOf("reg no"),
+                name: headers.indexOf("full name"),
+                group: headers.indexOf("age group"),
+                branch: headers.indexOf("branch"),
+                inst: headers.indexOf("institution type"),
+                id: headers.indexOf("id card"),
+                gender: headers.indexOf("gender"),
+                j1: headers.indexOf("judge 1 total"),
+                j2: headers.indexOf("judge 2 total"),
+                j3: headers.indexOf("judge 3 total"),
+                j4: headers.indexOf("judge 4 total"),
+                j5: headers.indexOf("judge 5 total"),
+                avg: headers.indexOf("final average")
+            };
+
+            state.allStudents = []; 
+            state.judging.savedResults = []; 
+
+            for(let i = 1; i < rows.length; i++) {
+                let rowRaw = rows[i].trim();
+                if(!rowRaw) continue;
+
+                // Handling quotes and commas
+                const cols = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g).map(c => c.replace(/^"|"$/g, '').trim());
+                
+                // ޑޭޓާ އޮބްޖެކްޓް ހެދުން (ކޮލަމް ހުރި ތަނަށް ބަލާފައި)
+                const sObj = {
+                    reg: idx.reg > -1 ? cols[idx.reg] : "",
+                    name: idx.name > -1 ? cols[idx.name] : "",
+                    group: idx.group > -1 ? cols[idx.group] : "",
+                    branch: idx.branch > -1 ? cols[idx.branch] : "",
+                    institution: idx.inst > -1 ? cols[idx.inst] : "",
+                    id: idx.id > -1 ? cols[idx.id] : "",
+                    gender: idx.gender > -1 ? cols[idx.gender] : "",
+                    scores: {}, 
+                    finalScore: 0
+                };
+
+                // ޖަޖުންގެ މާކުސްތައް ސިންކްކުރުން
+                if(idx.j1 > -1 && cols[idx.j1]) sObj.scores['Judge_1'] = parseFloat(cols[idx.j1]);
+                if(idx.j2 > -1 && cols[idx.j2]) sObj.scores['Judge_2'] = parseFloat(cols[idx.j2]);
+                if(idx.j3 > -1 && cols[idx.j3]) sObj.scores['Judge_3'] = parseFloat(cols[idx.j3]);
+                if(idx.j4 > -1 && cols[idx.j4]) sObj.scores['Judge_4'] = parseFloat(cols[idx.j4]);
+                if(idx.j5 > -1 && cols[idx.j5]) sObj.scores['Judge_5'] = parseFloat(cols[idx.j5]);
+                
+                if(idx.avg > -1 && cols[idx.avg]) {
+                    sObj.finalScore = parseFloat(cols[idx.avg]);
+                    if(sObj.finalScore > 0) state.judging.savedResults.push(sObj);
+                }
+
+                state.allStudents.push(sObj);
+            }
+            
+            populateStudentSelector(); 
+            if(typeof renderMasterTable === 'function') renderMasterTable();      
+            saveToLocal(); 
+            
+            alert(`✅ ކާމިޔާބު! ${state.allStudents.length} ދަރިވަރުންގެ މަޢުލޫމާތު ސިންކްވެއްޖެ.`);
+        } catch(err) { 
+            console.error(err);
+            alert("Error: ފައިލް ކިޔުމުގައި މައްސަލައެއް ދިމާވެއްޖެ."); 
+        }
+    };
+    r.readAsText(file);
+}
 </script>
 </body>
 </html>
