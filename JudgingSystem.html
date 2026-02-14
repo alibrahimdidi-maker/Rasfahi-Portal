@@ -18093,6 +18093,71 @@ function loadStudentBatch() {
     };
     r.readAsText(file, 'UTF-8'); 
 }
+    function loadStudentBatch() {
+    const fileInput = document.getElementById('batchCsv');
+    const file = fileInput.files[0];
+    if(!file) { alert("Please select a CSV file first!"); return; }
+    
+    const r = new FileReader();
+    r.onload = function(e) {
+        try {
+            const content = e.target.result;
+            const rows = content.split(/\r?\n/);
+            if(rows.length < 2) return;
+
+            // ހެޑަރތައް ނަގައި ކުދި އަކުރަށް ބަދަލުކުރުން
+            const headers = rows[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+            
+            // ކޮލަމްތައް ހުރި އިންޑެކްސް ހޯދުން
+            const regIdx = headers.findIndex(h => h.includes("reg"));
+            const nameIdx = headers.findIndex(h => h.includes("name"));
+            const groupIdx = headers.findIndex(h => h.includes("group"));
+            const branchIdx = headers.findIndex(h => h.includes("branch"));
+            // Institution ނުވަތަ މުއައްސަސާ ކޮލަމް ހޯދުން
+            const instIdx = headers.findIndex(h => h.includes("inst") || h.includes("school") || h.includes("office") || h.includes("މުއައްސަސާ"));
+            const idIdx = headers.findIndex(h => h.includes("id"));
+            const genderIdx = headers.findIndex(h => h.includes("gender"));
+
+            state.allStudents = []; 
+
+            for(let i = 1; i < rows.length; i++) {
+                let rowRaw = rows[i].trim();
+                if(!rowRaw) continue;
+
+                // Comma handling logic
+                const cols = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g).map(c => c.replace(/^"|"$/g, '').trim());
+                
+                if(cols.length < 2) continue;
+
+                const sObj = {
+                    reg: regIdx > -1 ? cols[regIdx] : "",
+                    name: nameIdx > -1 ? cols[nameIdx] : "",
+                    group: groupIdx > -1 ? cols[groupIdx] : "",
+                    branch: branchIdx > -1 ? cols[branchIdx] : "",
+                    // މުއައްސަސާ ފެނިއްޖެނަމަ އެ ނަން، ނޫނީ 'Private'
+                    institution: instIdx > -1 ? cols[instIdx] : "Private",
+                    id: idIdx > -1 ? cols[idIdx] : "",
+                    gender: genderIdx > -1 ? cols[genderIdx] : "",
+                    scores: {},
+                    detailedScores: {}, // މާކުސްތަކަށް ބޭނުންވާ ބައި
+                    finalScore: 0
+                };
+                
+                state.allStudents.push(sObj);
+            }
+            
+            // ސްކްރީންތައް އަޕްޑޭޓްކުރުން
+            if(typeof populateStudentSelector === 'function') populateStudentSelector();
+            if(typeof renderMasterTable === 'function') renderMasterTable();
+            
+            alert("✅ " + state.allStudents.length + " Students loaded successfully!");
+        } catch(err) {
+            console.error(err);
+            alert("Error parsing CSV: " + err.message);
+        }
+    };
+    r.readAsText(file, 'UTF-8'); 
+}
 </script>
 </body>
 </html>
