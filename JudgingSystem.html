@@ -17565,6 +17565,156 @@ function exportFullMasterSheet() {
 
 // 3. RE-LINKING: އެހެން ފަންކްޝަންތައް މިއާ ގުޅުވާލުން
 document.getElementById('masterSheetInput').onchange = loadStudentBatch;
+    // =========================================================================
+// ★ UPDATED BULK PRINT ENGINE: WITH DETAILED MARKS BREAKDOWN ★
+// =========================================================================
+
+function printBulkJudgeSheets() {
+    const judgeKey = document.getElementById('bulkJudgeSelect').value; // e.g., "Judge_1"
+    const savedData = state.judging.savedResults;
+
+    if (!savedData || savedData.length === 0) {
+        alert("މާކުސް ދީފައިވާ އެއްވެސް ދަރިވަރަކު ނެތެވެ.");
+        return;
+    }
+
+    const instName = document.getElementById('rptInstName').value || "ޤުރުއާން މުބާރާތް";
+    const compName = document.getElementById('rptCompName').value || "މާކުސް ޝީޓް";
+    const rubric = state.judging.rubric;
+    
+    let sheetsHTML = "";
+
+    savedData.forEach((student, index) => {
+        // މި ޖަޖު މި ކުއްޖާއަށް ދިން ޖުމްލަ މާކުސް
+        let judgeTotal = student.scores ? (student.scores[judgeKey] || 0) : 0;
+        let marksRows = "";
+        
+        // ★ ވަކިވަކި ބައިތަކުގެ މާކުސް (Detailed Breakdown) ނެގުން ★
+        rubric.forEach(r => {
+            let detailMark = "-";
+            
+            // detailedScores ތެރެއިން މި ޖަޖުގެ މި ކެޓަގަރީއަށް ހުރި މާކުސް ހޯދުން
+            if (student.detailedScores && 
+                student.detailedScores[judgeKey] && 
+                student.detailedScores[judgeKey][r.name] !== undefined) {
+                
+                detailMark = student.detailedScores[judgeKey][r.name];
+            }
+
+            marksRows += `
+            <tr>
+                <td style="text-align:right; font-weight:bold;">${r.name}</td>
+                <td>${r.max}</td>
+                <td style="font-size:18px; font-weight:bold;">${detailMark}</td> 
+            </tr>`;
+        });
+
+        const pageBreak = (index < savedData.length - 1) ? "page-break-after: always;" : "";
+
+        sheetsHTML += `
+        <div class="sheet-page" style="${pageBreak}">
+            <div class="sheet-header">
+                <h1>${instName}</h1>
+                <h2>${compName}</h2>
+                <div class="judge-badge">${judgeKey.replace('_', ' ')}</div>
+            </div>
+
+            <div class="student-info">
+                <table class="info-table">
+                    <tr>
+                        <td class="label">ނަން:</td>
+                        <td class="data">${student.name}</td>
+                        <td class="label">ރެޖިސްޓްރީ:</td>
+                        <td class="data">${student.reg || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">ގޮފި:</td>
+                        <td class="data">${student.branch}</td>
+                        <td class="label">ޢުމުރު:</td>
+                        <td class="data">${student.group}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">އެޑްރެސް:</td>
+                        <td class="data" colspan="3">${student.address || '-'}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <table class="marks-table">
+                <thead>
+                    <tr>
+                        <th width="50%">ބައިތައް (Criteria)</th>
+                        <th width="20%">ޖުމްލަ</th>
+                        <th width="30%">ދިން މާކުސް</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${marksRows}
+                    <tr class="total-row">
+                        <td style="text-align:right; font-weight:bold;">ޖުމްލަ (TOTAL)</td>
+                        <td></td>
+                        <td style="font-size:26px; font-weight:900;">${judgeTotal}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="remarks-box">
+                <p>ރިމާކްސް: __________________________________________________</p>
+            </div>
+
+            <div class="signature-area">
+                <div>
+                    ____________________<br>
+                    ޖަޖުގެ ސޮއި
+                </div>
+                <div>
+                    ތާރީޚް: ${new Date().toLocaleDateString()}
+                </div>
+            </div>
+            
+            <div class="footer-tiny">System ID: ${student.id} | Page: ${index + 1}</div>
+        </div>
+        `;
+    });
+
+    const fullHTML = `
+    <!DOCTYPE html>
+    <html dir="rtl" lang="dv">
+    <head>
+        <title>Judge Detailed Sheets</title>
+        <style>
+            @font-face { font-family: 'Faruuma'; src: local('Faruuma'), url('https://fonts.googleapis.com/earlyaccess/notosansthaana.css'); }
+            body { font-family: 'Faruuma', sans-serif; margin: 0; padding: 20px; background: #555; }
+            .sheet-page { background: white; width: 210mm; min-height: 297mm; padding: 30px; margin: 0 auto 20px auto; box-sizing: border-box; position: relative; border: 1px solid #000; }
+            h1, h2 { text-align: center; margin: 5px 0; }
+            h1 { font-size: 26px; text-decoration: underline; }
+            .judge-badge { position: absolute; top: 30px; left: 30px; border: 2px solid #000; padding: 5px 10px; font-weight: bold; font-size: 16px; }
+            .info-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            .info-table td { padding: 8px; border: 1px solid #ddd; font-size: 15px; }
+            .label { background: #f5f5f5; font-weight: bold; width: 15%; }
+            .data { width: 35%; font-weight: bold; }
+            .marks-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            .marks-table th { background: #eee; padding: 10px; border: 1px solid #000; font-weight: bold; }
+            .marks-table td { padding: 12px; border: 1px solid #000; text-align: center; font-size: 16px; }
+            .total-row td { background: #000; color: #fff; }
+            .remarks-box { margin-top: 30px; border: 1px dashed #000; padding: 15px; min-height: 40px; }
+            .signature-area { margin-top: 40px; display: flex; justify-content: space-between; padding: 0 40px; font-size: 16px; }
+            .footer-tiny { position: absolute; bottom: 15px; left: 0; width: 100%; text-align: center; font-size: 9px; color: #999; }
+            @media print { body { background: none; padding: 0; } .sheet-page { margin: 0; border: none; } button { display: none; } }
+        </style>
+    </head>
+    <body>
+        <div style="text-align:center; margin-bottom:20px;">
+            <button onclick="window.print()" style="padding:15px 30px; font-size:18px; background:navy; color:white; border:none; cursor:pointer; font-weight:bold;">🖨️ PRINT ALL SHEETS</button>
+        </div>
+        ${sheetsHTML}
+    </body>
+    </html>`;
+
+    const w = window.open("", "BulkPrint", "width=1000,height=800");
+    w.document.write(fullHTML);
+    w.document.close();
+}
 </script>
 </body>
 </html>
