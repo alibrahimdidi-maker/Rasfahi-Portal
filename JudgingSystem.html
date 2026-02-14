@@ -18029,7 +18029,76 @@ setInterval(() => {
         }
     }
 }, 1000);
+// --- FIXED BATCH LOADER (RESOLVES DATA MISALIGNMENT) ---
+function loadStudentBatch() {
+    const file = document.getElementById('batchCsv').files[0];
+    if(!file) { alert("Please select a CSV file first!"); return; }
+    
+    const r = new FileReader();
+    r.onload = e => {
+        try {
+            const result = e.target.result;
+            const rows = result.split(/\r?\n/); // Split by lines
+            if(rows.length < 2) return;
 
+            // Header mapping to find columns by name
+            const headers = rows[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+            
+            const colIdx = {
+                serial: headers.indexOf("serial no"),
+                reg: headers.indexOf("reg no"),
+                group: headers.indexOf("age group"),
+                branch: headers.indexOf("branch"),
+                inst: headers.indexOf("institution type"),
+                name: headers.indexOf("full name"),
+                gender: headers.indexOf("gender"),
+                id: headers.indexOf("id card")
+            };
+
+            state.allStudents = []; 
+            state.judging.savedResults = []; 
+
+            for(let i = 1; i < rows.length; i++) {
+                let rowRaw = rows[i].trim();
+                if(!rowRaw) continue;
+
+                // SMART CSV SPLIT: This handles commas inside quotes correctly
+                const cols = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if(!cols || cols.length < 5) continue;
+
+                const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
+
+                // Create Student Object using mapped indexes
+                const sObj = {
+                    serial: colIdx.serial > -1 ? clean[colIdx.serial] : i,
+                    reg: colIdx.reg > -1 ? clean[colIdx.reg] : "",
+                    group: colIdx.group > -1 ? clean[colIdx.group] : "",
+                    branch: colIdx.branch > -1 ? clean[colIdx.branch] : "",
+                    institution: colIdx.inst > -1 ? clean[colIdx.inst] : "",
+                    name: colIdx.name > -1 ? clean[colIdx.name] : "",
+                    gender: colIdx.gender > -1 ? clean[colIdx.gender] : "",
+                    id: colIdx.id > -1 ? clean[colIdx.id] : "ID-"+i,
+                    scores: {}, 
+                    detailedScores: {},
+                    finalScore: 0
+                };
+
+                state.allStudents.push(sObj);
+            }
+            
+            // Refresh UI
+            if(typeof populateStudentSelector === 'function') populateStudentSelector(); 
+            if(typeof renderMasterTable === 'function') renderMasterTable();      
+            saveToLocal(); 
+            
+            alert(`✅ ކާމިޔާބު! ${state.allStudents.length} ދަރިވަރުންގެ މަޢުލޫމާތު ފެންނަން ހުންނާނެ.`);
+        } catch(err) { 
+            console.error(err);
+            alert("Error: ފައިލްގައި ހުރި މައުލޫމާތު ކިޔުމުގައި މައްސަލައެއް ދިމާވެއްޖެ."); 
+        }
+    };
+    r.readAsText(file);
+}
 </script>
 </body>
 </html>
