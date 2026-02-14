@@ -17715,6 +17715,118 @@ function printBulkJudgeSheets() {
     w.document.write(fullHTML);
     w.document.close();
 }
+    // =========================================================================
+// ★ SMART COLUMN MAPPER & SYNC ENGINE (V20 - ANTI-GHOST FIX) ★
+// =========================================================================
+
+function loadStudentBatch() {
+    const file = document.getElementById('batchCsv').files[0] || document.getElementById('masterSheetInput').files[0];
+    if(!file) { alert("Please select the exported CSV file!"); return; }
+    
+    const r = new FileReader();
+    r.onload = e => {
+        try {
+            const lines = e.target.result.split(/\r?\n/);
+            if(lines.length < 2) return;
+
+            // 1. ހެޑަރތައް ނަގައި ސާފުކުރުން
+            const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+            
+            // 2. ކޮލަމްތައް ހުރި އިންޑެކްސް ދެނެގަތުން (Dynamic Mapping)
+            const getIdx = (name) => headers.findIndex(h => h === name.toLowerCase() || h.includes(name.toLowerCase()));
+
+            const col = {
+                reg: getIdx("Reg No"),
+                name: getIdx("Full Name"),
+                group: getIdx("Age Group"),
+                branch: getIdx("Branch"),
+                inst: getIdx("Institution Type"),
+                id: getIdx("ID Card"),
+                gender: getIdx("Gender"),
+                addr: getIdx("Address"),
+                avg: getIdx("Final Average")
+            };
+
+            const rubric = state.judging.rubric;
+            state.allStudents = []; 
+            state.judging.savedResults = []; 
+
+            // 3. ޑޭޓާ ކިޔުން (Skip Header)
+            for(let i = 1; i < lines.length; i++) {
+                let rowRaw = lines[i].trim();
+                if(!rowRaw) continue;
+
+                // ހަމައެކަނި ކޮމާއިން ސްޕްލިޓް ކުރުމުގެ ބަދަލުގައި ކޯޓްސް (Quotes) އަށް ބަލައިގެން ސްޕްލިޓްކުރުން
+                const cols = rowRaw.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g).map(c => c.replace(/^"|"$/g, '').trim());
+                
+                let sObj = {
+                    id: col.id > -1 ? cols[col.id] : "ID-"+i,
+                    reg: col.reg > -1 ? cols[col.reg] : "",
+                    name: col.name > -1 ? cols[col.name] : "",
+                    group: col.group > -1 ? cols[col.group] : "",
+                    branch: col.branch > -1 ? cols[col.branch] : "",
+                    institution: col.inst > -1 ? cols[col.inst] : "",
+                    gender: col.gender > -1 ? cols[col.gender] : "",
+                    address: col.addr > -1 ? cols[col.addr] : "",
+                    scores: {}, 
+                    detailedScores: {},
+                    finalScore: 0
+                };
+
+                let totalFromJudges = 0;
+                let activeJudgesCount = 0;
+
+                // ★ 4. ޖަޖުންގެ މާކުސްތައް ރަނގަޅު ދިމާއަށް އެޅުވުން ★
+                for (let j = 1; j <= 5; j++) {
+                    let jKey = `Judge_${j}`;
+                    
+                    // ޖަޖުގެ ޖުމްލަ މާކުސް ހުރި ކޮލަމް ހޯދުން
+                    let jTotalIdx = headers.findIndex(h => h.includes(`judge ${j} total`) || h.includes(`j${j}-total`));
+                    
+                    if (jTotalIdx > -1 && cols[jTotalIdx] && cols[jTotalIdx] !== "0") {
+                        let jTotalVal = parseFloat(cols[jTotalIdx]);
+                        sObj.scores[jKey] = jTotalVal;
+                        totalFromJudges += jTotalVal;
+                        activeJudgesCount++;
+
+                        // ވަކިވަކި ބައިތަކުގެ މާކުސް (Detailed) ސިންކްކުރުން
+                        sObj.detailedScores[jKey] = {};
+                        rubric.forEach(r => {
+                            // ފައިލްގައި ހުރި ހެޑަރ ނަމަށް ބަލައިގެން މާކުސް ނެގުން (e.g. J1-Thilawa)
+                            let critHeader = `j${j}-${r.name}`.toLowerCase();
+                            let critIdx = headers.findIndex(h => h.includes(critHeader));
+                            
+                            if (critIdx > -1 && cols[critIdx]) {
+                                sObj.detailedScores[jKey][r.name] = parseFloat(cols[critIdx]);
+                            }
+                        });
+                    }
+                }
+
+                // އެވްރެޖް ސެޓްކުރުން
+                if (activeJudgesCount > 0) {
+                    sObj.finalScore = parseFloat((totalFromJudges / activeJudgesCount).toFixed(2));
+                } else if (col.avg > -1 && cols[col.avg]) {
+                    sObj.finalScore = parseFloat(cols[col.avg]);
+                }
+
+                state.allStudents.push(sObj);
+                if (sObj.finalScore > 0) state.judging.savedResults.push(sObj);
+            }
+            
+            // UI ރިފްރެޝްކުރުން
+            if(typeof populateStudentSelector === 'function') populateStudentSelector(); 
+            if(typeof renderMasterTable === 'function') renderMasterTable();      
+            saveToLocal(); 
+            
+            alert(`✅ ސިންކް ފުރިހަމަވެއްޖެ! \nލޯޑުވީ: ${state.allStudents.length} ކުދިން. \nމާކުސް ހުރީ: ${state.judging.savedResults.length} ކުދިންގެ.`);
+        } catch(err) { 
+            console.error(err);
+            alert("Error: ފައިލް ކިޔުމުގައި މައްސަލައެއް ދިމާވެއްޖެ. އެކްސްޕޯޓްކުރި ފައިލްގެ ހެޑަރއަށް ބަދަލެއް ގެނައިންތޯ ބައްލަވާ."); 
+        }
+    };
+    r.readAsText(file);
+}
 </script>
 </body>
 </html>
