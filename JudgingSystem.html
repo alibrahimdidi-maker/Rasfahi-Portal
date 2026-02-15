@@ -18128,6 +18128,75 @@ function loadStudentBatch() {
     };
     r.readAsText(file);
 }
+    // --- FIXED TABLE RENDER: SHOWS INSTITUTION TYPE FOR FILTERING ---
+function renderMasterTable() {
+    const fBranch = document.getElementById('filterBranch').value;
+    const fGroup = document.getElementById('filterGroup').value;
+    const tbody = document.getElementById('masterTableBody');
+    
+    // ފިލްޓަރުގެ ތެރެއިން މުއައްސަސާގެ ބާވަތް ނެގުން
+    const fInstType = document.getElementById('rptFilterInstType') ? document.getElementById('rptFilterInstType').value : "All";
+    
+    tbody.innerHTML = '';
+
+    // 1. ފިލްޓަރ ކުރުން (Branch, Group, and Institution Type)
+    let displayList = state.allStudents.filter(s => {
+        let matchBranch = (fBranch === "" || s.branch === fBranch);
+        let matchGroup = (fGroup === "" || s.group === fGroup);
+        
+        // Institution Type Filter Logic
+        let sInst = (s.institution || s.instType || "").trim();
+        let matchInst = (fInstType === "All" || sInst === fInstType);
+
+        return matchBranch && matchGroup && matchInst;
+    });
+
+    // 2. އެވްރެޖް މާކުހަށް ބަލައި ސޯޓްކުރުން (ވަނަ ތަރުތީބުން)
+    displayList.sort((a, b) => (parseFloat(b.finalScore) || 0) - (parseFloat(a.finalScore) || 0));
+
+    document.getElementById('tableCount').innerText = displayList.length;
+
+    // 3. ޓޭބަލް ކުރެހުން
+    displayList.forEach((s, idx) => {
+        let row = document.createElement('tr');
+        
+        // އެކްޓިވް ދަރިވަރު ހައިލައިޓްކުރުން
+        if(state.judging.currentStudentObj && s.id === state.judging.currentStudentObj.id) {
+            row.classList.add('selected-row');
+        }
+
+        let rank = (parseFloat(s.finalScore) > 0) ? (idx + 1) : "-";
+        
+        // ޖަޖުންގެ މާކުސްތައް ސާފުކޮށްލުން (Ghost 100 values fix)
+        const getSafeScore = (key) => {
+            let val = (s.scores && s.scores[key] !== undefined) ? s.scores[key] : "-";
+            return val;
+        };
+
+        // ޓޭބަލްގެ ރޯ (Row) ތައްޔާރުކުރުން
+        row.innerHTML = `
+            <td>${idx + 1}</td>
+            <td style="color:#aaa; font-size:11px;">${s.reg || ''}</td>
+            <td style="text-align:left; font-weight:bold; font-family:'Faruuma';">${s.name}</td>
+            <td style="font-size:11px;">${s.id || ''}</td>
+            <td>${s.branch || ''}</td>
+            <td>${s.group || ''}</td>
+            <td style="text-align:left; color:#00e676; font-weight:bold;">${s.institution || s.instType || '-'}</td>
+            
+            <td class="col-mark">${getSafeScore('Judge_1')}</td>
+            <td class="col-mark">${getSafeScore('Judge_2')}</td>
+            <td class="col-mark">${getSafeScore('Judge_3')}</td>
+            <td class="col-mark">${getSafeScore('Judge_4')}</td>
+            <td class="col-mark">${getSafeScore('Judge_5')}</td>
+            
+            <td class="col-final">${s.finalScore || '0.00'}</td>
+            <td style="color:#FFD700; font-weight:bold;">${rank}</td>
+        `;
+
+        row.onclick = () => selectStudentForGrading(s);
+        tbody.appendChild(row);
+    });
+}
 </script>
 </body>
 </html>
