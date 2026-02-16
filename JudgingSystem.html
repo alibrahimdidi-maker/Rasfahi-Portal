@@ -18139,20 +18139,18 @@ function loadStudentBatch() {
     };
     r.readAsText(file);
 }
-    // ===============================================================
-// ★ INDIVIDUAL JUDGE SCREENS & GLOBAL SYNC SYSTEM ★
+// ===============================================================
+// ★ ADVANCED INDIVIDUAL JUDGE PANEL (V20 - FULL CONTROL) ★
 // ===============================================================
 
 let judgeWindows = {};
 
-// 1. ވަކިވަކި ޖަޖުންގެ މެޓްރިކްސް ސްކްރީން ހުޅުވުން
+// 1. ޖަޖުންގެ ވިންޑޯ ހުޅުވުން
 function openIndividualJudgeMatrix(jNum) {
     const windowName = "JudgeMatrix_" + jNum;
-    const student = state.judging.currentStudentObj;
-    
-    const w = 950;
+    const w = 1000;
     const h = 850;
-    const left = (jNum - 1) * 80; 
+    const left = (jNum - 1) * 60; 
     
     const win = window.open("", windowName, `width=${w},height=${h},left=${left},top=50`);
     
@@ -18163,14 +18161,13 @@ function openIndividualJudgeMatrix(jNum) {
         win.document.write(html);
         win.document.close();
         
-        // ވިންޑޯ ހުޅުވުމުން ވަގުތުން ޑޭޓާ ފޮނުވުން
         setTimeout(() => syncJudgeMatrixWindow(jNum), 600);
     } else {
-        alert("Popup blocked! Please allow popups to open judge screens.");
+        alert("Popup blocked! Please allow popups.");
     }
 }
 
-// 2. ޖަޖުންގެ ސްކްރީނަށް ބޭނުންވާ HTML (Designed for High Performance)
+// 2. ޖަޖުންގެ ސްކްރީނަށް ބޭނުންވާ HTML (With Control Buttons)
 function generateJudgeMatrixHTML(jNum) {
     const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
     
@@ -18179,81 +18176,109 @@ function generateJudgeMatrixHTML(jNum) {
     <html lang="dv" dir="rtl">
     <head>
         <meta charset="UTF-8">
-        <title>Judge ${jNum} Panel</title>
+        <title>Judge ${jNum} Dashboard</title>
         <style>
             ${fontFace}
-            body { font-family: 'AppFont', sans-serif; background: #050505; color: white; margin: 0; padding: 20px; }
-            .header { border-bottom: 3px solid #7c4dff; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-            .judge-id { background: #7c4dff; color: #fff; padding: 5px 20px; border-radius: 50px; font-weight: bold; font-size: 18px; }
-            .student-box { background: linear-gradient(90deg, #111, #001a33); border: 1px solid #334455; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-            .rubric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; }
-            .card { background: #151b22; border: 2px solid #333; border-radius: 15px; padding: 20px; display: flex; justify-content: space-between; align-items: center; transition: 0.3s; }
+            body { font-family: 'AppFont', sans-serif; background: #0a0a0a; color: white; margin: 0; padding: 20px; user-select: none; }
+            .header-bar { border-bottom: 2px solid #7c4dff; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+            .judge-tag { background: #7c4dff; color: #fff; padding: 8px 25px; border-radius: 4px; font-weight: bold; font-size: 20px; border: 1px solid #b39ddb; }
+            
+            .student-display { background: linear-gradient(135deg, #1a1a1a, #001a33); border: 2px solid #334455; padding: 25px; border-radius: 15px; margin-bottom: 20px; text-align: center; min-height: 100px; transition: 0.5s; }
+            #stdName { font-size: 32px; font-weight: bold; color: #FFD700; margin: 0; }
+            #stdInfo { font-size: 16px; color: #00e676; margin-top: 10px; font-family: sans-serif; }
+            
+            .rubric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 15px; }
+            .card { background: #151b22; border: 2px solid #333; border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
             .card.active { border-color: #00e676; background: rgba(0,230,118,0.05); }
-            .card-title { font-size: 22px; font-weight: bold; color: #FFD700; margin-bottom: 5px; }
-            .score-box { text-align: center; min-width: 100px; background: #000; border: 2px solid #444; border-radius: 10px; padding: 15px; }
-            .score-val { font-size: 40px; font-weight: 900; color: #00e676; font-family: sans-serif; line-height: 1; }
-            .btn-group { display: flex; gap: 8px; margin-top: 15px; }
-            button { cursor: pointer; border: none; border-radius: 8px; font-weight: bold; transition: 0.2s; font-size: 16px; }
-            .btn-deduct { background: #2a0000; color: #ff8a80; flex: 1; padding: 12px 0; border: 1px solid #500; }
-            .btn-deduct:hover { background: #ff5252; color: white; transform: scale(1.05); }
-            .btn-reset { background: #333; color: #aaa; width: 50px; }
-            .btn-reset:hover { background: #fff; color: #000; }
-            .total-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #7c4dff; color: white; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); z-index: 100; }
+            .card-title { font-size: 22px; font-weight: bold; color: #fff; }
+            
+            .score-display { text-align: center; min-width: 100px; background: #000; border: 2px solid #444; border-radius: 10px; padding: 10px; }
+            .score-val { font-size: 38px; font-weight: 900; color: #00e676; line-height: 1; font-family: sans-serif; }
+            
+            .btn-group { display: flex; gap: 5px; margin-top: 12px; }
+            button { cursor: pointer; border: none; border-radius: 6px; font-weight: bold; transition: 0.2s; }
+            .btn-deduct { background: #330000; color: #ff8a80; flex: 1; padding: 12px 0; font-size: 16px; border: 1px solid #500; }
+            .btn-deduct:hover { background: #ff5252; color: white; }
+            
+            .control-panel { position: fixed; bottom: 0; left: 0; width: 100%; background: #111; border-top: 2px solid #7c4dff; padding: 15px; display: flex; justify-content: center; gap: 20px; align-items: center; z-index: 1000; }
+            .total-box { font-size: 28px; font-weight: bold; color: #FFD700; margin-right: 20px; }
+            .action-btn { padding: 12px 30px; font-size: 18px; border-radius: 8px; color: white; }
+            .btn-save { background: #004d00; border: 1px solid #00e676; }
+            .btn-print { background: #002b55; border: 1px solid #007bff; }
+            .btn-close { background: #440000; border: 1px solid #ff5252; }
+            .action-btn:hover { filter: brightness(1.2); transform: translateY(-2px); }
+            .action-btn:active { transform: translateY(0); }
+            
+            .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 9999; font-size: 30px; color: #FFD700; text-align: center; }
+            @media print { .control-panel, .header-bar, .btn-group { display: none; } body { background: white; color: black; } .card { border: 1px solid #ccc; background: white; } .student-display { border: 1px solid #000; background: #eee; } }
         </style>
     </head>
     <body oncontextmenu="return false;">
-        <div class="header">
-            <div class="judge-id">JUDGE ${jNum}</div>
-            <h2 style="margin:0; color:#aaa;">RASFAHI JUDGING SYSTEM</h2>
+        <div id="finishOverlay" class="overlay">✅ މާކުސް ސޭވްވެއްޖެ!<br><br><span style="font-size:20px; color:#fff;">އަނެއް ދަރިވަރު ސިލެކްޓް ކުރަންދެން މަޑުކުރައްވާ...</span></div>
+
+        <div class="header-bar">
+            <div class="judge-tag">JUDGE ${jNum}</div>
+            <div style="color: #666; font-size: 14px;">Rasfahi Judging System V26.0</div>
         </div>
-        <div class="student-box">
-            <div id="stdName" style="font-size: 28px; font-weight:bold; color: #FFD700;">Waiting...</div>
-            <div id="stdInfo" style="font-size: 16px; color: #00e676; margin-top: 8px; font-family: sans-serif;">-</div>
+
+        <div class="student-display">
+            <h1 id="stdName">Waiting for Chief Judge...</h1>
+            <div id="stdInfo">-</div>
         </div>
+
         <div id="rubricGrid" class="rubric-grid"></div>
+
         <div style="height: 120px;"></div>
-        <div class="total-bar">TOTAL SCORE: <span id="grandTotal">0.00</span></div>
+
+        <div class="control-panel">
+            <div class="total-box">TOTAL: <span id="grandTotal">0.00</span></div>
+            <button class="action-btn btn-save" onclick="saveToAdmin()">💾 SAVE MARKS</button>
+            <button class="action-btn btn-print" onclick="window.print()">🖨️ PRINT</button>
+            <button class="action-btn btn-close" onclick="window.close()">✖ CLOSE</button>
+        </div>
 
         <script>
             let myScores = {};
-            let judgeID = "Judge_${jNum}";
+            let isGrading = false;
 
             window.updateData = function(d) {
                 if(!d.student) {
-                    document.getElementById('stdName').innerText = "ނޯޓް: ދަރިވަރަކު ސިލެކްޓް ކުރައްވާ";
+                    document.getElementById('stdName').innerText = "Waiting for Chief Judge...";
+                    document.getElementById('stdInfo').innerText = "-";
                     document.getElementById('rubricGrid').innerHTML = "";
+                    document.getElementById('finishOverlay').style.display = 'none';
+                    isGrading = false;
                     return;
                 }
+
                 document.getElementById('stdName').innerText = d.student.name;
                 document.getElementById('stdInfo').innerText = d.student.reg + " | " + d.student.branch + " | " + d.student.group;
+                document.getElementById('finishOverlay').style.display = 'none';
+                isGrading = true;
                 
                 const grid = document.getElementById('rubricGrid');
                 grid.innerHTML = "";
                 
                 d.rubric.forEach((r, idx) => {
                     let savedVal = (d.existingDetails && d.existingDetails[r.name] !== undefined) ? d.existingDetails[r.name] : r.max;
-                    let savedDed = r.max - savedVal;
-                    
-                    myScores[idx] = { name: r.name, max: r.max, deducted: savedDed };
+                    myScores[idx] = { name: r.name, max: r.max, deducted: r.max - savedVal };
                     
                     const card = document.createElement('div');
-                    card.className = "card " + (savedDed > 0 ? "active" : "");
+                    card.className = "card";
                     card.innerHTML = \`
                         <div>
                             <div class="card-title">\${r.name}</div>
-                            <div style="color:#888; font-size:14px;">Maximum: \${r.max}</div>
                             <div class="btn-group">
                                 <button class="btn-deduct" onclick="deduct(\${idx}, 0.25)">.25</button>
                                 <button class="btn-deduct" onclick="deduct(\${idx}, 0.5)">.5</button>
-                                <button class="btn-deduct" onclick="deduct(\${idx}, 1.0)">-1</button>
-                                <button class="btn-reset" onclick="reset(\${idx})">↺</button>
+                                <button class="btn-deduct" onclick="deduct(\${idx}, 1.0)">1</button>
+                                <button style="background:#333;color:#fff;padding:0 10px;" onclick="reset(\${idx})">↺</button>
                             </div>
                         </div>
-                        <div class="score-box">
+                        <div class="score-display">
                             <div class="score-val" id="val_\${idx}">\${savedVal.toFixed(2)}</div>
-                            <div id="ded_\${idx}" style="color:#ff5252; font-size:12px; margin-top:5px; font-weight:bold;">\${savedDed > 0 ? '-'+savedDed.toFixed(2) : ''}</div>
-                        </div>
-                    \`;
+                            <div id="ded_\${idx}" style="color:#ff5252; font-size:12px; margin-top:5px;"></div>
+                        </div>\`;
                     grid.appendChild(card);
                 });
                 calcTotal();
@@ -18272,13 +18297,12 @@ function generateJudgeMatrixHTML(jNum) {
 
             function updateUI(idx) {
                 let s = myScores[idx];
-                const final = s.max - s.deducted;
+                let final = s.max - s.deducted;
                 document.getElementById('val_'+idx).innerText = final.toFixed(2);
                 document.getElementById('ded_'+idx).innerText = s.deducted > 0 ? '-'+s.deducted.toFixed(2) : '';
                 calcTotal();
-                if(window.opener) {
-                    window.opener.receiveIndividualJudgeScore(judgeID, s.name, final, s.deducted);
-                }
+                // ވަގުތުން އެޑްމިންއަށް ފޮނުވާ، އެކަމަކު ރިކޯޑް ނުކުރާނެ އަދި
+                if(window.opener) window.opener.receiveIndividualJudgeScore("Judge_${jNum}", s.name, final, s.deducted, false);
             }
 
             function calcTotal() {
@@ -18286,14 +18310,112 @@ function generateJudgeMatrixHTML(jNum) {
                 for(let k in myScores) total += (myScores[k].max - myScores[k].deducted);
                 document.getElementById('grandTotal').innerText = total.toFixed(2);
             }
+
+            function saveToAdmin() {
+                if(!isGrading) return;
+                if(confirm("މި ދަރިވަރުގެ މާކުސް ސޭވް ކުރަންވީތޯ؟")) {
+                    document.getElementById('finishOverlay').style.display = 'flex';
+                    if(window.opener) {
+                        // މައި ސޮފްޓްވެއަރއަށް ފޮނުވާއިރު 'isFinal' ޓްރޫ ކުރާނެ
+                        for(let k in myScores) {
+                            window.opener.receiveIndividualJudgeScore("Judge_${jNum}", myScores[k].name, (myScores[k].max - myScores[k].deducted), myScores[k].deducted, true);
+                        }
+                    }
+                }
+            }
         <\/script>
     </body>
     </html>
     `;
 }
 
-// 3. ޖަޖުންގެ ސްކްރީނުން ފޮނުވާ މާކުސްތައް ބަލައިގަނެ އެހެން ވިންޑޯތަކަށް ސިންކްކުރުން
-window.receiveIndividualJudgeScore = function(judgeID, criteriaName, finalVal, deducted) {
+// 3. ޖަޖުންގެ ސްކްރީނުން ފޮނުވާ ޑޭޓާ ބަލައިގަތުން
+window.receiveIndividualJudgeScore = function(judgeID, criteriaName, finalVal, deducted, isFinal) {
+    if(!state.judging.currentStudentObj) return;
+    
+    const sID = state.judging.currentStudentObj.id;
+    const sIdx = state.allStudents.findIndex(s => s.id === sID);
+    
+    if(sIdx > -1) {
+        if(!state.allStudents[sIdx].scores) state.allStudents[sIdx].scores = {};
+        if(!state.allStudents[sIdx].detailedScores) state.allStudents[sIdx].detailedScores = {};
+        if(!state.allStudents[sIdx].detailedScores[judgeID]) state.allStudents[sIdx].detailedScores[judgeID] = {};
+        
+        state.allStudents[sIdx].detailedScores[judgeID][criteriaName] = finalVal;
+        
+        let jTotal = 0;
+        for(let crit in state.allStudents[sIdx].detailedScores[judgeID]) {
+            jTotal += state.allStudents[sIdx].detailedScores[judgeID][crit];
+        }
+        
+        state.allStudents[sIdx].scores[judgeID] = parseFloat(jTotal.toFixed(2));
+        state.judging.liveScores[judgeID] = parseFloat(jTotal.toFixed(2));
+        
+        // އެވްރެޖް ހެދުން
+        let sum = 0; let count = 0;
+        for(let j in state.allStudents[sIdx].scores) { sum += state.allStudents[sIdx].scores[j]; count++; }
+        state.allStudents[sIdx].finalScore = count > 0 ? parseFloat((sum/count).toFixed(2)) : 0;
+
+        // އެޑްމިން މެޓްރިކްސް އަޕްޑޭޓް
+        const jNum = judgeID.split('_')[1];
+        const matrixInp = document.querySelector(`.matrix-input.j-col-${jNum}[data-criteria="${criteriaName}"]`);
+        if (matrixInp) { matrixInp.value = finalVal; calcMatrixTotal(jNum); }
+
+        if(typeof renderMasterTable === 'function') renderMasterTable();
+        saveToLocal();
+
+        // ★ ޖަޖު 'Save' އަށް ފިއްތައިފިނަމަ، އެޑްމިންގެ އެކްޓިވް ދަރިވަރު ހުސްކޮށްލުން
+        if(isFinal) {
+            checkAndClearActiveStudent();
+        }
+    }
+}
+
+// 4. ހުރިހާ ޖަޖުން ސޭވްކޮށްފިތޯ ބަލާފައި ނަން ފޮރުވުން
+function checkAndClearActiveStudent() {
+    // މިތަނުގައި ބޭނުންނަމަ ހުރިހާ ޖަޖުން ސޭވްކުރަންދެން މަޑުކުރެވިދާނެ
+    // ނުވަތަ ވަގުތުން ނަން ފޮރުވަން ބޭނުންނަމަ:
+    setTimeout(() => {
+        state.judging.currentStudentObj = null;
+        state.judging.liveScores = {};
+        // މައި ސްކްރީންގެ ބެނާ އަޕްޑޭޓް
+        const banner = document.getElementById('secStudentBanner');
+        if(banner) banner.style.display = 'none';
+        const stdLabel = document.getElementById('currentStdLabel');
+        if(stdLabel) stdLabel.innerText = "No student active.";
+        
+        // ޖަޖުންގެ ސްކްރީންތަކަށް އެންގުން
+        for(let i=1; i<=5; i++) syncJudgeMatrixWindow(i);
+    }, 2000); // 2 ސިކުންތުގެ ލަސްކުރުމެއް (ސޭވްވިކަން ޖަޖަށް އެނގުމަށްޓަކައި)
+}
+
+// 5. ވިންޑޯތައް ސިންކްކުރުން
+function syncJudgeMatrixWindow(jNum) {
+    const win = judgeWindows[jNum];
+    if (win && !win.closed) {
+        const s = state.judging.currentStudentObj;
+        const jKey = `Judge_${jNum}`;
+        const packet = {
+            student: s,
+            rubric: state.judging.rubric,
+            existingDetails: (s && s.detailedScores) ? s.detailedScores[jKey] : {}
+        };
+        if (win.updateData) win.updateData(packet);
+    }
+}
+
+// 6. އެޑްމިން އިން ދަރިވަރަކު ސިލެކްޓްކުރުން (Override)
+const originalSelectStudent = selectStudentForGrading;
+selectStudentForGrading = function(s) {
+    if(typeof originalSelectStudent === 'function') originalSelectStudent(s);
+    for(let i=1; i<=5; i++) syncJudgeMatrixWindow(i);
+};
+
+function closeAllJudgeWindows() {
+    for(let k in judgeWindows) if(judgeWindows[k] && !judgeWindows[k].closed) judgeWindows[k].close();
+}
+    // --- ޖަޖުންގެ ސްކްރީނުން ފޮނުވާ ޑޭޓާ ބަލައިގަތުން (އެޑްމިން ސްކްރީނުން ނަން ނުގެއްލޭ ގޮތަށް) ---
+window.receiveIndividualJudgeScore = function(judgeID, criteriaName, finalVal, deducted, isFinal) {
     if(!state.judging.currentStudentObj) return;
     
     const sID = state.judging.currentStudentObj.id;
@@ -18320,16 +18442,16 @@ window.receiveIndividualJudgeScore = function(judgeID, criteriaName, finalVal, d
         // 3. މުޅި އެވްރެޖް މާކުސް އަޕްޑޭޓްކުރުން
         let grandSum = 0; let activeJ = 0;
         for(let j in state.allStudents[sIdx].scores) {
-            grandSum += state.allStudents[sIdx].scores[j]; activeJ++;
+            let sVal = parseFloat(state.allStudents[sIdx].scores[j]);
+            if(sVal > 0) { grandSum += sVal; activeJ++; }
         }
         state.allStudents[sIdx].finalScore = activeJ > 0 ? parseFloat((grandSum/activeJ).toFixed(2)) : 0;
         
-        // 4. ★ މުހިންމު: މާސްޓަރ މެޓްރިކްސް ވިންޑޯ (Admin Panel) އަޕްޑޭޓްކުރުން ★
+        // 4. އެޑްމިން މެޓްރިކްސް ވިންޑޯ އަޕްޑޭޓްކުރުން
         const jNum = judgeID.split('_')[1];
         const inputInMatrix = document.querySelector(`.matrix-input.j-col-${jNum}[data-criteria="${criteriaName}"]`);
         if (inputInMatrix) {
             inputInMatrix.value = finalVal;
-            // ޓޯޓަލް އަލުން ހިސާބުކުރުން
             calcMatrixTotal(jNum);
         }
 
@@ -18342,46 +18464,35 @@ window.receiveIndividualJudgeScore = function(judgeID, criteriaName, finalVal, d
                 const scoreEl = document.getElementById(`secScore_${critIdx}`);
                 const dedInfoEl = document.getElementById(`secDedInfo_${critIdx}`);
                 if (scoreEl) scoreEl.innerText = finalVal.toFixed(2);
-                if (dedInfoEl) dedInfoEl.innerText = deducted > 0 ? `(-${deducted.toFixed(2)})` : "";
+                if (dedInfoEl) dedInfoEl.innerText = deducted > 0 ? `(-${deduction.toFixed(2)})` : "";
                 calculateSecTotal();
             }
         }
         
         // 6. UI & Local Storage ރިފްރެޝް
         if(typeof renderMasterTable === 'function') renderMasterTable();
-        saveToLocal();
+        saveToLocal(); // Auto save to browser storage
     }
 }
 
-// 4. ޖަޖުންގެ ވިންޑޯއަށް ޑޭޓާ ފޮނުވާ ފަންކްޝަން
-function syncJudgeMatrixWindow(jNum) {
-    const win = judgeWindows[jNum];
-    if (win && !win.closed) {
-        const s = state.judging.currentStudentObj;
-        const jKey = `Judge_${jNum}`;
-        const packet = {
-            student: s,
-            rubric: state.judging.rubric,
-            existingDetails: (s && s.detailedScores) ? s.detailedScores[jKey] : {}
-        };
-        if (win.updateData) win.updateData(packet);
-    }
-}
-
-// 5. ހުރިހާ ޖަޖުންގެ ވިންޑޯތައް ބަންދުކުރުން
-function closeAllJudgeWindows() {
-    for(let k in judgeWindows) {
-        if(judgeWindows[k] && !judgeWindows[k].closed) judgeWindows[k].close();
-    }
-}
-
-// 6. ދަރިވަރަކު ބަދަލުވާއިރު ހުރިހާ ޖަޖް ސްކްރީންތަކަށް އެންގުން
-// މިކަން ކުރުމަށްޓަކައި އޮތް ފަންކްޝަން އޯވަރައިޑް ކުރުން
+// --- ދަރިވަރަކު ބަދަލުވާއިރު ހުރިހާ ޖަޖް ސްކްރީންތަކަށް އެންގުން ---
 const originalSelectStudent = selectStudentForGrading;
 selectStudentForGrading = function(s) {
     if(typeof originalSelectStudent === 'function') originalSelectStudent(s);
-    // އެކްޓިވްވެފައި ހުރި ހުރިހާ ޖަޖް ވިންޑޯތަކެއް އަޕްޑޭޓްކުރުން
-    for(let i=1; i<=5; i++) syncJudgeMatrixWindow(i);
+    
+    // އެޑްމިން އިން އައު ކުއްޖަކު ނެގުމުން، ހުރިހާ ޖަޖުންގެ ސްކްރީން "ރެޑީ" ވާނެ
+    for(let i=1; i<=5; i++) {
+        const win = judgeWindows[i];
+        if (win && !win.closed) {
+            const jKey = `Judge_${i}`;
+            const packet = {
+                student: s,
+                rubric: state.judging.rubric,
+                existingDetails: (s && s.detailedScores) ? s.detailedScores[jKey] : {}
+            };
+            if (win.updateData) win.updateData(packet);
+        }
+    }
 };
 
 </script>
