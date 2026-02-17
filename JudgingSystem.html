@@ -18512,6 +18512,64 @@ function generateJudgeMatrixHTML(jNum) {
     </html>
     `;
 }
+    // --- ޖަޖުންގެ ސްކްރީނުން ފޮނުވާ ޑޭޓާ ބަލައިގަތުން ---
+window.receiveIndividualJudgeScore = function(judgeID, fullDetailedScores, totalSum) {
+    if(!state.judging.currentStudentObj) return;
+    
+    const sID = state.judging.currentStudentObj.id;
+    const sIdx = state.allStudents.findIndex(s => s.id === sID);
+    
+    if(sIdx > -1) {
+        // 1. މާސްޓަރ ލިސްޓުގެ މެމޮރީ އަޕްޑޭޓްކުރުން
+        if(!state.allStudents[sIdx].scores) state.allStudents[sIdx].scores = {};
+        if(!state.allStudents[sIdx].detailedScores) state.allStudents[sIdx].detailedScores = {};
+        
+        state.allStudents[sIdx].scores[judgeID] = parseFloat(totalSum.toFixed(2));
+        state.allStudents[sIdx].detailedScores[judgeID] = fullDetailedScores;
+
+        // 2. ލައިވް ކޮންޓްރޯލް މެމޮރީ އަޕްޑޭޓްކުރުން
+        state.judging.liveScores[judgeID] = parseFloat(totalSum.toFixed(2));
+
+        // 3. މުޅި އެވްރެޖް (Final Average) ހިސާބުކުރުން
+        let grandSum = 0; let activeJ = 0;
+        for(let j in state.allStudents[sIdx].scores) {
+            let val = state.allStudents[sIdx].scores[j];
+            if(val > 0) { grandSum += val; activeJ++; }
+        }
+        state.allStudents[sIdx].finalScore = activeJ > 0 ? parseFloat((grandSum / activeJ).toFixed(2)) : 0;
+
+        // 4. މެއިން އެޑްމިން ޕެނަލްގައި މިހާރު ހުރި ޖަޖުނަމަ، ރުބްރިކް ކާޑުތައް ސިންކްކުރުން
+        const currentJudgeOnMain = document.getElementById('secJudgeSelect').value;
+        if (judgeID === currentJudgeOnMain) {
+            syncMainRubricVisuals(fullDetailedScores, totalSum);
+        }
+
+        // 5. UI ރިފްރެޝްކުރުން (ޓޭބަލް އަދި ލޯކަލް ސޭވް)
+        if(typeof renderMasterTable === 'function') renderMasterTable();
+        saveToLocal();
+        
+        console.log(`${judgeID} saved score ${totalSum} for ${state.allStudents[sIdx].name}`);
+    }
+};
+
+// މެއިން އެޑްމިންގެ ކާޑުތައް ސިންކްކުރާ ބައި
+function syncMainRubricVisuals(details, total) {
+    state.judging.rubric.forEach((r, idx) => {
+        if (details[r.name] !== undefined) {
+            let val = details[r.name];
+            let ded = r.max - val;
+            if (typeof secScores !== 'undefined' && secScores[idx]) {
+                secScores[idx].deducted = parseFloat(ded.toFixed(2));
+            }
+            const scoreEl = document.getElementById(`secScore_${idx}`);
+            const dedEl = document.getElementById(`secDedInfo_${idx}`);
+            if (scoreEl) scoreEl.innerText = val.toFixed(2);
+            if (dedEl) dedEl.innerText = ded > 0 ? `(-${ded.toFixed(2)})` : "";
+        }
+    });
+    const totalDisp = document.getElementById('secTotalDisplay');
+    if (totalDisp) totalDisp.innerText = total.toFixed(2);
+}
 </script>
 </body>
 </html>
