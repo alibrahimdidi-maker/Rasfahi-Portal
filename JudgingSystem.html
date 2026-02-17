@@ -18570,6 +18570,204 @@ function syncMainRubricVisuals(details, total) {
     const totalDisp = document.getElementById('secTotalDisplay');
     if (totalDisp) totalDisp.innerText = total.toFixed(2);
 }
+    function generateJudgeMatrixHTML(jNum) {
+    const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
+    
+    return `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            ${fontFace}
+            body { font-family: 'AppFont', sans-serif; background: #080a0c; color: white; margin: 0; padding: 20px; user-select: none; }
+            .header { border-bottom: 2px solid #7c4dff; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+            .judge-badge { background: #7c4dff; color: #fff; padding: 5px 20px; border-radius: 5px; font-weight: bold; font-size: 20px; }
+            
+            /* Top Action Buttons */
+            .top-actions { display: flex; gap: 10px; }
+            .btn-top { padding: 8px 15px; border-radius: 5px; font-size: 14px; border: 1px solid #444; background: #222; color: #fff; cursor: pointer; }
+            .btn-top:hover { background: #444; }
+            .btn-close { border-color: #ff5252; color: #ff5252; }
+            .btn-close:hover { background: #ff5252; color: #fff; }
+
+            .student-info { background: #111; border: 1px solid #333; padding: 15px; border-radius: 10px; margin-bottom: 15px; min-height: 60px; transition: 0.3s; }
+            .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+            
+            .card { background: #1a1f26; border: 2px solid #333; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; gap: 10px; opacity: 0.5; transition: 0.3s; }
+            .card.active { border-color: #00e676; background: rgba(0,230,118,0.05); opacity: 1; }
+            
+            .card-header { display: flex; justify-content: space-between; align-items: center; }
+            .card-title { font-size: 20px; font-weight: bold; color: #FFD700; }
+            
+            /* މާކުސް ފެންނަ ބައި - ފުރަތަމަ އިންނާނީ ޑޭޝް */
+            .score-display { font-size: 40px; font-weight: 900; color: #00e676; font-family: sans-serif; cursor: pointer; }
+            .score-display:hover { color: #fff; }
+
+            .btn-row { display: flex; gap: 5px; }
+            button { cursor: pointer; border: none; border-radius: 6px; font-weight: bold; transition: 0.1s; }
+            .btn-ded { background: #2a0000; color: #ff8a80; flex: 1; padding: 12px 0; font-size: 16px; border: 1px solid #500; }
+            .btn-ded:active { transform: scale(0.95); background: #500; }
+            .btn-reset { background: #333; color: #aaa; width: 45px; font-size: 18px; }
+            
+            .bottom-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 2px solid #7c4dff; display: flex; align-items: center; z-index: 100; }
+            .total-display { flex: 1; color: #00e676; font-size: 40px; font-weight: 900; padding: 10px; text-align: center; }
+            .btn-save { background: #00e676; color: #000; width: 300px; padding: 20px; font-size: 22px; font-weight: 900; text-transform: uppercase; }
+            .btn-save:disabled { background: #222; color: #555; cursor: not-allowed; }
+
+            @media print {
+                .top-actions, .btn-row, .bottom-bar { display: none !important; }
+                body { background: white; color: black; }
+                .card { border: 1px solid #000; opacity: 1; color: black; }
+                .card-title { color: black; }
+                .score-display { color: black; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="judge-badge">JUDGE ${jNum}</div>
+            <div class="top-actions">
+                <button class="btn-top" onclick="window.print()">🖨️ PRINT / PDF</button>
+                <button class="btn-top btn-close" onclick="window.close()">✖ CLOSE</button>
+            </div>
+        </div>
+
+        <div id="studentBox" class="student-info">
+            <div id="sName" style="font-size:26px; color:#FFD700; font-weight:bold;">Waiting for student...</div>
+            <div id="sMeta" style="font-size:14px; color:#888; margin-top:5px;">-</div>
+        </div>
+
+        <div id="rubricGrid" class="grid"></div>
+        <div style="height: 120px;"></div>
+
+        <div class="bottom-bar">
+            <div class="total-display">TOTAL: <span id="grandTotal">-</span></div>
+            <button id="saveBtn" class="btn-save" onclick="sendToAdmin()" disabled>💾 Save to Admin</button>
+        </div>
+
+        <script>
+            let scores = {}; // stores numerical values
+            let criteriaList = [];
+            let judgeID = "Judge_${jNum}";
+            let hasInteracted = {}; // keeps track of which cards were clicked
+
+            window.updateData = function(d) {
+                if(!d.student) {
+                    clearScreen();
+                    return;
+                }
+                
+                document.getElementById('sName').innerText = d.student.name;
+                document.getElementById('sMeta').innerText = d.student.reg + " | " + d.student.branch + " | " + d.student.group;
+                
+                const grid = document.getElementById('rubricGrid');
+                grid.innerHTML = "";
+                criteriaList = d.rubric;
+
+                d.rubric.forEach((r, idx) => {
+                    // Check if score already exists (if judge refreshes)
+                    let val = (d.existingDetails && d.existingDetails[r.name] !== undefined) ? d.existingDetails[r.name] : null;
+                    scores[r.name] = val;
+                    hasInteracted[idx] = val !== null;
+
+                    const card = document.createElement('div');
+                    card.id = "card_" + idx;
+                    card.className = "card " + (hasInteracted[idx] ? "active" : "");
+                    card.innerHTML = \`
+                        <div class="card-header">
+                            <div class="card-title">\${r.name}</div>
+                            <div class="score-display" id="val_\${idx}" onclick="activateCard(\${idx})">\${val === null ? '-' : val.toFixed(2)}</div>
+                        </div>
+                        <div class="btn-row">
+                            <button class="btn-ded" onclick="modify(\${idx}, 0.25)">.25</button>
+                            <button class="btn-ded" onclick="modify(\${idx}, 0.5)">.5</button>
+                            <button class="btn-ded" onclick="modify(\${idx}, 1.0)">-1</button>
+                            <button class="btn-ded" onclick="modify(\${idx}, 2.0)">-2</button>
+                            <button class="btn-reset" onclick="resetCard(\${idx})">↺</button>
+                        </div>
+                    \`;
+                    grid.appendChild(card);
+                });
+                calcTotal();
+            };
+
+            function activateCard(idx) {
+                if(!hasInteracted[idx]) {
+                    const r = criteriaList[idx];
+                    scores[r.name] = r.max; // Start from max marks
+                    hasInteracted[idx] = true;
+                    document.getElementById("card_" + idx).classList.add('active');
+                    document.getElementById('val_'+idx).innerText = scores[r.name].toFixed(2);
+                    calcTotal();
+                }
+            }
+
+            function modify(idx, amt) {
+                activateCard(idx); // Make sure it starts from max first
+                const r = criteriaList[idx];
+                scores[r.name] = Math.max(0, scores[r.name] - amt);
+                document.getElementById('val_'+idx).innerText = scores[r.name].toFixed(2);
+                calcTotal();
+            }
+
+            function resetCard(idx) {
+                const r = criteriaList[idx];
+                scores[r.name] = null;
+                hasInteracted[idx] = false;
+                document.getElementById("card_" + idx).classList.remove('active');
+                document.getElementById('val_'+idx).innerText = '-';
+                calcTotal();
+            }
+
+            function calcTotal() {
+                let total = 0;
+                let activeCount = 0;
+                for(let k in scores) {
+                    if(scores[k] !== null) {
+                        total += scores[k];
+                        activeCount++;
+                    }
+                }
+                
+                const display = document.getElementById('grandTotal');
+                const saveBtn = document.getElementById('saveBtn');
+                
+                if(activeCount > 0) {
+                    display.innerText = total.toFixed(2);
+                    saveBtn.disabled = false;
+                } else {
+                    display.innerText = "-";
+                    saveBtn.disabled = true;
+                }
+            }
+
+            function clearScreen() {
+                document.getElementById('sName').innerText = "Waiting for student...";
+                document.getElementById('sMeta').innerText = "-";
+                document.getElementById('rubricGrid').innerHTML = "";
+                document.getElementById('grandTotal').innerText = "-";
+                document.getElementById('saveBtn').disabled = true;
+                scores = {};
+                hasInteracted = {};
+            }
+
+            function sendToAdmin() {
+                const total = parseFloat(document.getElementById('grandTotal').innerText);
+                if(window.opener && !window.opener.closed) {
+                    // Send detailed scores back to main admin
+                    window.opener.receiveIndividualJudgeScore(judgeID, scores, total);
+                    // Clear this judge's screen immediately after save
+                    clearScreen();
+                } else {
+                    alert("Admin window closed! Cannot save.");
+                }
+            }
+        <\/script>
+    </body>
+    </html>
+    `;
+}
 </script>
 </body>
 </html>
