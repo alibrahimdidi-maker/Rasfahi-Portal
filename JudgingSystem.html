@@ -18990,6 +18990,76 @@ function openExtraScreen() {
     state.extra.window.document.write(html);
     state.extra.window.document.close();
 }
+    // ސެޓިންގްސް ބަދަލުވުމުން ޗައިލްޑް ވިންޑޯއަށް އެންގުން
+window.updateExtraScreen = function(key, val) {
+    state.extra.settings[key] = val;
+    syncExtraScreen();
+};
+
+function syncExtraScreen() {
+    if (!state.extra.window || state.extra.window.closed) return;
+
+    const packet = {
+        phase: state.extra.phase,
+        selection: state.extra.selection,
+        currentIdx: state.extra.currentIndex,
+        taken: state.extra.selection.map(s => s.gridNum),
+        settings: state.extra.settings // މި ބައިގައި ހުރިހާ ޒޫމް އަދި އެޖަސްޓްމަންޓް ހުންނާނެ
+    };
+
+    // ޗައިލްޑް ވިންޑޯގެ updateView ފަންކްޝަން ކޯލްކުރުން
+    if (state.extra.window.updateView) {
+        state.extra.window.updateView(packet);
+    }
+}
+    // މިއީ ޗައިލްޑް ވިންޑޯގެ ތެރޭގައި އޮންނަންޖެހޭ updateView ފަންކްޝަން
+function updateView(d) {
+    const gridDiv = document.getElementById('gridContainer');
+    const readDiv = document.getElementById('readContainer');
+    const txt = document.getElementById('displayText');
+    const royalBox = document.getElementById('royalBox');
+
+    // --- ޓެކްސްޓް އެޖަސްޓްކުރާ މުހިންމު ބައި ---
+    if (txt) {
+        // ޒޫމް (Font Size)
+        txt.style.fontSize = d.settings.zoom + 'vw';
+        
+        // މަޤާމް (Position X and Y)
+        txt.style.transform = `translate(${d.settings.textX}px, ${d.settings.textY}px)`;
+        
+        // ކުލަ
+        txt.style.color = d.settings.textColor || '#ffffff';
+    }
+
+    if (royalBox) {
+        // ބޮކްސްގެ ފުޅާމިނާއި އުސްމިން
+        royalBox.style.width = d.settings.boxW + '%';
+        royalBox.style.height = d.settings.boxH + '%';
+    }
+    // ------------------------------------
+
+    // ފޭސްތަކަށް ބަލައި ޑިސްޕްލޭ ބަދަލުކުރުން
+    if (d.phase === 'grid') {
+        gridDiv.style.display = 'grid';
+        readDiv.style.display = 'none';
+        renderGrid(d.taken);
+    } else {
+        gridDiv.style.display = 'none';
+        readDiv.style.display = 'flex';
+        
+        if (d.phase === 'reading') {
+            const cur = d.selection[d.currentIdx];
+            if (cur && d.settings.mode !== 'hifz') {
+                txt.innerText = cur.text;
+                txt.style.opacity = '1';
+            } else if (d.settings.mode === 'hifz') {
+                txt.innerHTML = '<div class="hifz-message">ނުބަލައި ކިޔެވުމުގެ ގޮފި</div>';
+                txt.style.opacity = '1';
+                txt.style.transform = 'none'; // ޙިފްޡް މެސެޖް ސެންޓަރުގައި ބެހެއްޓުމަށް
+            }
+        }
+    }
+}
 </script>
 </body>
 </html>
