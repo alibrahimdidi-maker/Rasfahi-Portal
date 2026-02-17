@@ -18768,6 +18768,266 @@ function syncMainRubricVisuals(details, total) {
     </html>
     `;
 }
+    // =========================================================================
+// ★ RASFAHI ADVANCED 5-JUDGE MATRIX SYSTEM (NEW WINDOW & AUTO-SYNC) ★
+// =========================================================================
+
+let matrixWindow = null;
+
+// 1. މެޓްރިކްސް ވިންޑޯ ހުޅުވާ ފަންކްޝަން
+function openMatrixInput() {
+    if(!state.judging.currentStudentObj) {
+        alert("Please select a student first! (ދަރިވަރަކު އިޚްތިޔާރުކުރައްވާ)"); return;
+    }
+
+    const s = state.judging.currentStudentObj;
+    const w = 1250;
+    const h = 850;
+    const left = (window.screen.width / 2) - (w / 2);
+    const top = (window.screen.height / 2) - (h / 2);
+    
+    // އައު ވިންޑޯ ހުޅުވުން
+    matrixWindow = window.open("", "JudgeMatrixWindow", `width=${w},height=${h},left=${left},top=${top},scrollbars=yes`);
+    
+    if (matrixWindow) {
+        const html = generateMatrixWindowHTML(s);
+        matrixWindow.document.open();
+        matrixWindow.document.write(html);
+        matrixWindow.document.close();
+        
+        // ޑޭޓާ ސިންކްކުރުން (ކުޑަ ލަސްކަމަކާއެކު ވިންޑޯ ރެޑީވުމުން)
+        setTimeout(() => {
+            const packet = {
+                student: state.judging.currentStudentObj,
+                rubric: state.judging.rubric,
+                fontData: state.fontData
+            };
+            if (matrixWindow.initMatrix) matrixWindow.initMatrix(packet);
+        }, 700);
+    } else {
+        alert("Popup blocked! Please allow popups for this site.");
+    }
+}
+
+// 2. ވިންޑޯގެ HTML އުފައްދާ ފަންކްޝަން
+function generateMatrixWindowHTML(s) {
+    const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
+    
+    return `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            ${fontFace}
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700&family=Cinzel:wght@700&display=swap');
+            body { font-family: 'AppFont', 'Noto Sans Thaana', sans-serif; background: #050a10; color: white; margin: 0; padding: 25px; user-select: none; }
+            
+            .header-bar { border-bottom: 2px solid #FFD700; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+            .top-actions { display: flex; gap: 12px; }
+            
+            .info-box { background: linear-gradient(90deg, #001a00, #000); border: 1px solid #00e676; padding: 18px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+            
+            .matrix-table { width: 100%; border-collapse: collapse; background: #000; table-layout: fixed; }
+            .matrix-table th { background: #1a1a1a; color: #FFD700; padding: 15px; border: 1px solid #333; font-size: 16px; }
+            .matrix-table td { border: 1px solid #333; padding: 12px; text-align: center; vertical-align: middle; transition: 0.2s; }
+            
+            .cell-score { font-size: 32px; font-weight: 900; color: #00e676; margin-bottom: 12px; cursor: pointer; height: 40px; text-shadow: 0 0 10px rgba(0,230,118,0.3); }
+            
+            .btn-group { display: flex; gap: 5px; justify-content: center; }
+            .btn-ded { background: #300; color: #ff8a80; border: 1px solid #600; padding: 8px 0; font-size: 14px; flex: 1; border-radius: 5px; cursor: pointer; font-weight: bold; }
+            .btn-ded:hover { background: #500; color: #fff; }
+            .btn-ded:active { transform: scale(0.9); }
+            .btn-res { background: #222; color: #888; border: 1px solid #444; padding: 8px 12px; border-radius: 5px; cursor: pointer; }
+            .btn-res:hover { background: #fff; color: #000; }
+
+            .total-row { background: #111; font-weight: bold; font-size: 24px; color: #FFD700; height: 70px; }
+            .footer-actions { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; padding: 15px; border-top: 2px solid #FFD700; display: flex; justify-content: center; gap: 25px; box-shadow: 0 -10px 30px rgba(0,0,0,0.8); }
+            
+            .btn-final { padding: 15px 50px; font-size: 20px; font-weight: 900; border-radius: 8px; cursor: pointer; border: none; text-transform: uppercase; transition: 0.2s; }
+            .save-btn { background: #00e676; color: #000; }
+            .save-btn:hover { background: #fff; transform: translateY(-2px); }
+            .print-btn { background: #2196f3; color: #fff; }
+            .close-btn { background: #ff5252; color: #fff; }
+
+            @media print { .footer-actions, .btn-group, .btn-res { display: none !important; } body { background: white; color: black; padding: 0; } .matrix-table, .matrix-table th, .matrix-table td { border: 1px solid black; color: black; } .info-box { border: 1px solid black; color: black; background: none; } .cell-score { color: black; text-shadow: none; } }
+        </style>
+    </head>
+    <body>
+        <div class="header-bar">
+            <h2 style="margin:0; font-family: 'Cinzel', serif; letter-spacing: 2px;">JUDGE MATRIX ENTRY</h2>
+            <div id="status" style="color: #555;">Ready</div>
+        </div>
+
+        <div id="studentInfo" class="info-box">
+            <div><small style="color:#00e676; display:block;">Student Name</small><span id="sName" style="font-size:24px; font-weight:bold;">-</span></div>
+            <div><small style="color:#00e676; display:block;">Registration</small><span id="sReg" style="font-size:18px;">-</span></div>
+            <div><small style="color:#00e676; display:block;">Branch & Group</small><span id="sBranch" style="font-size:18px;">-</span></div>
+        </div>
+
+        <div id="matrixArea"></div>
+        <div style="height: 120px;"></div>
+
+        <div class="footer-actions">
+            <button class="btn-final print-btn" onclick="window.print()">🖨️ PRINT / PDF</button>
+            <button class="btn-final save-btn" onclick="saveToAdmin()">💾 SAVE ALL TO ADMIN</button>
+            <button class="btn-final close-btn" onclick="window.close()">✖ CLOSE</button>
+        </div>
+
+        <script>
+            let rubric = [];
+            let scores = {}; 
+
+            window.initMatrix = function(d) {
+                if(!d.student) return;
+                rubric = d.rubric;
+                document.getElementById('sName').innerText = d.student.name;
+                document.getElementById('sReg').innerText = d.student.reg;
+                document.getElementById('sBranch').innerText = d.student.branch + " | " + d.student.group;
+
+                const area = document.getElementById('matrixArea');
+                let html = '<table class="matrix-table"><thead><tr><th style="text-align:left; width:20%;">Criteria</th>';
+                for(let j=1; j<=5; j++) {
+                    html += '<th>Judge ' + j + '</th>';
+                    scores[j] = {};
+                }
+                html += '</tr></thead><tbody>';
+
+                rubric.forEach((r, rIdx) => {
+                    html += '<tr><td style="text-align:left; padding-left:15px; font-weight:bold; color:#FFD700;">' + r.name + ' <small style="color:#666; display:block;">Max: ' + r.max + '</small></td>';
+                    for(let j=1; j<=5; j++) {
+                        // Check if existing scores
+                        let existing = (d.student.detailedScores && d.student.detailedScores["Judge_"+j]) ? d.student.detailedScores["Judge_"+j][r.name] : null;
+                        scores[j][r.name] = existing;
+
+                        html += \`<td id="cell_\${j}_\${rIdx}" style="background:\${existing === null ? 'rgba(0,0,0,0.5)' : 'rgba(0,230,118,0.05)'}">
+                            <div class="cell-score" id="score_\${j}_\${rIdx}" onclick="activate(\${j}, \${rIdx}, \${r.max})">\${existing === null ? '-' : existing.toFixed(2)}</div>
+                            <div class="btn-group">
+                                <button class="btn-ded" onclick="modify(\${j}, \${rIdx}, 0.25)">.25</button>
+                                <button class="btn-ded" onclick="modify(\${j}, \${rIdx}, 0.5)">.5</button>
+                                <button class="btn-ded" onclick="modify(\${j}, \${rIdx}, 1.0)">-1</button>
+                                <button class="btn-res" onclick="resetRow(\${j}, \${rIdx})">↺</button>
+                            </div>
+                        </td>\`;
+                    }
+                    html += '</tr>';
+                });
+
+                html += '<tr class="total-row"><td style="text-align:right; padding-right:15px;">TOTALS:</td>';
+                for(let j=1; j<=5; j++) html += '<td id="total_' + j + '">-</td>';
+                html += '</tr></tbody></table>';
+                
+                area.innerHTML = html;
+                calcTotals();
+            };
+
+            function activate(j, rIdx, max) {
+                const rName = rubric[rIdx].name;
+                if(scores[j][rName] === null) {
+                    scores[j][rName] = max;
+                    updateCell(j, rIdx);
+                }
+            }
+
+            function modify(j, rIdx, amt) {
+                const rName = rubric[rIdx].name;
+                if(scores[j][rName] === null) scores[j][rName] = rubric[rIdx].max;
+                scores[j][rName] = Math.max(0, scores[j][rName] - amt);
+                updateCell(j, rIdx);
+            }
+
+            function resetRow(j, rIdx) {
+                scores[j][rubric[rIdx].name] = null;
+                updateCell(j, rIdx);
+            }
+
+            function updateCell(j, rIdx) {
+                const val = scores[j][rubric[rIdx].name];
+                const cell = document.getElementById(\`cell_\${j}_\${rIdx}\`);
+                document.getElementById(\`score_\${j}_\${rIdx}\`).innerText = (val === null) ? '-' : val.toFixed(2);
+                cell.style.background = (val === null) ? 'rgba(0,0,0,0.5)' : 'rgba(0,230,118,0.05)';
+                calcTotals();
+            }
+
+            function calcTotals() {
+                for(let j=1; j<=5; j++) {
+                    let sum = 0; let active = false;
+                    for(let k in scores[j]) {
+                        if(scores[j][k] !== null) { sum += scores[j][k]; active = true; }
+                    }
+                    document.getElementById('total_' + j).innerText = active ? sum.toFixed(2) : "-";
+                }
+            }
+
+            function saveToAdmin() {
+                let finalData = {};
+                let hasAnyData = false;
+                for(let j=1; j<=5; j++) {
+                    let sum = 0; let active = false;
+                    for(let k in scores[j]) { if(scores[j][k] !== null) { sum += scores[j][k]; active = true; } }
+                    if(active) {
+                        finalData["Judge_" + j] = { total: sum, details: scores[j] };
+                        hasAnyData = true;
+                    }
+                }
+
+                if(!hasAnyData) { alert("Please enter at least one score!"); return; }
+
+                if(window.opener && !window.opener.closed) {
+                    window.opener.receiveMatrixData(finalData);
+                    document.body.innerHTML = '<div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#000;"><div style="font-size:60px;">✅</div><div style="font-size:30px; color:#00e676; font-weight:bold; margin-top:20px;">SAVED SUCCESSFULLY</div><div style="color:#666; margin-top:10px;">Closing window...</div></div>';
+                    setTimeout(() => window.close(), 1200);
+                }
+            }
+        <\/script>
+    </body>
+    </html>
+    `;
+}
+
+// 3. މައި ސޮފްޓްވެއަރއިން ޑޭޓާ ބަލައިގަންނަ ފަންކްޝަން
+window.receiveMatrixData = function(matrixData) {
+    if(!state.judging.currentStudentObj) return;
+    const sID = state.judging.currentStudentObj.id;
+    const sIdx = state.allStudents.findIndex(s => s.id === sID);
+
+    if(sIdx > -1) {
+        let grandSum = 0;
+        let activeJudges = 0;
+
+        for (let jID in matrixData) {
+            let data = matrixData[jID];
+            if(!state.allStudents[sIdx].scores) state.allStudents[sIdx].scores = {};
+            if(!state.allStudents[sIdx].detailedScores) state.allStudents[sIdx].detailedScores = {};
+            
+            state.allStudents[sIdx].scores[jID] = data.total;
+            state.allStudents[sIdx].detailedScores[jID] = data.details;
+            
+            // Sync Live Controller Memory
+            state.judging.liveScores[jID] = data.total;
+            
+            grandSum += data.total;
+            activeJudges++;
+        }
+
+        // Final Average Calculation
+        state.allStudents[sIdx].finalScore = activeJudges > 0 ? parseFloat((grandSum / activeJudges).toFixed(2)) : 0;
+
+        // UI & Storage Refresh
+        saveToLocal();
+        if(typeof renderMasterTable === 'function') renderMasterTable();
+        
+        // Update Star Screen if open
+        if(state.windows.starScreen && !state.windows.starScreen.closed) {
+            state.windows.starScreen.updateStars({
+                id: sID, 
+                name: state.allStudents[sIdx].name, 
+                reg: state.allStudents[sIdx].reg, 
+                score: state.allStudents[sIdx].finalScore
+            });
+        }
+    }
+};
 </script>
 </body>
 </html>
