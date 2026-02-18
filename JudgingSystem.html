@@ -19155,6 +19155,74 @@ function generateJudgeMatrixHTML(jNum) {
         if (win.updateData) win.updateData(packet);
     }
 }
+    // ސުވާލުތައް ރެކޯޑުކުރާނެ ގޮތް އިޞްލާޙުކުރުން
+function setupHighlighter(q) {
+    const box = document.getElementById('textHighlighter');
+    
+    // ސުވާލުގެ އައިޑީއަށް ބަލައިގެން މުސްތަޤިއްލު އޮބްޖެކްޓެއް ހެދުން
+    if(!mistakeLog[q.id]) {
+        mistakeLog[q.id] = { 
+            info: q, 
+            words: [], // ކުށްޖެހޭ ކަލިމަތައް
+            fullText: q.text // އަސްލު އާޔަތް
+        };
+    }
+
+    // މިހާރު ކިޔަވާ އާޔަތް ސްކްރީންގައި ދެއްކުން
+    const words = q.text.split(" ");
+    box.innerHTML = words.map(w => {
+        const isWrong = mistakeLog[q.id].words.includes(w) ? 'wrong' : '';
+        return `<span class="ayah-word ${isWrong}" onclick="toggleWordMistake(this, '${q.id}', '${w}')">${w}</span>`;
+    }).join("");
+    
+    renderMistakeLog();
+}
+
+// ކަލިމައެއްގައި ކްލިކް ކުރުމުން ކުށް ރެކޯޑުކުރުން
+window.toggleWordMistake = function(el, qid, word) {
+    el.classList.toggle('wrong');
+    if(el.classList.contains('wrong')) {
+        if(!mistakeLog[qid].words.includes(word)) mistakeLog[qid].words.push(word);
+    } else {
+        mistakeLog[qid].words = mistakeLog[qid].words.filter(w => w !== word);
+    }
+    renderMistakeLog();
+};
+
+// ސަމަރީ ޓޭބަލް ރެންޑަރ ކުރުން (5 ސުވާލުނަމަ 5 ރޯ ފެންނާނެ)
+function renderMistakeLog() {
+    const tbody = document.getElementById('mistakeLogBody');
+    tbody.innerHTML = "";
+    let hasData = false;
+
+    // ހުރިހާ ސުވާލެއް ތަރުތީބުން ދެއްކުން
+    const sortedKeys = Object.keys(mistakeLog).sort((a, b) => a - b);
+
+    sortedKeys.forEach(id => {
+        hasData = true;
+        const entry = mistakeLog[id];
+        const row = document.createElement('tr');
+        
+        // ކުށްޖެހުނު ކަލިމަތައް ބްރެކެޓް ތެރޭގައި
+        const mistakeHtml = entry.words.map(w => `<span class="mistake-tag">[${w}]</span>`).join(" ");
+        
+        row.innerHTML = `
+            <td style="font-weight:bold; font-size:12px; text-align:center;">Q${entry.info.id}</td>
+            <td style="font-size:11px; line-height:1.4;">
+                <strong>${entry.info.surah}</strong><br>
+                <small>(${entry.info.start} - ${entry.info.end})</small>
+            </td>
+            <td style="direction:rtl; font-size:11px; color:#ff5252;">
+                ${mistakeHtml || '<small style="color:#666;">ކުށެއް ނެތް</small>'}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    if(!hasData) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#555;">އަދި އެއްވެސް ސުވާލެއް ރެކޯޑެއް ނުވޭ</td></tr>';
+    }
+}
 </script>
 </body>
 </html>
