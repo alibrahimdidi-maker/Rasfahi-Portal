@@ -19844,6 +19844,61 @@ function setupHighlighter(q) {
     </html>
     `;
 }  
+    function syncJudgeMatrixWindow(jNum) {
+    const win = judgeWindows[jNum];
+    if (win && !win.closed) {
+        const s = state.judging.currentStudentObj;
+        const jKey = `Judge_${jNum}`;
+        
+        // އެވަގުތު މައި ސްކްރީންގައި ކިޔަވަން އިން އާޔަތުގެ ޓެކްސްޓް ހޯދުން
+        let currentQ = null;
+        if (state.session && state.session.slots && state.session.activeIndex > -1) {
+            currentQ = state.session.slots[state.session.activeIndex];
+        }
+
+        const packet = {
+            student: s,
+            rubric: state.judging.rubric,
+            existingDetails: (s && s.detailedScores) ? s.detailedScores[jKey] : {},
+            currentQ: currentQ // މި ޑޭޓާ ފޮނުވުމުން ޓެކްސްޓް ފެންނާނެ
+        };
+        if (win.updateData) win.updateData(packet);
+    }
+}
+    window.updateData = function(d) {
+    if(!d.student) return;
+    document.getElementById('sName').innerText = d.student.name;
+    document.getElementById('sMeta').innerText = d.student.reg + " | " + d.student.branch;
+    
+    // ރުބްރިކް ކާޑުތައް ހެދުން
+    const grid = document.getElementById('rubricGrid');
+    grid.innerHTML = "";
+    criteriaList = d.rubric;
+
+    d.rubric.forEach((r, idx) => {
+        let val = (d.existingDetails && d.existingDetails[r.name] !== undefined) ? d.existingDetails[r.name] : r.max;
+        scores[r.name] = val;
+        // ... (ކުރިން ދިން ކާޑު ހަދާ ކޯޑު މިތަނުގައި ބާއްވާ) ...
+    });
+
+    // ★ ގެއްލުނު ބައި: އާޔަތުގެ ޓެކްސްޓް ހައިލައިޓަރަށް ފޮނުވުން
+    if(d.currentQ && d.currentQ.text) {
+        setupHighlighter(d.currentQ);
+    } else {
+        document.getElementById('textHighlighter').innerHTML = "<p style='color:#666;'>ދަރިވަރު ކިޔަވާ އާޔަތް މިތަނުން ފެންނާނެއެވެ.</p>";
+    }
+    
+    calcTotal();
+};
+
+// އާޔަތް ބަހާލައިގެން ދައްކާ ފަންކްޝަން
+function setupHighlighter(q) {
+    const box = document.getElementById('textHighlighter');
+    if(!box) return;
+    
+    const words = q.text.split(" ");
+    box.innerHTML = words.map(w => `<span class="ayah-word" onclick="this.classList.toggle('wrong')">${w}</span>`).join("");
+}
 </script>
 </body>
 </html>
