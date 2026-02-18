@@ -19711,7 +19711,88 @@ function setupHighlighter(q) {
         }
     }
 }
+// --- މައި ސޮފްޓްވެއަރގެ ތެރެއަށް ---
 
+// ސުވާލު ބަދަލުކުރާ ފަންކްޝަން
+window.nextQuestion = function() {
+    if(state.session.phase === 'ready') {
+        startReadingSession(); 
+        return;
+    }
+
+    if(state.session.phase === 'finished') return; 
+
+    const nextIdx = state.session.activeIndex + 1;
+    
+    if(nextIdx >= state.session.slots.length) {
+        state.session.phase = 'finished';
+    } else {
+        state.session.activeIndex = nextIdx;
+    }
+    
+    toggleBell(false);
+    updateStatus(); 
+    renderSlots(); 
+    updateMirror(); 
+    
+    // ހުރިހާ ސްކްރީނެއް ސިންކްކުރުން
+    syncWindows(); 
+    
+    // ޖަޖުންގެ މެޓްރިކްސް ވިންޑޯތައް ވަކިވަކިން އަޕްޑޭޓްކުރުން
+    for(let j=1; j<=5; j++) {
+        syncJudgeMatrixWindow(j);
+    }
+};
+
+// ޖަޖުންގެ ވިންޑޯއަށް ޑޭޓާ ފޮނުވާ ފަންކްޝަން
+function syncJudgeMatrixWindow(jNum) {
+    const win = judgeWindows[jNum];
+    if (win && !win.closed) {
+        const s = state.judging.currentStudentObj;
+        const jKey = `Judge_${jNum}`;
+        
+        // މިހާރު ކިޔަވާ ސުވާލު (Active Question) ނެގުން
+        let activeQ = null;
+        if (state.session.slots && state.session.activeIndex > -1) {
+            activeQ = state.session.slots[state.session.activeIndex];
+        }
+
+        const packet = {
+            student: s,
+            rubric: state.judging.rubric,
+            existingDetails: (s && s.detailedScores) ? s.detailedScores[jKey] : {},
+            currentQ: activeQ // އާޔަތުގެ ޓެކްސްޓް މިތަނުން ފޮނުވޭނެ
+        };
+
+        if (win.updateData) {
+            win.updateData(packet);
+        }
+    }
+}
+    // --- ޖަޖް ވިންޑޯގެ Script ތެރެއަށް ---
+
+window.updateData = function(d) {
+    if(!d.student) return;
+
+    // ދަރިވަރުގެ މަޢުލޫމާތު އަޕްޑޭޓްކުރުން
+    document.getElementById('sName').innerText = d.student.name;
+    document.getElementById('sMeta').innerText = d.student.reg + " | " + d.student.branch;
+
+    // ސުވާލު ބަދަލުވުން ޗެކްކުރުން
+    if(d.currentQ && d.currentQ.text) {
+        // Performance ރަނގަޅުކުރުމަށްޓަކައި، ސުވާލު ބަދަލުވީމާ އެކަނި Highlighter އަލުން ހެދުން
+        if(window.activeQID !== d.currentQ.id) {
+            window.activeQID = d.currentQ.id;
+            setupHighlighter(d.currentQ); 
+        }
+    } else {
+        document.getElementById('textHighlighter').innerHTML = "ކިޔަވާ އާޔަތެއް ނެތް";
+    }
+    
+    // ރުބްރިކް ކާޑުތައް ރެންޑަރ ކުރުން (ކުރިން އިން ބައި)
+    renderRubric(d); 
+    calcTotal();
+};
 </script>
 </body>
 </html>
