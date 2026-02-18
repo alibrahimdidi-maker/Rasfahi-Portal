@@ -19711,7 +19711,79 @@ function setupHighlighter(q) {
         }
     }
 }
+window.nextQuestion = function() {
+    if(state.session.phase === 'ready') {
+        startReadingSession(); 
+        return;
+    }
 
+    if(state.session.phase === 'finished') return; 
+
+    const nextIdx = state.session.activeIndex + 1;
+    
+    if(nextIdx >= state.session.slots.length) {
+        state.session.phase = 'finished';
+    } else {
+        state.session.activeIndex = nextIdx;
+    }
+    
+    toggleBell(false);
+    updateStatus(); 
+    renderSlots(); 
+    updateMirror(); 
+    
+    // ★ މުހިންމު ބައި: ސުވާލު ބަދަލުވުމުން ހުރިހާ ސްކްރީނެއް ސިންކްކުރުން
+    syncWindows(); 
+    
+    // ޖަޖުންގެ މެޓްރިކްސް ވިންޑޯތައް ވަކިވަކިން އަޕްޑޭޓްކުރުން
+    for(let j=1; j<=5; j++) {
+        syncJudgeMatrixWindow(j);
+    }
+}
+    function syncJudgeMatrixWindow(jNum) {
+    const win = judgeWindows[jNum];
+    if (win && !win.closed) {
+        const s = state.judging.currentStudentObj;
+        const jKey = `Judge_${jNum}`;
+        
+        // އެވަގުތު ދަރިވަރު ކިޔަވަން އިން ސުވާލުގެ ޑޭޓާ ނެގުން
+        let activeQ = null;
+        if (state.session.slots && state.session.activeIndex > -1) {
+            activeQ = state.session.slots[state.session.activeIndex];
+        }
+
+        const packet = {
+            student: s,
+            rubric: state.judging.rubric,
+            existingDetails: (s && s.detailedScores) ? s.detailedScores[jKey] : {},
+            currentQ: activeQ // މިބައިން ޖަޖް ސްކްރީނަށް އާ އާޔަތުގެ ޓެކްސްޓް ފޮނުވައިދޭނެ
+        };
+
+        if (win.updateData) {
+            win.updateData(packet);
+        }
+    }
+}
+    window.updateData = function(d) {
+    if(!d.student) return;
+
+    // ދަރިވަރުގެ ނަން އަޕްޑޭޓްކުރުން
+    document.getElementById('sName').innerText = d.student.name;
+    document.getElementById('sMeta').innerText = d.student.reg + " | " + d.student.branch;
+
+    // ★ ސުވާލު ބަދަލުވުން: އައު ސުވާލުގެ ޓެކްސްޓް ހައިލައިޓަރަށް ލުން
+    if(d.currentQ && d.currentQ.text) {
+        // ސުވާލުގެ އައިޑީ ބަދަލުވެއްޖެނަމަ އެކަނި ޓެކްސްޓް ރީ-ލޯޑްކުރުން (Performace އަށްޓަކައި)
+        if(window.activeQID !== d.currentQ.id) {
+            window.activeQID = d.currentQ.id;
+            setupHighlighter(d.currentQ); 
+        }
+    }
+    
+    // ރުބްރިކް ކުރެހުން (މި ބައި މިހާރުވެސް އިންނާނެ)
+    renderRubric(d);
+    calcTotal();
+};
 </script>
 </body>
 </html>
