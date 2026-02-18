@@ -18948,6 +18948,64 @@ function generateJudgeMatrixHTML(jNum) {
     </html>
     `;
 }
+    function syncJudgeMatrixWindow(jNum) {
+    const win = judgeWindows[jNum];
+    if (win && !win.closed) {
+        const s = state.judging.currentStudentObj;
+        const jKey = `Judge_${jNum}`;
+        
+        // އެވަގުތު އެކްޓިވްކޮށް އިން ސުވާލުގެ ޓެކްސްޓް ހޯދުން
+        let activeAyahText = "";
+        if (state.extra && state.extra.selection && state.extra.selection[state.extra.currentIndex]) {
+            activeAyahText = state.extra.selection[state.extra.currentIndex].text;
+        }
+
+        const packet = {
+            student: s,
+            rubric: state.judging.rubric,
+            existingDetails: (s && s.detailedScores) ? s.detailedScores[jKey] : {},
+            // އާޔަތުގެ ޓެކްސްޓް ޕެކެޓަށް އިތުރުކުރުން
+            ayahText: activeAyahText 
+        };
+        if (win.updateData) win.updateData(packet);
+    }
+}
+    window.updateData = function(d) {
+    if(!d.student) return;
+    document.getElementById('sName').innerText = d.student.name;
+    document.getElementById('sMeta').innerText = d.student.reg + " | " + d.student.branch + " | " + d.student.group;
+    
+    const grid = document.getElementById('rubricGrid');
+    grid.innerHTML = "";
+    criteriaList = d.rubric;
+    d.rubric.forEach((r, idx) => {
+        let val = (d.existingDetails && d.existingDetails[r.name] !== undefined) ? d.existingDetails[r.name] : r.max;
+        scores[r.name] = val;
+        const card = document.createElement('div');
+        card.className = "card " + (val < r.max ? "active" : "");
+        card.innerHTML = `
+            <div class="card-header">
+                <div class="card-title">${r.name}</div>
+                <div class="score-display" id="val_${idx}">${val.toFixed(2)}</div>
+            </div>
+            <div class="btn-row" style="display:flex; gap:5px; margin-top:10px;">
+                <button style="background:#2a0000; color:#ff8a80; flex:1; padding:10px; border-radius:5px;" onclick="modify(${idx}, 0.5)">-0.5</button>
+                <button style="background:#2a0000; color:#ff8a80; flex:1; padding:10px; border-radius:5px;" onclick="modify(${idx}, 1.0)">-1.0</button>
+                <button style="background:#333; color:#fff; width:50px; border-radius:5px;" onclick="resetCard(${idx})">↺</button>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+
+    // ★ އާޔަތް ދައްކާ ބައި އަޕްޑޭޓްކުރުން
+    if(d.ayahText) {
+        setupHighlighter(d.ayahText);
+    } else {
+        document.getElementById('textHighlighter').innerHTML = "<p style='color:#999;'>އާޔަތް ލޯޑެއް ނުވެއެވެ.</p>";
+    }
+    
+    calcTotal();
+};
 </script>
 </body>
 </html>
