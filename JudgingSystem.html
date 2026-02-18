@@ -18948,7 +18948,213 @@ function generateJudgeMatrixHTML(jNum) {
     </html>
     `;
 }
+function generateJudgeMatrixHTML(jNum) {
+    const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
+    
+    return `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            ${fontFace}
+            @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans+Thaana:wght@400;700&display=swap');
+            
+            body { font-family: 'Noto Sans Thaana', 'AppFont', sans-serif; background: #05080a; color: white; margin: 0; padding: 20px; user-select: none; }
+            .header { border-bottom: 2px solid #7c4dff; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+            
+            /* Error Summary Table */
+            .mistake-log-section { background: #0d1117; border: 1px solid #7c4dff; border-radius: 12px; padding: 15px; margin-top: 20px; }
+            .log-table { width: 100%; border-collapse: collapse; margin-top: 10px; direction: rtl; }
+            .log-table th, .log-table td { border: 1px solid #333; padding: 10px; text-align: right; font-size: 14px; }
+            .log-table th { background: #1a1f26; color: #FFD700; }
+            .mistake-tag { background: #ff5252; color: white; padding: 2px 8px; border-radius: 4px; margin: 2px; display: inline-block; font-family: 'Amiri', serif; }
 
+            /* Text Highlighter */
+            .text-highlighter-box { background: #fff; color: #000; border-radius: 12px; padding: 25px; margin-top: 20px; text-align: center; min-height: 100px; }
+            .ayah-word { display: inline-block; font-family: 'Amiri', serif; font-size: 32px; margin: 0 4px; padding: 2px 6px; cursor: pointer; border-radius: 4px; transition: 0.2s; }
+            .ayah-word.wrong { background: #ff5252; color: white; text-decoration: line-through; }
+
+            .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 20px;}
+            .card { background: #1a1f26; border: 2px solid #333; border-radius: 12px; padding: 15px; }
+            .score-display { font-size: 36px; font-weight: 900; color: #00e676; font-family: sans-serif; }
+            
+            .bottom-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 2px solid #7c4dff; display: flex; z-index: 100; }
+            .total-display { flex: 1; color: #00e676; font-size: 32px; font-weight: bold; padding: 15px; text-align: center; }
+            .btn-save { background: #00e676; color: #000; width: 250px; padding: 15px; font-size: 20px; font-weight: bold; cursor: pointer; border:none; }
+
+            @media print {
+                .bottom-bar, .btn-row, .top-actions { display: none !important; }
+                body { background: white; color: black; }
+                .mistake-log-section { border: 1px solid #000; }
+                .log-table th { background: #eee; color: black; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div style="background: #7c4dff; padding: 5px 20px; border-radius: 5px;">JUDGE ${jNum}</div>
+            <button onclick="window.print()" style="padding:8px 15px; cursor:pointer;">🖨️ PDF ޑައުންލޯޑް</button>
+        </div>
+
+        <div id="studentInfo" style="background:#111; padding:15px; border-radius:10px; border:1px solid #333;">
+            <div id="sName" style="font-size:24px; color:#FFD700; font-weight:bold;">ދަރިވަރުގެ ނަން</div>
+            <div id="sMeta" style="color:#888;">-</div>
+        </div>
+
+        <div id="rubricGrid" class="grid"></div>
+
+        <div class="mistake-log-section">
+            <h3 style="color:#FFD700; margin:0 0 10px 0;">މިހާރު ކިޔަވާ އާޔަތް (ކުށްކުރާ ކަލިމައަށް ފިއްތަވާ)</h3>
+            <div id="textHighlighter" class="text-highlighter-box"></div>
+        </div>
+
+        <div class="mistake-log-section">
+            <h3 style="color:#7c4dff; margin:0 0 10px 0;">ކުށްތަކުގެ ރެކޯޑު (Summary)</h3>
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th style="width:80px;">ސުވާލު</th>
+                        <th style="width:200px;">ސޫރަތް / އާޔަތް</th>
+                        <th>ކުށް ޖެހުނު ކަލިމަތައް</th>
+                    </tr>
+                </thead>
+                <tbody id="mistakeLogBody">
+                    <tr><td colspan="3" style="text-align:center; color:#555;">އަދި އެއްވެސް ރެކޯޑެއް ނެތް</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="height:100px;"></div>
+        <div class="bottom-bar">
+            <div class="total-display">ޖުމްލަ: <span id="grandTotal">0.00</span></div>
+            <button class="btn-save" onclick="sendToAdmin()">💾 ސޭވް ކުރައްވާ</button>
+        </div>
+
+        <script>
+            let scores = {};
+            let criteriaList = [];
+            let mistakeLog = {}; // Stores mistakes per question ID
+
+            window.updateData = function(d) {
+                if(!d.student) return;
+                document.getElementById('sName').innerText = d.student.name;
+                document.getElementById('sMeta').innerText = d.student.reg + " | " + d.student.branch;
+                
+                // 1. Update Rubric
+                const grid = document.getElementById('rubricGrid');
+                grid.innerHTML = "";
+                criteriaList = d.rubric;
+                d.rubric.forEach((r, idx) => {
+                    let val = (d.existingDetails && d.existingDetails[r.name] !== undefined) ? d.existingDetails[r.name] : r.max;
+                    scores[r.name] = val;
+                    const card = document.createElement('div');
+                    card.className = "card";
+                    card.innerHTML = \`<div style="display:flex; justify-content:space-between;">
+                        <span>\${r.name}</span><span class="score-display">\${val.toFixed(2)}</span>
+                    </div>\`;
+                    grid.appendChild(card);
+                });
+
+                // 2. Setup Highlighter for NEW question
+                if(d.currentQ) {
+                    setupHighlighter(d.currentQ);
+                }
+                calcTotal();
+            };
+
+            function setupHighlighter(q) {
+                const box = document.getElementById('textHighlighter');
+                const words = q.text.split(" ");
+                box.innerHTML = "";
+                
+                // ސުވާލުގެ މައުލޫމާތު ރައްކާކުރުން
+                if(!mistakeLog[q.id]) {
+                    mistakeLog[q.id] = { info: q, words: [] };
+                }
+
+                words.forEach(w => {
+                    const span = document.createElement('span');
+                    span.className = "ayah-word";
+                    span.innerText = w;
+                    // ކުރިން ކުށް ޖެހިފައި ހުރިނަމަ އެކަން ދެއްކުން
+                    if(mistakeLog[q.id].words.includes(w)) span.classList.add('wrong');
+
+                    span.onclick = function() {
+                        this.classList.toggle('wrong');
+                        if(this.classList.contains('wrong')) {
+                            mistakeLog[q.id].words.push(w);
+                        } else {
+                            mistakeLog[q.id].words = mistakeLog[q.id].words.filter(word => word !== w);
+                        }
+                        renderMistakeLog();
+                    };
+                    box.appendChild(span);
+                });
+                renderMistakeLog();
+            }
+
+            function renderMistakeLog() {
+                const tbody = document.getElementById('mistakeLogBody');
+                tbody.innerHTML = "";
+                let hasData = false;
+
+                for (let id in mistakeLog) {
+                    const entry = mistakeLog[id];
+                    if(entry.words.length === 0 && entry.info.id != window.activeQID) continue; 
+                    
+                    hasData = true;
+                    const row = document.createElement('tr');
+                    const mistakeHtml = entry.words.map(w => \`<span class="mistake-tag">[\${w}]</span>\`).join(" ");
+                    
+                    row.innerHTML = \`
+                        <td>\${entry.info.id}</td>
+                        <td style="font-size:12px;">\${entry.info.surah}<br>(\${entry.info.start} - \${entry.info.end})</td>
+                        <td style="direction:rtl;">\${mistakeHtml || '<small style="color:#555;">ކުށެއް ނެތް</small>'}</td>
+                    \`;
+                    tbody.appendChild(row);
+                }
+                if(!hasData) tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">އަދި އެއްވެސް ރެކޯޑެއް ނެތް</td></tr>';
+            }
+
+            function calcTotal() {
+                let total = 0;
+                for(let k in scores) total += scores[k];
+                document.getElementById('grandTotal').innerText = total.toFixed(2);
+            }
+
+            function sendToAdmin() {
+                if(window.opener) {
+                    window.opener.receiveIndividualJudgeScore("Judge_${jNum}", scores, parseFloat(document.getElementById('grandTotal').innerText));
+                    alert("ސޭވް ވެއްޖެ!");
+                }
+            }
+        <\/script>
+    </body>
+    </html>
+    `;
+}
+    function syncJudgeMatrixWindow(jNum) {
+    const win = judgeWindows[jNum];
+    if (win && !win.closed) {
+        const s = state.judging.currentStudentObj;
+        const jKey = `Judge_${jNum}`;
+        
+        // އެވަގުތު ކިޔަވާ ސުވާލުގެ ހުރިހާ މަޢުލޫމާތެއް ނެގުން
+        let currentQ = null;
+        if (state.extra && state.extra.selection && state.extra.currentIndex > -1) {
+            currentQ = state.extra.selection[state.extra.currentIndex];
+        }
+
+        const packet = {
+            student: s,
+            rubric: state.judging.rubric,
+            existingDetails: (s && s.detailedScores) ? s.detailedScores[jKey] : {},
+            currentQ: currentQ // ސުވާލުގެ މައުލޫމާތު ފޮނުވުން
+        };
+        if (win.updateData) win.updateData(packet);
+    }
+}
 </script>
 </body>
 </html>
