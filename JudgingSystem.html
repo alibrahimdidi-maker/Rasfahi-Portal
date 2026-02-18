@@ -19416,6 +19416,201 @@ function renderMistakeLog() {
     </html>
     `;
 }
+    function generateJudgeMatrixHTML(jNum) {
+    const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
+    
+    return `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            ${fontFace}
+            @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans+Thaana:wght@400;700&display=swap');
+            
+            body { font-family: 'Noto Sans Thaana', 'AppFont', sans-serif; background: #05080a; color: white; margin: 0; padding: 15px; user-select: none; }
+            
+            @media print {
+                body { background: white !important; color: black !important; padding: 0; }
+                .no-print { display: none !important; }
+                .page-container { width: 100%; padding: 10mm; box-sizing: border-box; }
+                .log-table th { background: #f0f0f0 !important; color: black !important; border: 1px solid #000 !important; }
+                .log-table td { border: 1px solid #000 !important; color: black !important; font-size: 10pt !important; }
+                .card { border: 1px solid #000 !important; color: black !important; background: none !important; }
+                .score-display { color: black !important; }
+            }
+
+            .header { border-bottom: 2px solid #7c4dff; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+            .judge-badge { background: #7c4dff; color: #fff; padding: 5px 15px; border-radius: 5px; font-weight: bold; }
+            
+            .mistake-log-section { background: #0d1117; border: 1px solid #333; border-radius: 10px; padding: 10px; margin-top: 15px; }
+            .log-table { width: 100%; border-collapse: collapse; direction: rtl; }
+            .log-table th, .log-table td { border: 1px solid #333; padding: 6px; text-align: right; font-size: 11px; }
+            .log-table th { background: #1a1f26; color: #FFD700; }
+            .mistake-tag { color: #ff5252; font-family: 'Amiri', serif; font-weight: bold; }
+
+            .text-highlighter-box { background: #fff; color: #000; border-radius: 8px; padding: 15px; margin-top: 10px; text-align: center; min-height: 80px; }
+            .ayah-word { display: inline-block; font-family: 'Amiri', serif; font-size: 28px; margin: 0 3px; padding: 2px 4px; cursor: pointer; border-radius: 4px; }
+            .ayah-word.wrong { background: #ff5252; color: white; text-decoration: line-through; }
+
+            .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 15px;}
+            .card { background: #1a1f26; border: 1px solid #444; border-radius: 8px; padding: 10px; text-align: center; }
+            .card-title { font-size: 14px; color: #FFD700; margin-bottom: 5px; display: block; }
+            .score-display { font-size: 28px; font-weight: 900; color: #00e676; font-family: sans-serif; }
+            
+            .bottom-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 2px solid #7c4dff; display: flex; z-index: 100; }
+            .total-display { flex: 1; color: #00e676; font-size: 28px; font-weight: bold; padding: 10px; text-align: center; }
+            .btn-save { background: #00e676; color: #000; width: 200px; padding: 10px; font-size: 18px; font-weight: bold; cursor: pointer; border:none; }
+        </style>
+    </head>
+    <body>
+        <div class="page-container">
+            <div class="header">
+                <div class="judge-badge">JUDGE ${jNum}</div>
+                <div class="no-print"><button onclick="window.print()" style="padding:8px 15px; cursor:pointer;">🖨️ PDF / PRINT</button></div>
+            </div>
+
+            <div id="studentInfo" style="background:#111; padding:10px; border-radius:8px; border:1px solid #333;">
+                <div id="sName" style="font-size:20px; color:#FFD700; font-weight:bold;">ދަރިވަރު ސިލެކްޓް ކުރައްވާ</div>
+                <div id="sMeta" style="font-size:12px; color:#888;">-</div>
+            </div>
+
+            <div id="rubricGrid" class="grid"></div>
+
+            <div class="mistake-log-section no-print">
+                <h4 style="color:#FFD700; margin:0 0 8px 0; font-size:14px;">މިހާރު ކިޔަވާ އާޔަތް (ކަލިމައަށް ފިއްތަވާ)</h4>
+                <div id="textHighlighter" class="text-highlighter-box"></div>
+            </div>
+
+            <div class="mistake-log-section">
+                <h4 style="color:#7c4dff; margin:0 0 8px 0; font-size:14px;">ކުށްތަކުގެ ރެކޯޑު (Mistake Summary)</h4>
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th style="width:10%;">#</th>
+                            <th style="width:30%;">ސޫރަތް / އާޔަތް</th>
+                            <th style="width:60%;">ކުށް ޖެހުނު ތަންތަން</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mistakeLogBody">
+                        <tr><td colspan="3" style="text-align:center; color:#555;">ރެކޯޑެއް ނެތް</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="height:80px;" class="no-print"></div>
+        <div class="bottom-bar no-print">
+            <div class="total-display">ޖުމްލަ: <span id="grandTotal">0.00</span></div>
+            <button class="btn-save" onclick="sendToAdmin()">💾 ސޭވް ކުރައްވާ</button>
+        </div>
+
+        <script>
+            let scores = {};
+            let criteriaList = [];
+            let mistakeLog = {}; 
+            let lastQID = null;
+
+            window.updateData = function(d) {
+                if(!d.student) return;
+                document.getElementById('sName').innerText = d.student.name;
+                document.getElementById('sMeta').innerText = d.student.reg + " | " + d.student.branch;
+                
+                criteriaList = d.rubric;
+
+                // ★ އައު ސުވާލެއް އަތުވެއްޖެނަމަ ރުބްރިކް އޮޓޯއިން ރިފްރެޝްކުރުން
+                if(d.currentQ && lastQID !== d.currentQ.id) {
+                    lastQID = d.currentQ.id;
+                    resetRubricToFull(); // އައު ސުވާލަށް މާކްސްތައް ރިފްރެޝްކުރުން
+                } else {
+                    renderRubric(); // މިހާރު ހުރި މާކްސްތަކާއެކު ދެއްކުން
+                }
+
+                if(d.currentQ) {
+                    setupHighlighter(d.currentQ);
+                }
+                calcTotal();
+            };
+
+            function resetRubricToFull() {
+                criteriaList.forEach(r => {
+                    scores[r.name] = r.max;
+                });
+                renderRubric();
+            }
+
+            function renderRubric() {
+                const grid = document.getElementById('rubricGrid');
+                grid.innerHTML = "";
+                criteriaList.forEach((r, idx) => {
+                    if(scores[r.name] === undefined) scores[r.name] = r.max;
+                    const val = scores[r.name];
+                    const card = document.createElement('div');
+                    card.className = "card";
+                    card.innerHTML = \`<span class="card-title">\${r.name}</span><span class="score-display">\${val.toFixed(2)}</span>\`;
+                    grid.appendChild(card);
+                });
+            }
+
+            function setupHighlighter(q) {
+                const box = document.getElementById('textHighlighter');
+                if(!mistakeLog[q.id]) {
+                    mistakeLog[q.id] = { surah: q.surah, range: q.start + "-" + q.end, words: [] };
+                }
+                
+                const words = q.text.split(" ");
+                box.innerHTML = words.map(w => {
+                    const activeClass = mistakeLog[q.id].words.includes(w) ? 'wrong' : '';
+                    return \`<span class="ayah-word \${activeClass}" onclick="toggleMistake(this, '\${q.id}', '\${w}')">\${w}</span>\`;
+                }).join("");
+                renderMistakeLog();
+            }
+
+            function toggleMistake(el, qid, word) {
+                el.classList.toggle('wrong');
+                if(el.classList.contains('wrong')) {
+                    if(!mistakeLog[qid].words.includes(word)) mistakeLog[qid].words.push(word);
+                } else {
+                    mistakeLog[qid].words = mistakeLog[qid].words.filter(w => w !== word);
+                }
+                renderMistakeLog();
+            }
+
+            function renderMistakeLog() {
+                const tbody = document.getElementById('mistakeLogBody');
+                tbody.innerHTML = "";
+                let keys = Object.keys(mistakeLog).sort((a,b) => a-b);
+                
+                keys.forEach((id, index) => {
+                    const m = mistakeLog[id];
+                    const row = document.createElement('tr');
+                    const wordList = m.words.length > 0 ? m.words.map(w => \`[\${w}]\`).join(" ") : "-";
+                    row.innerHTML = \`
+                        <td style="text-align:center; font-weight:bold;">\${index + 1}</td>
+                        <td style="font-size:10px;">\${m.surah}<br>\${m.range}</td>
+                        <td class="mistake-tag">\${wordList}</td>
+                    \`;
+                    tbody.appendChild(row);
+                });
+            }
+
+            function calcTotal() {
+                let total = 0;
+                for(let k in scores) total += scores[k];
+                document.getElementById('grandTotal').innerText = total.toFixed(2);
+            }
+
+            function sendToAdmin() {
+                if(window.opener) {
+                    window.opener.receiveIndividualJudgeScore("Judge_${jNum}", scores, parseFloat(document.getElementById('grandTotal').innerText));
+                    alert("ސޭވް ވެއްޖެ! ޝީޓް ޕްރިންޓް ކުރެއްވުމަށް ޕްރިންޓް ބަޓަނަށް ފިއްތަވާ.");
+                }
+            }
+        <\/script>
+    </body>
+    </html>
+    `;
+}
 </script>
 </body>
 </html>
