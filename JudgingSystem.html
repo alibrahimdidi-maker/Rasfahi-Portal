@@ -18768,7 +18768,186 @@ function syncMainRubricVisuals(details, total) {
     </html>
     `;
 }
+// --- 5 ޖަޖުންގެ މާކިންގ ރުބްރިކް ފަންކްޝަން (V26 COMPLETE) ---
+function generateJudgeMatrixHTML(jNum) {
+    const fontFace = state.fontData ? `@font-face { font-family: 'AppFont'; src: url('${state.fontData}'); }` : '';
+    
+    return `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            ${fontFace}
+            @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans+Thaana:wght@400;700&display=swap');
+            
+            body { font-family: 'Noto Sans Thaana', 'AppFont', sans-serif; background: #05080a; color: white; margin: 0; padding: 20px; user-select: none; }
+            .header { border-bottom: 2px solid #7c4dff; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+            .judge-badge { background: #7c4dff; color: #fff; padding: 5px 20px; border-radius: 5px; font-weight: bold; }
+            
+            .error-section { background: #0d1117; border: 1px solid #333; border-radius: 12px; padding: 15px; margin-top: 20px; }
+            .error-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+            .error-btn { 
+                background: #1a1f26; border: 1px solid #444; color: #aaa; padding: 10px; 
+                text-align: right; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+                font-family: 'Amiri', serif; font-size: 16px;
+            }
+            .error-btn.active { border-color: #ff5252; color: #ff5252; background: rgba(255,82,82,0.1); }
+            .error-btn.active::after { content: '✘'; font-weight: bold; }
 
+            .text-highlighter-box { background: #fff; color: #000; border-radius: 12px; padding: 25px; margin-top: 20px; direction: rtl; text-align: center; min-height: 100px; }
+            .ayah-word { 
+                display: inline-block; font-family: 'Amiri', serif; font-size: 32px; 
+                margin: 0 4px; padding: 2px 6px; cursor: pointer; border-radius: 4px;
+            }
+            .ayah-word.wrong { background: #ff5252; color: white; text-decoration: line-through; }
+
+            .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 20px;}
+            .card { background: #1a1f26; border: 2px solid #333; border-radius: 12px; padding: 15px; }
+            .card.active { border-color: #00e676; }
+            .score-display { font-size: 36px; font-weight: 900; color: #00e676; font-family: sans-serif; }
+            
+            .bottom-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; border-top: 2px solid #7c4dff; display: flex; z-index: 100; }
+            .total-display { flex: 1; color: #00e676; font-size: 32px; font-weight: bold; padding: 15px; text-align: center; }
+            .btn-save { background: #00e676; color: #000; width: 250px; padding: 15px; font-size: 20px; font-weight: bold; cursor: pointer; border:none; }
+
+            @media print {
+                body { background: white !important; color: black !important; }
+                .bottom-bar, .btn-row, .top-actions, .error-btn:not(.active) { display: none !important; }
+                .text-highlighter-box { border: 1px solid #000; color: black; }
+                .error-btn.active { background: #f0f0f0 !important; border: 1px solid black !important; color: black !important; }
+                .card { border: 1px solid #000; background: white !important; color: black !important; }
+                .score-display, .card-title { color: black !important; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="judge-badge">JUDGE ${jNum} - ތަފްޞީލީ މާކިންގ ޝީޓް</div>
+            <div class="top-actions">
+                <button onclick="window.print()" style="padding:8px 15px; cursor:pointer; background:#fff; border:1px solid #ccc; border-radius:5px;">🖨️ ޕްރިންޓް / PDF</button>
+            </div>
+        </div>
+
+        <div id="studentInfo" style="background:#111; padding:15px; border-radius:10px; border:1px solid #333; margin-bottom:15px;">
+            <div id="sName" style="font-size:24px; color:#FFD700; font-weight:bold;">ދަރިވަރު ސިލެކްޓް ކުރައްވާ</div>
+            <div id="sMeta" style="color:#888;">-</div>
+        </div>
+
+        <div id="rubricGrid" class="grid"></div>
+
+        <div class="error-section">
+            <h3 style="color:#7c4dff; margin-top:0; border-bottom:1px solid #333; padding-bottom:5px;">ތަޖުވީދު އަދި ކިޔެވުމުގެ ކުށްތައް (Checklist)</h3>
+            <div class="error-grid">
+                <button class="error-btn" onclick="this.classList.toggle('active')">أحكام النون الساكنة والتنوين</button>
+                <button class="error-btn" onclick="this.classList.toggle('active')">أحكام الميم الساكنة</button>
+                <button class="error-btn" onclick="this.classList.toggle('active')">أحكام المدود</button>
+                <button class="error-btn" onclick="this.classList.toggle('active')">الوقف والابتداء</button>
+                <button class="error-btn" onclick="this.classList.toggle('active')">همزة الوصل</button>
+                <button class="error-btn" onclick="this.classList.toggle('active')">هاء الكناية</button>
+                <button class="error-btn" onclick="this.classList.toggle('active')">طريق الشاطبية (حفص)</button>
+                <button class="error-btn" onclick="this.classList.toggle('active')">مخارج الحروف</button>
+                <button class="error-btn" onclick="this.classList.toggle('active')">صفات الحروف</button>
+                <button class="error-btn" onclick="this.classList.toggle('active')">اللحن الجلي</button>
+                <button class="error-btn" onclick="this.classList.toggle('active')">اللحن الخفي</button>
+            </div>
+        </div>
+
+        <div class="error-section">
+            <h3 style="color:#FFD700; margin-top:0;">ކިޔެވި އާޔަތުގެ ޓެކްސްޓް (ކުށްކުރާ ކަލިމައަށް ފިއްތަވާ)</h3>
+            <div id="textHighlighter" class="text-highlighter-box">
+                <p style="color:#999;">ދަރިވަރު ކިޔަވާ ސުވާލު މިތަނަށް އަރާނެއެވެ.</p>
+            </div>
+        </div>
+
+        <div style="height:120px;"></div>
+
+        <div class="bottom-bar">
+            <div class="total-display">ޖުމްލަ ސްކޯ: <span id="grandTotal">-</span></div>
+            <button class="btn-save" onclick="sendToAdmin()">💾 ސޭވް ކުރައްވާ</button>
+        </div>
+
+        <script>
+            let scores = {};
+            let criteriaList = [];
+            let judgeID = "Judge_${jNum}";
+
+            window.updateData = function(d) {
+                if(!d.student) return;
+                document.getElementById('sName').innerText = d.student.name;
+                document.getElementById('sMeta').innerText = d.student.reg + " | " + d.student.branch + " | " + d.student.group;
+                
+                const grid = document.getElementById('rubricGrid');
+                grid.innerHTML = "";
+                criteriaList = d.rubric;
+                d.rubric.forEach((r, idx) => {
+                    let val = (d.existingDetails && d.existingDetails[r.name] !== undefined) ? d.existingDetails[r.name] : r.max;
+                    scores[r.name] = val;
+                    const card = document.createElement('div');
+                    card.className = "card " + (val < r.max ? "active" : "");
+                    card.innerHTML = \`
+                        <div class="card-header">
+                            <div class="card-title">\${r.name}</div>
+                            <div class="score-display" id="val_\${idx}">\${val.toFixed(2)}</div>
+                        </div>
+                        <div class="btn-row" style="display:flex; gap:5px; margin-top:10px;">
+                            <button style="background:#2a0000; color:#ff8a80; flex:1; padding:10px; border-radius:5px;" onclick="modify(\${idx}, 0.5)">-0.5</button>
+                            <button style="background:#2a0000; color:#ff8a80; flex:1; padding:10px; border-radius:5px;" onclick="modify(\${idx}, 1.0)">-1.0</button>
+                            <button style="background:#333; color:#fff; width:50px; border-radius:5px;" onclick="resetCard(\${idx})">↺</button>
+                        </div>
+                    \`;
+                    grid.appendChild(card);
+                });
+
+                // ޓެކްސްޓް ހައިލައިޓަރަށް އާޔަތް ފޮނުވުން
+                if(window.opener && window.opener.state.session.slots.length > 0) {
+                   const activeSlot = window.opener.state.session.slots[window.opener.state.session.activeIndex];
+                   if(activeSlot && activeSlot.text) {
+                       setupHighlighter(activeSlot.text);
+                   }
+                }
+                calcTotal();
+            };
+
+            function setupHighlighter(text) {
+                const box = document.getElementById('textHighlighter');
+                const words = text.split(" ");
+                box.innerHTML = words.map(w => \`<span class="ayah-word" onclick="this.classList.toggle('wrong')">\${w}</span>\`).join("");
+            }
+
+            function modify(idx, amt) {
+                const r = criteriaList[idx];
+                scores[r.name] = Math.max(0, scores[r.name] - amt);
+                document.getElementById('val_'+idx).innerText = scores[r.name].toFixed(2);
+                document.getElementById('card_'+idx)?.classList.add('active');
+                calcTotal();
+            }
+
+            function resetCard(idx) {
+                const r = criteriaList[idx];
+                scores[r.name] = r.max;
+                document.getElementById('val_'+idx).innerText = r.max.toFixed(2);
+                calcTotal();
+            }
+
+            function calcTotal() {
+                let total = 0;
+                for(let k in scores) total += scores[k];
+                document.getElementById('grandTotal').innerText = total.toFixed(2);
+            }
+
+            function sendToAdmin() {
+                const total = parseFloat(document.getElementById('grandTotal').innerText);
+                if(window.opener) {
+                    window.opener.receiveIndividualJudgeScore(judgeID, scores, total);
+                    alert("ސޭވް ވެއްޖެ!");
+                }
+            }
+        <\/script>
+    </body>
+    </html>
+    `;
+}
 </script>
 </body>
 </html>
