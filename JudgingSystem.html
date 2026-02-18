@@ -19611,6 +19611,78 @@ function renderMistakeLog() {
     </html>
     `;
 }
+    <script>
+    let scores = {};
+    let criteriaList = [];
+    let judgeID = "Judge_${jNum}";
+    let mistakeLog = {}; 
+    let currentQID = null; // އެންމެ ފަހުން ލޯޑުވި ސުވާލުގެ ID
+
+    window.updateData = function(d) {
+        if(!d.student) return;
+        
+        // ދަރިވަރުގެ މައުލޫމާތު އަޕްޑޭޓްކުރުން
+        document.getElementById('sName').innerText = d.student.name;
+        document.getElementById('sMeta').innerText = d.student.reg + " | " + d.student.branch;
+        
+        // 1. ރުބްރިކް ބައި (މިއީ ރީސެޓް ނުވާނެ ގޮތަށް)
+        if (criteriaList.length === 0) {
+            criteriaList = d.rubric;
+            renderRubricGrid();
+        }
+
+        // 2. އާޔަތުގެ ޓެކްސްޓް ބައި އެކަނި ރެފްރެޝްކުރުން
+        if (d.currentQ && d.currentQ.id !== currentQID) {
+            currentQID = d.currentQ.id; // އައު ID ރެކޯޑުކުރުން
+            
+            // އާޔަތް ހައިލައިޓަރަށް އައު އާޔަތް ލުން (މި ބައި އެކަނި ރެފްރެޝްވާނީ)
+            setupHighlighter(d.currentQ);
+            
+            console.log("New question loaded: " + currentQID + ". Rubric preserved.");
+        }
+        
+        calcTotal();
+    };
+
+    // ރުބްރިކް ކުރަހާ ފަންކްޝަން (މިއީ ހަމައެކަނި ފުރަތަމަ ފަހަރު ނުވަތަ މާކުސް ބަދަލުވުމުން ހިނގާނެ އެއްޗެއް)
+    function renderRubricGrid() {
+        const grid = document.getElementById('rubricGrid');
+        grid.innerHTML = "";
+        criteriaList.forEach((r, idx) => {
+            if(scores[r.name] === undefined) scores[r.name] = r.max; // ފުރަތަމަ ފަހަރު ފުލް މާކުސް
+            
+            const val = scores[r.name];
+            const card = document.createElement('div');
+            card.className = "card " + (val < r.max ? "active" : "");
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="card-title">\${r.name}</div>
+                    <div class="score-display" id="val_\${idx}">\${val.toFixed(2)}</div>
+                </div>
+                <div class="btn-row" style="display:flex; gap:5px; margin-top:10px;">
+                    <button style="background:#2a0000; color:#ff8a80; flex:1; padding:10px; border-radius:5px;" onclick="modify(\${idx}, 0.5)">-0.5</button>
+                    <button style="background:#2a0000; color:#ff8a80; flex:1; padding:10px; border-radius:5px;" onclick="modify(\${idx}, 1.0)">-1.0</button>
+                    <button style="background:#333; color:#fff; width:50px; border-radius:5px;" onclick="resetCard(\${idx})">↺</button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // މާކުސް ކަނޑާ ފަންކްޝަން
+    function modify(idx, amt) {
+        const r = criteriaList[idx];
+        scores[r.name] = Math.max(0, scores[r.name] - amt);
+        document.getElementById('val_'+idx).innerText = scores[r.name].toFixed(2);
+        
+        // ކާޑުގެ ބޯޑަރު ކުލަ ބަދަލުކުރުން
+        if(scores[r.name] < r.max) {
+            document.getElementById('val_'+idx).closest('.card').classList.add('active');
+        }
+        calcTotal();
+    }
+
+    
 </script>
 </body>
 </html>
