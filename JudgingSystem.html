@@ -20789,7 +20789,254 @@ function generateQuranSyllabusCSV() {
     </body>
     </html>`;
 }
+function generateHifzJudgeHTML(jNum) {
+    const today = new Date().toLocaleDateString('dv-MV', { year: 'numeric', month: 'long', day: 'numeric' });
+    
+    // PDF Library and Styles
+    return `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Amiri&family=Noto+Sans+Thaana&display=swap');
+            body { font-family: 'Noto Sans Thaana', sans-serif; background: #0a0a0a; color: white; margin: 0; padding: 20px; }
+            .header-bar { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 15px; border-radius: 10px; border-bottom: 3px solid #00e676; margin-bottom: 20px; }
+            .main-layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+            
+            /* Quran Display */
+            .quran-container { background: #fff; color: #000; padding: 40px; border-radius: 15px; min-height: 600px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+            .word { display: inline-block; font-family: 'Amiri', serif; font-size: 30px; margin: 2px 4px; cursor: pointer; transition: 0.2s; border-radius: 4px; padding: 2px; }
+            .word:hover { background: #e8f5e9; color: #2e7d32; }
+            .word.mistake { background: #ffcdd2; color: #b71c1c; text-decoration: line-through; border: 1px solid #ef5350; }
+            .ayah-num { color: #00e676; font-weight: bold; font-family: 'Amiri'; font-size: 24px; margin: 0 10px; border: 1px solid #ddd; border-radius: 50%; padding: 2px 8px; }
 
+            /* Sidebar */
+            .sidebar { background: #111; padding: 20px; border-radius: 12px; border: 1px solid #333; position: sticky; top: 20px; }
+            .score-input { width: 100%; background: #000; color: #FFD700; border: 1px solid #444; padding: 8px; font-size: 18px; text-align: center; border-radius: 5px; margin-top: 5px; }
+            .btn-deduct { background: #333; color: white; border: none; padding: 5px; cursor: pointer; border-radius: 3px; font-size: 11px; flex: 1; }
+            .btn-deduct:hover { background: #d32f2f; }
+            .btn-export { background: #00e676; color: #000; border: none; padding: 12px; width: 100%; cursor: pointer; border-radius: 5px; font-weight: bold; margin-top: 15px; font-size: 16px; }
+
+            /* Mistake Log */
+            .mistake-log { margin-top: 20px; background: #000; padding: 10px; border-radius: 8px; border: 1px dashed #444; max-height: 300px; overflow-y: auto; }
+            .mistake-item { border-bottom: 1px solid #222; padding: 8px 0; font-size: 13px; }
+            .mistake-word { font-family: 'Amiri'; font-size: 18px; color: #ff8a80; display: block; }
+            .mistake-meta { color: #888; font-size: 11px; }
+            
+            /* PDF Print Styles */
+            #printableReport { background: white; color: black; padding: 40px; display: none; }
+            .pdf-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            .pdf-table th, .pdf-table td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+        </style>
+    </head>
+    <body>
+        <div class="header-bar">
+            <div>
+                <h2 style="margin:0; color:#00e676;">ޙިފްޡް އިމްތިޙާނު ޖަޖިންގ - ޖަޖް ${jNum}</h2>
+                <div id="stName" style="color:#FFD700; font-size:18px;">ލޯޑްވަނީ...</div>
+            </div>
+            <div style="text-align:left;">
+                <div style="font-size:12px; color:#aaa;">ތާރީޚް: ${today}</div>
+                <button class="btn-export" onclick="exportPDF()" style="margin-top:5px; padding:5px 15px;">📥 Export PDF Report</button>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <div class="sidebar">
+                <div style="margin-bottom:15px;">
+                    <label>ޖުޒު ސެލެކްޓް ކުރައްވާ:</label>
+                    <select id="juzSelect" onchange="fetchQuranData()" style="width:100%; padding:10px; background:#222; color:white; border:1px solid #444; margin-top:5px;">
+                        <option value="">ސެލެކްޓް...</option>
+                        ${Array.from({length: 30}, (_, i) => `<option value="${i+1}">ޖުޒު ${i+1}</option>`).join('')}
+                    </select>
+                </div>
+
+                <div id="rubricArea"></div>
+
+                <div class="mistake-log">
+                    <div style="color:#00e676; font-size:12px; margin-bottom:10px;">ފާހަގަކުރެވުނު ކުށްތައް:</div>
+                    <div id="logContent"></div>
+                </div>
+
+                <div style="text-align:center; margin-top:20px; border-top:2px solid #00e676; padding-top:15px;">
+                    <div style="font-size:14px;">ޖުމްލަ މާކުސް</div>
+                    <div id="grandTotal" style="font-size:45px; color:#00e676; font-weight:bold;">100</div>
+                </div>
+            </div>
+
+            <div class="quran-container">
+                <div id="quranArea" style="direction:rtl; text-align:justify;">
+                    <p style="text-align:center; color:#888; margin-top:200px;">ޖުޒު ސެލެކްޓް ކުރެއްވުމުން އާޔަތްތައް ފެންނާނެއެވެ.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="printableReport">
+            <h1 style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px;">ޙިފްޡް އިމްތިޙާނު ރިޕޯޓް</h1>
+            <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                <p><b>ދަރިވަރު:</b> <span id="pdf-student"></span></p>
+                <p><b>ޖަޖް:</b> ${jNum}</p>
+                <p><b>ތާރީޚް:</b> ${today}</p>
+            </div>
+            <h3>މާކުސްތައް:</h3>
+            <div id="pdf-scores"></div>
+            <h3>ފާހަގަކުރެވުނު ކުށްތައް:</h3>
+            <table class="pdf-table">
+                <thead>
+                    <tr>
+                        <th>ކަލިމަ</th>
+                        <th>ސޫރަތް</th>
+                        <th>އާޔަތް</th>
+                        <th>ޞަފްޙާ / ޖުޒު</th>
+                    </tr>
+                </thead>
+                <tbody id="pdf-mistake-rows"></tbody>
+            </table>
+            <div style="text-align:left; margin-top:30px; font-size:24px;">
+                <b>ޖުމްލަ މާކުސް: <span id="pdf-total" style="color:red;"></span></b>
+            </div>
+        </div>
+
+        <script>
+            let currentScores = {};
+            let mistakeRecords = [];
+            let quranData = [];
+            let studentInfo = {};
+
+            window.updateData = function(data) {
+                studentInfo = data.student;
+                document.getElementById('stName').innerText = data.student.name + " (" + data.student.reg + ")";
+                const area = document.getElementById('rubricArea');
+                area.innerHTML = "";
+                data.rubric.forEach((r, i) => {
+                    currentScores[r.name] = r.max;
+                    area.innerHTML += \`
+                        <div style="margin-bottom:15px;">
+                            <div style="font-size:12px; color:#00e676;">\${r.name} (\${r.max})</div>
+                            <input type="number" step="0.25" id="score-in-\${i}" value="\${r.max}" class="score-input" onchange="manualUpdate('\${r.name}', \${i}, this.value)">
+                            <div style="display:flex; gap:5px; margin-top:5px;">
+                                <button class="btn-deduct" onclick="quickSubtract('\${r.name}', \${i}, 0.25)">.25</button>
+                                <button class="btn-deduct" onclick="quickSubtract('\${r.name}', \${i}, 0.50)">.50</button>
+                                <button class="btn-deduct" onclick="quickSubtract('\${r.name}', \${i}, 1.00)">1.0</button>
+                            </div>
+                        </div>\`;
+                });
+                updateGrandTotal();
+            };
+
+            async function fetchQuranData() {
+                const juz = document.getElementById('juzSelect').value;
+                if(!juz) return;
+                document.getElementById('quranArea').innerHTML = "ލޯޑްވަނީ...";
+                
+                try {
+                    const res = await fetch(\`https://api.alquran.cloud/v1/juz/\${juz}/quran-simple\`);
+                    const data = await res.json();
+                    quranData = data.data.ayahs;
+                    
+                    let html = "";
+                    quranData.forEach((ayah, aIdx) => {
+                        const words = ayah.text.split(" ");
+                        words.forEach((w, wIdx) => {
+                            html += \`<span class="word" onclick="toggleMistake(this, \${aIdx}, '\${w}')">\${w}</span>\`;
+                        });
+                        html += \`<span class="ayah-num">\${ayah.numberInSurah}</span>\`;
+                    });
+                    document.getElementById('quranArea').innerHTML = html;
+                } catch(e) { alert("Error loading Quran text!"); }
+            }
+
+            function toggleMistake(el, ayahIdx, word) {
+                el.classList.toggle('mistake');
+                const ayah = quranData[ayahIdx];
+                const recordId = \`\${ayah.surah.name}-\${ayah.numberInSurah}-\${word}\`;
+
+                if(el.classList.contains('mistake')) {
+                    mistakeRecords.push({
+                        id: recordId,
+                        word: word,
+                        surah: ayah.surah.name,
+                        ayahNo: ayah.numberInSurah,
+                        page: ayah.page,
+                        juz: document.getElementById('juzSelect').value
+                    });
+                } else {
+                    mistakeRecords = mistakeRecords.filter(m => m.id !== recordId);
+                }
+                renderMistakeLog();
+            }
+
+            function renderMistakeLog() {
+                const log = document.getElementById('logContent');
+                log.innerHTML = mistakeRecords.map(m => \`
+                    <div class="mistake-item">
+                        <span class="mistake-word">\${m.word}</span>
+                        <span class="mistake-meta">[\${m.surah} : \${m.ayahNo}] (ޞ:\${m.page})</span>
+                    </div>
+                \`).join("");
+            }
+
+            function manualUpdate(name, idx, val) {
+                currentScores[name] = parseFloat(val);
+                updateGrandTotal();
+            }
+
+            function quickSubtract(name, idx, amt) {
+                const input = document.getElementById('score-in-'+idx);
+                let newVal = Math.max(0, parseFloat(input.value) - amt);
+                input.value = newVal.toFixed(2);
+                manualUpdate(name, idx, newVal);
+            }
+
+            function updateGrandTotal() {
+                let t = 0;
+                for(let k in currentScores) t += currentScores[k];
+                document.getElementById('grandTotal').innerText = t.toFixed(2);
+            }
+
+            function exportPDF() {
+                // Populate Printable Template
+                document.getElementById('pdf-student').innerText = studentInfo.name + " (" + studentInfo.reg + ")";
+                document.getElementById('pdf-total').innerText = document.getElementById('grandTotal').innerText;
+                
+                let scoreHtml = "<ul>";
+                for(let k in currentScores) {
+                    scoreHtml += \`<li>\${k}: \${currentScores[k]}</li>\`;
+                }
+                scoreHtml += "</ul>";
+                document.getElementById('pdf-scores').innerHTML = scoreHtml;
+
+                let mistakeRows = mistakeRecords.map(m => \`
+                    <tr>
+                        <td style="font-family:'Amiri'; font-size:20px;">\${m.word}</td>
+                        <td>\${m.surah}</td>
+                        <td>\${m.ayahNo}</td>
+                        <td>ޞ:\${m.page} / ޖުޒު:\${m.juz}</td>
+                    </tr>
+                \`).join("");
+                document.getElementById('pdf-mistake-rows').innerHTML = mistakeRows || "<tr><td colspan='4' style='text-align:center;'>ކުށެއް ރެކޯޑު ކުރެވިފައެއް ނުވޭ</td></tr>";
+
+                const element = document.getElementById('printableReport');
+                element.style.display = 'block';
+                
+                const opt = {
+                    margin: 10,
+                    filename: 'Hifz_Report_' + studentInfo.name + '.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    element.style.display = 'none';
+                });
+            }
+        <\/script>
+    </body>
+    </html>`;
+}
 </script>
 </body>
 </html>
