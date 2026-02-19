@@ -20401,7 +20401,132 @@ d.rubric.forEach((r, idx) => {
         }
     }, 800);
 }
+function openHifzWindow(jNum) {
+    // އައު ވިންޑޯ ހުޅުވުން
+    const hifzWin = window.open("", `HifzJudge${jNum}`, "width=1100,height=850");
+    
+    // ޙިފްޡް ވިންޑޯގެ HTML ކޯޑު ފޮނުވުން
+    hifzWin.document.write(generateHifzJudgeHTML(jNum));
+    hifzWin.document.close();
 
+    // ސޮފްޓްވެއަރގައި މިހާރު ހުރި ދަރިވަރުގެ މަޢުލޫމާތާއި ރުބްރިކް ސިންކް ކުރުން
+    setTimeout(() => {
+        if (state.judging && state.judging.currentStudentObj) {
+            hifzWin.updateData({
+                student: state.judging.currentStudentObj,
+                rubric: state.judging.rubric
+            });
+        } else {
+            alert("ކުރިން ދަރިވަރަކު ސެލެކްޓް ކުރައްވާ ނުވަތަ Start އަށް ފިއްތަވާ!");
+        }
+    }, 800);
+}
+
+// ޙިފްޡް ސްކްރީންގެ ޑިޒައިން (މި ފަންކްޝަންވެސް ސްކްރިޕްޓް ތެރެއަށް ލާންވާނެ)
+function generateHifzJudgeHTML(jNum) {
+    return `
+    <!DOCTYPE html>
+    <html lang="dv" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Amiri&family=Noto+Sans+Thaana&display=swap');
+            body { font-family: 'Noto Sans Thaana', sans-serif; background: #050505; color: white; padding: 20px; }
+            .hifz-card { background: linear-gradient(145deg, #111, #000); border: 1px solid #00e676; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+            .text-display { background: #fff; color: #000; padding: 30px; border-radius: 15px; min-height: 250px; text-align: center; line-height: 2.8; direction: rtl; }
+            .word { display: inline-block; font-family: 'Amiri', serif; font-size: 34px; margin: 0 6px; cursor: pointer; border-bottom: 2px solid transparent; }
+            .word:hover { color: #00e676; border-bottom-color: #00e676; }
+            .word.clicked { color: #d32f2f; text-decoration: line-through; font-weight: bold; }
+            .log-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+            .log-box { background: #111; border: 1px solid #333; padding: 15px; border-radius: 8px; }
+            .score-panel { display: flex; justify-content: space-around; background: #111; padding: 20px; border-radius: 12px; margin-top: 20px; border: 1px solid #444; }
+            .btn-deduct { background: #c62828; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin: 2px; }
+            .total-display { font-size: 40px; color: #00e676; text-align: center; margin-top: 20px; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="hifz-card">
+            <h2 style="margin:0; color:#00e676;">ޙިފްޡް އިމްތިޙާނު - ޖަޖް ${jNum}</h2>
+            <p id="stName" style="font-size:20px; color:#FFD700; margin:10px 0;">ދަރިވަރުގެ މަޢުލޫމާތު ލޯޑްވަނީ...</p>
+            <select id="juzSelect" onchange="loadQuranText()" style="padding:10px; background:#222; color:white; border:1px solid #00e676; border-radius:5px; width:200px;">
+                <option value="">ފޮތް ސެލެކްޓް ކުރައްވާ</option>
+                <option value="1">1 ވަނަ ފޮތް</option>
+                <option value="2">2 ވަނަ ފޮތް</option>
+                <option value="30">30 ވަނަ ފޮތް</option>
+            </select>
+        </div>
+
+        <div id="quranArea" class="text-display">ފޮތެއް ސެލެކްޓް ކުރެއްވުމުން މިތަނުން ކުށް ފާހަގަކުރެވޭނެއެވެ.</div>
+
+        <div class="log-grid">
+            <div class="log-box">
+                <div style="color:#00e676; border-bottom:1px solid #333; margin-bottom:10px;">1 ވަނަ ފޮތުގެ ކުށްތައް</div>
+                <div id="mistake-log-1" style="font-family:'Amiri'; font-size:22px; color:#ff8a80;"></div>
+            </div>
+            <div class="log-box">
+                <div style="color:#00e676; border-bottom:1px solid #333; margin-bottom:10px;">2 ވަނަ ފޮތުގެ ކުށްތައް</div>
+                <div id="mistake-log-2" style="font-family:'Amiri'; font-size:22px; color:#ff8a80;"></div>
+            </div>
+        </div>
+
+        <div id="rubricArea" class="score-panel"></div>
+        <div class="total-display">ޖުމްލަ: <span id="grandTotal">100</span></div>
+
+        <script>
+            let mistakes = { 1: [], 2: [], 30: [] };
+            let currentScores = {};
+
+            window.updateData = function(data) {
+                document.getElementById('stName').innerText = data.student.name + " (" + data.student.reg + ")";
+                const rubricArea = document.getElementById('rubricArea');
+                rubricArea.innerHTML = "";
+                data.rubric.forEach((r, i) => {
+                    currentScores[r.name] = r.max;
+                    rubricArea.innerHTML += \`
+                        <div style="text-align:center;">
+                            <div style="font-size:12px; color:#aaa;">\${r.name}</div>
+                            <div id="score-\${i}" style="font-size:24px; font-weight:bold;">\${r.max}</div>
+                            <button class="btn-deduct" onclick="deduct('\${r.name}', \${i}, 0.25)">.25</button>
+                            <button class="btn-deduct" onclick="deduct('\${r.name}', \${i}, 0.50)">.50</button>
+                        </div>\`;
+                });
+                updateTotal();
+            };
+
+            function loadQuranText() {
+                const juz = document.getElementById('juzSelect').value;
+                if(!juz) return;
+                // މިސާލަކަށް ކިޔަވާ އާޔަތްތައް (މިބައި ސީދާ API އަކާ ގުޅުވާލެވޭނެ)
+                const text = "الحمد لله رب العالمين الرحمن الرحيم مالك يوم الدين إياك نعبد وإياك نستعين";
+                const words = text.split(" ");
+                document.getElementById('quranArea').innerHTML = words.map(w => 
+                    \`<span class="word" onclick="addMistake(this, '\${juz}', '\${w}')">\${w}</span>\`
+                ).join(" ");
+            }
+
+            function addMistake(el, juz, word) {
+                el.classList.add('clicked');
+                if(!mistakes[juz].includes(word)) {
+                    mistakes[juz].push(word);
+                    document.getElementById('mistake-log-'+juz).innerText = mistakes[juz].join(" ، ");
+                }
+            }
+
+            function deduct(name, idx, val) {
+                currentScores[name] = Math.max(0, currentScores[name] - val);
+                document.getElementById('score-'+idx).innerText = currentScores[name].toFixed(2);
+                updateTotal();
+            }
+
+            function updateTotal() {
+                let total = 0;
+                for(let k in currentScores) total += currentScores[k];
+                document.getElementById('grandTotal').innerText = total.toFixed(2);
+            }
+        </script>
+    </body>
+    </html>`;
+}
 </script>
 </body>
 </html>
