@@ -22,16 +22,13 @@
 <body>
 
 <div class="container">
-    <h1>ޤުރްއާން ފޮޅުވަތް ރޭންޖް ސުވާލު ޖެނެރޭޓަރ (3000 ސުވާލު)</h1>
+    <h1>ޤުރްއާން ފޮޅުވަތް ރޭންޖް ސުވާލު ޖެނެރޭޓަރ</h1>
     <div id="dataInfo">މަޑުކޮށްލައްވާ! ޤުރްއާން ޑޭޓާ ލޯޑްވަނީ...</div>
 
     <div class="form-group">
         <label>ކިޔަވަންޖެހޭ ފޮޅުވަތުގެ ރޭންޖް (މުޞްޙަފުލް މަދީނާގެ މިންގަނޑުން):</label>
         <select id="lineRange">
-            <option value="4-5">4 ފޮޅުވަތާއި 5 ފޮޅުވަތާ ދެމެދު</option>
-            <option value="5-6">5 ފޮޅުވަތާއި 6 ފޮޅުވަތާ ދެމެދު</option>
-            <option value="6-7" selected>6 ފޮޅުވަތާއި 7 ފޮޅުވަތާ ދެމެދު</option>
-            <option value="7-8">7 ފޮޅުވަތާއި 8 ފޮޅުވަތާ ދެމެދު</option>
+            <option value="7-8" selected>7 ފޮޅުވަތާއި 8 ފޮޅުވަތާ ދެމެދު</option>
             <option value="8-9">8 ފޮޅުވަތާއި 9 ފޮޅުވަތާ ދެމެދު</option>
             <option value="9-10">9 ފޮޅުވަތާއި 10 ފޮޅުވަތާ ދެމެދު</option>
             <option value="10-15">10 ފޮޅުވަތާއި 15 ފޮޅުވަތާ ދެމެދު</option>
@@ -49,7 +46,8 @@
 
 <script>
     let quranSurahs = [];
-    const avgCharsPerLine = 45; // މަދީނާ މުޞްޙަފުގެ އެވްރެޖް އަކުރު ފޮޅުވަތަކަށް
+    // ފިލި ހިމެނޭގޮތަށް މަދީނާ މުޞްޙަފުގެ ފޮޅުވަތެއްގައި އާންމުކޮށް ހުންނަ އަކުރުގެ ޢަދަދު (ގާތްގަނޑަކަށް 80)
+    const avgCharsPerLine = 80; 
 
     window.onload = async () => {
         try {
@@ -70,9 +68,9 @@
         const status = document.getElementById('status');
         status.style.display = 'block';
         status.className = 'status-box loading';
-        status.innerText = "ސުވާލުތައް ހިސާބުކުރަނީ... މަޑުކޮށްލައްވާ";
+        status.innerText = "ސުވާލުތައް ހޯދައި ހިސާބުކުރަނީ... ގިނަ ސުވާލު އުފައްދާނަމަ ސިކުންތުކޮޅެއް ނަގާފާނެއެވެ.";
 
-        setTimeout(generateCSV, 200);
+        setTimeout(generateCSV, 500);
     }
 
     function generateCSV() {
@@ -83,28 +81,38 @@
         
         let questions = [];
         let attempts = 0;
+        let recentHistory = []; 
+        const MAX_ATTEMPTS = 1000000; // ލޫޕް ހުއްޓުމަކަށް ނައިސް ކުރިއަށް ދިޔަ ނުދިނުމަށް
 
-        while (questions.length < target && attempts < 200000) {
+        while (questions.length < target && attempts < MAX_ATTEMPTS) {
             attempts++;
             const sIdx = Math.floor(Math.random() * 114);
             const surah = quranSurahs[sIdx];
             const startIdx = Math.floor(Math.random() * surah.ayahs.length);
             
+            // 50 ސުވާލުގެ ތެރޭގައި ތަކުރާރުވޭތޯ ޗެކްކުރުން
+            const uniqueKey = `${surah.number}-${surah.ayahs[startIdx].numberInSurah}`;
+            if (recentHistory.includes(uniqueKey)) {
+                continue; 
+            }
+            
             let currentText = "";
             let currentLines = 0;
             let ayahRange = [];
 
+            // ސުވާލުގެ ދިގުމިން ހޯދުން
             for (let i = startIdx; i < surah.ayahs.length; i++) {
                 const ayah = surah.ayahs[i];
-                // ފޮޅުވަތުގެ ޢަދަދު ހިސާބުކުރުން (އަކުރުގެ ނިސްބަތުން)
+                // ފޮޅުވަތް ހިސާބުކުރުން
                 const estimatedLines = ayah.text.length / avgCharsPerLine;
                 
                 currentLines += estimatedLines;
                 ayahRange.push(ayah);
                 
+                // ދިގުމިން ރޭންޖަށް ފެތޭތޯ ބެލުން
                 if (currentLines >= minLines && currentLines <= maxLines) {
-                    // ރޭންޖަށް ފިޓްވެއްޖެ
                     let fullText = ayahRange.map(a => `${a.text} ۝${toArabic(a.numberInSurah)}`).join(" ");
+                    
                     questions.push({
                         id: questions.length + 1,
                         juz: ayahRange[0].juz,
@@ -112,13 +120,24 @@
                         surah: `${surah.number}. ${surah.name}`,
                         start: ayahRange[0].numberInSurah,
                         end: ayah.numberInSurah,
-                        text: fullText.replace(/"/g, '""')
+                        text: fullText.replace(/"/g, '""') // CSV އަށް އެކަށޭނެހެން ކޯޓޭޝަން މާކްސް ބަދަލުކުރުން
                     });
+
+                    // ހިސްޓްރީ އަޕްޑޭޓްކުރުން
+                    recentHistory.push(uniqueKey);
+                    if (recentHistory.length > 50) {
+                        recentHistory.shift();
+                    }
+
                     break;
                 } else if (currentLines > maxLines) {
-                    break; // ރޭންޖަށްވުރެ ބޮޑުވެއްޖެ
+                    break; // މާ ދިގުވެއްޖެނަމަ ދޫކޮށްލުމަށްފަހު އާ ސުވާލަކަށް ދިޔުން
                 }
             }
+        }
+
+        if (questions.length < target) {
+            console.warn(`އެންމެ ގިނަވެގެން މަސައްކަތްކުރެވޭނެ މިންވަރަށްވުރެ އިތުރުވުމުން އުފެއްދުނީ ${questions.length} ސުވާލެވެ.`);
         }
 
         downloadCSV(questions);
@@ -137,12 +156,12 @@
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = "Quran_LineRange_Questions.csv";
+        link.download = "Quran_Questions_Strict_Range.csv";
         link.click();
 
         const status = document.getElementById('status');
         status.className = 'status-box success';
-        status.innerText = `✅ ކާމިޔާބުކަމާއެކު ${data.length} ސުވާލު އުފެއްދިއްޖެ!`;
+        status.innerText = `✅ ކާމިޔާބުކަމާއެކު ދިގުމިން ހަމަވާ ${data.length} ސުވާލު އުފެއްދިއްޖެ!`;
     }
 </script>
 
