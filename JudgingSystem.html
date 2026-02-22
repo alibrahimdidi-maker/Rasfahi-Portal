@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Rasfahi Judging System</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         /* --- FONTS & IMPORTS --- */
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana:wght@400;700;900&family=Cinzel:wght@700;900&display=swap');
@@ -21365,6 +21365,67 @@ function processJudgeMarks(judgeID, marks) {
                  score: state.allStudents[sIdx].finalScore
              });
         }
+    }
+}
+    let peer = null;
+let peerConn = null;
+
+// --- 1. ސާވަރު ފެށުން (މައި ކޮމްޕިއުޓަރުގައި) ---
+function startNetworkServer() {
+    // އިންޓަނެޓް ނެތްނަމަ އަމިއްލަ IP ބޭނުންކުރާ ގޮތަށް ސެޓްކުރުން
+    peer = new Peer('ZAAD-SERVER', {
+        host: '/', // ލޯކަލް ނެޓްވޯކް ބޭނުންކުރަން
+        port: 9000,
+        path: '/myapp'
+    });
+
+    // އިންޓަނެޓް ހުރިނަމަ PeerJS ގެ ޕަބްލިކް ސާވަރު ބޭނުންކުރުން
+    if (!window.navigator.onLine) {
+        peer = new Peer('ZAAD-SERVER'); 
+    }
+
+    peer.on('open', (id) => {
+        alert("ސާވަރު ހުޅުވިއްޖެ! \nID: " + id);
+        console.log("Server ID: " + id);
+    });
+
+    peer.on('connection', (conn) => {
+        peerConn = conn;
+        conn.on('data', (data) => {
+            if (data.type === 'MARK_SUBMIT') {
+                processJudgeMarks(data.judgeID, data.marks);
+            }
+        });
+    });
+}
+
+// --- 2. އައިޕެޑުން ގުޅުން ---
+function connectFromIPad() {
+    peer = new Peer();
+    // 'ZAAD-SERVER' އާ ގުޅުން
+    const conn = peer.connect('ZAAD-SERVER');
+
+    conn.on('open', () => {
+        peerConn = conn;
+        alert("ކޮމްޕިއުޓަރާ ގުޅިއްޖެ! މިހާރު މާކުސް ފޮނުވޭނެ.");
+    });
+
+    conn.on('error', (err) => {
+        alert("ގުޅޭގޮތެއް ނުވި! ވައިފައި އެއް ނެޓްވޯކެއްގައި ހުރިތޯ ބައްލަވާ.");
+    });
+}
+
+// --- 3. މާކުސް ފޮނުވާ ފަންކްޝަން (އައިޕެޑްގައި ބޭނުންކުރަން) ---
+function submitMarksToPC(judgeID, totalScore) {
+    if (peerConn && peerConn.open) {
+        peerConn.send({
+            type: 'MARK_SUBMIT',
+            judgeID: judgeID,
+            marks: { total: parseFloat(totalScore) }
+        });
+        alert("މާކުސް ފޮނުވައިފި!");
+    } else {
+        alert("ސާވަރާ ގުޅިފައެއް ނެތް!");
     }
 }
 </script>
