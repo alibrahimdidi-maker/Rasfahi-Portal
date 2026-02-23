@@ -20,6 +20,7 @@
             --success-green: #2e7d32;
             --danger-red: #d32f2f;
             --glass-bg: rgba(255, 255, 255, 0.05);
+            --info-blue: #0288d1;
         }
 
         /* --- GLOBAL SECURITY & CORE STYLES --- */
@@ -60,7 +61,7 @@
         /* --- ANALYTICS DASHBOARD --- */
         .dashboard-container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 30px;
             margin-bottom: 40px;
         }
@@ -70,10 +71,28 @@
             border: 2px solid var(--accent-gold);
             border-radius: 20px;
             padding: 30px;
-            height: 500px;
+            height: 450px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.6);
             transition: all 0.4s ease;
         }
+
+        .summary-card {
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .stat-box {
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .stat-val { font-size: 2rem; font-weight: bold; display: block; }
+        .stat-label { color: var(--accent-gold); font-size: 1rem; }
 
         .analytics-card:hover { transform: translateY(-8px); border-color: white; }
 
@@ -87,7 +106,7 @@
             padding-bottom: 15px;
         }
 
-        /* --- 10 CANDIDATES MANAGEMENT PANEL --- */
+        /* --- CANDIDATES MANAGEMENT PANEL --- */
         .candidate-management {
             background: rgba(0,0,0,0.4);
             border: 1px solid var(--accent-gold);
@@ -180,7 +199,7 @@
         .red { background: var(--danger-red); color: white; }
         .action-btn:hover { filter: brightness(1.2); transform: scale(1.05); }
 
-        /* --- THE MASTER TABLE (ALL COLUMNS) --- */
+        /* --- THE MASTER TABLE --- */
         .table-overflow-container {
             background: white;
             border-radius: 20px;
@@ -204,7 +223,6 @@
         tr:nth-child(even) { background-color: #f8f9fa; }
         tr:hover { background-color: var(--table-row-hover); }
 
-        /* Interactive Status Icons */
         .status-toggle {
             width: 45px; height: 45px; border-radius: 50%;
             border: 2px solid #ccc; cursor: pointer; transition: 0.3s;
@@ -215,17 +233,6 @@
         .voted-yes { background: var(--success-green) !important; color: white; border: none; box-shadow: 0 0 15px rgba(46,125,50,0.5); }
         .support-yes { background: var(--accent-gold) !important; color: white; border: none; }
         .support-no { background: var(--danger-red) !important; color: white; border: none; }
-
-        /* --- MOBILE RESPONSIVE CARDS --- */
-        @media (max-width: 1200px) {
-            .table-overflow-container { display: none; }
-            .voter-mobile-card {
-                background: white; color: #333; margin-bottom: 20px;
-                padding: 25px; border-radius: 20px; border-right: 12px solid var(--accent-gold);
-            }
-            .m-entry { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
-            .m-label { font-weight: bold; color: #777; }
-        }
 
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 12px; }
@@ -245,8 +252,23 @@
     
     <div class="dashboard-container">
         <div class="analytics-card">
-            <h3 class="card-title">ކެނޑިޑޭޓުންގެ ވޯޓުގެ ތަފާތު (Live Bar Analysis)</h3>
+            <h3 class="card-title">ވޯޓުގެ ތަފާތު (Live Bar Analysis)</h3>
             <canvas id="barAnalyticsChart"></canvas>
+        </div>
+        <div class="analytics-card summary-card">
+            <h3 class="card-title">ވޯޓުލާ މީހުންގެ ހުލާސާ</h3>
+            <div class="stat-box">
+                <span class="stat-label">ޖުމްލަ ރެޖިސްޓްރީ</span>
+                <span id="totalVotersCount" class="stat-val">0</span>
+            </div>
+            <div class="stat-box" style="border-right: 5px solid var(--success-green);">
+                <span class="stat-label">ވޯޓުލީ މީހުން</span>
+                <span id="votedCount" class="stat-val" style="color: var(--success-green);">0</span>
+            </div>
+            <div class="stat-box" style="border-right: 5px solid var(--danger-red);">
+                <span class="stat-label">ބާކީ ތިބި މީހުން</span>
+                <span id="remainingCount" class="stat-val" style="color: var(--danger-red);">0</span>
+            </div>
         </div>
         <div class="analytics-card">
             <h3 class="card-title">ޖުމްލަ ތާއީދު އޮތްގޮތް</h3>
@@ -279,11 +301,6 @@
 </div>
 
 <script>
-    /* --- SECURITY LAYER --- */
-    document.onkeydown = e => {
-        if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74))) return false;
-    };
-
     /* --- DATA STATE MANAGEMENT --- */
     let voterStore = JSON.parse(localStorage.getItem('election_v5_voters')) || [];
     let candidateStore = JSON.parse(localStorage.getItem('election_v5_cands')) || 
@@ -291,7 +308,6 @@
     
     let chartContexts = {};
 
-    /* --- INITIALIZATION --- */
     function initializeSystem() {
         renderCandidateInputs();
         setupCharts();
@@ -300,7 +316,6 @@
     }
 
     function setupCharts() {
-        // Bar Chart for 10 Candidates
         const bCtx = document.getElementById('barAnalyticsChart').getContext('2d');
         chartContexts.bar = new Chart(bCtx, {
             type: 'bar',
@@ -323,7 +338,6 @@
             }
         });
 
-        // Pie Chart for Overall Support
         const pCtx = document.getElementById('pieAnalyticsChart').getContext('2d');
         chartContexts.pie = new Chart(pCtx, {
             type: 'doughnut',
@@ -349,8 +363,6 @@
         `).join('');
     }
 
-    /* --- CORE LOGIC --- */
-
     function refreshSystemUI() {
         const query = document.getElementById('masterSearch').value.toLowerCase();
         const station = document.getElementById('stationSelect').value;
@@ -360,69 +372,62 @@
             (v.name.toLowerCase().includes(query) || v.id.toLowerCase().includes(query) || v.pa.toLowerCase().includes(query))
         );
 
-        updateAnalytics();
+        updateAnalytics(station);
 
         const display = document.getElementById('voterDisplaySection');
-        if (window.innerWidth < 1200) {
-            display.innerHTML = filtered.map(v => `
-                <div class="voter-mobile-card">
-                    <div class="m-entry"><span class="m-label">ނަން:</span> ${v.name}</div>
-                    <div class="m-entry"><span class="m-label">އައިޑީ:</span> ${v.id}</div>
-                    <div class="m-entry"><span class="m-label">މަރުކަޒު:</span> ${v.st}</div>
-                    <div style="display:flex; gap:15px; margin-top:15px;">
-                        <button class="status-toggle ${v.sup==='yes'?'support-yes':''}" onclick="changeVoterStatus(${voterStore.indexOf(v)},'sup','yes')">👍</button>
-                        <button class="status-toggle ${v.sup==='no'?'support-no':''}" onclick="changeVoterStatus(${voterStore.indexOf(v)},'sup','no')">👎</button>
-                        <button class="status-toggle ${v.voted?'voted-yes':''}" style="margin-right:auto" onclick="changeVoterStatus(${voterStore.indexOf(v)},'voted')">🗳️</button>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            display.innerHTML = `
-                <div class="table-overflow-container">
-                    <table>
-                        <thead>
+        display.innerHTML = `
+            <div class="table-overflow-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ނަން (Full Name)</th>
+                            <th>އައިޑީ (ID Card)</th>
+                            <th>ދާއިމީ އެޑްރެސް</th>
+                            <th>މަރުކަޒު (Station)</th>
+                            <th>ފޯނު (Phone)</th>
+                            <th>ތާއީދު (Support)</th>
+                            <th>ވޯޓުލީ (Mark Voted)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filtered.map(v => {
+                            let idx = voterStore.indexOf(v);
+                            return `
                             <tr>
-                                <th>ނަން (Full Name)</th>
-                                <th>އައިޑީ (ID Card)</th>
-                                <th>ދާއިމީ އެޑްރެސް (Permanent Address)</th>
-                                <th>މިހާރުގެ އެޑްރެސް (Current Address)</th>
-                                <th>މަރުކަޒު (Station)</th>
-                                <th>ފޯނު (Phone)</th>
-                                <th>ތާއީދު (Support)</th>
-                                <th>ވޯޓުލީ (Voted)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filtered.map(v => {
-                                let idx = voterStore.indexOf(v);
-                                return `
-                                <tr>
-                                    <td style="font-weight:bold; text-align:right;">${v.name}</td>
-                                    <td>${v.id}</td>
-                                    <td>${v.pa}</td>
-                                    <td>${v.ca}</td>
-                                    <td>${v.st}</td>
-                                    <td>${v.ph}</td>
-                                    <td>
-                                        <button class="status-toggle ${v.sup==='yes'?'support-yes':''}" onclick="changeVoterStatus(${idx},'sup','yes')">👍</button>
-                                        <button class="status-toggle ${v.sup==='no'?'support-no':''}" onclick="changeVoterStatus(${idx},'sup','no')">👎</button>
-                                    </td>
-                                    <td>
-                                        <button class="status-toggle ${v.voted?'voted-yes':''}" onclick="changeVoterStatus(${idx},'voted')">🗳️</button>
-                                    </td>
-                                </tr>`;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>`;
-        }
+                                <td style="font-weight:bold; text-align:right;">${v.name}</td>
+                                <td>${v.id}</td>
+                                <td>${v.pa}</td>
+                                <td>${v.st}</td>
+                                <td>${v.ph}</td>
+                                <td>
+                                    <button class="status-toggle ${v.sup==='yes'?'support-yes':''}" onclick="changeVoterStatus(${idx},'sup','yes')">👍</button>
+                                    <button class="status-toggle ${v.sup==='no'?'support-no':''}" onclick="changeVoterStatus(${idx},'sup','no')">👎</button>
+                                </td>
+                                <td>
+                                    <button class="status-toggle ${v.voted?'voted-yes':''}" onclick="changeVoterStatus(${idx},'voted')">🗳️</button>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>`;
     }
 
-    function updateAnalytics() {
-        // Bar Chart Logic for 10 Candidates
-        // މައި ކެނޑިޑޭޓަށް ގުނާނީ ތާއީދު އޮވެފައި ވޯޓުލީ މީހުން
-        let liveVotesForMain = voterStore.filter(v => v.voted && v.sup === 'yes').length;
-        let liveVotesForOpp = voterStore.filter(v => v.voted && v.sup === 'no').length;
+    function updateAnalytics(selectedStation) {
+        // Filter analytics based on station if needed
+        const currentVoters = selectedStation === 'all' ? voterStore : voterStore.filter(v => v.st === selectedStation);
+        
+        const total = currentVoters.length;
+        const voted = currentVoters.filter(v => v.voted).length;
+        const remaining = total - voted;
+
+        document.getElementById('totalVotersCount').innerText = total;
+        document.getElementById('votedCount').innerText = voted;
+        document.getElementById('remainingCount').innerText = remaining;
+
+        // Bar Chart Logic: Only count 'voted' people for the live bars
+        let liveVotesForMain = currentVoters.filter(v => v.voted && v.sup === 'yes').length;
+        let liveVotesForOpp = currentVoters.filter(v => v.voted && v.sup === 'no').length;
 
         chartContexts.bar.data.labels = candidateStore.map(c => c.name);
         chartContexts.bar.data.datasets[0].data = candidateStore.map((c, i) => {
@@ -433,11 +438,11 @@
         });
         chartContexts.bar.update();
 
-        // Pie Chart Logic
+        // Pie Chart
         chartContexts.pie.data.datasets[0].data = [
-            voterStore.filter(v => v.sup === 'yes').length,
-            voterStore.filter(v => v.sup === 'no').length,
-            voterStore.filter(v => v.sup === 'none').length
+            currentVoters.filter(v => v.sup === 'yes').length,
+            currentVoters.filter(v => v.sup === 'no').length,
+            currentVoters.filter(v => v.sup === 'none').length
         ];
         chartContexts.pie.update();
     }
@@ -453,8 +458,8 @@
 
     function updateCandidateData(idx, field, val) {
         candidateStore[idx][field] = val;
-        syncData(false); // Don't re-render full list for small typing
-        updateAnalytics();
+        syncData(false);
+        updateAnalytics(document.getElementById('stationSelect').value);
     }
 
     function syncData(refresh = true) {
@@ -462,8 +467,6 @@
         localStorage.setItem('election_v5_cands', JSON.stringify(candidateStore));
         if (refresh) refreshSystemUI();
     }
-
-    /* --- DATA UTILITIES --- */
 
     function generateMassCSV(count) {
         let csv = "No,Name,ID,Permanent Address,Current Address,Station,Phone\n";
@@ -473,7 +476,7 @@
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = `Election_Dummy_${count}.csv`; a.click();
+        a.href = url; a.download = `Election_List.csv`; a.click();
     }
 
     function handleCSVImport(event) {
@@ -506,7 +509,7 @@
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = "Election_Final_Report.csv";
+        a.download = "Election_Report.csv";
         a.click();
     }
 
@@ -518,15 +521,13 @@
     }
 
     function hardResetSystem() {
-        if (confirm("🚨 ނުރައްކާ: ހުރިހާ ޑޭޓާއެއް ފޮހެލާ ސިސްޓަމް ރިސެޓް ކުރަންވީތޯ؟")) {
+        if (confirm("🚨 ސިސްޓަމް ރިސެޓް ކުރަންވީތޯ؟")) {
             localStorage.clear();
             location.reload();
         }
     }
 
-    /* Launch Application */
     window.onload = initializeSystem;
-    window.onresize = refreshSystemUI;
 </script>
 </body>
 </html>
