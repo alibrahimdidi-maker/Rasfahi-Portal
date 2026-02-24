@@ -10,7 +10,33 @@
     
     <style>
         /* ============================================================
-           I. ROOT ARCHITECTURE & THEME SYSTEM (EXTENDED)
+           LICENSE SYSTEM STYLES (ADDED)
+           ============================================================ */
+        #royal-lock-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #001d3d, #000814);
+            z-index: 9999999; display: flex; justify-content: center; align-items: center;
+            font-family: 'Faruma', sans-serif; direction: rtl;
+        }
+        .lock-card {
+            background: #fff; padding: 40px; border-radius: 25px; width: 420px;
+            text-align: center; border: 6px solid #ffc300; color: #000;
+            box-shadow: 0 0 50px rgba(255,195,0,0.3);
+        }
+        .lock-card h1 { color: #001d3d; margin-bottom: 15px; letter-spacing: 2px; }
+        .lock-card input {
+            width: 100%; padding: 15px; margin: 20px 0; border: 2px solid #ddd;
+            border-radius: 12px; font-size: 16px; text-align: center; outline: none;
+        }
+        .lock-btn {
+            background: #001d3d; color: #fff; border: none; padding: 18px;
+            border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%;
+            font-size: 18px; transition: 0.3s;
+        }
+        .lock-btn:hover { background: #ffc300; color: #000; }
+
+        /* ============================================================
+           I. ROOT ARCHITECTURE & THEME SYSTEM (YOUR ORIGINAL)
            ============================================================ */
         @font-face {
             font-family: 'Faruma';
@@ -51,6 +77,7 @@
             border: 10px solid var(--accent-gold);
             overflow-x: hidden;
             line-height: 1.6;
+            display: none; /* Hidden for License Check */
         }
 
         /* Scrollbar Enhancement */
@@ -375,7 +402,7 @@
 
         @media print {
             .no-print { display: none !important; }
-            body { border: none; background: #fff; color: #000; }
+            body { border: none; background: #fff; color: #000; display: block !important; }
             .repository-container { box-shadow: none; border: 1px solid #000; }
             table { width: 100%; border: 1px solid #000; }
             th, td { border: 1px solid #000; color: #000; padding: 8px; }
@@ -390,6 +417,16 @@
     </style>
 </head>
 <body oncontextmenu="return false;">
+
+<div id="royal-lock-screen">
+    <div class="lock-card">
+        <h1>ROYAL COMMAND v14</h1>
+        <p>ސޮފްޓްވެއަރ އެކްޓިވޭޓް ކުރެއްވުމަށް ލައިސަންސް ކީ ޖައްސަވާ</p>
+        <input type="text" id="royalKeyInput" placeholder="Paste License Key here...">
+        <button class="lock-btn" onclick="validateRoyalLicense()">އެކްޓިވޭޓް ކުރޭ</button>
+        <p id="royalError" style="color:red; margin-top:15px; display:none; font-weight:bold;"></p>
+    </div>
+</div>
 
 <div id="status-toast">ސިސްޓަމްގެ މައުލޫމާތު ރައްކާކުރެވިއްޖެ! ✅</div>
 
@@ -489,7 +526,41 @@
 
 <script>
     /* ============================================================
-       VIII. SYSTEM KERNEL & LOGIC ENGINE (EXTENDED JAVASCRIPT)
+       LICENSE ENGINE (ADDED)
+       ============================================================ */
+    function validateRoyalLicense() {
+        const inputKey = document.getElementById('royalKeyInput').value.trim();
+        const errorEl = document.getElementById('royalError');
+        try {
+            const decoded = atob(inputKey); 
+            if (decoded.startsWith("ROYAL_EXP_")) {
+                const parts = decoded.split("_");
+                const expiryDate = new Date(parts[2]);
+                if (expiryDate > new Date()) {
+                    localStorage.setItem('ROYAL_V14_AUTH_TOKEN', inputKey);
+                    unlockApp();
+                } else {
+                    errorEl.innerText = "ކީގެ މުއްދަތު ހަމަވެފައި!";
+                    errorEl.style.display = "block";
+                }
+            } else {
+                errorEl.innerText = "ކީ ނުބައި!";
+                errorEl.style.display = "block";
+            }
+        } catch(e) {
+            errorEl.innerText = "ސައްހަ ކީ އެއް ނޫން!";
+            errorEl.style.display = "block";
+        }
+    }
+
+    function unlockApp() {
+        document.getElementById('royal-lock-screen').style.display = 'none';
+        document.body.style.display = 'block';
+        initOriginalSystem(); 
+    }
+
+    /* ============================================================
+       VIII. SYSTEM KERNEL & LOGIC ENGINE (YOUR ORIGINAL 740+ LINES)
        ============================================================ */
 
     let VOTER_STORE = JSON.parse(localStorage.getItem('V14_DB_VOTERS')) || [];
@@ -503,13 +574,29 @@
 
     let dualChartInstance;
 
+    // Modified window.onload to handle license first
     window.onload = function() {
+        const savedToken = localStorage.getItem('ROYAL_V14_AUTH_TOKEN');
+        if (savedToken) {
+            try {
+                const decoded = atob(savedToken);
+                const expiry = new Date(decoded.split("_")[2]);
+                if (expiry > new Date()) {
+                    unlockApp();
+                    return;
+                }
+            } catch(e) {}
+        }
+        document.getElementById('royal-lock-screen').style.display = 'flex';
+    };
+
+    function initOriginalSystem() {
         initClock();
         initDualPerformanceChart();
         renderCandidateControls();
         syncStationDropdown();
         refreshSystem();
-    };
+    }
 
     function initClock() {
         setInterval(() => {
@@ -573,12 +660,10 @@
         `).join('');
     }
 
-    // New logic: If store is empty, sync dropdown with 2000 stations
     function syncStationDropdown() {
         const select = document.getElementById('stationFilter');
         let stations = [...new Set(VOTER_STORE.map(v => v.st))].sort();
         
-        // If no data, populate with 2000 dummy stations
         if (stations.length === 0) {
             stations = Array.from({length: 2000}, (_, i) => `މަރުކަޒު ${i + 1}`);
         }
@@ -710,7 +795,6 @@
         reader.readAsText(file);
     }
 
-    // New Logic: Generate 3000 Dummy Records
     function generateAndDownloadDummyCSV() {
         let csvContent = "Serial,Name,ID,Address,Phone,Station\n";
         for (let i = 1; i <= 3000; i++) {
