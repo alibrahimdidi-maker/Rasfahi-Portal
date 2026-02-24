@@ -1063,6 +1063,68 @@ window.addEventListener('load', () => {
     };
     reader.readAsText(file, 'UTF-8'); // ދިވެހި އަކުރުތައް ރަނގަޅަށް ކިޔުމަށް UTF-8 ބޭނުންކުރުން
 }
+    function handleCSVImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    
+    // ފައިލް ކިޔަން ފަށާއިރު ކުރީގެ މެމޯރީ ސާފުކޮށްލުން
+    reader.onerror = () => alert("ފައިލް ކިޔުމުގައި މައްސަލައެއް ދިމާވެއްޖެ! އަލުން މަސައްކަތް ކޮށްލައްވާ.");
+    
+    reader.onload = function(e) {
+        try {
+            const text = e.target.result;
+            const lines = text.split(/\r?\n/);
+            const dataLines = lines.slice(1);
+
+            const importedData = dataLines.map(line => {
+                if (!line.trim()) return null;
+                // ކޮމާގެ އިތުރުން ސެމީކޯލޯން (;) އިން ވަކިކޮށްފައި ހުއްޓަސް ކިޔޭގޮތަށް
+                const parts = line.split(/[,;]/).map(part => part.trim());
+
+                if (parts.length >= 5) {
+                    return {
+                        sn: parts[0] || '',
+                        name: parts[1] || '',
+                        id: parts[2] || '',
+                        pa: parts[3] || '',
+                        phone: parts[4] || '',
+                        st: parts[5] || 'Unassigned',
+                        sup: 'none',
+                        voted: false
+                    };
+                }
+                return null;
+            }).filter(item => item !== null);
+
+            if (importedData.length > 0) {
+                // 1. ސްޓޯރޭޖަށް ޑޭޓާ އެޅުން
+                VOTER_STORE = importedData;
+                
+                // 2. ލޯކަލް ސްޓޯރޭޖްގައި ރައްކާކުރުން (Force Save)
+                localStorage.setItem('V14_DB_VOTERS', JSON.stringify(VOTER_STORE));
+                
+                // 3. ޑްރޮޕްޑައުން އަދި ޗާޓު އަޕްޑޭޓްކުރުން
+                syncStationDropdown();
+                refreshSystem();
+                
+                alert(importedData.length + " މީހުންގެ ލިސްޓް ސިސްޓަމަށް އަރުވައިފި!");
+                
+                // ފުރަތަމަ ފަހަރުވެސް ލިސްޓް ނުފެންނަ މައްސަލަ ހައްލުކުރަން ޕޭޖް ރިފްރެޝްކޮށްލުން
+                location.reload(); 
+                
+            } else {
+                alert("CSV ފައިލްގެ ފޯމެޓް ނުބައި ނުވަތަ ޑޭޓާއެއް ނެތް!");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error: " + err.message);
+        }
+    };
+    
+    reader.readAsText(file, 'UTF-8');
+}
 </script>
 </body>
 </html>
