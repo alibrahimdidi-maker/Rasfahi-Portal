@@ -134,7 +134,6 @@
             gap: 12px;
         }
 
-        /* Summary Widget Internal Logic */
         .summary-stack {
             display: flex;
             flex-direction: column;
@@ -293,6 +292,7 @@
         .btn-save { background: #0f172a; border: 2px solid var(--accent-gold); color: var(--accent-gold); }
         .btn-print { background: var(--accent-gold); color: #000; }
         .btn-import { background: var(--success-green); }
+        .btn-dummy { background: var(--info-blue); }
         .btn-reset { background: var(--danger-red); }
 
         .action-btn:hover {
@@ -345,7 +345,6 @@
             color: #000;
         }
 
-        /* Toggle Mastery */
         .control-toggle {
             width: 45px;
             height: 45px;
@@ -361,9 +360,6 @@
         .active-yes { background: var(--accent-gold) !important; color: #000 !important; border-color: transparent !important; }
         .active-no { background: var(--danger-red) !important; color: #fff !important; border-color: transparent !important; }
 
-        /* ============================================================
-           VII. RESPONSIVE MEDIA QUERIES
-           ============================================================ */
         @media (max-width: 1100px) {
             .main-dashboard { grid-template-columns: 1fr; }
             .card { height: auto !important; }
@@ -377,7 +373,6 @@
             .action-btn { font-size: 0.8rem; padding: 12px; }
         }
 
-        /* Print Optimizer */
         @media print {
             .no-print { display: none !important; }
             body { border: none; background: #fff; color: #000; }
@@ -386,14 +381,12 @@
             th, td { border: 1px solid #000; color: #000; padding: 8px; }
         }
 
-        /* Toast Message */
         #status-toast {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             background: var(--success-green); color: white; padding: 15px 40px;
             border-radius: 50px; font-weight: bold; z-index: 9999; display: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -415,7 +408,6 @@
 </header>
 
 <main>
-
     <section class="main-dashboard no-print">
         <div class="card" style="height: 450px;">
             <h3 class="card-title"><i class="fas fa-chart-simple"></i> ތާއީދާއި ވޯޓުގެ އަޅާކިޔުން (Live Comparison)</h3>
@@ -442,8 +434,7 @@
     </section>
 
     <section class="config-area no-print">
-        <div class="config-grid" id="candidateControlContainer">
-            </div>
+        <div class="config-grid" id="candidateControlContainer"></div>
     </section>
 
     <section class="command-toolbar no-print">
@@ -464,6 +455,9 @@
             </button>
             <button class="action-btn btn-import" onclick="document.getElementById('csvInput').click()">
                 <i class="fas fa-file-import"></i> އިމްޕޯޓް (CSV)
+            </button>
+            <button class="action-btn btn-dummy" onclick="generateAndDownloadDummyCSV()">
+                <i class="fas fa-file-csv"></i> 3000 މީހުންގެ CSV ޑައުންލޯޑް
             </button>
             <button class="action-btn btn-reset" onclick="factoryReset()">
                 <i class="fas fa-triangle-exclamation"></i> ފުލް ރީސެޓް
@@ -487,12 +481,10 @@
                         <th style="width: 10%;">ވޯޓު</th>
                     </tr>
                 </thead>
-                <tbody id="voterDataRows">
-                    </tbody>
+                <tbody id="voterDataRows"></tbody>
             </table>
         </div>
     </section>
-
 </main>
 
 <script>
@@ -500,7 +492,6 @@
        VIII. SYSTEM KERNEL & LOGIC ENGINE (EXTENDED JAVASCRIPT)
        ============================================================ */
 
-    // 1. Memory State Management
     let VOTER_STORE = JSON.parse(localStorage.getItem('V14_DB_VOTERS')) || [];
     let CANDIDATE_STORE = JSON.parse(localStorage.getItem('V14_DB_CANDS')) || 
         Array.from({length: 10}, (_, i) => ({
@@ -512,7 +503,6 @@
 
     let dualChartInstance;
 
-    // 2. Lifecycle
     window.onload = function() {
         initClock();
         initDualPerformanceChart();
@@ -528,7 +518,6 @@
         }, 1000);
     }
 
-    // 3. Visualization Architecture
     function initDualPerformanceChart() {
         const ctx = document.getElementById('dualPerformanceChart').getContext('2d');
         dualChartInstance = new Chart(ctx, {
@@ -568,7 +557,6 @@
         });
     }
 
-    // 4. UI Generators
     function renderCandidateControls() {
         const container = document.getElementById('candidateControlContainer');
         container.innerHTML = CANDIDATE_STORE.map((c, i) => `
@@ -585,14 +573,20 @@
         `).join('');
     }
 
+    // New logic: If store is empty, sync dropdown with 2000 stations
     function syncStationDropdown() {
-        const uniqueStations = [...new Set(VOTER_STORE.map(v => v.st))].sort();
         const select = document.getElementById('stationFilter');
+        let stations = [...new Set(VOTER_STORE.map(v => v.st))].sort();
+        
+        // If no data, populate with 2000 dummy stations
+        if (stations.length === 0) {
+            stations = Array.from({length: 2000}, (_, i) => `މަރުކަޒު ${i + 1}`);
+        }
+
         select.innerHTML = '<option value="all">ހުރިހާ މަރުކަޒެއް</option>' + 
-            uniqueStations.map(s => `<option value="${s}">${s}</option>`).join('');
+            stations.map(s => `<option value="${s}">${s}</option>`).join('');
     }
 
-    // 5. Core Processing Engine
     function refreshSystem() {
         const searchQuery = document.getElementById('masterSearch').value.toLowerCase();
         const activeStation = document.getElementById('stationFilter').value;
@@ -606,12 +600,10 @@
              (v.phone && v.phone.includes(searchQuery)))
         );
 
-        // Summary
         document.getElementById('disp-total-reg').innerText = filteredList.length;
         document.getElementById('disp-voted-count').innerText = filteredList.filter(v => v.voted).length;
         document.getElementById('disp-pending-count').innerText = filteredList.length - filteredList.filter(v => v.voted).length;
 
-        // Chart Update
         dualChartInstance.data.labels = CANDIDATE_STORE.map(c => c.name);
         const colors = CANDIDATE_STORE.map(c => c.themeColor);
         const fadedColors = CANDIDATE_STORE.map(c => c.themeColor + '66');
@@ -642,7 +634,6 @@
 
         dualChartInstance.update();
 
-        // Table Data
         const tbody = document.getElementById('voterDataRows');
         let tableHTML = "";
         
@@ -668,7 +659,6 @@
         tbody.innerHTML = tableHTML;
     }
 
-    // 6. Interaction Controllers
     function updateEntry(idx, type, val) {
         if (type === 'sup') {
             VOTER_STORE[idx].sup = (VOTER_STORE[idx].sup === val) ? 'none' : val;
@@ -683,7 +673,6 @@
         refreshSystem();
     }
 
-    // 7. Persistence Layer
     function persistToDatabase() {
         localStorage.setItem('V14_DB_VOTERS', JSON.stringify(VOTER_STORE));
         localStorage.setItem('V14_DB_CANDS', JSON.stringify(CANDIDATE_STORE));
@@ -692,7 +681,6 @@
         setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // 8. Data Import Protocol (Serial, Name, ID, Address, Phone, Station)
     function handleCSVImport(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -720,6 +708,25 @@
             refreshSystem();
         };
         reader.readAsText(file);
+    }
+
+    // New Logic: Generate 3000 Dummy Records
+    function generateAndDownloadDummyCSV() {
+        let csvContent = "Serial,Name,ID,Address,Phone,Station\n";
+        for (let i = 1; i <= 3000; i++) {
+            const stationNum = Math.floor(Math.random() * 2000) + 1;
+            csvContent += `${i},Voter Name ${i},A${100000 + i},House Address ${i},77${Math.floor(Math.random()*99999)},މަރުކަޒު ${stationNum}\n`;
+        }
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "dummy_voters_3000.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     function factoryReset() {
