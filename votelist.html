@@ -429,9 +429,18 @@
         flex: 1 1 45%; /* އެއް ސަފެއްގައި ދެ ބަޓަން */
     }
 }
-    </style>
+   </style>
 </head>
 <body oncontextmenu="return false;">
+
+<div id="license-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000814; z-index:9999; display:flex; justify-content:center; align-items:center; flex-direction:column; text-align:center;">
+    <div style="background:#001d3d; padding:40px; border-radius:20px; border:2px solid #ffc300; width:350px; box-shadow: 0 0 30px rgba(255,195,0,0.2);">
+        <h2 style="color:#ffc300; margin-bottom:20px; font-family:'Faruma';">🔑 ލައިސަންސް ކީ ޖައްސަވާ</h2>
+        <input type="text" id="license-input" placeholder="ކޯޑު މިތަނަށް ޕޭސްޓް ކުރައްވާ" style="width:90%; padding:12px; border-radius:8px; border:none; margin-bottom:20px; text-align:center; font-family:monospace;">
+        <button onclick="verifyLicense()" style="width:100%; padding:15px; background:#ffc300; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-family:'Faruma';">ސޮފްޓްވެއަރ ހުޅުވާ</button>
+        <p id="license-msg" style="color:#e74c3c; margin-top:15px; font-size:13px; font-family:'Faruma';"></p>
+    </div>
+</div>
 
 <div id="status-toast">ސިސްޓަމްގެ މައުލޫމާތު ރައްކާކުރެވިއްޖެ! ✅</div>
 
@@ -450,6 +459,7 @@
 </header>
 
 <main>
+
     <section class="main-dashboard no-print">
         <div class="card" style="height: 450px;">
             <h3 class="card-title"><i class="fas fa-chart-simple"></i> ތާއީދާއި ވޯޓުގެ އަޅާކިޔުން (Live Comparison)</h3>
@@ -777,6 +787,50 @@
             location.reload();
         }
     }
+    // ލައިސަންސް ޗެކްކުރާ ފަންކްޝަން
+function verifyLicense() {
+    const input = document.getElementById('license-input').value.trim();
+    const msg = document.getElementById('license-msg');
+
+    if (!input) {
+        msg.innerText = "🚨 ކޯޑެއް ޖައްސަވަން ޖެހޭނެ!";
+        return;
+    }
+
+    try {
+        // Base64 ކޯޑު ޑީކޯޑް ކުރުން
+        const decoded = atob(input);
+        
+        if (decoded.startsWith("ROYAL_EXP_")) {
+            const parts = decoded.split("_");
+            const expiryStr = parts[2]; // ތާރީޚް އޮންނަ ބައި
+            const expiryDate = new Date(expiryStr);
+            const today = new Date();
+
+            // މުއްދަތު ހަމަވެފައިވޭތޯ ބެލުން
+            if (expiryDate >= today) {
+                // ކާމިޔާބު! ލައިސަންސް ސްކްރީން ފޮރުވާލުން
+                document.getElementById('license-overlay').style.display = 'none';
+                localStorage.setItem('ROYAL_AUTH_TOKEN', input);
+            } else {
+                msg.innerText = "🚨 މި ކޯޑުގެ މުއްދަތު ވަނީ ހަމަވެފައެވެ!";
+            }
+        } else {
+            msg.innerText = "❌ ސައްހަ ކޯޑެއް ނޫނެވެ!";
+        }
+    } catch (e) {
+        msg.innerText = "❌ ކޯޑު ނުބައެވެ! އަލުން ޗެކް ކުރައްވާ.";
+    }
+}
+
+// ސޮފްޓްވެއަރ ހުޅުވާއިރު ކުރިން ކީއެއް ޖަހާފައި އޮތްތޯ ބެލުން
+window.addEventListener('load', () => {
+    const savedKey = localStorage.getItem('ROYAL_AUTH_TOKEN');
+    if (savedKey) {
+        document.getElementById('license-input').value = savedKey;
+        verifyLicense();
+    }
+});
 </script>
 </body>
 </html>
