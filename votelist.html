@@ -1173,6 +1173,63 @@ window.addEventListener('load', () => {
     link.click();
     document.body.removeChild(link);
 }
+    function handleCSVImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const text = e.target.result;
+            const lines = text.split(/\r?\n/);
+            const dataLines = lines.slice(1); // Header ދޫކޮށްލުން
+
+            const importedData = dataLines.map(line => {
+                if (!line.trim()) return null;
+                
+                // ކޯޓޭޝަން މާކްތައް ނައްތާލައިފައި ކޮމާއިން ވަކިކުރުން
+                const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(part => part.replace(/^"|"$/g, '').trim());
+
+                if (parts.length >= 5) {
+                    // އެކްސްޕޯރޓް ފައިލްގައި ހުރި ސްޓޭޓަސްތައް ކިޔުން
+                    let supportVal = 'none';
+                    if (parts[6] === 'Support') supportVal = 'yes';
+                    else if (parts[6] === 'No Support') supportVal = 'no';
+
+                    let votedVal = false;
+                    if (parts[7] === 'Voted') votedVal = true;
+
+                    return {
+                        sn: parts[0] || '',
+                        name: parts[1] || '',
+                        id: parts[2] || '',
+                        pa: parts[3] || '',
+                        phone: parts[4] || '',
+                        st: parts[5] || 'Unassigned',
+                        sup: supportVal, // ކުރިން ސޭވްކޮށްފައިވާ ސަޕޯޓް ސްޓޭޓަސް
+                        voted: votedVal  // ކުރިން ސޭވްކޮށްފައިވާ ވޯޓް ސްޓޭޓަސް
+                    };
+                }
+                return null;
+            }).filter(item => item !== null);
+
+            if (importedData.length > 0) {
+                VOTER_STORE = importedData;
+                localStorage.setItem('V14_DB_VOTERS', JSON.stringify(VOTER_STORE));
+                syncStationDropdown();
+                refreshSystem();
+                alert(importedData.length + " މީހުންގެ ލިސްޓް (އަޕްޑޭޓްތަކާއެކު) އިމްޕޯޓް ކުރެވިއްޖެ!");
+                location.reload(); 
+            } else {
+                alert("CSV ފައިލްގެ ފޯމެޓް ނުބައި ނުވަތަ ޑޭޓާއެއް ނެތް!");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("ފައިލް ކިޔުމުގައި މައްސަލައެއް ދިމާވެއްޖެ!");
+        }
+    };
+    reader.readAsText(file, 'UTF-8');
+}
 </script>
 </body>
 </html>
