@@ -3340,6 +3340,78 @@ if (document.getElementById('tv-lounge-screen').style.display === 'block') {
         }
     }, 1500);
 }
+    // ތާއީދު ކޮލަމްގެ ބަޓަންތައް (10 ކެނޑިޑޭޓުންނަށް)
+let supportButtons = "";
+for (let i = 0; i < 10; i++) {
+    const isSelected = v.sup === i;
+    const btnColor = CANDIDATE_STORE[i].themeColor;
+    
+    supportButtons += `
+        <button class="control-toggle ${isSelected ? 'active-selected' : ''}" 
+                style="width:28px; height:28px; font-size:12px; margin:1px; border-color:${btnColor}; 
+                ${isSelected ? 'background-color:' + btnColor + ' !important; color:white;' : ''}" 
+                onclick="updateEntry(${originalIndex}, 'sup', ${i})"
+                title="${CANDIDATE_STORE[i].name}">
+            ${i + 1}
+        </button>`;
+}
+
+tableHTML += `
+    <tr>
+        <td style="font-weight:bold; color:var(--danger-red);">${v.sn || '-'}</td>
+        <td style="text-align:right; font-weight:bold;">${v.name}</td>
+        <td>${v.id}</td>
+        <td>${v.pa}</td>
+        <td>${v.phone || '-'}</td>
+        <td>${v.st}</td>
+        <td style="display: flex; flex-wrap: wrap; justify-content: center; min-width: 160px;">
+            ${supportButtons}
+        </td>
+        <td>
+            <button class="control-toggle ${v.voted ? 'active-voted' : ''}" 
+                    onclick="updateEntry(${originalIndex}, 'voted')">
+                <i class="fas fa-check"></i>
+            </button>
+        </td>
+    </tr>`;
+    function updateEntry(idx, type, val) {
+    if (type === 'sup') {
+        // ކުރިން ހުރި ކެނޑިޑޭޓަށް އަލުން ފިއްތައިފިނަމަ ސާފުކޮށްލުން (Toggle)
+        VOTER_STORE[idx].sup = (VOTER_STORE[idx].sup === val) ? 'none' : val;
+    } else {
+        VOTER_STORE[idx].voted = !VOTER_STORE[idx].voted;
+    }
+    refreshSystem();
+    // އޮޓޮމެޓިކުން ސޭވްކުރުން (ބޭނުންނަމަ)
+    localStorage.setItem('V14_DB_VOTERS', JSON.stringify(VOTER_STORE));
+}
+    // Support (ތާއީދު) Dataset
+dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c, idx) => {
+    let manual = parseInt(c.manualOffset) || 0;
+    let liveSupport = VOTER_STORE.filter(v => v.sup === idx).length;
+    return manual + liveSupport;
+});
+
+// Voted (ވޯޓުލީ) Dataset
+dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map((c, idx) => {
+    let manual = parseInt(c.manualOffset) || 0;
+    let liveVoted = VOTER_STORE.filter(v => v.voted && v.sup === idx).length;
+    return manual + liveVoted;
+});
+
+dualChartInstance.update();
+    const processedData = CANDIDATE_STORE.map((c, idx) => {
+    let manual = parseInt(c.manualOffset) || 0;
+    // އެ ކެނޑިޑޭޓަކަށް ތާއީދުކޮށް، ވޯޓުލީ މީހުން އެކަނި ގުނުން
+    let live = VOTER_STORE.filter(v => v.voted && v.sup === idx).length;
+    
+    return {
+        name: c.name || "ކެނޑިޑޭޓް",
+        totalVotes: manual + live,
+        color: c.themeColor || "#ffc300",
+        photo: c.photo || 'https://via.placeholder.com/50'
+    };
+});
 </script>
 </body>
 </html>
