@@ -1499,6 +1499,86 @@ function updateTVGraphics() {
         </div>
     `).join('');
 }
+    function updateTVGraphics() {
+    const container = document.getElementById('bar-chart-container');
+    const tvPieCanvas = document.getElementById('tvPieChart');
+    
+    if (!tvPieCanvas) return; // ކެންވަސް ނެތްނަމަ ހުއްޓާލުން
+
+    // 1. ވޯޓާ ލިސްޓުން ލައިވް ވޯޓު ހޯދުން
+    const liveVotedYes = VOTER_STORE.filter(v => v.voted && v.sup === 'yes').length;
+    const liveVotedNo = VOTER_STORE.filter(v => v.voted && v.sup === 'no').length;
+
+    // 2. ކެނޑިޑޭޓުންގެ ޖުމްލަ ޑޭޓާ ތައްޔާރުކުރުން
+    const processedData = CANDIDATE_STORE.map((c, idx) => {
+        let manual = parseInt(c.manualOffset) || 0;
+        let live = 0;
+        if (idx === 0) live = liveVotedYes;
+        if (idx === 1) live = liveVotedNo;
+        
+        return {
+            name: c.name,
+            totalVotes: manual + live,
+            color: c.themeColor,
+            photo: c.photo
+        };
+    });
+
+    const grandTotalVotes = processedData.reduce((sum, c) => sum + c.totalVotes, 0);
+
+    // 3. ކަނާތްފަރާތު ބާ ޗާޓު (Bar Chart) އަޕްޑޭޓްކުރުން
+    container.innerHTML = processedData.map(c => {
+        const percent = grandTotalVotes > 0 ? ((c.totalVotes / grandTotalVotes) * 100).toFixed(1) : 0;
+        return `
+            <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:flex-end; height:100%; width:120px;">
+                <div style="color:#ffc300; font-weight:900; font-size:1.4rem; margin-bottom:5px;">${percent}%</div>
+                <div style="width:60px; height:${percent * 2.5}px; background:${c.color}; border-radius:8px 8px 0 0; box-shadow: 0 0 20px ${c.color}66; transition: height 0.5s ease;"></div>
+                <div style="background:rgba(255,255,255,0.05); width:100%; padding:10px 5px; border-radius:10px; margin-top:10px; border:1px solid ${c.color}; text-align:center;">
+                    <img src="${c.photo || 'https://via.placeholder.com/50'}" style="width:45px; height:45px; border-radius:50%; border:2px solid ${c.color}; object-fit:cover;">
+                    <div style="font-size:12px; color:#fff; margin-top:5px; white-space:nowrap; overflow:hidden;">${c.name}</div>
+                    <div style="font-size:18px; font-weight:900; color:${c.color};">${c.totalVotes}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // 4. ވައަތްފަރާތު ޕައި ޗާޓު (Pie Chart) ކުރެހުން
+    const ctx = tvPieCanvas.getContext('2d');
+    if (tvPieChartInstance) tvPieChartInstance.destroy();
+
+    // ވޯޓު ލިބިފައިވާ ކެނޑިޑޭޓުން އެކަނި ޗާޓަށް އެރުވުން
+    const chartData = processedData.filter(c => c.totalVotes > 0);
+
+    tvPieChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: chartData.map(c => c.name),
+            datasets: [{
+                data: chartData.map(c => c.totalVotes),
+                backgroundColor: chartData.map(c => c.color),
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#fff',
+                        font: { family: 'Faruma', size: 14 },
+                        padding: 20
+                    }
+                }
+            }
+        }
+    });
+
+    document.getElementById('total-voted-display').innerText = "ޖުމްލަ ވޯޓު: " + grandTotalVotes;
+}
 </script>
 </body>
 </html>
