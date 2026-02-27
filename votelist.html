@@ -3340,6 +3340,247 @@ if (document.getElementById('tv-lounge-screen').style.display === 'block') {
         }
     }, 1500);
 }
+    /* ============================================================
+   RASFAHI ELECTION COMMANDER - CORE KERNEL (V14.2)
+   ============================================================ */
+
+let VOTER_STORE = JSON.parse(localStorage.getItem('V14_DB_VOTERS')) || [];
+let CANDIDATE_STORE = JSON.parse(localStorage.getItem('V14_DB_CANDS')) || 
+    Array.from({length: 10}, (_, i) => ({
+        id: i,
+        name: `ކެނޑިޑޭޓް ${i + 1}`,
+        manualOffset: 0,
+        themeColor: i === 0 ? '#ffc300' : (i === 1 ? '#e74c3c' : '#1e293b'),
+        photo: 'https://via.placeholder.com/65'
+    }));
+
+let dualChartInstance;
+
+window.onload = function() {
+    initClock();
+    initDualPerformanceChart();
+    renderCandidateControls();
+    syncStationDropdown();
+    refreshSystem();
+};
+
+function initClock() {
+    setInterval(() => {
+        const time = new Date().toLocaleTimeString('en-GB');
+        const clockEl = document.getElementById('digital-clock');
+        if(clockEl) clockEl.innerText = time;
+    }, 1000);
+}
+
+function initDualPerformanceChart() {
+    const ctx = document.getElementById('dualPerformanceChart').getContext('2d');
+    dualChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: CANDIDATE_STORE.map(c => c.name),
+            datasets: [
+                { label: 'ތާއީދު (Support)', data: [], backgroundColor: 'rgba(255, 195, 0, 0.4)', borderColor: '#ffc300', borderWidth: 1 },
+                { label: 'ވޯޓުލީ (Voted)', data: [], backgroundColor: '#2ecc71', borderColor: '#27ae60', borderWidth: 1 }
+            ]
+        },
+        options: { 
+            maintainAspectRatio: false, 
+            responsive: true,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+function refreshSystem() {
+    const searchQuery = document.getElementById('masterSearch').value.toLowerCase();
+    const activeStation = document.getElementById('stationFilter').value;
+
+    const filteredList = VOTER_STORE.filter(v => 
+        (activeStation === 'all' || v.st === activeStation) && 
+        (v.name.toLowerCase().includes(searchQuery) || 
+         v.id.toLowerCase().includes(searchQuery) || 
+         (v.sn && v.sn.toString().includes(searchQuery)))
+    );
+
+    // Update Counters
+    document.getElementById('disp-total-reg').innerText = filteredList.length;
+    document.getElementById('disp-voted-count').innerText = filteredList.filter(v => v.voted).length;
+    document.getElementById('disp-pending-count').innerText = filteredList.length - filteredList.filter(v => v.voted).length;
+
+    // Update Chart Data
+    dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c, idx) => {
+        let manual = parseInt(c.manualOffset) || 0;
+        let liveSupport = VOTER_STORE.filter(v => v.sup && v.sup.includes(idx)).length;
+        return manual + liveSupport;
+    });
+
+    dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map((c, idx) => {
+        let manual = parseInt(c.manualOffset) || 0;
+        let liveVoted = VOTER_STORE.filter(v => v.voted && v.sup && v.sup.includes(idx)).length;
+        return manual + liveVoted;
+    });
+    dualChartInstance.update();
+
+    // Render Table
+    const tbody = document.getElementById('voterDataRows');
+    let tableHTML = "";
+    
+    filteredList.forEach(v => {
+        const originalIndex = VOTER_STORE.indexOf(v);
+        if(!Array.isArray(v.sup)) v.sup = [];
+
+        // 10 Checkboxes HTML
+        let checkboxesHTML = `<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; width: 170px;">`;
+        for(let i=0; i<10; i++) {
+            const isChecked = v.sup.includes(i) ? 'checked' : '';
+            checkboxesHTML += `
+                <label style="font-size: 10px; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px; display: flex; flex-direction: column; align-items: center; cursor: pointer; color:#000;">
+                    ${i+1}
+                    <input type="checkbox" ${isChecked} onchange="toggleSupport(${originalIndex}, ${i})" style="margin-top:2px; cursor:pointer;">
+                </label>`;
+        }
+        checkboxesHTML += `</div>`;
+
+        tableHTML += `
+            <tr>
+                <td style="font-weight:bold; color:var(--danger-red);">${v.sn || '-'}</td>
+                <td style="text-align:right; font-weight:bold;">${v.name}</td>
+                <td>${v.id}</td>
+                <td style="font-size: 11px;">${v.st}</td>
+                <td>${checkboxesHTML}</td>
+                <td>
+                    <button class="control-toggle ${v.voted?'active-voted':''}" onclick="updateEntry(${originalIndex}, 'voted')">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+    tbody.innerHTML = tableHTML;
+    
+    // Update TV Screen if open
+    updateTVGraphics();
+}
+
+function toggleSupport(vIdx, cIdx) {
+    if (!Array.isArray(VOTER_STORE[vIdx].sup)) VOTER_STORE[vIdx].sup = [];
+    const pos = VOTER_STORE[vIdx].sup.indexOf(cIdx);
+    if (pos === -1) {
+        VOTER_STORE[vIdx].sup.push(cIdx);
+    } else {
+        VOTER_STORE[vIdx].sup.splice(pos, 1);
+    }
+    persistToDatabase();
+    refreshSystem();
+}
+
+function updateEntry(idx, type) {
+    if (type === 'voted') {
+        VOTER_STORE[idx].voted = !VOTER_STORE[idx].voted;
+    }
+    persistToDatabase();
+    refreshSystem();
+}
+
+function persistToDatabase() {
+    localStorage.setItem('V14_DB_VOTERS', JSON.stringify(VOTER_STORE));
+    localStorage.setItem('V14_DB_CANDS', JSON.stringify(CANDIDATE_STORE));
+}
+
+function syncStationDropdown() {
+    const select = document.getElementById('stationFilter');
+    let stations = [...new Set(VOTER_STORE.map(v => v.st))].sort();
+    if (stations.length === 0) stations = Array.from({length: 5}, (_, i) => `މަރުކަޒު ${i + 1}`);
+    select.innerHTML = '<option value="all">ހުރިހާ މަރުކަޒެއް</option>' + 
+        stations.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function renderCandidateControls() {
+    const container = document.getElementById('candidateControlContainer');
+    container.innerHTML = CANDIDATE_STORE.map((c, i) => `
+        <div class="candidate-input-box" style="padding:10px; background:rgba(255,255,255,0.05); border-radius:12px;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                <img id="prev-img-${i}" src="${c.photo}" style="width:40px; height:40px; border-radius:50%; border:2px solid ${c.themeColor}; object-fit:cover;">
+                <input type="text" value="${c.name}" oninput="updateCandidateData(${i}, 'name', this.value)" style="flex:1; font-size:12px;">
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <input type="color" value="${c.themeColor}" onchange="updateCandidateData(${i}, 'themeColor', this.value)" style="width:30px; height:30px;">
+                <input type="number" value="${c.manualOffset}" oninput="updateCandidateData(${i}, 'manualOffset', this.value)" placeholder="Manual" style="width:70px; text-align:center;">
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateCandidateData(idx, field, val) {
+    CANDIDATE_STORE[idx][field] = val;
+    persistToDatabase();
+    refreshSystem();
+}
+
+// TV Graphics Logic - Updated for Checkboxes
+function updateTVGraphics() {
+    const barContainer = document.getElementById('bar-chart-container');
+    const leaderboardContainer = document.getElementById('leaderboard-container');
+    if (!barContainer || !leaderboardContainer) return;
+
+    const processedData = CANDIDATE_STORE.map((c, idx) => {
+        let manual = parseInt(c.manualOffset) || 0;
+        let live = VOTER_STORE.filter(v => v.voted && Array.isArray(v.sup) && v.sup.includes(idx)).length;
+        return {
+            name: c.name,
+            totalVotes: manual + live,
+            color: c.themeColor,
+            photo: c.photo
+        };
+    });
+
+    const grandTotal = processedData.reduce((sum, c) => sum + c.totalVotes, 0);
+    const maxVotes = Math.max(...processedData.map(c => c.totalVotes), 1);
+
+    // Render Bars
+    barContainer.innerHTML = processedData.filter(c => c.totalVotes > 0).map(c => {
+        const percent = grandTotal > 0 ? ((c.totalVotes / grandTotal) * 100).toFixed(1) : 0;
+        const h = (c.totalVotes / maxVotes) * 200; // Scaling
+        return `
+            <div style="display:flex; flex-direction:column; align-items:center; width:80px; justify-content:flex-end; height:100%;">
+                <div style="color:#ffc300; font-weight:bold; font-size:14px;">${percent}%</div>
+                <div style="width:40px; height:${h}px; background:linear-gradient(to top, ${c.color}, #fff); border-radius:4px 4px 0 0; box-shadow: 0 0 15px ${c.color}44;"></div>
+                <div style="margin-top:8px; text-align:center; background:rgba(255,255,255,0.05); padding:5px; border-radius:8px; border:1px solid ${c.color}33; width:100%;">
+                    <img src="${c.photo}" style="width:30px; height:30px; border-radius:50%; border:1.5px solid ${c.color}; object-fit:cover;">
+                    <div style="font-size:10px; color:#fff; white-space:nowrap; overflow:hidden;">${c.name}</div>
+                    <div style="font-size:16px; font-weight:bold; color:${c.color};">${c.totalVotes}</div>
+                </div>
+            </div>`;
+    }).join('');
+
+    // Render Leaderboard
+    const sorted = [...processedData].sort((a, b) => b.totalVotes - a.totalVotes);
+    leaderboardContainer.innerHTML = sorted.filter(c => c.totalVotes > 0).map((c, i) => `
+        <div style="display:flex; align-items:center; background:rgba(255,255,255,0.04); padding:8px; margin-bottom:5px; border-radius:10px; border-right:5px solid ${c.color};">
+            <div style="font-size:18px; font-weight:bold; color:#ffc300; width:30px;">${i+1}</div>
+            <img src="${c.photo}" style="width:35px; height:35px; border-radius:50%; margin:0 10px; border:1px solid ${c.color}; object-fit:cover;">
+            <div style="flex-grow:1; text-align:right;">
+                <div style="font-family:'Faruma'; font-size:14px; color:#fff;">${c.name}</div>
+                <div style="font-size:11px; color:#94a3b8;">${((c.totalVotes/Math.max(grandTotal,1))*100).toFixed(1)}%</div>
+            </div>
+            <div style="font-size:22px; font-weight:bold; color:${c.color}; margin-right:10px;">${c.totalVotes}</div>
+        </div>`).join('');
+
+    document.getElementById('total-voted-display').innerText = "ޖުމްލަ ވޯޓު: " + grandTotal;
+}
+
+function openTVScreen() {
+    document.getElementById('tv-lounge-screen').style.display = 'block';
+    updateTVGraphics();
+}
+
+function factoryReset() {
+    if (confirm("🚨 ސަމާލު! ހުރިހާ ޑޭޓާއެއް ފޮހެލަންވީތޯ؟")) {
+        localStorage.clear();
+        location.reload();
+    }
+}
+
+// (Other helper functions like handleCSVImport, exportToCSV etc should be kept as before)
 </script>
 </body>
 </html>
