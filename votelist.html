@@ -1736,6 +1736,92 @@ document.addEventListener('fullscreenchange', () => {
         document.getElementById('tv-lounge-screen').style.display = 'none';
     }
 });
+    function updateTVGraphics() {
+    const barContainer = document.getElementById('bar-chart-container');
+    const leaderboardContainer = document.getElementById('leaderboard-container');
+    
+    if (!barContainer || !leaderboardContainer) return;
+
+    // 1. ލައިވް ވޯޓު ހިސާބުކުރުން (ކޮންމެ ކެނޑިޑޭޓެއްގެ Manual + Live ވޯޓު)
+    // ނޯޓް: މިހާރު މި ހަދާގޮތަކީ 'yes' އަކީ ކެނޑިޑޭޓް 1، 'no' އަކީ ކެނޑިޑޭޓް 2. 
+    // އެހެން ކެނޑިޑޭޓުންނަށް ލައިވް ވޯޓު ދޭން ބޭނުންނަމަ ވޯޓާ ލިސްޓުގައި ކެނޑިޑޭޓް ހިޔާރުކުރާ ބައި އިތުރުކުރަންޖެހޭނެ.
+    // މިވަގުތަށް ހުރިހާ ކެނޑިޑޭޓުންގެ Manual ވޯޓު ލައިވްކޮށް އަޕްޑޭޓްވާނެ.
+
+    const processedData = CANDIDATE_STORE.map((c, idx) => {
+        let manual = parseInt(c.manualOffset) || 0;
+        let live = 0;
+        if (idx === 0) live = VOTER_STORE.filter(v => v.voted && v.sup === 'yes').length;
+        if (idx === 1) live = VOTER_STORE.filter(v => v.voted && v.sup === 'no').length;
+        
+        return {
+            name: c.name || "ކެނޑިޑޭޓް",
+            totalVotes: manual + live,
+            color: c.themeColor || "#ffc300",
+            photo: c.photo || 'https://via.placeholder.com/50'
+        };
+    });
+
+    const grandTotalVotes = processedData.reduce((sum, c) => sum + c.totalVotes, 0);
+    const activeCandidates = processedData.filter(c => c.totalVotes > 0);
+
+    // 2. ބާ ޗާޓު: ކެނޑިޑޭޓުންގެ އަދަދަށް ބަލާފައި ފުޅާމިން ކަނޑައެޅުން
+    // ގިނަވާވަރަކަށް width ކުޑަވާނެ، އޭރުން ސްކްރީނަށް ފެތޭނެ
+    const barWidth = activeCandidates.length > 5 ? (90 / activeCandidates.length) + "%" : "130px";
+
+    barContainer.innerHTML = activeCandidates.map(c => {
+        const percent = grandTotalVotes > 0 ? ((c.totalVotes / grandTotalVotes) * 100).toFixed(1) : 0;
+        return `
+            <div style="display:flex; flex-direction:column; align-items:center; width:${barWidth}; min-width:80px; justify-content:flex-end; height:100%; margin: 0 5px;">
+                <div style="color:#ffc300; font-weight:bold; font-size:1.2rem; margin-bottom:5px;">${percent}%</div>
+                <div style="width:70%; max-width:50px; height:${percent * 3}px; background:${c.color}; border: 1px solid rgba(255,255,255,0.8); border-radius:5px 5px 0 0; box-shadow: 0 0 15px ${c.color}33; transition: height 0.6s ease;"></div>
+                <div style="margin-top:10px; text-align:center; background:rgba(255,255,255,0.05); padding:8px 5px; border-radius:10px; width:100%; border:1px solid rgba(255,255,255,0.2);">
+                    <img src="${c.photo}" style="width:40px; height:40px; border-radius:50%; border:2px solid ${c.color}; object-fit:cover;">
+                    <div style="font-size:11px; color:#fff; margin-top:5px; font-family:'Faruma'; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.name}</div>
+                    <div style="font-size:18px; font-weight:900; color:${c.color};">${c.totalVotes}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // 3. ލީޑަރބޯޑު އަޕްޑޭޓްކުރުން
+    const sortedCandidates = [...activeCandidates].sort((a, b) => b.totalVotes - a.totalVotes);
+    leaderboardContainer.innerHTML = sortedCandidates.length === 0 
+        ? `<div style="text-align:center; color:#94a3b8; margin-top:80px; font-family:'Faruma';">އަދި އެއްވެސް ނަތީޖާއެއް ނެތް</div>`
+        : sortedCandidates.map((c, index) => {
+            const percent = grandTotalVotes > 0 ? ((c.totalVotes / grandTotalVotes) * 100).toFixed(1) : 0;
+            return `
+                <div style="display:flex; align-items:center; background:linear-gradient(90deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.02) 100%); padding:15px; margin-bottom:10px; border-radius:15px; border: 1px solid rgba(255,255,255,0.1); border-right:8px solid ${c.color}; width: 98%;">
+                    <div style="font-size:22px; font-weight:bold; color:#ffc300; width:40px; text-align:center;">${index + 1}</div>
+                    <img src="${c.photo}" style="width:50px; height:50px; border-radius:50%; margin:0 15px; border:2px solid ${c.color}; object-fit:cover;">
+                    <div style="flex-grow:1; text-align:right;">
+                        <div style="font-family:'Faruma'; font-size:18px; color:#fff; font-weight:bold;">${c.name}</div>
+                        <div style="font-size:14px; color:#ffc300;">${percent}%</div>
+                    </div>
+                    <div style="font-size:28px; font-weight:900; color:${c.color}; margin-right:20px;">${c.totalVotes}</div>
+                </div>
+            `;
+        }).join('');
+
+    const totalDisplay = document.getElementById('total-voted-display');
+    if (totalDisplay) totalDisplay.innerHTML = `<span style="color:#94a3b8; font-size:18px;">ޖުމްލަ ވޯޓު:</span> ${grandTotalVotes}`;
+}
+    // Support (Dataset 0)
+dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c, idx) => {
+    let offset = parseInt(c.manualOffset) || 0;
+    let live = 0;
+    if (idx === 0) live = filteredList.filter(v => v.sup === 'yes').length;
+    if (idx === 1) live = filteredList.filter(v => v.sup === 'no').length;
+    return offset + live;
+});
+
+// Voted (Dataset 1)
+dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map((c, idx) => {
+    let offset = parseInt(c.manualOffset) || 0;
+    let live = 0;
+    if (idx === 0) live = filteredList.filter(v => v.voted && v.sup === 'yes').length;
+    if (idx === 1) live = filteredList.filter(v => v.voted && v.sup === 'no').length;
+    return offset + live;
+});
 </script>
 </body>
 </html>
