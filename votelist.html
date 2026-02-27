@@ -3428,6 +3428,162 @@ if (document.getElementById('tv-lounge-screen').style.display === 'block') {
     persistToDatabase();
     refreshSystem();
 }
+    /* ============================================================
+   SYSTEM KERNEL: MULTI-SUPPORT ENABLED (1-10 CHECKBOXES)
+   ============================================================ */
+
+let VOTER_STORE = JSON.parse(localStorage.getItem('V14_DB_VOTERS')) || [];
+let CANDIDATE_STORE = JSON.parse(localStorage.getItem('V14_DB_CANDS')) || 
+    Array.from({length: 10}, (_, i) => ({
+        id: i,
+        name: `ކެނޑިޑޭޓް ${i + 1}`,
+        manualOffset: 0,
+        themeColor: i === 0 ? '#ffc300' : (i === 1 ? '#e74c3c' : '#1e293b'),
+        photo: 'https://via.placeholder.com/50'
+    }));
+
+let dualChartInstance;
+
+window.onload = function() {
+    initDualPerformanceChart();
+    renderCandidateControls();
+    syncStationDropdown();
+    refreshSystem();
+};
+
+function initDualPerformanceChart() {
+    const ctx = document.getElementById('dualPerformanceChart').getContext('2d');
+    dualChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: CANDIDATE_STORE.map(c => c.name),
+            datasets: [
+                { label: 'ތާއީދު (Support)', data: [], backgroundColor: 'rgba(255, 195, 0, 0.4)', borderColor: '#ffc300', borderWidth: 1 },
+                { label: 'ވޯޓުލީ (Voted)', data: [], backgroundColor: '#2ecc71', borderColor: '#27ae60', borderWidth: 1 }
+            ]
+        },
+        options: { maintainAspectRatio: false, responsive: true }
+    });
+}
+
+function refreshSystem() {
+    const searchQuery = document.getElementById('masterSearch').value.toLowerCase();
+    const activeStation = document.getElementById('stationFilter').value;
+
+    const filteredList = VOTER_STORE.filter(v => 
+        (activeStation === 'all' || v.st === activeStation) && 
+        (v.name.toLowerCase().includes(searchQuery) || 
+         v.id.toLowerCase().includes(searchQuery) || 
+         (v.sn && v.sn.toString().includes(searchQuery)))
+    );
+
+    // 1. Chart Data Update
+    dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c, idx) => {
+        let manual = parseInt(c.manualOffset) || 0;
+        let liveSupport = VOTER_STORE.filter(v => v.sup && v.sup.includes(idx)).length;
+        return manual + liveSupport;
+    });
+
+    dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map((c, idx) => {
+        let manual = parseInt(c.manualOffset) || 0;
+        let liveVoted = VOTER_STORE.filter(v => v.voted && v.sup && v.sup.includes(idx)).length;
+        return manual + liveVoted;
+    });
+    dualChartInstance.update();
+
+    // 2. Summary Counters
+    document.getElementById('disp-total-reg').innerText = filteredList.length;
+    document.getElementById('disp-voted-count').innerText = filteredList.filter(v => v.voted).length;
+    document.getElementById('disp-pending-count').innerText = filteredList.length - filteredList.filter(v => v.voted).length;
+
+    // 3. Table Rendering
+    const tbody = document.getElementById('voterDataRows');
+    let tableHTML = "";
+    
+    filteredList.forEach(v => {
+        const originalIndex = VOTER_STORE.indexOf(v);
+        if(!Array.isArray(v.sup)) v.sup = [];
+
+        // Generate 10 Checkboxes
+        let checkboxesHTML = `<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; min-width: 160px;">`;
+        for(let i=0; i<10; i++) {
+            const isChecked = v.sup.includes(i) ? 'checked' : '';
+            checkboxesHTML += `
+                <label style="font-size: 9px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                    ${i+1}
+                    <input type="checkbox" ${isChecked} onchange="toggleSupport(${originalIndex}, ${i})" style="cursor:pointer;">
+                </label>`;
+        }
+        checkboxesHTML += `</div>`;
+
+        tableHTML += `
+            <tr>
+                <td style="font-weight:bold; color:var(--danger-red);">${v.sn || '-'}</td>
+                <td style="text-align:right; font-weight:bold;">${v.name}</td>
+                <td>${v.id}</td>
+                <td style="font-size: 0.8rem;">${v.st}</td>
+                <td>${checkboxesHTML}</td>
+                <td>
+                    <button class="control-toggle ${v.voted?'active-voted':''}" onclick="updateEntry(${originalIndex}, 'voted')">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+    tbody.innerHTML = tableHTML;
+    
+    if (document.getElementById('tv-lounge-screen').style.display === 'block') updateTVGraphics();
+}
+
+function toggleSupport(vIdx, cIdx) {
+    if (!Array.isArray(VOTER_STORE[vIdx].sup)) VOTER_STORE[vIdx].sup = [];
+    
+    const pos = VOTER_STORE[vIdx].sup.indexOf(cIdx);
+    if (pos === -1) {
+        VOTER_STORE[vIdx].sup.push(cIdx);
+    } else {
+        VOTER_STORE[vIdx].sup.splice(pos, 1);
+    }
+    persistToDatabase();
+    refreshSystem();
+}
+
+function updateEntry(idx, type) {
+    if (type === 'voted') VOTER_STORE[idx].voted = !VOTER_STORE[idx].voted;
+    persistToDatabase();
+    refreshSystem();
+}
+
+function persistToDatabase() {
+    localStorage.setItem('V14_DB_VOTERS', JSON.stringify(VOTER_STORE));
+    localStorage.setItem('V14_DB_CANDS', JSON.stringify(CANDIDATE_STORE));
+}
+
+function syncStationDropdown() {
+    const select = document.getElementById('stationFilter');
+    let stations = [...new Set(VOTER_STORE.map(v => v.st))].sort();
+    if (stations.length === 0) stations = Array.from({length: 10}, (_, i) => `މަރުކަޒު ${i + 1}`);
+    select.innerHTML = '<option value="all">ހުރިހާ މަރުކަޒެއް</option>' + 
+        stations.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function renderCandidateControls() {
+    const container = document.getElementById('candidateControlContainer');
+    container.innerHTML = CANDIDATE_STORE.map((c, i) => `
+        <div class="candidate-input-box" style="padding:10px; border-radius:10px; background:rgba(255,255,255,0.05);">
+            <input type="text" value="${c.name}" oninput="updateCandidateData(${i}, 'name', this.value)" style="margin-bottom:5px; font-size:0.8rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <input type="color" value="${c.themeColor}" onchange="updateCandidateData(${i}, 'themeColor', this.value)">
+                <input type="number" value="${c.manualOffset}" oninput="updateCandidateData(${i}, 'manualOffset', this.value)" style="width:60px;">
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateCandidateData(idx, field, val) {
+    CANDIDATE_STORE[idx][field] = val;
+    refreshSystem();
+}
 </script>
 </body>
 </html>
