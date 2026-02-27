@@ -2373,6 +2373,155 @@ if (document.getElementById('tv-lounge-screen').style.display === 'block') {
         }
     }, 1500);
 }
+    function openTVScreen() {
+    const tvWindow = window.open("", "ElectionTV", "width=1280,height=720");
+    
+    const tvContent = `
+    <!DOCTYPE html>
+    <html dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <title>RASFAHI LIVE RESULTS</title>
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { 
+                background: #000814; color: white; 
+                font-family: 'Faruma', 'MV Boli', sans-serif; 
+                overflow: hidden;
+                display: flex; flex-direction: column;
+                height: 100vh; width: 100vw;
+                border: 10px solid #ffc300; 
+            }
+            .header { 
+                height: 60px; display: flex; align-items: center; justify-content: center;
+                border-bottom: 2px solid rgba(255, 195, 0, 0.2);
+            }
+            .header h1 { color: #ffc300; font-size: 1.8rem; }
+            
+            .main-content { 
+                flex: 1; display: grid; grid-template-columns: 1.3fr 0.7fr; 
+                gap: 15px; padding: 15px; overflow: hidden;
+            }
+            
+            .card { 
+                background: rgba(255,255,255,0.03); 
+                border: 1px solid rgba(255,195,0,0.1); 
+                border-radius: 15px; padding: 15px; 
+                display: flex; flex-direction: column; overflow: hidden;
+            }
+            
+            /* ބާޗާޓު ސެކްޝަން އުސްކުރުން */
+            #bar-chart-container { 
+                display: flex; align-items: flex-end; justify-content: center; 
+                gap: 12px; height: 100%; width: 100%;
+                padding-top: 40px; /* މަތިން ޖާގަ ބެހެއްޓުން */
+            }
+            
+            #leaderboard-container { 
+                flex: 1; display: flex; flex-direction: column; 
+                justify-content: flex-start; overflow: hidden;
+            }
+            
+            .leader-row {
+                display: flex; align-items: center; 
+                background: rgba(255,255,255,0.05); 
+                border-radius: 8px; border-right: 4px solid #ffc300;
+                margin-bottom: 4px; padding: 4px 10px;
+                flex: 1; min-height: 0;
+            }
+
+            .copyright-tag {
+                text-align: left; font-size: 9px; color: rgba(148, 163, 184, 0.2);
+                padding-top: 5px; font-family: sans-serif;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>އިންތިޚާބުގެ ލައިވް ނަތީޖާ</h1>
+        </div>
+        <div class="main-content">
+            <div class="card"><div id="bar-chart-container"></div></div>
+            <div class="card" style="justify-content: space-between;">
+                <h3 style="color:#ffc300; text-align:center; margin-bottom:10px; font-size: 1.2rem;">ވަގުތީ ނަތީޖާގެ ތަރުތީބު</h3>
+                <div id="leaderboard-container"></div>
+                <div id="total-voted-display" style="font-size:20px; font-weight:900; color:#2ecc71; text-align:center; padding: 5px; border-top:1px solid rgba(255,255,255,0.1);"></div>
+                <div class="copyright-tag">© COPYRIGHT RASFAHI SYSTEM</div>
+            </div>
+        </div>
+    </body>
+    </html>`;
+
+    tvWindow.document.write(tvContent);
+    tvWindow.document.close();
+
+    setInterval(() => {
+        if (!tvWindow.closed) {
+            const barContainer = tvWindow.document.getElementById('bar-chart-container');
+            const leaderboardContainer = tvWindow.document.getElementById('leaderboard-container');
+            const totalDisplay = tvWindow.document.getElementById('total-voted-display');
+
+            const liveVotedYes = VOTER_STORE.filter(v => v.voted && v.sup === 'yes').length;
+            const liveVotedNo = VOTER_STORE.filter(v => v.voted && v.sup === 'no').length;
+
+            const processedData = CANDIDATE_STORE.map((c, idx) => {
+                let manual = parseInt(c.manualOffset) || 0;
+                let live = (idx === 0) ? liveVotedYes : ((idx === 1) ? liveVotedNo : 0);
+                return {
+                    name: c.name || "ކެނޑިޑޭޓް",
+                    totalVotes: manual + live,
+                    color: c.themeColor || "#ffc300",
+                    photo: c.photo || 'https://via.placeholder.com/50'
+                };
+            });
+
+            const grandTotalVotes = processedData.reduce((sum, c) => sum + c.totalVotes, 0);
+            const activeCandidates = processedData.filter(c => c.totalVotes > 0);
+            const count = activeCandidates.length;
+
+            if (barContainer) {
+                const maxWidth = count > 8 ? "45px" : (count > 5 ? "70px" : "90px");
+                barContainer.innerHTML = activeCandidates.map(c => {
+                    const percent = grandTotalVotes > 0 ? ((c.totalVotes / grandTotalVotes) * 100).toFixed(1) : 0;
+                    
+                    // ބާޗާޓު އުސްކުރުމަށްޓަކައި ޕަސެންޓޭޖަށް ދޭ މަލްޓިޕްލަޔަރ ބޮޑުކުރުން
+                    // ސްކްރީންގެ އުސްމިނަށް ބަލާފައި 3.5 އަށް ބަދަލުކޮށްލީމާ ވަރަށް އުސްވާނެ
+                    const barHeight = Math.max((percent * 3.5), 2); 
+
+                    return `
+                        <div style="display:flex; flex-direction:column; align-items:center; width:100%; max-width:${maxWidth}; height:100%; justify-content:flex-end;">
+                            <div style="color:#ffc300; font-weight:bold; font-size:14px; margin-bottom:8px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">${percent}%</div>
+                            <div style="width:85%; height:${barHeight}px; background:linear-gradient(to top, ${c.color}, #ffffff); border-radius:4px 4px 0 0; box-shadow: 0 0 20px ${c.color}66; transition: height 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67);"></div>
+                            <div style="margin-top:8px; text-align:center; width:100%; background:rgba(0,0,0,0.3); padding:4px 2px; border-radius:8px; border:1px solid ${c.color}44;">
+                                <img src="${c.photo}" style="width:32px; height:32px; border-radius:50%; border:1.5px solid ${c.color}; object-fit:cover; background:#000;">
+                                <div style="font-size:10px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:'Faruma'; margin-top:2px;">${c.name}</div>
+                                <div style="font-size:16px; font-weight:900; color:${c.color}; line-height:1;">${c.totalVotes}</div>
+                            </div>
+                        </div>`;
+                }).join('');
+            }
+
+            if (leaderboardContainer) {
+                const sorted = [...activeCandidates].sort((a, b) => b.totalVotes - a.totalVotes);
+                const imgSize = count > 8 ? "25px" : "32px";
+                const nameFont = count > 8 ? "12px" : "14px";
+
+                leaderboardContainer.innerHTML = sorted.map((c, i) => `
+                    <div class="leader-row" style="border-right-color: ${c.color};">
+                        <div style="font-size:16px; font-weight:bold; color:#ffc300; width:25px; text-align:center;">${i+1}</div>
+                        <img src="${c.photo}" style="width:${imgSize}; height:${imgSize}; border-radius:50%; margin: 0 8px; border:1px solid ${c.color}; object-fit:cover;">
+                        <div style="flex-grow:1; text-align:right;">
+                            <div style="font-family:'Faruma'; font-size:${nameFont}; color:#fff; font-weight:bold; line-height:1;">${c.name}</div>
+                            <div style="font-size:9px; color:rgba(255,195,0,0.5);">${((c.totalVotes/grandTotalVotes)*100).toFixed(1)}%</div>
+                        </div>
+                        <div style="font-size:18px; font-weight:900; color:${c.color}; margin-right:8px;">${c.totalVotes}</div>
+                    </div>`).join('');
+            }
+
+            if (totalDisplay) totalDisplay.innerHTML = `<span style="font-size:12px; color:#94a3b8;">ޖުމްލަ ވޯޓު:</span> ${grandTotalVotes}`;
+        }
+    }, 1500);
+}
 </script>
 </body>
 </html>
