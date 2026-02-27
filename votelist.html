@@ -573,6 +573,27 @@
                 </div>
             </div>
         </div>
+        <div id="tv-lounge-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000814; z-index:10000; padding:20px; color:white; overflow:hidden; border: 10px solid #ffc300;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #ffc300; padding-bottom:10px; margin-bottom:20px;">
+        <h1 style="color:#ffc300; font-family:'Faruma';"><i class="fas fa-broadcast-tower"></i> އިންތިޚާބުގެ ލައިވް ނަތީޖާ</h1>
+        <button onclick="document.getElementById('tv-lounge-screen').style.display='none'" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">CLOSE SCREEN</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; height: 80vh;">
+        <div class="card" style="background:rgba(255,255,255,0.02); position:relative; display:flex; flex-direction:column; justify-content:flex-end; padding-bottom:100px; border:1px solid rgba(255,195,0,0.2);">
+            <div id="bar-chart-container" style="display:flex; align-items:flex-end; justify-content:space-around; height:100%; padding: 0 20px;">
+                </div>
+        </div>
+
+        <div class="card" style="background:rgba(255,255,255,0.02); text-align:center; border:1px solid rgba(255,195,0,0.2);">
+            <h3 style="color:#ffc300; margin-bottom:20px; font-family:'Faruma';">ވޯޓުގެ ނިސްބަތް</h3>
+            <div style="height: 350px; position: relative;">
+                <canvas id="tvPieChart"></canvas>
+            </div>
+            <div id="total-voted-display" style="margin-top:40px; font-size:32px; font-weight:bold; color:#2ecc71; font-family:monospace;"></div>
+        </div>
+    </div>
+</div>
     </section>
 
     <section class="config-area no-print">
@@ -588,29 +609,36 @@
             <option value="all">ހުރިހާ މަރުކަޒެއް</option>
         </select>
 
-        <div class="btn-stack">
+  <div class="btn-stack">
+            <button class="action-btn" style="background: linear-gradient(45deg, #e67e22, #d35400);" onclick="openTVScreen()">
+                <i class="fas fa-tv"></i> ޓީވީ ސްކްރީން ހުޅުވާ
+            </button>
+
             <button class="action-btn btn-save" onclick="persistToDatabase()">
                 <i class="fas fa-database"></i> ސޭވް ކުރައްވާ
             </button>
+
             <button class="action-btn btn-print" onclick="window.print()">
                 <i class="fas fa-print"></i> ޕްރިންޓް ރިޕޯޓް
             </button>
+
             <button class="action-btn btn-export" onclick="exportToCSV()">
-    <i class="fas fa-file-export"></i> އެކްސްޕޯރޓް އަޕްޑޭޓް (CSV)
-</button>
+                <i class="fas fa-file-export"></i> އެކްސްޕޯރޓް (CSV)
+            </button>
+
             <button class="action-btn btn-import" onclick="document.getElementById('csvInput').click()">
                 <i class="fas fa-file-import"></i> އިމްޕޯޓް (CSV)
             </button>
+
             <button class="action-btn btn-dummy" onclick="generateAndDownloadDummyCSV()">
-                <i class="fas fa-file-csv"></i> 3000 މީހުންގެ CSV ޑައުންލޯޑް
+                <i class="fas fa-file-csv"></i> ޑަމީ CSV
             </button>
+
             <button class="action-btn btn-reset" onclick="factoryReset()">
                 <i class="fas fa-triangle-exclamation"></i> ފުލް ރީސެޓް
             </button>
-        </div>
-        <input type="file" id="csvInput" hidden onchange="handleCSVImport(event)">
+        </div> <input type="file" id="csvInput" hidden onchange="handleCSVImport(event)">
     </section>
-
     <section class="repository-container">
         <div class="table-scroll">
             <table>
@@ -1373,6 +1401,104 @@ tableHTML += `
             <button class="control-toggle ${v.voted?'active-voted':''}" onclick="updateEntry(${originalIndex}, 'voted')"><i class="fas fa-check"></i></button>
         </td>
     </tr>`;
+    // ޓީވީ ސްކްރީން ހުޅުވުމަށް
+function openTVScreen() {
+    document.getElementById('tv-lounge-screen').style.display = 'block';
+    updateTVGraphics();
+}
+
+// ކެނޑިޑޭޓް ފޮޓޯ އަޕްލޯޑް ކުރުމަށް
+function uploadCandidatePhoto(idx, event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            CANDIDATE_STORE[idx].photo = e.target.result;
+            document.getElementById(`prev-img-${idx}`).src = e.target.result;
+            persistToDatabase();
+            if(document.getElementById('tv-lounge-screen').style.display === 'block') updateTVGraphics();
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+let tvPieChartInstance;
+
+// ޓީވީ ސްކްރީންގެ ގްރާފިކްސް އަޕްޑޭޓްކުރުން
+function updateTVGraphics() {
+    const container = document.getElementById('bar-chart-container');
+    const totalVotes = CANDIDATE_STORE.reduce((sum, c) => sum + (parseInt(c.manualOffset) || 0), 0);
+    
+    // ބާ ޗާޓު (Bar Chart)
+    container.innerHTML = CANDIDATE_STORE.filter(c => (parseInt(c.manualOffset) || 0) > 0).map(c => {
+        const votes = parseInt(c.manualOffset) || 0;
+        const percent = totalVotes > 0 ? ((votes / totalVotes) * 100).toFixed(1) : 0;
+        
+        return `
+            <div style="display:flex; flex-direction:column; align-items:center; width:120px; position:relative;">
+                <div style="color:#ffc300; font-weight:900; font-size:1.6rem; margin-bottom:10px; text-shadow: 0 0 10px rgba(255,195,0,0.5);">${percent}%</div>
+                <div style="width:75px; height:${percent * 3.5}px; background:linear-gradient(to top, ${c.themeColor}, #fff); border-radius:12px 12px 0 0; box-shadow: 0 0 30px ${c.themeColor}55; transition: height 0.8s ease-out;"></div>
+                <div style="background:#001d3d; width:100%; padding:10px 5px; border-radius:15px; margin-top:10px; border:1px solid ${c.themeColor}; display:flex; flex-direction:column; align-items:center;">
+                    <img src="${c.photo || 'https://via.placeholder.com/60'}" style="width:65px; height:65px; border-radius:50%; border:3px solid ${c.themeColor}; object-fit:cover; background:#000;">
+                    <div style="font-size:14px; margin-top:8px; font-weight:bold; font-family:'Faruma'; color:#fff; text-align:center;">${c.name}</div>
+                    <div style="font-size:22px; font-weight:900; color:${c.themeColor};">${votes}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // ޕައި ޗާޓު (Pie Chart)
+    const ctx = document.getElementById('tvPieChart').getContext('2d');
+    const activeCands = CANDIDATE_STORE.filter(c => (parseInt(c.manualOffset) || 0) > 0);
+    
+    if (tvPieChartInstance) tvPieChartInstance.destroy();
+    
+    tvPieChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: activeCands.map(c => c.name),
+            datasets: [{
+                data: activeCands.map(c => parseInt(c.manualOffset) || 0),
+                backgroundColor: activeCands.map(c => c.themeColor),
+                borderWidth: 2,
+                borderColor: '#000814'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { 
+                    position: 'bottom', 
+                    labels: { color: 'white', font: { family: 'Faruma', size: 14 } } 
+                } 
+            }
+        }
+    });
+    
+    document.getElementById('total-voted-display').innerText = "ޖުމްލަ ވޯޓު: " + totalVotes;
+}
+    function renderCandidateControls() {
+    const container = document.getElementById('candidateControlContainer');
+    container.innerHTML = CANDIDATE_STORE.map((c, i) => `
+        <div class="candidate-input-box" style="text-align:center; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,195,0,0.1); border-radius: 15px; padding: 15px;">
+            <div style="margin-bottom:10px; position:relative; display:inline-block;">
+                <img id="prev-img-${i}" src="${c.photo || 'https://via.placeholder.com/65'}" 
+                     style="width:70px; height:70px; border-radius:50%; border:2.5px solid #ffc300; object-fit:cover; background:#000;">
+                <button onclick="document.getElementById('file-${i}').click()" 
+                        style="position:absolute; bottom:0; right:0; background:#ffc300; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+                    <i class="fas fa-camera" style="font-size:12px; color:#000;"></i>
+                </button>
+                <input type="file" id="file-${i}" hidden accept="image/*" onchange="uploadCandidatePhoto(${i}, event)">
+            </div>
+            <input type="text" value="${c.name}" oninput="updateCandidateData(${i}, 'name', this.value)" placeholder="ނަން" style="text-align:center;">
+            <div class="input-row-flex" style="margin-top:10px;">
+                <input type="color" value="${c.themeColor}" onchange="updateCandidateData(${i}, 'themeColor', this.value)" style="width:35px; height:35px; border:none; border-radius:5px;">
+                <input type="number" value="${c.manualOffset}" class="manual-votes-input" oninput="updateCandidateData(${i}, 'manualOffset', this.value)" placeholder="ވޯޓު">
+            </div>
+        </div>
+    `).join('');
+}
 </script>
 </body>
 </html>
