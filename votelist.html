@@ -1976,6 +1976,103 @@ if (document.getElementById('tv-lounge-screen').style.display === 'block') {
         totalDisplay.innerHTML = `<span style="color:#94a3b8; font-size:14px;">ޖުމްލަ ވޯޓު:</span> ${grandTotalVotes}`;
     }
 }
+    function openTVScreen() {
+    // އާ ވިންޑޯއެއް ހުޅުވުން
+    const tvWindow = window.open("", "ElectionTV", "width=1200,height=800");
+    
+    // އާ ވިންޑޯގެ HTML ތައްޔާރުކުރުން
+    const tvContent = `
+    <!DOCTYPE html>
+    <html dir="rtl">
+    <head>
+        <title>LIVE RESULTS - TV SCREEN</title>
+        <style>
+            body { 
+                background: #000814; color: white; margin: 0; padding: 20px; 
+                font-family: 'Faruma', 'MV Boli', sans-serif; overflow: hidden;
+                border: 10px solid #ffc300; height: 94vh;
+            }
+            .tv-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; height: 85vh; }
+            .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,195,0,0.2); border-radius: 20px; padding: 20px; position: relative; }
+            #bar-chart-container { display: flex; align-items: flex-end; justify-content: space-around; height: 100%; padding-bottom: 20px; }
+            h1 { color: #ffc300; text-align: center; border-bottom: 2px solid #ffc300; padding-bottom: 10px; margin-bottom: 20px; }
+            .leaderboard-item { display: flex; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; margin-bottom: 8px; border-radius: 10px; }
+        </style>
+    </head>
+    <body>
+        <h1><i class="fas fa-broadcast-tower"></i> އިންތިޚާބުގެ ލައިވް ނަތީޖާ</h1>
+        <div class="tv-container">
+            <div class="card"><div id="bar-chart-container"></div></div>
+            <div class="card">
+                <h3 style="color:#ffc300; text-align:center;">ވަގުތީ ނަތީޖާގެ ތަރުތީބު</h3>
+                <div id="leaderboard-container"></div>
+                <div id="total-voted-display" style="margin-top:20px; font-size:28px; font-weight:bold; color:#2ecc71; text-align:center; border-top:1px solid #333; padding-top:15px;"></div>
+            </div>
+        </div>
+    </body>
+    </html>`;
+
+    tvWindow.document.write(tvContent);
+    tvWindow.document.close();
+
+    // ކޮންމެ 2 ސިކުންތަކުން މައި ސޮފްޓްވެއަރ އިން ޑޭޓާ އަޕްޑޭޓްކުރުން
+    setInterval(() => {
+        if (!tvWindow.closed) {
+            const barContainer = tvWindow.document.getElementById('bar-chart-container');
+            const leaderboardContainer = tvWindow.document.getElementById('leaderboard-container');
+            const totalDisplay = tvWindow.document.getElementById('total-voted-display');
+
+            // މިހާރު ހުރި ޑޭޓާ ހޯދުން
+            const liveVotedYes = VOTER_STORE.filter(v => v.voted && v.sup === 'yes').length;
+            const liveVotedNo = VOTER_STORE.filter(v => v.voted && v.sup === 'no').length;
+
+            const processedData = CANDIDATE_STORE.map((c, idx) => {
+                let manual = parseInt(c.manualOffset) || 0;
+                let live = (idx === 0) ? liveVotedYes : ((idx === 1) ? liveVotedNo : 0);
+                return {
+                    name: c.name || "ކެނޑިޑޭޓް",
+                    totalVotes: manual + live,
+                    color: c.themeColor || "#ffc300",
+                    photo: c.photo || 'https://via.placeholder.com/50'
+                };
+            });
+
+            const grandTotalVotes = processedData.reduce((sum, c) => sum + c.totalVotes, 0);
+            const activeCandidates = processedData.filter(c => c.totalVotes > 0);
+
+            // ބާ ޗާޓު ކުރެހުން
+            if (barContainer) {
+                barContainer.innerHTML = activeCandidates.map(c => {
+                    const percent = grandTotalVotes > 0 ? ((c.totalVotes / grandTotalVotes) * 100).toFixed(1) : 0;
+                    return `
+                        <div style="display:flex; flex-direction:column; align-items:center; width:100px; justify-content:flex-end; height:100%;">
+                            <div style="color:#ffc300; font-weight:bold;">${percent}%</div>
+                            <div style="width:50px; height:${percent * 3}px; background:${c.color}; border-radius:5px 5px 0 0; transition: height 0.5s;"></div>
+                            <div style="margin-top:10px; text-align:center;">
+                                <img src="${c.photo}" style="width:40px; height:40px; border-radius:50%; border:2px solid ${c.color}; object-fit:cover;">
+                                <div style="font-size:12px; color:#fff;">${c.name}</div>
+                                <div style="font-size:18px; font-weight:900; color:${c.color};">${c.totalVotes}</div>
+                            </div>
+                        </div>`;
+                }).join('');
+            }
+
+            // ލީޑަރބޯޑު ކުރެހުން
+            if (leaderboardContainer) {
+                const sorted = [...activeCandidates].sort((a, b) => b.totalVotes - a.totalVotes);
+                leaderboardContainer.innerHTML = sorted.map((c, i) => `
+                    <div class="leaderboard-item" style="border-right: 5px solid ${c.color}">
+                        <div style="font-size:20px; color:#ffc300; width:30px;">${i+1}</div>
+                        <img src="${c.photo}" style="width:40px; height:40px; border-radius:50%; margin: 0 10px;">
+                        <div style="flex-grow:1;">${c.name}</div>
+                        <div style="font-size:22px; font-weight:bold; color:${c.color}">${c.totalVotes}</div>
+                    </div>`).join('');
+            }
+
+            if (totalDisplay) totalDisplay.innerText = "ޖުމްލަ ވޯޓު: " + grandTotalVotes;
+        }
+    }, 2000);
+}
 </script>
 </body>
 </html>
