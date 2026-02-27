@@ -3346,31 +3346,24 @@ if (document.getElementById('tv-lounge-screen').style.display === 'block') {
 
     const filteredList = VOTER_STORE.filter(v => 
         (activeStation === 'all' || v.st === activeStation) && 
-        (v.name.toLowerCase().includes(searchQuery) || 
-         v.id.toLowerCase().includes(searchQuery) || 
-         v.pa.toLowerCase().includes(searchQuery) ||
-         (v.sn && v.sn.toString().includes(searchQuery)) ||
-         (v.phone && v.phone.includes(searchQuery)))
+        (v.name.toLowerCase().includes(searchQuery) || v.id.toLowerCase().includes(searchQuery))
     );
 
-    document.getElementById('disp-total-reg').innerText = filteredList.length;
-    document.getElementById('disp-voted-count').innerText = filteredList.filter(v => v.voted).length;
-    document.getElementById('disp-pending-count').innerText = filteredList.length - filteredList.filter(v => v.voted).length;
-
-    // ޗާޓު އަޕްޑޭޓްކުރުން
+    // ޗާޓު ޑޭޓާ ހިސާބުކުރުން
     dualChartInstance.data.labels = CANDIDATE_STORE.map(c => c.name);
     
-    // ތާއީދު (Support Dataset) - ހުރިހާ ކެނޑިޑޭޓުންނަށް
+    // ތާއީދު (Support)
     dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c, idx) => {
         let offset = parseInt(c.manualOffset) || 0;
-        let liveSupport = VOTER_STORE.filter(v => v.sup == idx).length;
+        // ވޯޓަރުގެ 'sup' އެރޭ (array) ތެރޭގައި މި ކެނޑިޑޭޓްގެ index އޮތްތޯ ބެލުން
+        let liveSupport = VOTER_STORE.filter(v => v.sup && v.sup.includes(idx)).length;
         return offset + liveSupport;
     });
 
-    // ވޯޓުލީ (Voted Dataset) - ހުރިހާ ކެނޑިޑޭޓުންނަށް
+    // ވޯޓުލީ (Voted)
     dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map((c, idx) => {
         let offset = parseInt(c.manualOffset) || 0;
-        let liveVoted = VOTER_STORE.filter(v => v.voted && v.sup == idx).length;
+        let liveVoted = VOTER_STORE.filter(v => v.voted && v.sup && v.sup.includes(idx)).length;
         return offset + liveVoted;
     });
 
@@ -3381,63 +3374,59 @@ if (document.getElementById('tv-lounge-screen').style.display === 'block') {
     
     filteredList.forEach(v => {
         const originalIndex = VOTER_STORE.indexOf(v);
-        // ތާއީދު Dropdown ތައްޔާރުކުރުން
-        let optionsHTML = `<option value="none">ވަކި ގޮތެއް ނުނިންމާ</option>`;
-        CANDIDATE_STORE.forEach((cand, cIdx) => {
-            optionsHTML += `<option value="${cIdx}" ${v.sup == cIdx ? 'selected' : ''}>${cand.name}</option>`;
-        });
+        if(!v.sup) v.sup = []; // އެރޭއެއް ނެތްނަމަ އާ އެރޭއެއް ހެދުން
+
+        // 10 ޗެކްބޮކްސް ހެދުން
+        let checkboxesHTML = `<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; width: 150px;">`;
+        for(let i=0; i<10; i++) {
+            const isChecked = v.sup.includes(i) ? 'checked' : '';
+            checkboxesHTML += `
+                <label style="font-size: 10px; background: #f1f5f9; border-radius: 3px; padding: 2px; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                    ${i+1}
+                    <input type="checkbox" ${isChecked} onchange="toggleSupport(${originalIndex}, ${i})">
+                </label>`;
+        }
+        checkboxesHTML += `</div>`;
 
         tableHTML += `
             <tr>
-                <td data-label="ސީރިއަލް" style="font-weight:bold; color:var(--danger-red);">${v.sn || '-'}</td>
-                <td data-label="ފުރިހަމަ ނަން" style="text-align:right; font-weight:bold;">${v.name}</td>
-                <td data-label="އައިޑީ ކާޑު">${v.id}</td>
-                <td data-label="އެޑްރެސް">${v.pa}</td>
-                <td data-label="ފޯނު">${v.phone || '-'}</td>
-                <td data-label="މަރުކަޒު">${v.st}</td>
-                <td data-label="ތާއީދު">
-                    <select onchange="updateEntry(${originalIndex}, 'sup', this.value)" style="padding:8px; border-radius:8px; width:100%; font-family:'Faruma';">
-                        ${optionsHTML}
-                    </select>
-                </td>
-                <td data-label="ވޯޓު">
-                    <button class="control-toggle ${v.voted?'active-voted':''}" onclick="updateEntry(${originalIndex}, 'voted')"><i class="fas fa-check"></i></button>
+                <td style="font-weight:bold;">${v.sn || '-'}</td>
+                <td style="text-align:right;">${v.name}</td>
+                <td>${v.id}</td>
+                <td>${v.st}</td>
+                <td>${checkboxesHTML}</td>
+                <td>
+                    <button class="control-toggle ${v.voted?'active-voted':''}" onclick="updateEntry(${originalIndex}, 'voted')">
+                        <i class="fas fa-check"></i>
+                    </button>
                 </td>
             </tr>`;
     });
     tbody.innerHTML = tableHTML;
-
-    // ޓީވީ ސްކްރީން އަޕްޑޭޓްކުރުން
-    if (typeof updateTVGraphics === "function") {
-        updateTVGraphics();
-    }
 }
-    function updateEntry(idx, type, val) {
-    if (type === 'sup') {
-        VOTER_STORE[idx].sup = val;
-    } else {
-        VOTER_STORE[idx].voted = !VOTER_STORE[idx].voted;
+    function toggleSupport(voterIdx, candIdx) {
+    if (!VOTER_STORE[voterIdx].sup) {
+        VOTER_STORE[voterIdx].sup = [];
     }
-    // ޑޭޓާ ރައްކާކުރުން
+    
+    const index = VOTER_STORE[voterIdx].sup.indexOf(candIdx);
+    if (index === -1) {
+        // ލިސްޓުގައި ނެތްނަމަ އިތުރުކުރުން
+        VOTER_STORE[voterIdx].sup.push(candIdx);
+    } else {
+        // ލިސްޓުގައި އިންނަމަ އުނިކުރުން
+        VOTER_STORE[voterIdx].sup.splice(index, 1);
+    }
+    
     persistToDatabase();
-    // ސިސްޓަމް ރިފްރެޝްކުރުން
     refreshSystem();
 }
-    function updateTVGraphics() {
-    // ... (ކުރީގެ ބައިތައް ބަހައްޓާފައި) ...
-    const processedData = CANDIDATE_STORE.map((c, idx) => {
-        let manual = parseInt(c.manualOffset) || 0;
-        // މިހާރު ކޮންމެ Index އަކަށް live ވޯޓު ގުނޭނެ
-        let live = VOTER_STORE.filter(v => v.voted && v.sup == idx).length;
-        
-        return {
-            name: c.name || "ކެނޑިޑޭޓް",
-            totalVotes: manual + live,
-            color: c.themeColor || "#ffc300",
-            photo: c.photo || 'https://via.placeholder.com/50'
-        };
-    });
-    // ... (ބާކީ ބައިތައް ބަހައްޓާފައި) ...
+    function updateEntry(idx, type) {
+    if (type === 'voted') {
+        VOTER_STORE[idx].voted = !VOTER_STORE[idx].voted;
+    }
+    persistToDatabase();
+    refreshSystem();
 }
 </script>
 </body>
