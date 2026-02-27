@@ -3340,39 +3340,105 @@ if (document.getElementById('tv-lounge-screen').style.display === 'block') {
         }
     }, 1500);
 }
-    // ތާއީދު ކޮލަމަށް މި ބަދަލު ގެންނަވާ
-<td>
-    <select class="station-selector" style="padding: 5px; width: 100%; font-size: 0.8rem;" 
-            onchange="updateEntry(${originalIndex}, 'sup', this.value)">
-        <option value="none">ވަކި ފަރާތަކަށް ނޫން</option>
-        ${CANDIDATE_STORE.map((cand, cIdx) => `
-            <option value="${cIdx}" ${v.sup == cIdx ? 'selected' : ''}>
-                ${cand.name}
-            </option>
-        `).join('')}
-    </select>
-</td>
+    function refreshSystem() {
+    const searchQuery = document.getElementById('masterSearch').value.toLowerCase();
+    const activeStation = document.getElementById('stationFilter').value;
+
+    const filteredList = VOTER_STORE.filter(v => 
+        (activeStation === 'all' || v.st === activeStation) && 
+        (v.name.toLowerCase().includes(searchQuery) || 
+         v.id.toLowerCase().includes(searchQuery) || 
+         v.pa.toLowerCase().includes(searchQuery) ||
+         (v.sn && v.sn.toString().includes(searchQuery)) ||
+         (v.phone && v.phone.includes(searchQuery)))
+    );
+
+    document.getElementById('disp-total-reg').innerText = filteredList.length;
+    document.getElementById('disp-voted-count').innerText = filteredList.filter(v => v.voted).length;
+    document.getElementById('disp-pending-count').innerText = filteredList.length - filteredList.filter(v => v.voted).length;
+
+    // ޗާޓު އަޕްޑޭޓްކުރުން
+    dualChartInstance.data.labels = CANDIDATE_STORE.map(c => c.name);
+    
+    // ތާއީދު (Support Dataset) - ހުރިހާ ކެނޑިޑޭޓުންނަށް
+    dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c, idx) => {
+        let offset = parseInt(c.manualOffset) || 0;
+        let liveSupport = VOTER_STORE.filter(v => v.sup == idx).length;
+        return offset + liveSupport;
+    });
+
+    // ވޯޓުލީ (Voted Dataset) - ހުރިހާ ކެނޑިޑޭޓުންނަށް
+    dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map((c, idx) => {
+        let offset = parseInt(c.manualOffset) || 0;
+        let liveVoted = VOTER_STORE.filter(v => v.voted && v.sup == idx).length;
+        return offset + liveVoted;
+    });
+
+    dualChartInstance.update();
+
+    const tbody = document.getElementById('voterDataRows');
+    let tableHTML = "";
+    
+    filteredList.forEach(v => {
+        const originalIndex = VOTER_STORE.indexOf(v);
+        // ތާއީދު Dropdown ތައްޔާރުކުރުން
+        let optionsHTML = `<option value="none">ވަކި ގޮތެއް ނުނިންމާ</option>`;
+        CANDIDATE_STORE.forEach((cand, cIdx) => {
+            optionsHTML += `<option value="${cIdx}" ${v.sup == cIdx ? 'selected' : ''}>${cand.name}</option>`;
+        });
+
+        tableHTML += `
+            <tr>
+                <td data-label="ސީރިއަލް" style="font-weight:bold; color:var(--danger-red);">${v.sn || '-'}</td>
+                <td data-label="ފުރިހަމަ ނަން" style="text-align:right; font-weight:bold;">${v.name}</td>
+                <td data-label="އައިޑީ ކާޑު">${v.id}</td>
+                <td data-label="އެޑްރެސް">${v.pa}</td>
+                <td data-label="ފޯނު">${v.phone || '-'}</td>
+                <td data-label="މަރުކަޒު">${v.st}</td>
+                <td data-label="ތާއީދު">
+                    <select onchange="updateEntry(${originalIndex}, 'sup', this.value)" style="padding:8px; border-radius:8px; width:100%; font-family:'Faruma';">
+                        ${optionsHTML}
+                    </select>
+                </td>
+                <td data-label="ވޯޓު">
+                    <button class="control-toggle ${v.voted?'active-voted':''}" onclick="updateEntry(${originalIndex}, 'voted')"><i class="fas fa-check"></i></button>
+                </td>
+            </tr>`;
+    });
+    tbody.innerHTML = tableHTML;
+
+    // ޓީވީ ސްކްރީން އަޕްޑޭޓްކުރުން
+    if (typeof updateTVGraphics === "function") {
+        updateTVGraphics();
+    }
+}
     function updateEntry(idx, type, val) {
     if (type === 'sup') {
-        VOTER_STORE[idx].sup = val; // މިތަނުގައި val އަކީ ކެނޑިޑޭޓުގެ Index ނަންބަރު
+        VOTER_STORE[idx].sup = val;
     } else {
         VOTER_STORE[idx].voted = !VOTER_STORE[idx].voted;
     }
+    // ޑޭޓާ ރައްކާކުރުން
+    persistToDatabase();
+    // ސިސްޓަމް ރިފްރެޝްކުރުން
     refreshSystem();
 }
-    // ތާއީދު (Support Dataset)
-dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c, idx) => {
-    let offset = parseInt(c.manualOffset) || 0;
-    let liveSupport = filteredList.filter(v => v.sup == idx).length;
-    return offset + liveSupport;
-});
-
-// ވޯޓުލީ (Voted Dataset)
-dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map((c, idx) => {
-    let offset = parseInt(c.manualOffset) || 0;
-    let liveVoted = filteredList.filter(v => v.voted && v.sup == idx).length;
-    return offset + liveVoted;
-});
+    function updateTVGraphics() {
+    // ... (ކުރީގެ ބައިތައް ބަހައްޓާފައި) ...
+    const processedData = CANDIDATE_STORE.map((c, idx) => {
+        let manual = parseInt(c.manualOffset) || 0;
+        // މިހާރު ކޮންމެ Index އަކަށް live ވޯޓު ގުނޭނެ
+        let live = VOTER_STORE.filter(v => v.voted && v.sup == idx).length;
+        
+        return {
+            name: c.name || "ކެނޑިޑޭޓް",
+            totalVotes: manual + live,
+            color: c.themeColor || "#ffc300",
+            photo: c.photo || 'https://via.placeholder.com/50'
+        };
+    });
+    // ... (ބާކީ ބައިތައް ބަހައްޓާފައި) ...
+}
 </script>
 </body>
 </html>
