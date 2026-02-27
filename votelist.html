@@ -1640,6 +1640,79 @@ if (document.getElementById('tv-lounge-screen').style.display === 'block') {
     if (document.getElementById('tv-lounge-screen').style.display === 'block') {
     updateTVGraphics();
 }
+    function updateTVGraphics() {
+    const barContainer = document.getElementById('bar-chart-container');
+    const leaderboardContainer = document.getElementById('leaderboard-container');
+    
+    if (!barContainer || !leaderboardContainer) return;
+
+    // 1. ލައިވް ވޯޓު ހިސާބުކުރުން
+    const liveVotedYes = VOTER_STORE.filter(v => v.voted && v.sup === 'yes').length;
+    const liveVotedNo = VOTER_STORE.filter(v => v.voted && v.sup === 'no').length;
+
+    // 2. ކެނޑިޑޭޓުންގެ ޑޭޓާ ތައްޔާރުކުރުން
+    const processedData = CANDIDATE_STORE.map((c, idx) => {
+        let manual = parseInt(c.manualOffset) || 0;
+        let live = (idx === 0) ? liveVotedYes : ((idx === 1) ? liveVotedNo : 0);
+        return {
+            name: c.name || "ކެނޑިޑޭޓް",
+            totalVotes: manual + live,
+            color: c.themeColor || "#ffc300",
+            photo: c.photo || 'https://via.placeholder.com/50'
+        };
+    });
+
+    const grandTotalVotes = processedData.reduce((sum, c) => sum + c.totalVotes, 0);
+
+    // 3. ބާ ޗާޓު: ވޯޓު ލިބިފައިވާ (Votes > 0) ފަރާތްތައް އެކަނި ދެއްކުން
+    const activeForCharts = processedData.filter(c => c.totalVotes > 0);
+    
+    barContainer.innerHTML = activeForCharts.map(c => {
+        const percent = grandTotalVotes > 0 ? ((c.totalVotes / grandTotalVotes) * 100).toFixed(1) : 0;
+        return `
+            <div style="display:flex; flex-direction:column; align-items:center; width:130px; justify-content:flex-end; height:100%;">
+                <div style="color:#ffc300; font-weight:bold; font-size:18px; margin-bottom:5px;">${percent}%</div>
+                <div style="width:60px; height:${percent * 3}px; background:linear-gradient(to top, ${c.color}, #fff); border-radius:8px 8px 0 0; box-shadow: 0 0 20px ${c.color}55; transition: height 0.6s ease;"></div>
+                <div style="margin-top:10px; text-align:center; background:rgba(255,255,255,0.08); padding:10px; border-radius:15px; width:100%; border:1px solid ${c.color}77; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                    <img src="${c.photo}" style="width:55px; height:55px; border-radius:50%; border:3px solid ${c.color}; object-fit:cover; background:#000;">
+                    <div style="font-size:14px; color:#fff; margin-top:8px; font-family:'Faruma'; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.name}</div>
+                    <div style="font-size:22px; font-weight:900; color:${c.color}; margin-top:3px;">${c.totalVotes}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // 4. ލީޑަރބޯޑު: ގޮޅިތައް ފުޅާކޮށް (Wider blocks) އަދި ވޯޓު ލިބިފައިވާ މީހުން އެކަނި
+    const sortedCandidates = [...activeForCharts].sort((a, b) => b.totalVotes - a.totalVotes);
+
+    if (sortedCandidates.length === 0) {
+        leaderboardContainer.innerHTML = `<div style="text-align:center; color:#94a3b8; margin-top:80px; font-family:'Faruma'; font-size:20px;">އަދި އެއްވެސް ނަތީޖާއެއް ނެތް</div>`;
+    } else {
+        leaderboardContainer.innerHTML = sortedCandidates.map((c, index) => {
+            const percent = grandTotalVotes > 0 ? ((c.totalVotes / grandTotalVotes) * 100).toFixed(1) : 0;
+            return `
+                <div style="display:flex; align-items:center; background:linear-gradient(90deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.02) 100%); padding:20px; margin-bottom:15px; border-radius:20px; border-right:8px solid ${c.color}; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 95%;">
+                    <div style="font-size:28px; font-weight:bold; color:#ffc300; width:50px; text-align:center; opacity:0.8;">${index + 1}</div>
+                    <img src="${c.photo}" style="width:65px; height:65px; border-radius:50%; margin:0 25px; border:3px solid ${c.color}; object-fit:cover; background:#000; box-shadow: 0 0 15px ${c.color}44;">
+                    <div style="flex-grow:1; text-align:right;">
+                        <div style="font-family:'Faruma'; font-size:22px; color:#fff; font-weight:bold; letter-spacing:1px;">${c.name}</div>
+                        <div style="font-size:16px; color:#ffc300; margin-top:4px; font-weight:600;">ނިސްބަތް: ${percent}%</div>
+                    </div>
+                    <div style="text-align:center; margin-right:30px;">
+                        <div style="font-size:12px; color:#94a3b8; text-transform:uppercase; margin-bottom:2px;">Votes</div>
+                        <div style="font-size:36px; font-weight:900; color:${c.color}; line-height:1;">${c.totalVotes}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    const totalDisplay = document.getElementById('total-voted-display');
+    if (totalDisplay) {
+        totalDisplay.style.fontSize = "32px";
+        totalDisplay.innerHTML = `<span style="color:#94a3b8; font-size:18px; font-family:'Faruma';">ޖުމްލަ ވޯޓު:</span> ${grandTotalVotes}`;
+    }
+}
 </script>
 </body>
 </html>
