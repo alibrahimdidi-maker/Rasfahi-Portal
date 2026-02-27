@@ -1585,6 +1585,59 @@ function updateTVGraphics() {
 
     document.getElementById('total-voted-display').innerText = "ޖުމްލަ ވޯޓު: " + grandTotalVotes;
 }
+    function updateTVGraphics() {
+    const barContainer = document.getElementById('bar-chart-container');
+    const leaderboardContainer = document.getElementById('leaderboard-container');
+
+    // ލައިވް ވޯޓު ހިސާބުކުރުން
+    const liveVotedYes = VOTER_STORE.filter(v => v.voted && v.sup === 'yes').length;
+    const liveVotedNo = VOTER_STORE.filter(v => v.voted && v.sup === 'no').length;
+
+    const processedData = CANDIDATE_STORE.map((c, idx) => {
+        let manual = parseInt(c.manualOffset) || 0;
+        let live = (idx === 0) ? liveVotedYes : ((idx === 1) ? liveVotedNo : 0);
+        return {
+            name: c.name,
+            totalVotes: manual + live,
+            color: c.themeColor,
+            photo: c.photo || 'https://via.placeholder.com/50'
+        };
+    });
+
+    const grandTotalVotes = processedData.reduce((sum, c) => sum + c.totalVotes, 0);
+
+    // ބާ ޗާޓު އަޕްޑޭޓްކުރުން
+    barContainer.innerHTML = processedData.map(c => {
+        const percent = grandTotalVotes > 0 ? ((c.totalVotes / grandTotalVotes) * 100).toFixed(1) : 0;
+        return `
+            <div style="display:flex; flex-direction:column; align-items:center; width:110px; justify-content:flex-end; height:100%;">
+                <div style="color:#ffc300; font-weight:bold; margin-bottom:5px;">${percent}%</div>
+                <div style="width:50px; height:${percent * 3}px; background:${c.color}; border-radius:5px 5px 0 0; transition: height 0.5s;"></div>
+                <div style="font-size:11px; margin-top:5px; color:#fff; text-align:center;">${c.name}</div>
+            </div>
+        `;
+    }).join('');
+
+    // ލީޑަރބޯޑު އަޕްޑޭޓްކުރުން (ސޯޓް ކޮށްފައި)
+    const sortedCandidates = [...processedData].sort((a, b) => b.totalVotes - a.totalVotes);
+
+    leaderboardContainer.innerHTML = sortedCandidates.map((c, index) => {
+        const percent = grandTotalVotes > 0 ? ((c.totalVotes / grandTotalVotes) * 100).toFixed(1) : 0;
+        return `
+            <div style="display:flex; align-items:center; background:rgba(255,255,255,0.05); padding:12px; margin-bottom:10px; border-radius:12px; border-left:5px solid ${c.color};">
+                <div style="font-size:18px; font-weight:bold; color:#ffc300; width:30px;">${index + 1}</div>
+                <img src="${c.photo}" style="width:40px; height:40px; border-radius:50%; margin:0 12px; border:2px solid ${c.color};">
+                <div style="flex-grow:1;">
+                    <div style="font-family:'Faruma'; font-size:14px; color:#fff;">${c.name}</div>
+                    <div style="font-size:11px; color:#94a3b8;">${percent}%</div>
+                </div>
+                <div style="font-size:20px; font-weight:900; color:${c.color};">${c.totalVotes}</div>
+            </div>
+        `;
+    }).join('');
+
+    document.getElementById('total-voted-display').innerText = "ޖުމްލަ ވޯޓު: " + grandTotalVotes;
+}
 </script>
 </body>
 </html>
