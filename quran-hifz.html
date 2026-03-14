@@ -731,6 +731,103 @@ function logError(element, marks, category) {
     element.style.color = marks === 1.0 ? '#b71c1c' : '#f39c12';
     element.style.borderRadius = '4px';
 }
+    /* =========================================================
+   OPTIMIZED: QURAN ENGINE (FAST MUTA & ERROR LOGGING)
+   ========================================================= */
+
+function renderQuran(ayahs) {
+    const display = document.getElementById('quranDisplay');
+    
+    // އާޔަތްތައް ރެންޑަރ ކުރުން
+    display.innerHTML = ayahs.map(a => {
+        const words = a.text.split(' ').map(word => 
+            `<span class="q-word" 
+                   data-sname="${a.surah ? a.surah.name : ''}" 
+                   data-anum="${a.numberInSurah}"
+                   data-click-count="0">${word}</span>`
+        ).join(' ');
+        
+        return `<div class="ayah-row" style="display:inline;">${words} 
+                <span style="color:var(--royal-gold); font-weight:bold; margin-right:5px;">(${a.numberInSurah})</span></div>`;
+    }).join(' ');
+
+    // 1. މުތަޝާބިހް ހޯދުމަށް (މުޅި ޑިސްޕްލޭއަށް އެއް އިވެންޓް - މިއީ މާ ފާސްޓްވާނެ ގޮތަކީ)
+    display.onmouseup = function() {
+        setTimeout(() => {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+            
+            // ލަފްޒެއްގެ ދިގުމިން 5 އަކުރަށްވުރެ ގިނަނަމަ މުތަޝާބިހް ހޯދާ
+            if (selectedText.length > 5) {
+                handleMutaSearch(selectedText);
+                selection.removeAllRanges(); // ރިޕޯޓަށް ދިއުމުން ސެލެކްޝަން ފޮހެލުން
+            }
+        }, 10);
+    };
+
+    // 2. ކަލިމަތަކަށް ފިތުމުގެ އިވެންޓްތައް
+    document.querySelectorAll('.q-word').forEach(el => {
+        el.onclick = function(e) {
+            // ސެލެކްޓް ކުރާ ވަގުތު ކްލިކް އިވެންޓް ހުއްޓުވުން
+            if (window.getSelection().toString().length > 0) return;
+
+            if (e.detail === 1) { 
+                this.clickTimer = setTimeout(() => {
+                    let count = parseInt(this.getAttribute('data-click-count')) + 1;
+                    this.setAttribute('data-click-count', count);
+                    
+                    if (count === 1) {
+                        logError(this, 0.25, "ލަޙްނު ޚަފީ");
+                    } else if (count === 2) {
+                        logError(this, 0.50, "ލަޙްނު ޚަފީ");
+                    }
+                }, 250);
+            }
+        };
+
+        el.ondblclick = function() {
+            clearTimeout(this.clickTimer);
+            logError(this, 1.0, "ދެލިގަނޑު ކުށް / ލަޙްނު ޖަލީ");
+        };
+    });
+}
+
+// މުތަޝާބިހް ހޯދުން - Performance Optimized
+function handleMutaSearch(text) {
+    if (!quranFullData) return;
+    
+    let matches = [];
+    // ހަމައެކަނި ފުރަތަމަ ފެންނަ 3 މެޗު ހޯދުން (ސްޕީޑް އަވަސްކުރަން)
+    for (let s of quranFullData) {
+        for (let a of s.ayahs) {
+            if (a.text.includes(text)) {
+                matches.push({s: s.name, n: a.numberInSurah, t: a.text});
+            }
+            if (matches.length > 4) break; 
+        }
+        if (matches.length > 4) break;
+    }
+
+    if (matches.length > 1) {
+        const entry = document.createElement('div');
+        entry.className = 'rep-entry muta-box';
+        entry.style.animation = "slideIn 0.3s ease-out";
+        
+        entry.innerHTML = `
+            <div style="font-weight:900; color:var(--royal-green); border-bottom:1px solid #c3e6cb; padding-bottom:5px; margin-bottom:10px;">
+                މުތަޝާބިހް: "${text}"
+            </div>
+            ${matches.map(m => `
+                <div class="muta-match-content" style="font-size:18px; margin-bottom:8px; background:#fff; padding:8px; border-radius:5px;">
+                    ${m.t}
+                    <div class="muta-meta-data" style="margin-top:4px; color:#555;">📍 ${m.s} (${m.n})</div>
+                </div>`).join('')}
+        `;
+        const container = document.getElementById('entryContainer');
+        container.prepend(entry);
+        container.scrollTop = 0; // އެންމެ އާ ރިޕޯޓަށް ސްކްރޯލް ކުރުން
+    }
+}
 </script>
 </body>
 </html>
