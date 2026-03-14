@@ -624,6 +624,113 @@ function logError(element, marks, category) {
     element.style.color = marks === 1.0 ? '#b71c1c' : '#f39c12';
     element.style.fontWeight = 'bold';
 }
+    /* =========================================================
+   FIXED: QURAN ENGINE WITH MUTA & SMART ERROR LOGGING
+   ========================================================= */
+
+function renderQuran(ayahs) {
+    const display = document.getElementById('quranDisplay');
+    
+    // އާޔަތްތައް ބަސްތަކަށް ވަކިކޮށް، ކޮންމެ ބަހަކަށް އަމިއްލަ އިވެންޓެއް ދިނުން
+    display.innerHTML = ayahs.map(a => {
+        const words = a.text.split(' ').map(word => 
+            `<span class="q-word" 
+                   data-sname="${a.surah ? a.surah.name : ''}" 
+                   data-anum="${a.numberInSurah}"
+                   data-juz="${a.juz}"
+                   data-click-count="0">${word}</span>`
+        ).join(' ');
+        
+        return `<span class="ayah-wrap" data-fulltext="${a.text}">${words} 
+                <span style="color:var(--royal-gold); font-weight:bold;">(${a.numberInSurah})</span></span>`;
+    }).join(' ');
+
+    // އިވެންޓްތައް ހަމަޖެއްސުން
+    document.querySelectorAll('.q-word').forEach(el => {
+        
+        // 1. މުތަޝާބިހް ބެލުމަށް (Mouse Up)
+        el.addEventListener('mouseup', function() {
+            const selection = window.getSelection().toString().trim();
+            if (selection.length > 4) {
+                handleMutaSearch(selection);
+            }
+        });
+
+        // 2. ކަލިމައަށް ފިތާލުމުން (Single & Double Click Logic)
+        el.addEventListener('click', function(e) {
+            if (e.detail === 1) { 
+                this.clickTimer = setTimeout(() => {
+                    let count = parseInt(this.getAttribute('data-click-count')) + 1;
+                    this.setAttribute('data-click-count', count);
+                    
+                    if (count === 1) {
+                        logError(this, 0.25, "ލަޙްނު ޚަފީ");
+                    } else if (count === 2) {
+                        logError(this, 0.50, "ލަޙްނު ޚަފީ");
+                    }
+                }, 250);
+            }
+        });
+
+        // 3. ޑަބަލް ކްލިކް (ދެލިގަނޑު ކުށް)
+        el.addEventListener('dblclick', function(e) {
+            clearTimeout(this.clickTimer);
+            logError(this, 1.0, "ދެލިގަނޑު ކުށް / ލަޙްނު ޖަލީ");
+        });
+    });
+}
+
+// މުތަޝާބިހް ހޯދާ ފަންކްޝަން
+function handleMutaSearch(text) {
+    let matches = [];
+    quranFullData.forEach(s => {
+        s.ayahs.forEach(a => {
+            if (a.text.includes(text)) {
+                matches.push({s: s.name, n: a.numberInSurah, t: a.text});
+            }
+        });
+    });
+
+    if (matches.length > 1) { // އެއް އާޔަތަށްވުރެ ގިނަ ނަމަ (މުތަޝާބިހް)
+        const entry = document.createElement('div');
+        entry.className = 'rep-entry muta-box';
+        entry.innerHTML = `
+            <div style="font-weight:900; color:var(--royal-green);">މުތަޝާބިހް ފާހަގަކުރެވިއްޖެ: "${text}"</div>
+            ${matches.slice(0, 3).map(m => `
+                <div class="muta-match-content">${m.t}
+                    <span class="muta-meta-data">📍 ${m.s} | އާޔަތް: ${m.n}</span>
+                </div>`).join('')}
+        `;
+        document.getElementById('entryContainer').prepend(entry);
+    }
+}
+
+// ކުށް ރިޕޯޓްކުރާ ފަންކްޝަން
+function logError(element, marks, category) {
+    const sName = element.getAttribute('data-sname');
+    const aNum = element.getAttribute('data-anum');
+    const word = element.innerText;
+
+    deduct('ކިޔެވުން', marks);
+
+    const entry = document.createElement('div');
+    entry.className = 'rep-entry error-box';
+    entry.style.borderRight = marks === 1.0 ? "12px solid #b71c1c" : "12px solid #f39c12";
+    
+    entry.innerHTML = `
+        <div style="font-weight:900; display:flex; justify-content:space-between;">
+            <span>${category}</span>
+            <span style="color:#e74c3c;">-${marks}</span>
+        </div>
+        <div class="muta-match-content" style="font-size:20px; margin-top:5px;">${word}</div>
+        <span class="muta-meta-data">📍 ސޫރަތް: ${sName} | އާޔަތް: ${aNum}</span>
+    `;
+    
+    document.getElementById('entryContainer').prepend(entry);
+    element.style.background = marks === 1.0 ? '#ffebee' : '#fff9db';
+    element.style.color = marks === 1.0 ? '#b71c1c' : '#f39c12';
+    element.style.borderRadius = '4px';
+}
 </script>
 </body>
 </html>
