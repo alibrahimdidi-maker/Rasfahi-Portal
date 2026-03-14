@@ -294,11 +294,17 @@
                         <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">ދަރިވަރުގެ ނަން:</label>
                         <input type="text" id="stuName" placeholder="ދަރިވަރުގެ ނަން ލިޔުއްވާ..." oninput="syncSummary(); autoSave();">
                     </div>
-                    <div>
+                   <div>
                         <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">ސޫރަތް:</label>
                         <select id="surahSelect" onchange="fetchSurah(); autoSave();"></select>
                     </div>
-                </div>
+                    
+                    <div>
+                        <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">ފޮތް (ޖުޒު):</label>
+                        <select id="juzSelect" onchange="fetchJuz(); autoSave();">
+                            <option value="">ފޮތެއް ނަންގަވާ</option>
+                        </select>
+                    </div>
 
                 <div id="quranDisplay" class="q-text">
                     <p style="text-align:center; color:#ccc; margin-top:150px; font-size:24px;">ކިޔަވަން ފެށުމަށް ސޫރަތެއް ނަންގަވާ!</p>
@@ -605,6 +611,50 @@
     autoSave();
     
     selection.removeAllRanges(); // ސިލެކްޝަން ދޫކޮށްލުން
+}
+    const juzSel = document.getElementById('juzSelect');
+for (let i = 1; i <= 30; i++) {
+    juzSel.innerHTML += `<option value="${i}">ފޮތް ${i}</option>`;
+}
+    async function fetchJuz(savedVal = null) {
+    const juzNum = savedVal || document.getElementById('juzSelect').value;
+    if (!juzNum) return;
+    
+    // ސޫރަތް ސިލެކްޓް ބޮކްސް ހުސްކޮށްލުން (އޮޅުން ނުއަރާނެހެން)
+    if(!savedVal) document.getElementById('surahSelect').value = "";
+
+    const display = document.getElementById('quranDisplay');
+    display.innerHTML = '<p style="text-align:center; color:var(--royal-gold);">ލޯޑްވަނީ...</p>';
+
+    // API އިން އެ ފޮތެއްގެ އާޔަތްތައް ނެގުން
+    const res = await fetch(`https://api.alquran.cloud/v1/juz/${juzNum}/quran-uthmani`);
+    const json = await res.json();
+    const ayahs = json.data.ayahs;
+
+    display.innerHTML = ayahs.map(a => 
+        `<span class="ayah-item" 
+               data-sname="${a.surah.name}" 
+               data-anum="${a.numberInSurah}" 
+               data-page="${a.page}" 
+               data-juz="${a.juz}">
+            ${a.text}
+        </span> 
+        <span style="color:var(--royal-gold); font-weight:bold; font-size:22px;"> (${a.numberInSurah}) </span>`
+    ).join(' ');
+
+    // އިވެންޓް ލިސްނާސް އަލުން ހަރުކުރުން (ކުށް ފާހަގަކުރުމަށް)
+    document.querySelectorAll('.ayah-item').forEach(el => {
+        el.addEventListener('mouseup', () => { 
+            clearTimeout(clickTracker); 
+            clickTracker = setTimeout(handleMutaSearch, 300); 
+        });
+        el.addEventListener('dblclick', (e) => { 
+            clearTimeout(clickTracker); 
+            logDirectError(e); 
+        });
+    });
+    
+    syncSummary();
 }
 </script>
 </body>
