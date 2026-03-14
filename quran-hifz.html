@@ -991,6 +991,51 @@ function handleMutaSearch(text) {
         container.scrollTop = 0;
     }
 }
+    /* =========================================================
+   ADVANCED LICENSE VALIDATION (INTERNET SYNC OPTION)
+   ========================================================= */
+
+async function validateLic() {
+    const val = document.getElementById('licInput').value.trim();
+    const err = document.getElementById('licError');
+    
+    try {
+        const dec = atob(val);
+        if (dec.startsWith("ROYAL_EXP_")) {
+            // ކީގެ ތެރެއިން އެކްސްޕަޔަރީ ޑޭޓް ނެގުން (Format: ROYAL_EXP_YYYY-MM-DD_CUST_Name)
+            const parts = dec.split('_');
+            const expiryStr = parts[2]; 
+            const name = dec.split("_CUST_")[1];
+            
+            const expiryDate = new Date(expiryStr);
+            let currentDate = new Date();
+
+            // އިންޓަނެޓް ހުރިތޯ ބަލައި، ވޯލްޑް ޓައިމް އޭޕީއައި އިން ވަގުތު ހޯދުން
+            try {
+                const response = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC', { timeout: 2000 });
+                const timeData = await response.json();
+                currentDate = new Date(timeData.utc_datetime);
+                console.log("Using Internet Time ✅");
+            } catch (e) {
+                console.log("Offline: Using Local System Time ⚠️");
+            }
+
+            // މުއްދަތު ހަމަވެފައިވޭތޯ ޗެކްކުރުން
+            if (currentDate > expiryDate) {
+                err.innerText = "މި ލައިސަންސްގެ މުއްދަތު ވަނީ ހަމަވެފައި! (Expired: " + expiryStr + ")";
+                return;
+            }
+
+            localStorage.setItem('royal_v15_active', 'true');
+            localStorage.setItem('royal_v15_user', name);
+            bootApp(name);
+        } else {
+            err.innerText = "ސައްޙަ ނޫން ކީއެއް!";
+        }
+    } catch(e) {
+        err.innerText = "ލައިސަންސް ކީ ކޯޑު ކުރުމުގައި މައްސަލައެއް އުޅޭ!";
+    }
+}
 </script>
 </body>
 </html>
