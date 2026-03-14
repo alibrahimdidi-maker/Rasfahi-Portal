@@ -924,6 +924,73 @@ const words = a.text.split(' ').map(word =>
            data-page="${a.page}"
            data-click-count="0">${word}</span>`
 ).join(' ');
+    /* =========================================================
+   ADVANCED MUTA SEARCH: NORMALIZED STRING MATCHING
+   ========================================================= */
+
+// 1. އަކުރުތަކުން ފިލި އަދި މަައްދު އުނިކުރާ ފަންކްޝަން
+function normalizeArabic(text) {
+    return text
+        .replace(/[\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E8\u06EA-\u06ED]/g, "") // ފިލިތަކާއި ކުދި އަލިފް
+        .replace(/[أإآ]/g, "ا") // ހުރިހާ އަލިފެއް އެއްގޮތްކުރުން
+        .replace(/ة/g, "ه")    // ތާބޫތާ އެއްގޮތްކުރުން
+        .replace(/ى/g, "ي");    // އަލިފް މަޤްޞޫރާ އެއްގޮތްކުރުން
+}
+
+// 2. އިސްލާހުކުރެވިފައިވާ މުތަޝާބިހް ސާޗް ފަންކްޝަން
+function handleMutaSearch(text) {
+    if (!quranFullData || text.length < 3) return;
+    
+    const searchNorm = normalizeArabic(text);
+    let matches = [];
+
+    for (let s of quranFullData) {
+        for (let a of s.ayahs) {
+            const ayahNorm = normalizeArabic(a.text);
+            
+            // އާދައިގެ ލަފްޒުތަކުން މެޗުވޭތޯ ބެލުން
+            if (ayahNorm.includes(searchNorm)) {
+                matches.push({
+                    sName: s.name, 
+                    aNum: a.numberInSurah, 
+                    juz: a.juz, 
+                    page: a.page, 
+                    text: a.text
+                });
+            }
+            if (matches.length > 15) break; // ގިނަ މެޗުތައް ފެންނަގޮތަށް ލިމިޓް މަތިކުރުން
+        }
+        if (matches.length > 15) break;
+    }
+
+    if (matches.length > 1) {
+        const entry = document.createElement('div');
+        entry.className = 'rep-entry muta-box';
+        entry.style.borderRight = "12px solid #2e7d32";
+        
+        entry.innerHTML = `
+            <div style="font-weight:900; color:#1b5e20; border-bottom:2px solid #c8e6c9; padding-bottom:8px; margin-bottom:12px; display:flex; justify-content:space-between;">
+                <span>🔍 އެއްގޮތް އާޔަތްތައް (މުތަޝާބިހް): "${text}"</span>
+                <span style="background:#2e7d32; color:white; padding:0 10px; border-radius:10px;">${matches.length} ފެނިއްޖެ</span>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto; padding-right:5px;">
+                ${matches.map(m => `
+                    <div class="muta-match-content" style="font-size:19px; margin-bottom:12px; background:#fff; padding:15px; border-radius:10px; border:1px solid #e0e0e0; box-shadow: 2px 2px 5px rgba(0,0,0,0.02);">
+                        <div style="line-height:1.6;">${m.text}</div>
+                        <div class="muta-meta-data" style="margin-top:10px; color:#666; font-size:12px; display:flex; gap:15px; border-top:1px dashed #eee; padding-top:8px;">
+                            <span>📍 <b>${m.sName}</b></span>
+                            <span>🔢 އާޔަތް: <b>${m.aNum}</b></span>
+                            <span>📖 ފޮތް: <b>${m.juz}</b></span>
+                            <span>📄 ޞަފުޙާ: <b>${m.page}</b></span>
+                        </div>
+                    </div>`).join('')}
+            </div>
+        `;
+        const container = document.getElementById('entryContainer');
+        container.prepend(entry);
+        container.scrollTop = 0;
+    }
+}
 </script>
 </body>
 </html>
