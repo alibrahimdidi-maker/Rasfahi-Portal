@@ -208,13 +208,8 @@
             max-height: 95vh; display: flex; flex-direction: column;
         }
         
-        .grid-scroll-wrapper {
-            flex: 1; overflow-y: auto; padding: 10px; margin-top: 20px;
-        }
-
-        .grid-container { 
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px; 
-        }
+        .grid-scroll-wrapper { flex: 1; overflow-y: auto; padding: 10px; margin-top: 20px; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px; }
         .grid-btn { 
             background: linear-gradient(135deg, var(--royal-blue), var(--royal-blue-light)); color: var(--royal-gold); 
             border-radius: 15px; padding: 30px 10px; text-align: center; cursor: pointer; 
@@ -232,10 +227,8 @@
         
         .quran-display-area { padding: 40px; overflow-y: auto; text-align: center; direction: rtl; display: flex; flex-direction: column; align-items: center; justify-content:center; width: 100%; height: 100%;}
         
-        /* VERY ROYAL READING BOX */
         .royal-reading-box {
-            background: #ffffff; 
-            border: 12px solid var(--royal-gold); 
+            background: #ffffff; border: 12px solid var(--royal-gold); 
             outline: 4px solid var(--royal-blue); outline-offset: 6px;
             padding: 60px 80px; border-radius: 5px; 
             box-shadow: inset 0 0 50px rgba(197,160,89,0.15), 0 20px 50px rgba(0,0,0,0.2);
@@ -259,7 +252,6 @@
         .judge-layout { display: grid; grid-template-columns: 1fr 480px; height: 100vh; overflow: hidden; background:var(--bg-light); position: fixed; inset: 0; z-index: 1000;}
         .judge-main { padding: 30px; background: white; overflow-y: auto; display: flex; flex-direction: column; align-items: center; border-left: 3px solid var(--royal-gold);}
         
-        /* Judge reading box mirrors student but smaller */
         .judge-quran-box { 
             background: #ffffff; border: 6px solid var(--royal-gold); outline: 2px solid var(--royal-blue); outline-offset: 3px;
             padding: 40px; border-radius: 5px; width: 100%; max-width: 1200px; font-family: 'Amiri', serif; 
@@ -288,7 +280,7 @@
         .log-item span.arabic { font-family: 'Amiri', serif; font-size: 24px; margin-right: 10px; font-weight:bold;}
 
         /* =========================================
-           8. WAITING ROOM TV (ROYAL FLUID DESIGN)
+           7. WAITING ROOM TV (ROYAL FLUID DESIGN)
         ========================================= */
         .tv-wrapper { 
             height: 100vh; width: 100vw; 
@@ -866,10 +858,7 @@
     let myJudgeMarks = { c1: 40, c2: 20, c3: 10, c4: 10, c5: 10, c6: 10 }; let myJudgeLogs = [];
     
     window.onload = async function() {
-        // Essential list loads
-        initFilters(); 
-        fetchSurahList(); 
-        populateJuzList();
+        initFilters(); fetchSurahList(); populateJuzList();
 
         const urlParams = new URLSearchParams(window.location.search);
         let role = urlParams.get('role');
@@ -1171,6 +1160,7 @@
         st.ageGroup = stu.f_ageGroup;
         st.pickCount = parseInt(document.getElementById('ctrl_qToPick').value) || 1;
         
+        // Grid persists for the session. Just reset the selection for the new student.
         st.status = 'grid'; 
         st.quranHtml = ''; 
         st.selectedQ = []; 
@@ -1303,6 +1293,7 @@
             }
 
             let allChunks = [];
+            // Sliding window to generate plenty of unique chunks
             for(let i=0; i<allAyahs.length; i++) {
                 let currentChunk = []; let currentWCount = 0; let j = i;
                 while(j < allAyahs.length && currentWCount < targetWords) {
@@ -1331,6 +1322,7 @@
                 }
             }
 
+            // Shuffle and pick 20 unique chunks
             let usedHistory = JSON.parse(localStorage.getItem('rasfahi_q_history') || '[]');
             let availableChunks = allChunks.filter(c => !usedHistory.includes(c.hash));
             
@@ -1482,7 +1474,7 @@
             let qLogs = myJudgeLogs.filter(l => l.qIndex === i);
             if(qLogs.length > 0) {
                 logHtml += `<div style="background:#f0f4f8; padding:10px; margin-top:15px; font-weight:bold; color:var(--royal-blue); border-radius:5px; border-right:4px solid var(--royal-gold);">${i+1} ވަނަ ސުވާލުގެ ކުށްތައް:</div>`;
-                let reversedLogs = [...qLogs].reverse(); 
+                let reversedLogs = [...qLogs].reverse(); // latest on top inside the group
                 logHtml += reversedLogs.map(l => l.html).join('');
             }
         }
@@ -1561,6 +1553,8 @@
     
     function printJudgeReport() {
         let st = getLiveState(); if(!st.student || st.student === '---') return alert("ދަރިވަރެއް ނެތް!");
+        
+        // Populate the hidden print area with the current values
         document.getElementById('jp_stuName').innerText = "ދަރިވަރު: " + st.student; 
         document.getElementById('jp_idCard').innerText = "އައިޑީ: " + (st.idCard || "---"); 
         document.getElementById('jp_judgeIdDisplay').innerText = "ޖަޖު: " + currentJudgeId;
@@ -1576,10 +1570,19 @@
         document.getElementById('jp_errorLog').innerHTML = document.getElementById('jdg_errorLog').innerHTML;
         document.getElementById('jp_comment').innerText = document.getElementById('jdg_comment').value || "";
         
+        // Switch body class to show only the print area
         document.body.className = 'print-judge-live';
-        let originalTitle = document.title; document.title = st.idCard ? st.idCard : "Student_Report";
+        
+        // Set title for PDF saving
+        let originalTitle = document.title; 
+        document.title = st.idCard ? st.idCard + "_JudgeReport" : "Student_Report";
+        
+        // Call Print
         window.print();
-        document.title = originalTitle; document.body.className = '';
+        
+        // Revert back
+        document.title = originalTitle; 
+        document.body.className = '';
     }
 
     // --- CSV PARSER (Fixes undefined fields when empty) ---
