@@ -398,11 +398,19 @@
         const email = document.getElementById('login-email').value.toLowerCase();
         const pass = document.getElementById('login-password').value;
         
-        // 🔒 SECURITY: Strict Email Validation against Role
-        if (role !== 'ALL') {
+        // 🔒 STRICT SECURITY LOGIC: Stop cross-faculty and unauthorized admin logins
+        if (role === 'ALL') {
+            // Check if this email has ANY faculty abbreviation in it. If yes, block it.
+            const isFacultyEmail = FACULTIES.some(f => email.includes(`.${f.toLowerCase()}@`) || email.includes(`${f.toLowerCase()}@`));
+            if (isFacultyEmail) {
+                alert("Security Block:\nFaculty accounts are strictly prohibited from accessing the Global Admin role.");
+                return;
+            }
+        } else {
+            // Check if the selected faculty matches the email's faculty code
             const facultyCode = role.toLowerCase();
             if (!email.includes(`.${facultyCode}@`) && !email.includes(`${facultyCode}@`)) {
-                alert(`Security Block:\nThe email provided (${email}) does not map to the Faculty of ${role}.\nYou cannot log into a faculty with an unauthorized email.`);
+                alert(`Security Block:\nThe email provided (${email}) is not authorized to manage the Faculty of ${role}.`);
                 return;
             }
         }
@@ -568,142 +576,6 @@
         }
     };
 
-    // 🚀 NEW: MASTER CSV IMPORT (Admin Only)
-    window.importMasterCSV = async (event) => {
-        if (activeRole !== 'ALL') return alert("Unauthorized Action.");
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const loader = document.getElementById('loader');
-        loader.style.display = 'flex';
-        document.getElementById('loader-text').innerText = "Restoring Master Backup...";
-
-        Papa.parse(file, {
-            header: true, skipEmptyLines: true,
-            complete: async (res) => {
-                try {
-                    const data = res.data;
-                    const CHUNK_SIZE = 450;
-                    
-                    if (!dbCloud) {
-                        alert("Cannot restore Master CSV while offline.");
-                        loader.style.display = 'none'; return;
-                    }
-
-                    let moduleCount = 0;
-                    let assignmentCount = 0;
-
-                    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
-                        const chunk = data.slice(i, i + CHUNK_SIZE);
-                        const batch = writeBatch(dbCloud);
-                        let hasWrites = false;
-
-                        chunk.forEach(row => {
-                            let rawId = window.getSafeVal(row, ['ModuleCode', 'Code']);
-                            if(rawId) {
-                                let safeId = String(rawId).trim().replace(/\//g, '-');
-                                
-                                // Cleanse row from system injected properties before saving module
-                                let moduleData = { ...row };
-                                delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID;
-                                delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME;
-                                delete moduleData.SYSTEM_SYNC_MODE;
-
-                                batch.set(doc(dbCloud, 'modules', safeId), moduleData);
-                                moduleCount++; hasWrites = true;
-
-                                // Restore Assignment logic
-                                let lectId = row['SYSTEM_ASSIGNED_LECTURER_ID'];
-                                let mode = row['SYSTEM_SYNC_MODE'] || 'Individual';
-                                
-                                if(lectId && lectId !== "UNASSIGNED") {
-                                    batch.set(doc(dbCloud, 'assignments', safeId), { id: lectId, mode: mode }, { merge: true });
-                                    assignmentCount++;
-                                }
-                            }
-                        });
-
-                        if(hasWrites) await batch.commit();
-                    }
-                    alert(`✅ Backup Restored!\nModules Loaded: ${moduleCount}\nAssignments Restored: ${assignmentCount}`);
-                } catch(err) {
-                    console.error("Master Restore Error", err);
-                    alert("Master Restore Failed.");
-                } finally {
-                    loader.style.display = 'none';
-                    event.target.value = '';
-                }
-            }
-        });
-    };
-
-    // 🚀 NEW: MASTER RESET LOGIC (Admin Only)
-    window.masterReset = async () => {
-        if (activeRole !== 'ALL') return alert("Unauthorized Action.");
-        
-        const confirm1 = confirm("🚨 WARNING 🚨\nThis action will WIPE ALL UNIVERSITY DATA (Modules, Lecturers, and Assignments) from the cloud database.\n\nAre you sure you want to proceed?");
-        if(!confirm1) return;
-
-        const confirmCode = prompt("To execute MASTER RESET, please type 'CONFIRM RESET' below:");
-        if(confirmCode !== "CONFIRM RESET") {
-            alert("Reset Aborted. Incorrect confirmation code.");
-            return;
-        }
-
-        const loader = document.getElementById('loader');
-        loader.style.display = 'flex';
-        document.getElementById('loader-text').innerText = "WIPING ENTIRE DATABASE...";
-
-        try {
-            // 1. Wipe Local Storage
-            localStorage.removeItem('workload_assignments_cache');
-            
-            // 2. Wipe Cloud Firestore (Using existing fetched keys for batch deletion)
-            if(dbCloud) {
-                const batch = writeBatch(dbCloud);
-                let deleteCount = 0;
-
-                // Stage Modules
-                localDB.modules.forEach(m => {
-                    let id = String(window.getSafeVal(m, ['ModuleCode'])).replace(/\//g, '-');
-                    if(id) { batch.delete(doc(dbCloud, 'modules', id)); deleteCount++; }
-                });
-
-                // Stage Lecturers
-                localDB.lecturers.forEach(l => {
-                    let id = String(window.getSafeVal(l, ['LecturerID', 'NationalID'])).replace(/\//g, '-');
-                    if(id) { batch.delete(doc(dbCloud, 'lecturers', id)); deleteCount++; }
-                });
-
-                // Stage Assignments
-                Object.keys(localDB.assignments).forEach(id => {
-                    batch.delete(doc(dbCloud, 'assignments', id)); deleteCount++;
-                });
-
-                if(deleteCount > 0) {
-                    // Firestore batches have 500 limit. If a university has massive data, a single batch might fail.
-                    // For safety in massive resets, this simplified script attempts one mega commit. 
-                    // In real scale over 500 items, we would chunk the deletions as well.
-                    await batch.commit(); 
-                }
-            }
-
-            // 3. Clear Arrays
-            localDB = { lecturers: [], modules: [], assignments: {} };
-            
-            window.renderMatrix(); window.updateAnalytics(); window.populateLecturerDropdown();
-            alert("✅ SYSTEM RESET SUCCESSFUL.\nAll data has been wiped.");
-
-        } catch(error) {
-            console.error("Reset Error", error);
-            // If batch limit exceeded during reset, inform user
-            alert("⚠️ Partial Reset Completed. If data remains, please hit Reset again (Firebase Batch Limit reached).");
-            location.reload();
-        } finally {
-            loader.style.display = 'none';
-        }
-    };
-
     window.populateLecturerDropdown = () => {
         const select = document.getElementById('hrSelect');
         select.innerHTML = '<option value="">-- Check Lecturer Workload --</option>';
@@ -819,7 +691,6 @@
     };
 
     window.assignLecturer = (mCode, lectId) => {
-        // 🔒 BACKEND SECURITY LOGIC: Double check auth before modifying local arrays
         const m = localDB.modules.find(mod => String(window.getSafeVal(mod, ['ModuleCode'])).replace(/\//g, '-') === mCode);
         const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
         if (activeRole !== 'ALL' && !mFac.includes(activeRole)) {
@@ -846,6 +717,7 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
+    // 🚀 NEW: FIXED SERVER HANG - Batched Save Logic
     window.saveToServer = async () => {
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -859,26 +731,49 @@
         }
 
         try {
-            const batch = writeBatch(dbCloud);
-            let hasWrites = false;
-            
+            // First, collect all the valid assignments that the user is allowed to save
+            let validAssignments = [];
             Object.keys(localDB.assignments).forEach(mCode => {
                 const m = localDB.modules.find(mod => String(window.getSafeVal(mod, ['ModuleCode'])).replace(/\//g, '-') === mCode);
                 if (m) {
                     const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
-                    // 🔒 Only save things belonging to user's faculty to prevent overriding others
                     if (activeRole === 'ALL' || mFac.includes(activeRole)) {
-                        batch.set(doc(dbCloud, "assignments", mCode), localDB.assignments[mCode], { merge: true });
-                        hasWrites = true;
+                        validAssignments.push({ code: mCode, data: localDB.assignments[mCode] });
                     }
                 }
             });
+
+            if(validAssignments.length === 0) {
+                alert("No active assignments found to save.");
+                loader.style.display = 'none'; return;
+            }
+
+            // Chunk the assignments to prevent Firebase "Batch too large" error which causes hanging
+            const CHUNK_SIZE = 450;
+            let totalSaved = 0;
+
+            for (let i = 0; i < validAssignments.length; i += CHUNK_SIZE) {
+                const chunk = validAssignments.slice(i, i + CHUNK_SIZE);
+                const batch = writeBatch(dbCloud);
+                let hasWrites = false;
+
+                chunk.forEach(item => {
+                    batch.set(doc(dbCloud, "assignments", item.code), item.data, { merge: true });
+                    hasWrites = true;
+                    totalSaved++;
+                });
+
+                if (hasWrites) {
+                    // Added a safety timeout so the loader doesn't spin forever if internet drops
+                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out due to slow internet.")), 15000));
+                    await Promise.race([batch.commit(), timeout]);
+                }
+            }
             
-            if (hasWrites) await batch.commit();
-            alert("✅ Successfully saved your work to the University Server!");
+            alert(`✅ Successfully saved ${totalSaved} assignments to the University Server!`);
         } catch (error) {
             console.error("Save error", error);
-            alert("Server sync failed. Your work is safe locally in the browser.");
+            alert("Server sync failed: " + error.message + "\nYour work is still safe locally in the browser.");
         } finally {
             loader.style.display = 'none';
         }
@@ -918,6 +813,128 @@
             };
         });
         downloadCSV(exportData, "Academic_Affairs_Master_Workload.csv");
+    };
+
+    window.importMasterCSV = async (event) => {
+        if (activeRole !== 'ALL') return alert("Unauthorized Action.");
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const loader = document.getElementById('loader');
+        loader.style.display = 'flex';
+        document.getElementById('loader-text').innerText = "Restoring Master Backup...";
+
+        Papa.parse(file, {
+            header: true, skipEmptyLines: true,
+            complete: async (res) => {
+                try {
+                    const data = res.data;
+                    const CHUNK_SIZE = 450;
+                    
+                    if (!dbCloud) {
+                        alert("Cannot restore Master CSV while offline.");
+                        loader.style.display = 'none'; return;
+                    }
+
+                    let moduleCount = 0;
+                    let assignmentCount = 0;
+
+                    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+                        const chunk = data.slice(i, i + CHUNK_SIZE);
+                        const batch = writeBatch(dbCloud);
+                        let hasWrites = false;
+
+                        chunk.forEach(row => {
+                            let rawId = window.getSafeVal(row, ['ModuleCode', 'Code']);
+                            if(rawId) {
+                                let safeId = String(rawId).trim().replace(/\//g, '-');
+                                
+                                let moduleData = { ...row };
+                                delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID;
+                                delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME;
+                                delete moduleData.SYSTEM_SYNC_MODE;
+
+                                batch.set(doc(dbCloud, 'modules', safeId), moduleData);
+                                moduleCount++; hasWrites = true;
+
+                                let lectId = row['SYSTEM_ASSIGNED_LECTURER_ID'];
+                                let mode = row['SYSTEM_SYNC_MODE'] || 'Individual';
+                                
+                                if(lectId && lectId !== "UNASSIGNED") {
+                                    batch.set(doc(dbCloud, 'assignments', safeId), { id: lectId, mode: mode }, { merge: true });
+                                    assignmentCount++;
+                                }
+                            }
+                        });
+
+                        if(hasWrites) await batch.commit();
+                    }
+                    alert(`✅ Backup Restored!\nModules Loaded: ${moduleCount}\nAssignments Restored: ${assignmentCount}`);
+                } catch(err) {
+                    console.error("Master Restore Error", err);
+                    alert("Master Restore Failed.");
+                } finally {
+                    loader.style.display = 'none';
+                    event.target.value = '';
+                }
+            }
+        });
+    };
+
+    window.masterReset = async () => {
+        if (activeRole !== 'ALL') return alert("Unauthorized Action.");
+        
+        const confirm1 = confirm("🚨 WARNING 🚨\nThis action will WIPE ALL UNIVERSITY DATA (Modules, Lecturers, and Assignments) from the cloud database.\n\nAre you sure you want to proceed?");
+        if(!confirm1) return;
+
+        const confirmCode = prompt("To execute MASTER RESET, please type 'CONFIRM RESET' below:");
+        if(confirmCode !== "CONFIRM RESET") {
+            alert("Reset Aborted. Incorrect confirmation code.");
+            return;
+        }
+
+        const loader = document.getElementById('loader');
+        loader.style.display = 'flex';
+        document.getElementById('loader-text').innerText = "WIPING ENTIRE DATABASE...";
+
+        try {
+            localStorage.removeItem('workload_assignments_cache');
+            
+            if(dbCloud) {
+                const batch = writeBatch(dbCloud);
+                let deleteCount = 0;
+
+                localDB.modules.forEach(m => {
+                    let id = String(window.getSafeVal(m, ['ModuleCode'])).replace(/\//g, '-');
+                    if(id) { batch.delete(doc(dbCloud, 'modules', id)); deleteCount++; }
+                });
+
+                localDB.lecturers.forEach(l => {
+                    let id = String(window.getSafeVal(l, ['LecturerID', 'NationalID'])).replace(/\//g, '-');
+                    if(id) { batch.delete(doc(dbCloud, 'lecturers', id)); deleteCount++; }
+                });
+
+                Object.keys(localDB.assignments).forEach(id => {
+                    batch.delete(doc(dbCloud, 'assignments', id)); deleteCount++;
+                });
+
+                if(deleteCount > 0) {
+                    await batch.commit(); 
+                }
+            }
+
+            localDB = { lecturers: [], modules: [], assignments: {} };
+            
+            window.renderMatrix(); window.updateAnalytics(); window.populateLecturerDropdown();
+            alert("✅ SYSTEM RESET SUCCESSFUL.\nAll data has been wiped.");
+
+        } catch(error) {
+            console.error("Reset Error", error);
+            alert("⚠️ Partial Reset Completed. If data remains, please hit Reset again (Firebase Batch Limit reached).");
+            location.reload();
+        } finally {
+            loader.style.display = 'none';
+        }
     };
 
     window.checkAssignedWorkload = (mCode) => {
