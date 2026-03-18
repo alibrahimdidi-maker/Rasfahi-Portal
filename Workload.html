@@ -47,7 +47,7 @@
         
         #loader { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center; }
         .progress-bar { width: 250px; height: 8px; background: #e2e8f0; border-radius: 10px; margin-top: 15px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
-        .progress-fill { height: 100%; background: var(--royal-green); width: 0%; transition: width 0.4s ease-out; }
+        .progress-fill { height: 100%; background: var(--royal-green); width: 0%; transition: width 0.2s ease-out; }
         
         /* Pulse Animation */
         .pulse-green { height: 8px; width: 8px; background-color: #4ade80; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
@@ -327,21 +327,28 @@
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
-    // Universal Safe ID
     window.makeSafeId = (id) => {
         if (!id) return `UNKNOWN-${Math.floor(Math.random()*100000)}`;
         return String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
     };
 
-    const getRoleFromEmail = (email) => {
-        if (!email || !email.includes('@')) return 'ALL';
-        const localPart = email.toLowerCase().trim().split('@')[0];
-        const parts = localPart.split(/[\.\-_]/);
-        
-        for (let f of FACULTIES) {
-            if (parts.includes(f.toLowerCase())) return f;
+    const getNormalizedPrefix = (email) => {
+        if (!email || !email.includes('@')) return "";
+        return email.split('@')[0].toLowerCase().replace(/[\.\-_]/g, ' ');
+    };
+
+    const validateRoleEmail = (role, email) => {
+        const prefix = getNormalizedPrefix(email);
+        if (role === 'ALL') {
+            for (const f of FACULTIES) {
+                const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
+                if (regex.test(prefix)) return false; 
+            }
+            return true;
+        } else {
+            const regex = new RegExp(`\\b${role.toLowerCase()}\\b`);
+            return regex.test(prefix);
         }
-        return 'ALL';
     };
 
     const loadLocalCache = () => {
@@ -377,15 +384,35 @@
     window.detectFacultyFromEmail = () => {
         const email = document.getElementById('login-email').value;
         const roleSelect = document.getElementById('login-role');
-        const role = getRoleFromEmail(email);
-        roleSelect.value = role;
+        const prefix = getNormalizedPrefix(email);
+        
+        let found = false;
+        FACULTIES.forEach(f => {
+            const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
+            if (regex.test(prefix)) {
+                roleSelect.value = f;
+                roleSelect.style.borderColor = "var(--gold)";
+                found = true;
+            }
+        });
+        if (!found && email.length > 0) {
+            roleSelect.value = 'ALL';
+            roleSelect.style.borderColor = "var(--gold)";
+        }
     };
 
     if (auth) {
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                activeRole = getRoleFromEmail(user.email);
-                localStorage.setItem('userRole', activeRole);
+                activeRole = localStorage.getItem('userRole') || 'ALL';
+                
+                if (!validateRoleEmail(activeRole, user.email)) {
+                    alert("[ސެކިއުރިޓީ ބްލޮކް]: ރޯލް އަދި އީމެއިލް ދިމައެއްނުވޭ. ލޮގްއައުޓް ކުރެވެނީ.");
+                    await signOut(auth);
+                    localStorage.removeItem('userRole');
+                    location.reload();
+                    return;
+                }
 
                 document.getElementById('user-badge').innerText = activeRole;
                 document.getElementById('login-screen').style.display = 'none';
@@ -408,26 +435,30 @@
     }
 
     window.handleLogin = async () => {
-        if (!auth) return alert("Firebase Auth not initialized.");
+        if (!auth) return alert("Firebase Auth not initialized. ކޯޑު ޗެކްކުރައްވާ.");
+        const role = document.getElementById('login-role').value;
         const email = document.getElementById('login-email').value.toLowerCase().trim();
         const pass = document.getElementById('login-password').value.trim();
         
-        if (!email || !pass) return alert("އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!");
+        if (!validateRoleEmail(role, email)) {
+            if (role === 'ALL') {
+                alert(`[ސެކިއުރިޓީ ބްލޮކް]:\nފެކަލްޓީ މެއިލް އަކުން (${email}) ގްލޯބަލް އެޑްމިންއަކަށް ނުވަދެވޭނެ!`);
+            } else {
+                alert(`[ސެކިއުރިޓީ ބްލޮކް]:\nމި މެއިލްއަކީ (${email}) ފެކަލްޓީ އޮފް ${role} ގެ މެއިލްއެއް ނޫން!`);
+            }
+            return; 
+        }
 
         document.getElementById('loader').style.display = 'flex';
-        document.getElementById('loader-text').innerText = "Authenticating...";
-        
+        document.getElementById('loader-text').innerText = "Authenticating with Firebase...";
         try {
             await signInWithEmailAndPassword(auth, email, pass);
+            localStorage.setItem('userRole', role);
+            document.getElementById('loader').style.display = 'none';
         } catch (error) {
             document.getElementById('loader').style.display = 'none';
-            let msg = "ލޮގިން ފެއިލްވި: ";
-            if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                msg += "އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި.";
-            } else {
-                msg += error.message;
-            }
-            alert(msg);
+            alert(`[ފަޔަރބޭސް އެރަރ]: ${error.code}\n\nސަބަބު: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި، ނުވަތަ ފަޔަރބޭސްގައި މި ޔޫޒަރ ރަޖިސްޓަރ ކޮށްފައި ނެތީ.`);
+            console.error("Firebase Login Error:", error);
         }
     };
 
@@ -518,7 +549,7 @@
         a.href = URL.createObjectURL(blob); a.download = filename; a.click();
     }
 
-    // 🚀 FULLY OPTIMIZED UPLOAD LOGIC (Prevents UI Freezing)
+    // 🚀 FIXED HANGING: Micro-chunking and UI Yielding logic
     window.importData = async (type, event) => {
         const files = event.target.files;
         if (files.length === 0) return;
@@ -532,7 +563,9 @@
         progContainer.style.display = 'block';
         progFill.style.width = '0%';
         loaderText.innerText = "Analyzing Files...";
-        await new Promise(r => setTimeout(r, 50)); // Yield to UI
+        
+        // Yield to allow browser to render loader
+        await new Promise(r => setTimeout(r, 100)); 
         
         try {
             let tempData = [];
@@ -553,19 +586,29 @@
 
             if (tempData.length === 0) throw new Error("No valid data found in the CSV.");
 
+            loaderText.innerText = "Formatting Data...";
+            await new Promise(r => setTimeout(r, 50)); 
+
             if (activeRole !== 'ALL' && type === 'modules') {
                 tempData.forEach(row => { row['Parent Faculty'] = activeRole; row['Kulliyyah/Centre'] = activeRole; });
             }
 
-            // Prepare local DB array efficiently
+            // Immediately save to localDB so the user can see it right away (Offline-first approach)
             localDB[type] = Array.from(new Map(tempData.map(x => [window.makeSafeId(window.getSafeVal(x, docIdKey)), x])).values());
+            
+            // Render the UI *before* starting the heavy cloud sync
+            window.populateLecturerDropdown(); 
+            window.renderMatrix(); 
+            window.updateAnalytics();
 
             if (!dbCloud || !navigator.onLine) {
-                alert("Loaded locally. Cloud is offline."); 
+                alert("Loaded locally. Cloud is offline. Don't forget to 'Save to Server' later."); 
+                loader.style.display = 'none'; progContainer.style.display = 'none'; event.target.value = ''; 
                 return; 
             }
 
-            const CHUNK_SIZE = 250;
+            // 🚀 The Magic Fix: Reduced chunk size to 100 to prevent network choking
+            const CHUNK_SIZE = 100;
             let totalCount = 0;
             let totalChunks = Math.ceil(tempData.length / CHUNK_SIZE);
             
@@ -573,7 +616,9 @@
                 let currentChunk = Math.floor(i / CHUNK_SIZE) + 1;
                 loaderText.innerText = `Syncing Chunk ${currentChunk} of ${totalChunks}...`;
                 progFill.style.width = `${(currentChunk / totalChunks) * 100}%`;
-                await new Promise(r => setTimeout(r, 50)); // Yield to paint progress bar
+                
+                // 🚀 VITAL: Let the browser breathe and update the progress bar before the next heavy batch
+                await new Promise(r => setTimeout(r, 100)); 
 
                 const chunk = tempData.slice(i, i + CHUNK_SIZE);
                 const batch = writeBatch(dbCloud);
@@ -589,16 +634,13 @@
                 });
                 
                 if (hasWrites) {
-                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Network timeout. Data is loaded locally.")), 45000));
-                    await Promise.race([batch.commit(), timeout]);
+                    await batch.commit(); // Let it take whatever time it needs without timeouts
                 }
             }
             alert(`✅ Successfully synced ${totalCount} records.`);
         } catch (err) {
             console.error(err); alert("Upload Note: " + err.message);
         } finally {
-            // Render heavy UI at the very end to prevent freezing
-            window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
             loader.style.display = 'none'; progContainer.style.display = 'none'; event.target.value = ''; 
         }
     };
@@ -744,7 +786,7 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
-    // 🚀 FIXED OPTIMIZED SAVE LOGIC
+    // 🚀 FIXED SERVER HANG: Micro-chunking and UI Yielding for Saving
     window.saveToServer = async () => {
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -760,7 +802,8 @@
         progContainer.style.display = 'block';
         progFill.style.width = '0%';
         loaderText.innerText = "Syncing with Server...";
-        await new Promise(r => setTimeout(r, 50)); // Yield to paint
+        
+        await new Promise(r => setTimeout(r, 100)); // Yield to paint UI
 
         try {
             let validAssignments = [];
@@ -779,7 +822,7 @@
                 loader.style.display = 'none'; progContainer.style.display = 'none'; return;
             }
 
-            const CHUNK_SIZE = 250;
+            const CHUNK_SIZE = 100; // Small batch size to prevent hanging
             let totalSaved = 0;
             let totalChunks = Math.ceil(validAssignments.length / CHUNK_SIZE);
 
@@ -787,7 +830,8 @@
                 let currentChunk = Math.floor(i / CHUNK_SIZE) + 1;
                 loaderText.innerText = `Saving Chunk ${currentChunk} of ${totalChunks}...`;
                 progFill.style.width = `${(currentChunk / totalChunks) * 100}%`;
-                await new Promise(r => setTimeout(r, 50)); // Yield to paint
+                
+                await new Promise(r => setTimeout(r, 100)); // Yield to let progress bar animate smoothly
                 
                 const chunk = validAssignments.slice(i, i + CHUNK_SIZE);
                 const batch = writeBatch(dbCloud);
@@ -796,8 +840,7 @@
                     totalSaved++;
                 });
                 
-                const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Network timeout.")), 45000));
-                await Promise.race([batch.commit(), timeout]);
+                await batch.commit(); // No timeout needed for small chunks, Firebase handles it natively
             }
             
             alert(`✅ Successfully saved ${totalSaved} assignments to the University Server!`);
@@ -860,14 +903,14 @@
         progContainer.style.display = 'block';
         progFill.style.width = '0%';
         loaderText.innerText = "Reading Master Backup...";
-        await new Promise(r => setTimeout(r, 50));
+        await new Promise(r => setTimeout(r, 100)); // Yield to paint
 
         Papa.parse(file, {
             header: true, skipEmptyLines: true,
             complete: async (res) => {
                 try {
                     const data = res.data;
-                    const CHUNK_SIZE = 250;
+                    const CHUNK_SIZE = 100;
                     
                     if (!dbCloud || !navigator.onLine) {
                         alert("Cannot restore Master CSV while offline.");
@@ -882,7 +925,8 @@
                         let currentChunk = Math.floor(i / CHUNK_SIZE) + 1;
                         loaderText.innerText = `Restoring Database ${currentChunk} of ${totalChunks}...`;
                         progFill.style.width = `${(currentChunk / totalChunks) * 100}%`;
-                        await new Promise(r => setTimeout(r, 50));
+                        
+                        await new Promise(r => setTimeout(r, 100)); // Yield
 
                         const chunk = data.slice(i, i + CHUNK_SIZE);
                         const batch = writeBatch(dbCloud);
@@ -912,8 +956,7 @@
                         });
 
                         if(hasWrites) {
-                            const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Network timeout.")), 45000));
-                            await Promise.race([batch.commit(), timeout]);
+                            await batch.commit();
                         }
                     }
                     alert(`✅ Backup Restored!\nModules Loaded: ${moduleCount}\nAssignments Restored: ${assignmentCount}`);
@@ -966,8 +1009,7 @@
                 });
 
                 if(deleteCount > 0) {
-                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out.")), 45000));
-                    await Promise.race([batch.commit(), timeout]);
+                    await batch.commit();
                 }
             }
 
@@ -978,7 +1020,7 @@
 
         } catch(error) {
             console.error("Reset Error", error);
-            alert("⚠️ Partial Reset Completed. If data remains, please hit Reset again (Firebase Batch Limit reached or Network slow).");
+            alert("⚠️ Partial Reset Completed. If data remains, please hit Reset again.");
             location.reload();
         } finally {
             loader.style.display = 'none';
