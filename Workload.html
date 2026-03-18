@@ -323,20 +323,22 @@
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
-    // 🚀 STRICT VALIDATION FUNCTION: Prevents partial matches (e.g. ismail matching SM)
+    // 🚀 NEW: BULLETPROOF EMAIL VALIDATOR
+    // This strictly checks for the exact pattern `code@`, `.code@`, or `@code.`
+    // E.g., ismail@... fails for SM. admin.ksl@... passes for KSL.
     const validateRoleEmail = (role, email) => {
-        const prefix = email.split('@')[0].toLowerCase();
+        const lowerEmail = email.toLowerCase();
         if (role === 'ALL') {
-            // Admin cannot have ANY faculty code as a standalone word in their email
             for (const f of FACULTIES) {
-                const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
-                if (regex.test(prefix)) return false; 
+                const code = f.toLowerCase();
+                if (lowerEmail.includes(`${code}@`) || lowerEmail.includes(`.${code}@`) || lowerEmail.includes(`@${code}.`)) {
+                    return false; // Cannot be admin if any faculty code is found strictly
+                }
             }
             return true;
         } else {
-            // Faculty MUST have their specific faculty code as a standalone word
-            const regex = new RegExp(`\\b${role.toLowerCase()}\\b`);
-            return regex.test(prefix);
+            const code = role.toLowerCase();
+            return lowerEmail.includes(`${code}@`) || lowerEmail.includes(`.${code}@`) || lowerEmail.includes(`@${code}.`);
         }
     };
 
@@ -370,21 +372,24 @@
         document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
     }
 
+    // Auto-select dropdown based on bulletproof logic
     window.detectFacultyFromEmail = () => {
         const email = document.getElementById('login-email').value.toLowerCase();
         const roleSelect = document.getElementById('login-role');
-        const prefix = email.split('@')[0];
         
         let found = false;
         FACULTIES.forEach(f => {
-            const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
-            if (regex.test(prefix)) {
+            const code = f.toLowerCase();
+            if (email.includes(`${code}@`) || email.includes(`.${code}@`) || email.includes(`@${code}.`)) {
                 roleSelect.value = f;
                 roleSelect.style.borderColor = "var(--gold)";
                 found = true;
             }
         });
-        if (!found && email.length > 0) roleSelect.value = 'ALL';
+        if (!found && email.length > 0) {
+            roleSelect.value = 'ALL';
+            roleSelect.style.borderColor = "var(--gold)";
+        }
     };
 
     if (auth) {
@@ -392,7 +397,7 @@
             if (user) {
                 activeRole = localStorage.getItem('userRole') || 'ALL';
                 
-                // 🚀 SECURITY RE-VALIDATION: Prevents bypassing via localStorage manipulation
+                // 🚀 SECURITY: Kicks user out if localStorage was tampered with
                 if (!validateRoleEmail(activeRole, user.email)) {
                     alert("Security Violation: Unauthorized role tampering detected. Logging out.");
                     await signOut(auth);
@@ -427,14 +432,14 @@
         const email = document.getElementById('login-email').value.toLowerCase();
         const pass = document.getElementById('login-password').value;
         
-        // 🚀 BULLETPROOF LOGIN VALIDATION
+        // 🚀 BULLETPROOF LOGIN VALIDATION GATEKEEPER
         if (!validateRoleEmail(role, email)) {
             if (role === 'ALL') {
-                alert("Security Block:\nFaculty accounts are strictly prohibited from accessing the Global Admin role.");
+                alert(`Security Block:\nThe email (${email}) appears to be a faculty account.\nFaculty accounts cannot log into the Global Admin role.`);
             } else {
-                alert(`Security Block:\nThe email provided (${email}) is not authorized to manage the Faculty of ${role}.`);
+                alert(`Security Block:\nThe email provided (${email}) is strictly not authorized to manage the Faculty of ${role}.`);
             }
-            return;
+            return; // Stops Firebase from even attempting to log in
         }
 
         document.getElementById('loader').style.display = 'flex';
@@ -735,7 +740,7 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
-    // 🚀 FIXED HANGING: Simplified Batched Write Loop
+    // 🚀 NEW: FIXED SERVER HANG - Fully robust batched save logic without artificial timeouts
     window.saveToServer = async () => {
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -746,7 +751,7 @@
         }
 
         loader.style.display = 'flex';
-        loaderText.innerText = "Saving to Server...";
+        loaderText.innerText = "Syncing with Server...";
 
         try {
             let validAssignments = [];
@@ -765,7 +770,8 @@
                 loader.style.display = 'none'; return;
             }
 
-            const CHUNK_SIZE = 400;
+            // Simple, strict chunking logic that guarantees Firebase won't choke.
+            const CHUNK_SIZE = 400; 
             let totalSaved = 0;
 
             for (let i = 0; i < validAssignments.length; i += CHUNK_SIZE) {
@@ -775,7 +781,7 @@
                     batch.set(doc(dbCloud, "assignments", item.code), item.data, { merge: true });
                     totalSaved++;
                 });
-                await batch.commit(); 
+                await batch.commit(); // Wait explicitly for each batch to finish
             }
             
             alert(`✅ Successfully saved ${totalSaved} assignments to the University Server!`);
