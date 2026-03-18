@@ -71,13 +71,12 @@
         
         <div class="space-y-4 text-left">
             <div>
-                <label class="text-[10px] font-bold text-gray-600 uppercase">Role (Auto-Detected)</label>
-                <select id="login-role" disabled class="w-full p-3 border-2 border-gray-200 bg-gray-50 rounded-lg font-bold text-sm outline-none"></select>
-                <p class="text-[8px] text-gray-400 mt-1">Your role is automatically selected based on your email address.</p>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Select Role / Faculty</label>
+                <select id="login-role" class="w-full p-3 border-2 border-gray-200 rounded-lg font-bold text-sm outline-none focus:border-gold"></select>
             </div>
             <div>
                 <label class="text-[10px] font-bold text-gray-600 uppercase">Email Address</label>
-                <input type="email" id="login-email" class="w-full p-3 border-2 border-gray-200 rounded-lg font-bold text-sm outline-none focus:border-gold" placeholder="admin.ksl@rasfahi.com" oninput="window.detectFacultyFromEmail()">
+                <input type="email" id="login-email" class="w-full p-3 border-2 border-gray-200 rounded-lg font-bold text-sm outline-none focus:border-gold" placeholder="admin.ksl@domain.com" oninput="window.detectFacultyFromEmail()">
             </div>
             <div>
                 <label class="text-[10px] font-bold text-gray-600 uppercase">Password</label>
@@ -324,16 +323,25 @@
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
-    // 🚀 SMART ROUTING LOGIC (Email defines the role, dropdown is just visual)
-    const getRoleFromEmail = (email) => {
-        if (!email || !email.includes('@')) return 'ALL';
-        const localPart = email.toLowerCase().trim().split('@')[0];
-        const parts = localPart.split(/[\.\-_]/); // Split by dot, hyphen, underscore
-        
-        for (let f of FACULTIES) {
-            if (parts.includes(f.toLowerCase())) return f;
+    // 🚀 BULLETPROOF PREFIX NORMALIZER
+    const getNormalizedPrefix = (email) => {
+        if (!email || !email.includes('@')) return "";
+        return email.split('@')[0].toLowerCase().replace(/[\.\-_]/g, ' ');
+    };
+
+    // 🚀 BULLETPROOF SECURITY VALIDATION
+    const validateRoleEmail = (role, email) => {
+        const prefix = getNormalizedPrefix(email);
+        if (role === 'ALL') {
+            for (const f of FACULTIES) {
+                const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
+                if (regex.test(prefix)) return false; 
+            }
+            return true;
+        } else {
+            const regex = new RegExp(`\\b${role.toLowerCase()}\\b`);
+            return regex.test(prefix);
         }
-        return 'ALL'; // If no faculty code found, defaults to Global Admin
     };
 
     const loadLocalCache = () => {
@@ -366,20 +374,40 @@
         document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
     }
 
-    // Auto-update dropdown UI as user types email
+    // Auto-select dropdown
     window.detectFacultyFromEmail = () => {
         const email = document.getElementById('login-email').value;
         const roleSelect = document.getElementById('login-role');
-        const role = getRoleFromEmail(email);
-        roleSelect.value = role;
+        const prefix = getNormalizedPrefix(email);
+        
+        let found = false;
+        FACULTIES.forEach(f => {
+            const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
+            if (regex.test(prefix)) {
+                roleSelect.value = f;
+                roleSelect.style.borderColor = "var(--gold)";
+                found = true;
+            }
+        });
+        if (!found && email.length > 0) {
+            roleSelect.value = 'ALL';
+            roleSelect.style.borderColor = "var(--gold)";
+        }
     };
 
     if (auth) {
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // Determine role exactly from the authenticated email
-                activeRole = getRoleFromEmail(user.email);
-                localStorage.setItem('userRole', activeRole); // Force correct role into local storage
+                activeRole = localStorage.getItem('userRole') || 'ALL';
+                
+                // Security check to prevent localStorage tampering
+                if (!validateRoleEmail(activeRole, user.email)) {
+                    alert("[ސެކިއުރިޓީ ބްލޮކް]: ރޯލް އަދި އީމެއިލް ދިމައެއްނުވޭ. ލޮގްއައުޓް ކުރެވެނީ.");
+                    await signOut(auth);
+                    localStorage.removeItem('userRole');
+                    location.reload();
+                    return;
+                }
 
                 document.getElementById('user-badge').innerText = activeRole;
                 document.getElementById('login-screen').style.display = 'none';
@@ -403,31 +431,28 @@
 
     window.handleLogin = async () => {
         if (!auth) return alert("Firebase Auth not initialized. ކޯޑު ޗެކްކުރައްވާ.");
-        
+        const role = document.getElementById('login-role').value;
         const email = document.getElementById('login-email').value.toLowerCase().trim();
         const pass = document.getElementById('login-password').value.trim();
         
-        if (!email || !pass) {
-            return alert("އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!");
+        if (!validateRoleEmail(role, email)) {
+            if (role === 'ALL') {
+                alert(`[ސެކިއުރިޓީ ބްލޮކް]:\nފެކަލްޓީ މެއިލް އަކުން (${email}) ގްލޯބަލް އެޑްމިންއަކަށް ނުވަދެވޭނެ!`);
+            } else {
+                alert(`[ސެކިއުރިޓީ ބްލޮކް]:\nމި މެއިލްއަކީ (${email}) ފެކަލްޓީ އޮފް ${role} ގެ މެއިލްއެއް ނޫން!`);
+            }
+            return; 
         }
 
         document.getElementById('loader').style.display = 'flex';
-        document.getElementById('loader-text').innerText = "Authenticating...";
-        
+        document.getElementById('loader-text').innerText = "Authenticating with Firebase...";
         try {
             await signInWithEmailAndPassword(auth, email, pass);
-            // Role is handled securely in onAuthStateChanged
+            localStorage.setItem('userRole', role);
             document.getElementById('loader').style.display = 'none';
         } catch (error) {
             document.getElementById('loader').style.display = 'none';
-            // EXPLICIT FIREBASE ERROR MESSAGE
-            let msg = "ލޮގިން ފެއިލްވި: ";
-            if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                msg += "އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި.\n\n(މި އީމެއިލް އަދި ޕާސްވޯޑް ފަޔަރބޭސްގައި ރަޖިސްޓަރ ކުރެވިފައިވޭތޯ ޔަޤީންކުރައްވާ!)";
-            } else {
-                msg += error.message;
-            }
-            alert(msg);
+            alert(`[ފަޔަރބޭސް އެރަރ]: ${error.code}\n\nސަބަބު: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި، ނުވަތަ ފަޔަރބޭސްގައި މި ޔޫޒަރ ރަޖިސްޓަރ ކޮށްފައި ނެތީ.`);
             console.error("Firebase Login Error:", error);
         }
     };
@@ -519,6 +544,7 @@
         a.href = URL.createObjectURL(blob); a.download = filename; a.click();
     }
 
+    // 🚀 FIXED HANGING: Update UI BEFORE cloud upload, add Timeout for Cloud operation
     window.importData = async (type, event) => {
         const files = event.target.files;
         if (files.length === 0) return;
@@ -537,20 +563,30 @@
                 const data = await new Promise((resolve, reject) => {
                     Papa.parse(file, { header: true, skipEmptyLines: true, complete: (res) => resolve(res.data), error: (err) => reject(err) });
                 });
-                const validData = data.filter(x => { const val = x[Object.keys(x)[0]]; return val && !String(val).includes('#REF!') && !String(val).includes('Campuses'); });
+                const validData = data.filter(x => { 
+                    const keys = Object.keys(x);
+                    if(keys.length === 0) return false;
+                    const val = x[keys[0]]; 
+                    return val && !String(val).includes('#REF!') && !String(val).includes('Campuses'); 
+                });
                 tempData = tempData.concat(validData);
             }
 
-            loaderText.innerText = "Syncing with Cloud...";
+            if (tempData.length === 0) throw new Error("No valid data found in the CSV.");
+
+            loaderText.innerText = "Processing locally & Syncing with Cloud...";
 
             if (activeRole !== 'ALL' && type === 'modules') {
                 tempData.forEach(row => { row['Parent Faculty'] = activeRole; row['Kulliyyah/Centre'] = activeRole; });
             }
 
-            if (!dbCloud) {
-                localDB[type] = Array.from(new Map(tempData.map(x => [String(window.getSafeVal(x, docIdKey)).trim().replace(/\//g, '-'), x])).values());
-                window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
-                alert("Loaded locally. Cloud is offline."); return; 
+            // Update UI Immediately to prevent "Hanging" perception
+            localDB[type] = Array.from(new Map(tempData.map(x => [String(window.getSafeVal(x, docIdKey)).trim().replace(/\//g, '-'), x])).values());
+            window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
+
+            if (!dbCloud || !navigator.onLine) {
+                alert("Loaded locally. Cloud is offline."); 
+                return; 
             }
 
             const CHUNK_SIZE = 400;
@@ -569,11 +605,15 @@
                     }
                 });
                 
-                if (hasWrites) await batch.commit();
+                if (hasWrites) {
+                    // Robust 15 second timeout to prevent infinite hanging
+                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out due to slow network. Data is loaded locally.")), 15000));
+                    await Promise.race([batch.commit(), timeout]);
+                }
             }
             alert(`✅ Successfully synced ${totalCount} records.`);
         } catch (err) {
-            console.error(err); alert("Upload Failed: " + err.message);
+            console.error(err); alert("Upload Note: " + err.message);
         } finally {
             loader.style.display = 'none'; event.target.value = ''; 
         }
@@ -718,6 +758,7 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
+    // 🚀 FIXED SERVER HANG - Batched Save Logic with Timeout
     window.saveToServer = async () => {
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -757,7 +798,9 @@
                     batch.set(doc(dbCloud, "assignments", item.code), item.data, { merge: true });
                     totalSaved++;
                 });
-                await batch.commit(); 
+                
+                const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out due to slow network.")), 15000));
+                await Promise.race([batch.commit(), timeout]);
             }
             
             alert(`✅ Successfully saved ${totalSaved} assignments to the University Server!`);
@@ -821,7 +864,7 @@
                     const data = res.data;
                     const CHUNK_SIZE = 400;
                     
-                    if (!dbCloud) {
+                    if (!dbCloud || !navigator.onLine) {
                         alert("Cannot restore Master CSV while offline.");
                         loader.style.display = 'none'; return;
                     }
@@ -857,12 +900,15 @@
                             }
                         });
 
-                        if(hasWrites) await batch.commit();
+                        if(hasWrites) {
+                            const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out.")), 15000));
+                            await Promise.race([batch.commit(), timeout]);
+                        }
                     }
                     alert(`✅ Backup Restored!\nModules Loaded: ${moduleCount}\nAssignments Restored: ${assignmentCount}`);
                 } catch(err) {
                     console.error("Master Restore Error", err);
-                    alert("Master Restore Failed.");
+                    alert("Master Restore Failed: " + err.message);
                 } finally {
                     loader.style.display = 'none';
                     event.target.value = '';
@@ -909,7 +955,8 @@
                 });
 
                 if(deleteCount > 0) {
-                    await batch.commit(); 
+                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out.")), 15000));
+                    await Promise.race([batch.commit(), timeout]);
                 }
             }
 
@@ -920,7 +967,7 @@
 
         } catch(error) {
             console.error("Reset Error", error);
-            alert("⚠️ Partial Reset Completed. If data remains, please hit Reset again (Firebase Batch Limit reached).");
+            alert("⚠️ Partial Reset Completed. If data remains, please hit Reset again (Firebase Batch Limit reached or Network slow).");
             location.reload();
         } finally {
             loader.style.display = 'none';
