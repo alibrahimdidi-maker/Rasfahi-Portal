@@ -328,13 +328,12 @@
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
     // 🚀 NEW: UNIVERSAL SAFE ID GENERATOR
-    // This strictly sanitizes all IDs so CSV Import/Export & Firebase NEVER clash.
     window.makeSafeId = (id) => {
         if (!id) return `UNKNOWN-${Math.floor(Math.random()*100000)}`;
         return String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
     };
 
-    // 🚀 LOGIN LOGIC: Untouched and Perfectly Functional
+    // 🚀 LOGIN LOGIC
     const getRoleFromEmail = (email) => {
         if (!email || !email.includes('@')) return 'ALL';
         const localPart = email.toLowerCase().trim().split('@')[0];
@@ -440,7 +439,6 @@
         location.reload();
     };
 
-    // 🚀 FIREBASE REAL-TIME LISTENERS: Guarantees Admin sees Faculty updates immediately
     function startDatabaseListeners() {
         onSnapshot(collection(dbCloud, "lecturers"), (snapshot) => {
             localDB.lecturers = snapshot.docs.map(doc => doc.data());
@@ -522,7 +520,7 @@
         a.href = URL.createObjectURL(blob); a.download = filename; a.click();
     }
 
-    // 🚀 FIXED HANGING & UPLOAD DATA ROBUSTNESS
+    // 🚀 FIXED HANGING: Fully native Firebase Batch Commit (No Promise.race timeouts)
     window.importData = async (type, event) => {
         const files = event.target.files;
         if (files.length === 0) return;
@@ -556,7 +554,7 @@
 
             if (tempData.length === 0) throw new Error("No valid data found in the CSV.");
 
-            loaderText.innerText = "Formatting Data...";
+            loaderText.innerText = "Processing locally & Syncing with Cloud...";
 
             if (activeRole !== 'ALL' && type === 'modules') {
                 tempData.forEach(row => { row['Parent Faculty'] = activeRole; row['Kulliyyah/Centre'] = activeRole; });
@@ -571,8 +569,8 @@
                 return; 
             }
 
-            // Safe Batch Logic to prevent hanging
-            const CHUNK_SIZE = 400;
+            // Safe Batch Logic (Reduced Chunk Size to 250)
+            const CHUNK_SIZE = 250;
             let totalCount = 0;
             let totalChunks = Math.ceil(tempData.length / CHUNK_SIZE);
             
@@ -595,8 +593,7 @@
                 });
                 
                 if (hasWrites) {
-                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Network timeout during cloud sync. Your data is still safe locally.")), 10000));
-                    await Promise.race([batch.commit(), timeout]);
+                    await batch.commit(); // Removed Promise.race timeout to let Firebase handle network naturally
                 }
             }
             alert(`✅ Successfully synced ${totalCount} records.`);
@@ -748,7 +745,7 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
-    // 🚀 FIXED SERVER HANG - Batched Save Logic with explicit UI feedback
+    // 🚀 FIXED SERVER HANG: Removed artificial timeout, reduced chunk size
     window.saveToServer = async () => {
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -771,7 +768,6 @@
                 const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
                 if (m) {
                     const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
-                    // ✅ THIS is how faculties update the global system. They save to the central "assignments" db.
                     if (activeRole === 'ALL' || mFac.includes(activeRole)) {
                         validAssignments.push({ code: mCode, data: localDB.assignments[mCode] });
                     }
@@ -783,7 +779,7 @@
                 loader.style.display = 'none'; progContainer.style.display = 'none'; return;
             }
 
-            const CHUNK_SIZE = 400;
+            const CHUNK_SIZE = 250; // Reduced for guaranteed success
             let totalSaved = 0;
             let totalChunks = Math.ceil(validAssignments.length / CHUNK_SIZE);
 
@@ -799,8 +795,7 @@
                     totalSaved++;
                 });
                 
-                const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out due to slow network.")), 10000));
-                await Promise.race([batch.commit(), timeout]);
+                await batch.commit(); // Letting Firebase handle it natively without our interference
             }
             
             alert(`✅ Successfully saved ${totalSaved} assignments to the University Server!`);
@@ -869,7 +864,7 @@
             complete: async (res) => {
                 try {
                     const data = res.data;
-                    const CHUNK_SIZE = 400;
+                    const CHUNK_SIZE = 250;
                     
                     if (!dbCloud || !navigator.onLine) {
                         alert("Cannot restore Master CSV while offline.");
@@ -913,8 +908,7 @@
                         });
 
                         if(hasWrites) {
-                            const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out.")), 10000));
-                            await Promise.race([batch.commit(), timeout]);
+                            await batch.commit();
                         }
                     }
                     alert(`✅ Backup Restored!\nModules Loaded: ${moduleCount}\nAssignments Restored: ${assignmentCount}`);
@@ -968,8 +962,7 @@
                 });
 
                 if(deleteCount > 0) {
-                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out.")), 15000));
-                    await Promise.race([batch.commit(), timeout]);
+                    await batch.commit();
                 }
             }
 
