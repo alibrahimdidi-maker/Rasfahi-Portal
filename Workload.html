@@ -312,7 +312,7 @@
         document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
     }
 
-    // Auto-detect faculty from email (e.g., admin.ksl@mnu.edu.mv)
+    // Auto-detect faculty from email
     window.detectFacultyFromEmail = () => {
         const email = document.getElementById('login-email').value.toLowerCase();
         const roleSelect = document.getElementById('login-role');
@@ -339,7 +339,7 @@
                 const facSelect = document.getElementById('facView');
                 if (activeRole !== 'ALL') {
                     facSelect.value = activeRole;
-                    facSelect.disabled = true; // Lock view to their faculty's modules
+                    facSelect.disabled = true;
                 } else {
                     facSelect.disabled = false;
                 }
@@ -404,11 +404,12 @@
         if (tabId === 'analytics') window.updateAnalytics();
     };
 
+    // Robust text normalizer
     window.getSafeVal = (row, possibleKeys) => {
         for (let key of Object.keys(row)) {
-            let cleanKey = key.toLowerCase().replace(/[\s\n\r]/g, '');
+            let cleanKey = key.toLowerCase().replace(/[\s\n\r\.\-\_]/g, '');
             for (let pk of possibleKeys) {
-                if (cleanKey.includes(pk.toLowerCase().replace(/[\s]/g, ''))) return row[key] || '';
+                if (cleanKey.includes(pk.toLowerCase().replace(/[\s\n\r\.\-\_]/g, ''))) return row[key] || '';
             }
         }
         return '';
@@ -472,86 +473,104 @@
         a.href = URL.createObjectURL(blob); a.download = filename; a.click();
     }
 
-    // FIX: Batch Limit Exceeded error fixed by chunking the arrays
+    // 🚀 NEW: Robust, Promise-based Upload Function
     window.importData = async (type, event) => {
         const files = event.target.files;
         if (files.length === 0) return;
         
-        document.getElementById('loader').style.display = 'flex';
-        document.getElementById('loader-text').innerText = "Uploading to Cloud in Batches...";
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loader-text');
         
-        let filesProcessed = 0;
-        let tempData = [];
+        loader.style.display = 'flex';
+        loaderText.innerText = "Analyzing Files...";
+        
+        try {
+            let tempData = [];
+            let docIdKey = type === 'lecturers' ? ['LecturerID', 'NationalID'] : ['ModuleCode', 'Code'];
 
-        Array.from(files).forEach(file => {
-            Papa.parse(file, {
-                header: true, skipEmptyLines: true,
-                complete: async (res) => {
-                    const validData = res.data.filter(x => {
-                        const val = x[Object.keys(x)[0]];
-                        return val && !String(val).includes('#REF!') && !String(val).includes('Campuses');
+            // 1. Process all CSV files safely using Promises
+            for (let file of files) {
+                const data = await new Promise((resolve, reject) => {
+                    Papa.parse(file, {
+                        header: true, 
+                        skipEmptyLines: true,
+                        complete: (res) => resolve(res.data),
+                        error: (err) => reject(err)
                     });
-                    tempData = tempData.concat(validData);
-                    filesProcessed++;
+                });
+                
+                const validData = data.filter(x => {
+                    const val = x[Object.keys(x)[0]];
+                    return val && !String(val).includes('#REF!') && !String(val).includes('Campuses');
+                });
+                tempData = tempData.concat(validData);
+            }
 
-                    if (filesProcessed === files.length) {
-                        let docIdKey = type === 'lecturers' ? ['LecturerID', 'NationalID'] : ['ModuleCode'];
-                        
-                        if (activeRole !== 'ALL' && type === 'modules') {
-                            tempData.forEach(row => {
-                                row['Parent Faculty'] = activeRole;
-                                row['Kulliyyah/Centre'] = activeRole;
-                            });
-                        }
+            loaderText.innerText = "Syncing with Cloud...";
 
-                        if (!dbCloud) {
-                            localDB[type] = Array.from(new Map(tempData.map(x => [window.getSafeVal(x, docIdKey), x])).values());
-                            window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
-                            document.getElementById('loader').style.display = 'none';
-                            alert("Loaded locally. Cloud is offline.");
-                            return;
-                        }
+            // 2. Assign default roles if uploaded by specific Faculty
+            if (activeRole !== 'ALL' && type === 'modules') {
+                tempData.forEach(row => {
+                    row['Parent Faculty'] = activeRole;
+                    row['Kulliyyah/Centre'] = activeRole;
+                });
+            }
 
-                        try {
-                            // Chunk array into sizes of 450 (Firestore batch limit is 500)
-                            const CHUNK_SIZE = 450;
-                            let totalCount = 0;
-                            
-                            for (let i = 0; i < tempData.length; i += CHUNK_SIZE) {
-                                const chunk = tempData.slice(i, i + CHUNK_SIZE);
-                                const batch = writeBatch(dbCloud);
-                                let hasWrites = false;
-                                
-                                chunk.forEach(item => {
-                                    let id = window.getSafeVal(item, docIdKey);
-                                    if (id && id.trim() !== '') {
-                                        batch.set(doc(dbCloud, type, String(id).trim()), item);
-                                        totalCount++;
-                                        hasWrites = true;
-                                    }
-                                });
-                                
-                                if (hasWrites) await batch.commit();
-                            }
-                            
-                            document.getElementById('loader').style.display = 'none';
-                            alert(`Successfully synced ${totalCount} records to the University Cloud Database.`);
-                        } catch (err) {
-                            console.error(err);
-                            document.getElementById('loader').style.display = 'none';
-                            alert("Cloud Upload Failed. Check your network or Firebase rules.");
-                        }
+            // 3. Offline Mode Backup
+            if (!dbCloud) {
+                localDB[type] = Array.from(new Map(tempData.map(x => {
+                    let id = window.getSafeVal(x, docIdKey);
+                    let safeId = String(id).trim().replace(/\//g, '-');
+                    return [safeId, x];
+                })).values());
+                window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
+                alert("Loaded locally. Cloud is offline.");
+                return; 
+            }
+
+            // 4. Cloud Chunking & Upload Logic
+            const CHUNK_SIZE = 450;
+            let totalCount = 0;
+            
+            for (let i = 0; i < tempData.length; i += CHUNK_SIZE) {
+                const chunk = tempData.slice(i, i + CHUNK_SIZE);
+                const batch = writeBatch(dbCloud);
+                let hasWrites = false;
+                
+                chunk.forEach(item => {
+                    let id = window.getSafeVal(item, docIdKey);
+                    if (id && String(id).trim() !== '') {
+                        // ⚠️ FIX: Firestore IDs cannot contain forward slashes ('/'). 
+                        // This causes silent crashes. We replace slashes with hyphens.
+                        let safeId = String(id).trim().replace(/\//g, '-');
+                        batch.set(doc(dbCloud, type, safeId), item);
+                        totalCount++;
+                        hasWrites = true;
                     }
+                });
+                
+                if (hasWrites) {
+                    // ⚠️ FIX: Network Timeout. Guarantees the loader hides if internet fails.
+                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out. Network unstable.")), 20000));
+                    await Promise.race([batch.commit(), timeout]);
                 }
-            });
-        });
+            }
+            
+            alert(`Successfully synced ${totalCount} records.`);
+        } catch (err) {
+            console.error("Upload Error:", err);
+            alert("Upload Failed: " + err.message);
+        } finally {
+            // ⚠️ FIX: Ensure loader ALWAYS hides & File input resets
+            loader.style.display = 'none';
+            event.target.value = ''; 
+        }
     };
 
     window.populateLecturerDropdown = () => {
         const select = document.getElementById('hrSelect');
         select.innerHTML = '<option value="">-- Check Lecturer Workload --</option>';
         
-        // Group lecturers by faculty for easier finding
         let groupedLecturers = {};
         FACULTIES.forEach(f => groupedLecturers[f] = []);
         
@@ -566,7 +585,6 @@
             }
         });
 
-        // Show all lecturers to everyone (Global Directory for workload checking)
         Object.keys(groupedLecturers).forEach(fac => {
             if (groupedLecturers[fac].length > 0) {
                 let optgroup = `<optgroup label="Faculty of ${fac}">`;
@@ -590,7 +608,6 @@
             return;
         }
 
-        // Allow assigning ANY lecturer to ANY module (Cross-Faculty Assignment)
         let lectOptionsHTML = '<option value="">-- Assign --</option>';
         FACULTIES.forEach(fac => {
             const facLecturers = localDB.lecturers.filter(l => window.getSafeVal(l, ['Kulliyyah', 'Faculty']).includes(fac));
@@ -609,13 +626,14 @@
             const mCode = window.getSafeVal(m, ['ModuleCode']);
             const combinedData = window.getSafeVal(m, ['CombinedBatch']);
             
-            // Faculty admins can only view and manage their own modules
             if ((activeRole === 'ALL' || mFac.includes(activeRole)) && 
                 (viewFilter === 'ALL' || mFac.includes(viewFilter)) && 
                 (mName.toLowerCase().includes(searchQ) || mCode.toLowerCase().includes(searchQ))) {
                 
+                // Fetch the safe ID (without slashes)
+                let safeMCode = String(mCode).trim().replace(/\//g, '-');
                 let autoMode = (combinedData && combinedData.trim() !== '') ? 'Combined' : 'Individual';
-                const assignment = localDB.assignments[mCode] || { id: '', mode: autoMode };
+                const assignment = localDB.assignments[safeMCode] || { id: '', mode: autoMode };
                 const isAssigned = assignment.id && assignment.id !== '';
                 
                 const campus = window.getSafeCampus(m);
@@ -639,14 +657,14 @@
                     <td class="p-2 align-middle text-[8px] font-bold text-gray-600">${mFac}</td>
                     <td class="p-2 align-middle">
                         <div class="flex items-center gap-1">
-                            <select onchange="window.assignLecturer('${mCode}', this.value)" class="w-full p-1 border border-gray-300 rounded text-[9px] outline-none focus:border-gold">
+                            <select onchange="window.assignLecturer('${safeMCode}', this.value)" class="w-full p-1 border border-gray-300 rounded text-[9px] outline-none focus:border-gold">
                                 ${lectOptionsHTML.replace(`value="${assignment.id}"`, `value="${assignment.id}" selected`)}
                             </select>
-                            <button onclick="window.checkAssignedWorkload('${mCode}')" title="Check Workload" class="p-1 bg-gray-100 hover:bg-blue-100 rounded text-blue-600 ${!isAssigned ? 'opacity-50 cursor-not-allowed' : ''}">🔍</button>
+                            <button onclick="window.checkAssignedWorkload('${safeMCode}')" title="Check Workload" class="p-1 bg-gray-100 hover:bg-blue-100 rounded text-blue-600 ${!isAssigned ? 'opacity-50 cursor-not-allowed' : ''}">🔍</button>
                         </div>
                     </td>
                     <td class="p-2 align-middle">
-                        <select onchange="window.updateAssignmentMode('${mCode}', this.value)" class="p-1 border border-gray-300 rounded text-[8px] outline-none">
+                        <select onchange="window.updateAssignmentMode('${safeMCode}', this.value)" class="p-1 border border-gray-300 rounded text-[8px] outline-none">
                             <option value="Individual" ${assignment.mode === 'Individual' ? 'selected' : ''}>Individual</option>
                             <option value="Combined" ${assignment.mode === 'Combined' ? 'selected' : ''}>Combined</option>
                         </select>
@@ -701,7 +719,7 @@
         localDB.lecturers.forEach(l => {
             const fac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
             if (activeRole === 'ALL' || fac.includes(activeRole)) {
-                const id = window.getSafeVal(l, ['LecturerID', 'NationalID']);
+                const id = String(window.getSafeVal(l, ['LecturerID', 'NationalID'])).replace(/\//g, '-');
                 const type = window.getSafeVal(l, ['LecturerType', 'Type']);
                 const focus = window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category']);
                 
@@ -720,7 +738,8 @@
         localDB.modules.forEach(m => {
             const fac = window.getSafeVal(m, ['Kulliyyah', 'Faculty']);
             if (activeRole === 'ALL' || fac.includes(activeRole)) {
-                const mCode = window.getSafeVal(m, ['ModuleCode']);
+                const rawMCode = window.getSafeVal(m, ['ModuleCode']);
+                const mCode = String(rawMCode).replace(/\//g, '-');
                 const wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours']) || 0);
                 const assignment = localDB.assignments[mCode] || { id: '', mode: (window.getSafeVal(m, ['CombinedBatch']) ? 'Combined' : 'Individual') };
                 
@@ -811,9 +830,11 @@
         if (!id) return;
         currentLecturerId = id;
         
-        const lect = localDB.lecturers.find(l => window.getSafeVal(l, ['LecturerID', 'NationalID']) === id);
-        // Show ALL modules assigned to this lecturer (from any faculty)
-        const mods = localDB.modules.filter(m => localDB.assignments[window.getSafeVal(m, ['ModuleCode'])]?.id === id);
+        const lect = localDB.lecturers.find(l => String(window.getSafeVal(l, ['LecturerID', 'NationalID'])).replace(/\//g, '-') === id);
+        const mods = localDB.modules.filter(m => {
+            let safeMCode = String(window.getSafeVal(m, ['ModuleCode'])).replace(/\//g, '-');
+            return localDB.assignments[safeMCode]?.id === id;
+        });
 
         const lName = window.getSafeVal(lect, ['LecturerName', 'FullName']);
         const lFac = window.getSafeVal(lect, ['Kulliyyah', 'Faculty']);
@@ -834,7 +855,8 @@
         let totalHours = 0; let seenCodes = new Set(); let hrRows = ''; let pdfRows = '';
         
         mods.forEach(m => {
-            const mCode = window.getSafeVal(m, ['ModuleCode']);
+            const rawMCode = window.getSafeVal(m, ['ModuleCode']);
+            const mCode = String(rawMCode).replace(/\//g, '-');
             const mName = window.getSafeVal(m, ['ModuleName', 'ModuleTitle']);
             const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
             const combinedData = window.getSafeVal(m, ['CombinedBatch']);
@@ -857,7 +879,7 @@
 
             hrRows += `
                 <tr style="${rowStyle}">
-                    <td class="p-2 border-b"><span class="font-mono text-[9px] font-bold bg-gray-100 px-1 rounded">${mCode}</span><br>${mName}</td>
+                    <td class="p-2 border-b"><span class="font-mono text-[9px] font-bold bg-gray-100 px-1 rounded">${rawMCode}</span><br>${mName}</td>
                     <td class="p-2 border-b text-[9px] font-bold text-gray-600">${mFacName}</td>
                     <td class="p-2 border-b text-[9px]">${window.getSafeVal(m, ['ProgramName'])}<br>${batchInfo}</td>
                     <td class="p-2 border-b text-center text-[10px]">${window.getSafeVal(m, ['NoofStudents']) || 0}</td>
@@ -867,7 +889,7 @@
                 
             pdfRows += `
                 <tr style="${rowStyle}">
-                    <td class="border p-2"><b>${mCode}</b> - ${mName}<br><span class="text-[7px] text-gray-600">${batchInfo}</span></td>
+                    <td class="border p-2"><b>${rawMCode}</b> - ${mName}<br><span class="text-[7px] text-gray-600">${batchInfo}</span></td>
                     <td class="border p-2 text-center text-[7px] font-bold">${mFacName}</td>
                     <td class="border p-2 text-center">${window.getSafeCampus(m)}</td>
                     <td class="border p-2 text-center">${window.getSafeVal(m, ['NoofStudents']) || 0} Stud.</td>
@@ -891,7 +913,7 @@
 
     window.downloadOfficialPDF = async () => {
         if (!currentLecturerId) return;
-        const lect = localDB.lecturers.find(l => window.getSafeVal(l, ['LecturerID', 'NationalID']) === currentLecturerId);
+        const lect = localDB.lecturers.find(l => String(window.getSafeVal(l, ['LecturerID', 'NationalID'])).replace(/\//g, '-') === currentLecturerId);
         
         document.getElementById('hr-modal').style.display = 'none';
         document.getElementById('loader').style.display = 'flex';
