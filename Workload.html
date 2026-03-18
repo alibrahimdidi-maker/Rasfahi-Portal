@@ -323,6 +323,23 @@
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
+    // 🚀 STRICT VALIDATION FUNCTION: Prevents partial matches (e.g. ismail matching SM)
+    const validateRoleEmail = (role, email) => {
+        const prefix = email.split('@')[0].toLowerCase();
+        if (role === 'ALL') {
+            // Admin cannot have ANY faculty code as a standalone word in their email
+            for (const f of FACULTIES) {
+                const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
+                if (regex.test(prefix)) return false; 
+            }
+            return true;
+        } else {
+            // Faculty MUST have their specific faculty code as a standalone word
+            const regex = new RegExp(`\\b${role.toLowerCase()}\\b`);
+            return regex.test(prefix);
+        }
+    };
+
     const loadLocalCache = () => {
         const cached = localStorage.getItem('workload_assignments_cache');
         if (cached) {
@@ -356,9 +373,12 @@
     window.detectFacultyFromEmail = () => {
         const email = document.getElementById('login-email').value.toLowerCase();
         const roleSelect = document.getElementById('login-role');
+        const prefix = email.split('@')[0];
+        
         let found = false;
         FACULTIES.forEach(f => {
-            if (email.includes(`.${f.toLowerCase()}@`) || email.includes(`${f.toLowerCase()}@`)) {
+            const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
+            if (regex.test(prefix)) {
                 roleSelect.value = f;
                 roleSelect.style.borderColor = "var(--gold)";
                 found = true;
@@ -368,14 +388,23 @@
     };
 
     if (auth) {
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 activeRole = localStorage.getItem('userRole') || 'ALL';
+                
+                // 🚀 SECURITY RE-VALIDATION: Prevents bypassing via localStorage manipulation
+                if (!validateRoleEmail(activeRole, user.email)) {
+                    alert("Security Violation: Unauthorized role tampering detected. Logging out.");
+                    await signOut(auth);
+                    localStorage.removeItem('userRole');
+                    location.reload();
+                    return;
+                }
+
                 document.getElementById('user-badge').innerText = activeRole;
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-screen').style.display = 'block';
                 
-                // Allow everyone to view all faculties via dropdown
                 document.getElementById('facView').disabled = false;
                 
                 if (activeRole === 'ALL') {
@@ -398,24 +427,18 @@
         const email = document.getElementById('login-email').value.toLowerCase();
         const pass = document.getElementById('login-password').value;
         
-        // 🔒 STRICT SECURITY LOGIC: Stop cross-faculty and unauthorized admin logins
-        if (role === 'ALL') {
-            // Check if this email has ANY faculty abbreviation in it. If yes, block it.
-            const isFacultyEmail = FACULTIES.some(f => email.includes(`.${f.toLowerCase()}@`) || email.includes(`${f.toLowerCase()}@`));
-            if (isFacultyEmail) {
+        // 🚀 BULLETPROOF LOGIN VALIDATION
+        if (!validateRoleEmail(role, email)) {
+            if (role === 'ALL') {
                 alert("Security Block:\nFaculty accounts are strictly prohibited from accessing the Global Admin role.");
-                return;
-            }
-        } else {
-            // Check if the selected faculty matches the email's faculty code
-            const facultyCode = role.toLowerCase();
-            if (!email.includes(`.${facultyCode}@`) && !email.includes(`${facultyCode}@`)) {
+            } else {
                 alert(`Security Block:\nThe email provided (${email}) is not authorized to manage the Faculty of ${role}.`);
-                return;
             }
+            return;
         }
 
         document.getElementById('loader').style.display = 'flex';
+        document.getElementById('loader-text').innerText = "Authenticating...";
         try {
             await signInWithEmailAndPassword(auth, email, pass);
             localStorage.setItem('userRole', role);
@@ -547,7 +570,7 @@
                 alert("Loaded locally. Cloud is offline."); return; 
             }
 
-            const CHUNK_SIZE = 450;
+            const CHUNK_SIZE = 400;
             let totalCount = 0;
             for (let i = 0; i < tempData.length; i += CHUNK_SIZE) {
                 const chunk = tempData.slice(i, i + CHUNK_SIZE);
@@ -563,10 +586,7 @@
                     }
                 });
                 
-                if (hasWrites) {
-                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out.")), 20000));
-                    await Promise.race([batch.commit(), timeout]);
-                }
+                if (hasWrites) await batch.commit();
             }
             alert(`✅ Successfully synced ${totalCount} records.`);
         } catch (err) {
@@ -651,13 +671,11 @@
                     ? `<span class="bg-green-100 text-green-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm">Assigned</span>` 
                     : `<span class="bg-red-100 text-red-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm animate-pulse">Unassigned</span>`;
 
-                // 🔒 SECURITY UI: Only allow editing if Admin OR if module belongs to user's faculty
                 const canEdit = (activeRole === 'ALL' || mFac.includes(activeRole));
                 const disableAttr = canEdit ? '' : 'disabled';
                 const selectStyle = canEdit ? 'focus:border-gold' : 'bg-gray-200 cursor-not-allowed opacity-60 border-gray-300 text-gray-500 font-bold';
                 const lockIcon = canEdit ? '' : '🔒 ';
 
-                // Admin Delete Button
                 const adminAction = activeRole === 'ALL' ? `<td class="p-2 align-middle text-center"><button onclick="window.deleteModuleRow('${safeMCode}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Module">🗑️</button></td>` : '';
 
                 const tr = document.createElement('tr');
@@ -717,21 +735,20 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
-    // 🚀 NEW: FIXED SERVER HANG - Batched Save Logic
+    // 🚀 FIXED HANGING: Simplified Batched Write Loop
     window.saveToServer = async () => {
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
         
+        if (!navigator.onLine) {
+            alert("⚠️ Network Error: You are offline. Work is saved in your browser, but cannot reach the server.");
+            return;
+        }
+
         loader.style.display = 'flex';
         loaderText.innerText = "Saving to Server...";
 
-        if (!dbCloud) {
-            alert("✅ Offline mode: Progress saved locally in your browser.");
-            loader.style.display = 'none'; return;
-        }
-
         try {
-            // First, collect all the valid assignments that the user is allowed to save
             let validAssignments = [];
             Object.keys(localDB.assignments).forEach(mCode => {
                 const m = localDB.modules.find(mod => String(window.getSafeVal(mod, ['ModuleCode'])).replace(/\//g, '-') === mCode);
@@ -744,36 +761,27 @@
             });
 
             if(validAssignments.length === 0) {
-                alert("No active assignments found to save.");
+                alert("No active assignments found to save for your faculty.");
                 loader.style.display = 'none'; return;
             }
 
-            // Chunk the assignments to prevent Firebase "Batch too large" error which causes hanging
-            const CHUNK_SIZE = 450;
+            const CHUNK_SIZE = 400;
             let totalSaved = 0;
 
             for (let i = 0; i < validAssignments.length; i += CHUNK_SIZE) {
                 const chunk = validAssignments.slice(i, i + CHUNK_SIZE);
                 const batch = writeBatch(dbCloud);
-                let hasWrites = false;
-
                 chunk.forEach(item => {
                     batch.set(doc(dbCloud, "assignments", item.code), item.data, { merge: true });
-                    hasWrites = true;
                     totalSaved++;
                 });
-
-                if (hasWrites) {
-                    // Added a safety timeout so the loader doesn't spin forever if internet drops
-                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out due to slow internet.")), 15000));
-                    await Promise.race([batch.commit(), timeout]);
-                }
+                await batch.commit(); 
             }
             
             alert(`✅ Successfully saved ${totalSaved} assignments to the University Server!`);
         } catch (error) {
             console.error("Save error", error);
-            alert("Server sync failed: " + error.message + "\nYour work is still safe locally in the browser.");
+            alert("Server sync failed: " + error.message);
         } finally {
             loader.style.display = 'none';
         }
@@ -829,7 +837,7 @@
             complete: async (res) => {
                 try {
                     const data = res.data;
-                    const CHUNK_SIZE = 450;
+                    const CHUNK_SIZE = 400;
                     
                     if (!dbCloud) {
                         alert("Cannot restore Master CSV while offline.");
