@@ -24,6 +24,7 @@
         .bg-gradient-royal { background: linear-gradient(135deg, var(--royal-green), var(--royal-blue), var(--royal-purple)); }
         .btn-gold { background: linear-gradient(45deg, #bf953f, #fcf6ba, #b38728); color: black; font-weight: 800; border: 1px solid rgba(0,0,0,0.1); transition: 0.3s; cursor: pointer; }
         .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .btn-disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border: none; }
         .card { background: white; border-radius: 12px; border-top: 5px solid var(--royal-green); box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
         
         /* Tabs & UI */
@@ -141,7 +142,7 @@
         <div id="admin-controls" class="hidden card p-4 mb-6 bg-red-50 border-t-4 border-red-600 flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h3 class="font-black text-red-800 uppercase text-xs">Academic Affairs (Global Admin Controls)</h3>
-                <p class="text-[9px] text-red-600 font-bold">You have administrative rights to export the master sheet and manage global data.</p>
+                <p class="text-[9px] text-red-600 font-bold">You have administrative rights to delete records and export the master sheet.</p>
             </div>
             <div class="flex gap-2">
                 <button onclick="window.exportCSV()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded shadow text-[10px] transition">📥 EXPORT MASTER CSV</button>
@@ -156,7 +157,8 @@
         <div id="tab-matrix" class="tab-content active">
             <div class="card overflow-hidden">
                 <div class="p-3 bg-gray-50 border-b flex flex-col lg:flex-row justify-between items-center gap-3">
-                    <select id="facView" onchange="window.renderMatrix()" class="w-full lg:w-auto p-2 border rounded-lg text-xs font-bold text-royal-green outline-none focus:border-gold"></select>
+                    <select id="facView" onchange="window.renderMatrix()" class="w-full lg:w-auto p-2 border rounded-lg text-xs font-bold text-royal-green outline-none focus:border-gold">
+                        </select>
                     <div class="flex flex-col md:flex-row gap-2 w-full lg:w-auto">
                         <select id="hrSelect" onchange="window.openHRView(this.value)" class="p-2 border rounded-lg text-[10px] md:text-xs font-bold outline-none focus:border-gold flex-1">
                             <option value="">-- Check Lecturer Workload --</option>
@@ -189,11 +191,11 @@
         <div id="tab-analytics" class="tab-content">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                 <div class="card p-4">
-                    <h3 class="text-xs font-black uppercase text-royal-green mb-2">Faculty Workload (WCH)</h3>
+                    <h3 class="text-xs font-black uppercase text-royal-green mb-2">University Wide Faculty Workload (WCH)</h3>
                     <div class="h-48 md:h-56"><canvas id="facultyChart"></canvas></div>
                 </div>
                 <div class="card p-4">
-                    <h3 class="text-xs font-black uppercase text-royal-blue mb-2">Academic Focus Breakdown</h3>
+                    <h3 class="text-xs font-black uppercase text-royal-blue mb-2">University Wide Academic Focus</h3>
                     <div class="h-48 md:h-56"><canvas id="focusChart"></canvas></div>
                 </div>
             </div>
@@ -317,7 +319,6 @@
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
-    // 🚀 NEW: Load assignments from Browser LocalStorage on boot
     const loadLocalCache = () => {
         const cached = localStorage.getItem('workload_assignments_cache');
         if (cached) {
@@ -330,7 +331,10 @@
         let options = `<option value="ALL">Academic Affairs (Global Admin)</option>`;
         FACULTIES.forEach(f => options += `<option value="${f}">Faculty of ${f}</option>`);
         document.getElementById('login-role').innerHTML = options;
-        document.getElementById('facView').innerHTML = options;
+        
+        let viewOptions = `<option value="ALL">View All Faculties (Global View)</option>`;
+        FACULTIES.forEach(f => viewOptions += `<option value="${f}">View Faculty of ${f}</option>`);
+        document.getElementById('facView').innerHTML = viewOptions;
     };
     buildDropdowns();
 
@@ -367,17 +371,15 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-screen').style.display = 'block';
                 
-                const facSelect = document.getElementById('facView');
-                if (activeRole !== 'ALL') {
-                    facSelect.value = activeRole;
-                    facSelect.disabled = true; // Lock view to own faculty
-                } else {
-                    facSelect.disabled = false;
+                // Allow everyone to view all faculties via dropdown
+                document.getElementById('facView').disabled = false;
+                
+                if (activeRole === 'ALL') {
                     document.getElementById('admin-controls').style.display = 'flex';
                     document.getElementById('th-actions').style.display = 'table-cell';
                 }
                 
-                loadLocalCache(); // Load browser state before syncing
+                loadLocalCache(); 
                 startDatabaseListeners();
             } else {
                 document.getElementById('app-screen').style.display = 'none';
@@ -389,9 +391,19 @@
     window.handleLogin = async () => {
         if (!auth) return alert("Firebase Auth not initialized.");
         const role = document.getElementById('login-role').value;
-        const email = document.getElementById('login-email').value;
+        const email = document.getElementById('login-email').value.toLowerCase();
         const pass = document.getElementById('login-password').value;
         
+        // 🚀 NEW: STRICT LOGIN VALIDATION
+        if (role !== 'ALL') {
+            const facultyCode = role.toLowerCase();
+            // Check if email belongs to the selected faculty (e.g., admin.ksl@mnu.edu.mv or ksl@mnu.edu.mv)
+            if (!email.includes(`.${facultyCode}@`) && !email.includes(`${facultyCode}@`)) {
+                alert(`Authentication Error:\nThe email provided does not belong to the Faculty of ${role}.\nPlease select the correct faculty from the dropdown.`);
+                return;
+            }
+        }
+
         document.getElementById('loader').style.display = 'flex';
         try {
             await signInWithEmailAndPassword(auth, email, pass);
@@ -423,7 +435,6 @@
         });
         
         onSnapshot(collection(dbCloud, "assignments"), (snapshot) => {
-            // Cloud data merges over local cache if cloud updates
             snapshot.docs.forEach(doc => { localDB.assignments[doc.id] = doc.data(); });
             localStorage.setItem('workload_assignments_cache', JSON.stringify(localDB.assignments));
             window.renderMatrix();
@@ -613,9 +624,8 @@
             const mCode = window.getSafeVal(m, ['ModuleCode']);
             const combinedData = window.getSafeVal(m, ['CombinedBatch']);
             
-            // SECURITY CHECK: Faculties only see their own. Admin sees all.
-            if ((activeRole === 'ALL' || mFac.includes(activeRole)) && 
-                (viewFilter === 'ALL' || mFac.includes(viewFilter)) && 
+            // 🚀 VIEW FILTER: Show module if it matches the dropdown (or ALL).
+            if ((viewFilter === 'ALL' || mFac.includes(viewFilter)) && 
                 (mName.toLowerCase().includes(searchQ) || mCode.toLowerCase().includes(searchQ))) {
                 
                 let safeMCode = String(mCode).trim().replace(/\//g, '-');
@@ -634,6 +644,11 @@
                     ? `<span class="bg-green-100 text-green-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm">Assigned</span>` 
                     : `<span class="bg-red-100 text-red-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm animate-pulse">Unassigned</span>`;
 
+                // 🚀 AUTHORIZATION CHECK: Only allow editing if Admin OR if module belongs to user's faculty
+                const canEdit = (activeRole === 'ALL' || mFac.includes(activeRole));
+                const disableAttr = canEdit ? '' : 'disabled';
+                const selectStyle = canEdit ? 'focus:border-gold' : 'bg-gray-100 cursor-not-allowed opacity-70 border-gray-200';
+
                 // Admin Delete Button
                 const adminAction = activeRole === 'ALL' ? `<td class="p-2 align-middle text-center"><button onclick="window.deleteModuleRow('${safeMCode}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Module">🗑️</button></td>` : '';
 
@@ -647,14 +662,14 @@
                     <td class="p-2 align-middle text-[8px] md:text-[9px] font-bold text-gray-600">${mFac}</td>
                     <td class="p-2 align-middle">
                         <div class="flex items-center gap-1">
-                            <select onchange="window.assignLecturer('${safeMCode}', this.value)" class="w-full p-1 border border-gray-300 rounded text-[9px] outline-none focus:border-gold">
+                            <select onchange="window.assignLecturer('${safeMCode}', this.value)" ${disableAttr} class="w-full p-1 border rounded text-[9px] outline-none ${selectStyle}">
                                 ${lectOptionsHTML.replace(`value="${assignment.id}"`, `value="${assignment.id}" selected`)}
                             </select>
                             <button onclick="window.checkAssignedWorkload('${safeMCode}')" title="Check Workload" class="p-1.5 bg-gray-100 hover:bg-blue-100 rounded text-blue-600 ${!isAssigned ? 'opacity-50 cursor-not-allowed' : ''}">🔍</button>
                         </div>
                     </td>
                     <td class="p-2 align-middle">
-                        <select onchange="window.updateAssignmentMode('${safeMCode}', this.value)" class="p-1 border border-gray-300 rounded text-[8px] outline-none">
+                        <select onchange="window.updateAssignmentMode('${safeMCode}', this.value)" ${disableAttr} class="p-1 border rounded text-[8px] outline-none ${selectStyle}">
                             <option value="Individual" ${assignment.mode === 'Individual' ? 'selected' : ''}>Individual</option>
                             <option value="Combined" ${assignment.mode === 'Combined' ? 'selected' : ''}>Combined</option>
                         </select>
@@ -666,17 +681,27 @@
         });
     };
 
-    // 🚀 NEW: Assign updates LOCAL storage immediately for state preservation. 
     window.assignLecturer = (mCode, lectId) => {
+        // Backend security check
+        const m = localDB.modules.find(mod => String(window.getSafeVal(mod, ['ModuleCode'])).replace(/\//g, '-') === mCode);
+        const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+        if (activeRole !== 'ALL' && !mFac.includes(activeRole)) {
+            alert("Unauthorized Action: You can only modify modules belonging to your Faculty.");
+            window.renderMatrix(); return;
+        }
+
         if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { mode: 'Individual' };
         localDB.assignments[mCode].id = lectId;
         
-        // Save to browser immediately
         localStorage.setItem('workload_assignments_cache', JSON.stringify(localDB.assignments));
         window.renderMatrix(); window.updateAnalytics();
     };
 
     window.updateAssignmentMode = (mCode, mode) => {
+        const m = localDB.modules.find(mod => String(window.getSafeVal(mod, ['ModuleCode'])).replace(/\//g, '-') === mCode);
+        const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+        if (activeRole !== 'ALL' && !mFac.includes(activeRole)) return;
+
         if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { id: '' };
         localDB.assignments[mCode].mode = mode;
         
@@ -684,7 +709,6 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
-    // 🚀 NEW: Manual Save to Server Button Logic
     window.saveToServer = async () => {
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -702,10 +726,16 @@
             const batch = writeBatch(dbCloud);
             let hasWrites = false;
             
-            // Push all local assignments to cloud
             Object.keys(localDB.assignments).forEach(mCode => {
-                batch.set(doc(dbCloud, "assignments", mCode), localDB.assignments[mCode], { merge: true });
-                hasWrites = true;
+                // Only push modules belonging to the user's faculty, unless admin
+                const m = localDB.modules.find(mod => String(window.getSafeVal(mod, ['ModuleCode'])).replace(/\//g, '-') === mCode);
+                if (m) {
+                    const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+                    if (activeRole === 'ALL' || mFac.includes(activeRole)) {
+                        batch.set(doc(dbCloud, "assignments", mCode), localDB.assignments[mCode], { merge: true });
+                        hasWrites = true;
+                    }
+                }
             });
             
             if (hasWrites) await batch.commit();
@@ -718,16 +748,13 @@
         }
     };
 
-    // 🚀 NEW: Admin Delete Single Row
     window.deleteModuleRow = async (mCode) => {
         if (activeRole !== 'ALL') return alert("Unauthorized Action.");
         if (confirm(`Are you sure you want to permanently delete module [${mCode}]?`)) {
-            // Remove locally
             localDB.modules = localDB.modules.filter(m => String(window.getSafeVal(m, ['ModuleCode'])).replace(/\//g, '-') !== mCode);
             delete localDB.assignments[mCode];
             localStorage.setItem('workload_assignments_cache', JSON.stringify(localDB.assignments));
             
-            // Remove from Cloud
             if (dbCloud) {
                 try {
                     await deleteDoc(doc(dbCloud, "modules", mCode));
@@ -738,7 +765,6 @@
         }
     };
 
-    // 🚀 NEW: Admin Export CSV (Master Sheet Compilation)
     window.exportCSV = () => {
         if (activeRole !== 'ALL') return alert("Unauthorized Action.");
         const exportData = localDB.modules.map(m => {
@@ -767,6 +793,7 @@
         }
     }
 
+    // 🚀 NEW: Analytics calculates over ALL data for a global view
     window.updateAnalytics = () => {
         if (localDB.modules.length === 0 && localDB.lecturers.length === 0) return;
         
@@ -779,41 +806,36 @@
 
         localDB.lecturers.forEach(l => {
             const fac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
-            if (activeRole === 'ALL' || fac.includes(activeRole)) {
-                const id = String(window.getSafeVal(l, ['LecturerID', 'NationalID'])).replace(/\//g, '-');
-                const type = window.getSafeVal(l, ['LecturerType', 'Type']);
-                const focus = window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category']);
-                
-                let target = TARGET_TEACHING;
-                if (type.toLowerCase().includes('part')) target = TARGET_PT;
-                else if (focus.toLowerCase().includes('research')) target = TARGET_RESEARCH;
-                
-                workloadData[id] = { 
-                    name: window.getSafeVal(l, ['LecturerName', 'FullName']), 
-                    wch: 0, target: target, focus: focus, type: type, fac: fac 
-                };
-            }
+            const id = String(window.getSafeVal(l, ['LecturerID', 'NationalID'])).replace(/\//g, '-');
+            const type = window.getSafeVal(l, ['LecturerType', 'Type']);
+            const focus = window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category']);
+            
+            let target = TARGET_TEACHING;
+            if (type.toLowerCase().includes('part')) target = TARGET_PT;
+            else if (focus.toLowerCase().includes('research')) target = TARGET_RESEARCH;
+            
+            workloadData[id] = { 
+                name: window.getSafeVal(l, ['LecturerName', 'FullName']), 
+                wch: 0, target: target, focus: focus, type: type, fac: fac 
+            };
         });
 
         let seenCombinedCodes = new Set();
         localDB.modules.forEach(m => {
-            const fac = window.getSafeVal(m, ['Kulliyyah', 'Faculty']);
-            if (activeRole === 'ALL' || fac.includes(activeRole)) {
-                const rawMCode = window.getSafeVal(m, ['ModuleCode']);
-                const mCode = String(rawMCode).replace(/\//g, '-');
-                const wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours']) || 0);
-                const assignment = localDB.assignments[mCode] || { id: '', mode: (window.getSafeVal(m, ['CombinedBatch']) ? 'Combined' : 'Individual') };
-                
-                if (!assignment.id || assignment.id === '') {
-                    unassignedCount++;
-                } else {
-                    let actualWch = wch;
-                    if (assignment.mode === 'Combined') {
-                        if (seenCombinedCodes.has(mCode)) actualWch = 0;
-                        else seenCombinedCodes.add(mCode);
-                    }
-                    if (workloadData[assignment.id]) workloadData[assignment.id].wch += actualWch;
+            const rawMCode = window.getSafeVal(m, ['ModuleCode']);
+            const mCode = String(rawMCode).replace(/\//g, '-');
+            const wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours']) || 0);
+            const assignment = localDB.assignments[mCode] || { id: '', mode: (window.getSafeVal(m, ['CombinedBatch']) ? 'Combined' : 'Individual') };
+            
+            if (!assignment.id || assignment.id === '') {
+                unassignedCount++;
+            } else {
+                let actualWch = wch;
+                if (assignment.mode === 'Combined') {
+                    if (seenCombinedCodes.has(mCode)) actualWch = 0;
+                    else seenCombinedCodes.add(mCode);
                 }
+                if (workloadData[assignment.id]) workloadData[assignment.id].wch += actualWch;
             }
         });
 
@@ -860,15 +882,13 @@
         if (charts.faculty) charts.faculty.destroy();
         if (charts.focus) charts.focus.destroy();
         
-        const validFaculties = activeRole === 'ALL' ? FACULTIES : [activeRole];
-        
         charts.faculty = new Chart(document.getElementById('facultyChart'), {
             type: 'bar',
             data: {
-                labels: validFaculties,
+                labels: FACULTIES,
                 datasets: [
-                    { label: 'Part-Time Hrs', backgroundColor: '#d4af37', data: validFaculties.map(f => facStats[f].pt) },
-                    { label: 'Full-Time Hrs', backgroundColor: '#004d40', data: validFaculties.map(f => facStats[f].ft) }
+                    { label: 'Part-Time Hrs', backgroundColor: '#d4af37', data: FACULTIES.map(f => facStats[f].pt) },
+                    { label: 'Full-Time Hrs', backgroundColor: '#004d40', data: FACULTIES.map(f => facStats[f].ft) }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
@@ -972,7 +992,6 @@
         currentLecturerId = null; 
     };
 
-    // 🚀 UPDATED: PDF Generation Logic to properly render the new double nested borders
     window.downloadOfficialPDF = async () => {
         if (!currentLecturerId) return;
         const lect = localDB.lecturers.find(l => String(window.getSafeVal(l, ['LecturerID', 'NationalID'])).replace(/\//g, '-') === currentLecturerId);
@@ -993,7 +1012,7 @@
             frame.style.display = 'none';
             document.getElementById('loader').style.display = 'none';
             document.getElementById('hr-modal').style.display = 'flex';
-        }, 500); // 500ms delay to ensure borders render fully
+        }, 500); 
     };
 </script>
 </body>
