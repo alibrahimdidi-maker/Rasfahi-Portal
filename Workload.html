@@ -46,8 +46,8 @@
         .pdf-border-inner { border: 4px solid var(--royal-blue); padding: 15mm; box-sizing: border-box; height: 100%; width: 100%; background: white; }
         
         #loader { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center; }
-        .progress-bar { width: 200px; height: 6px; background: #e2e8f0; border-radius: 10px; margin-top: 10px; overflow: hidden; }
-        .progress-fill { height: 100%; background: var(--royal-green); width: 0%; transition: width 0.3s; }
+        .progress-bar { width: 250px; height: 8px; background: #e2e8f0; border-radius: 10px; margin-top: 15px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
+        .progress-fill { height: 100%; background: var(--royal-green); width: 0%; transition: width 0.4s ease-out; }
         
         /* Pulse Animation */
         .pulse-green { height: 8px; width: 8px; background-color: #4ade80; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
@@ -327,13 +327,12 @@
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
-    // 🚀 NEW: UNIVERSAL SAFE ID GENERATOR
+    // Universal Safe ID
     window.makeSafeId = (id) => {
         if (!id) return `UNKNOWN-${Math.floor(Math.random()*100000)}`;
         return String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
     };
 
-    // 🚀 LOGIN LOGIC
     const getRoleFromEmail = (email) => {
         if (!email || !email.includes('@')) return 'ALL';
         const localPart = email.toLowerCase().trim().split('@')[0];
@@ -420,7 +419,6 @@
         
         try {
             await signInWithEmailAndPassword(auth, email, pass);
-            document.getElementById('loader').style.display = 'none';
         } catch (error) {
             document.getElementById('loader').style.display = 'none';
             let msg = "ލޮގިން ފެއިލްވި: ";
@@ -520,7 +518,7 @@
         a.href = URL.createObjectURL(blob); a.download = filename; a.click();
     }
 
-    // 🚀 FIXED HANGING: Fully native Firebase Batch Commit (No Promise.race timeouts)
+    // 🚀 FULLY OPTIMIZED UPLOAD LOGIC (Prevents UI Freezing)
     window.importData = async (type, event) => {
         const files = event.target.files;
         if (files.length === 0) return;
@@ -534,6 +532,7 @@
         progContainer.style.display = 'block';
         progFill.style.width = '0%';
         loaderText.innerText = "Analyzing Files...";
+        await new Promise(r => setTimeout(r, 50)); // Yield to UI
         
         try {
             let tempData = [];
@@ -554,22 +553,18 @@
 
             if (tempData.length === 0) throw new Error("No valid data found in the CSV.");
 
-            loaderText.innerText = "Processing locally & Syncing with Cloud...";
-
             if (activeRole !== 'ALL' && type === 'modules') {
                 tempData.forEach(row => { row['Parent Faculty'] = activeRole; row['Kulliyyah/Centre'] = activeRole; });
             }
 
-            // Immediately load into UI (Offline First)
+            // Prepare local DB array efficiently
             localDB[type] = Array.from(new Map(tempData.map(x => [window.makeSafeId(window.getSafeVal(x, docIdKey)), x])).values());
-            window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
 
             if (!dbCloud || !navigator.onLine) {
                 alert("Loaded locally. Cloud is offline."); 
                 return; 
             }
 
-            // Safe Batch Logic (Reduced Chunk Size to 250)
             const CHUNK_SIZE = 250;
             let totalCount = 0;
             let totalChunks = Math.ceil(tempData.length / CHUNK_SIZE);
@@ -578,6 +573,7 @@
                 let currentChunk = Math.floor(i / CHUNK_SIZE) + 1;
                 loaderText.innerText = `Syncing Chunk ${currentChunk} of ${totalChunks}...`;
                 progFill.style.width = `${(currentChunk / totalChunks) * 100}%`;
+                await new Promise(r => setTimeout(r, 50)); // Yield to paint progress bar
 
                 const chunk = tempData.slice(i, i + CHUNK_SIZE);
                 const batch = writeBatch(dbCloud);
@@ -593,13 +589,16 @@
                 });
                 
                 if (hasWrites) {
-                    await batch.commit(); // Removed Promise.race timeout to let Firebase handle network naturally
+                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Network timeout. Data is loaded locally.")), 45000));
+                    await Promise.race([batch.commit(), timeout]);
                 }
             }
             alert(`✅ Successfully synced ${totalCount} records.`);
         } catch (err) {
             console.error(err); alert("Upload Note: " + err.message);
         } finally {
+            // Render heavy UI at the very end to prevent freezing
+            window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
             loader.style.display = 'none'; progContainer.style.display = 'none'; event.target.value = ''; 
         }
     };
@@ -745,7 +744,7 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
-    // 🚀 FIXED SERVER HANG: Removed artificial timeout, reduced chunk size
+    // 🚀 FIXED OPTIMIZED SAVE LOGIC
     window.saveToServer = async () => {
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -761,6 +760,7 @@
         progContainer.style.display = 'block';
         progFill.style.width = '0%';
         loaderText.innerText = "Syncing with Server...";
+        await new Promise(r => setTimeout(r, 50)); // Yield to paint
 
         try {
             let validAssignments = [];
@@ -779,7 +779,7 @@
                 loader.style.display = 'none'; progContainer.style.display = 'none'; return;
             }
 
-            const CHUNK_SIZE = 250; // Reduced for guaranteed success
+            const CHUNK_SIZE = 250;
             let totalSaved = 0;
             let totalChunks = Math.ceil(validAssignments.length / CHUNK_SIZE);
 
@@ -787,6 +787,7 @@
                 let currentChunk = Math.floor(i / CHUNK_SIZE) + 1;
                 loaderText.innerText = `Saving Chunk ${currentChunk} of ${totalChunks}...`;
                 progFill.style.width = `${(currentChunk / totalChunks) * 100}%`;
+                await new Promise(r => setTimeout(r, 50)); // Yield to paint
                 
                 const chunk = validAssignments.slice(i, i + CHUNK_SIZE);
                 const batch = writeBatch(dbCloud);
@@ -795,7 +796,8 @@
                     totalSaved++;
                 });
                 
-                await batch.commit(); // Letting Firebase handle it natively without our interference
+                const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Network timeout.")), 45000));
+                await Promise.race([batch.commit(), timeout]);
             }
             
             alert(`✅ Successfully saved ${totalSaved} assignments to the University Server!`);
@@ -824,7 +826,6 @@
         }
     };
 
-    // 🚀 FIXED EXPORT/IMPORT INTEGRITY
     window.exportCSV = () => {
         if (activeRole !== 'ALL') return alert("Unauthorized Action.");
         const exportData = localDB.modules.map(m => {
@@ -844,6 +845,7 @@
         downloadCSV(exportData, "Academic_Affairs_Master_Workload.csv");
     };
 
+    // 🚀 FIXED OPTIMIZED MASTER RESTORE
     window.importMasterCSV = async (event) => {
         if (activeRole !== 'ALL') return alert("Unauthorized Action.");
         const file = event.target.files[0];
@@ -858,6 +860,7 @@
         progContainer.style.display = 'block';
         progFill.style.width = '0%';
         loaderText.innerText = "Reading Master Backup...";
+        await new Promise(r => setTimeout(r, 50));
 
         Papa.parse(file, {
             header: true, skipEmptyLines: true,
@@ -879,6 +882,7 @@
                         let currentChunk = Math.floor(i / CHUNK_SIZE) + 1;
                         loaderText.innerText = `Restoring Database ${currentChunk} of ${totalChunks}...`;
                         progFill.style.width = `${(currentChunk / totalChunks) * 100}%`;
+                        await new Promise(r => setTimeout(r, 50));
 
                         const chunk = data.slice(i, i + CHUNK_SIZE);
                         const batch = writeBatch(dbCloud);
@@ -908,7 +912,8 @@
                         });
 
                         if(hasWrites) {
-                            await batch.commit();
+                            const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Network timeout.")), 45000));
+                            await Promise.race([batch.commit(), timeout]);
                         }
                     }
                     alert(`✅ Backup Restored!\nModules Loaded: ${moduleCount}\nAssignments Restored: ${assignmentCount}`);
@@ -916,9 +921,8 @@
                     console.error("Master Restore Error", err);
                     alert("Master Restore Failed: " + err.message);
                 } finally {
-                    loader.style.display = 'none';
-                    progContainer.style.display = 'none';
-                    event.target.value = '';
+                    window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
+                    loader.style.display = 'none'; progContainer.style.display = 'none'; event.target.value = '';
                 }
             }
         });
@@ -962,7 +966,8 @@
                 });
 
                 if(deleteCount > 0) {
-                    await batch.commit();
+                    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Cloud sync timed out.")), 45000));
+                    await Promise.race([batch.commit(), timeout]);
                 }
             }
 
