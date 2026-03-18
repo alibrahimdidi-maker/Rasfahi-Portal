@@ -76,7 +76,7 @@
             </div>
             <div>
                 <label class="text-[10px] font-bold text-gray-600 uppercase">Email Address</label>
-                <input type="email" id="login-email" class="w-full p-3 border-2 border-gray-200 rounded-lg font-bold text-sm outline-none focus:border-gold" placeholder="admin@ksl.mnu.edu.mv" oninput="window.detectFacultyFromEmail()">
+                <input type="email" id="login-email" class="w-full p-3 border-2 border-gray-200 rounded-lg font-bold text-sm outline-none focus:border-gold" placeholder="admin.ksl@domain.com" oninput="window.detectFacultyFromEmail()">
             </div>
             <div>
                 <label class="text-[10px] font-bold text-gray-600 uppercase">Password</label>
@@ -323,22 +323,29 @@
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
-    // 🚀 NEW: BULLETPROOF EMAIL VALIDATOR
-    // This strictly checks for the exact pattern `code@`, `.code@`, or `@code.`
-    // E.g., ismail@... fails for SM. admin.ksl@... passes for KSL.
+    // 🚀 NEW: BULLETPROOF PREFIX NORMALIZER
+    // This removes dots, hyphens, and underscores so we can test the exact word cleanly.
+    // Example: "admin.ksl@domain.com" -> prefix becomes "admin ksl"
+    const getNormalizedPrefix = (email) => {
+        if (!email || !email.includes('@')) return "";
+        return email.split('@')[0].toLowerCase().replace(/[\.\-_]/g, ' ');
+    };
+
+    // 🚀 NEW: BULLETPROOF SECURITY VALIDATION
     const validateRoleEmail = (role, email) => {
-        const lowerEmail = email.toLowerCase();
+        const prefix = getNormalizedPrefix(email);
+        
         if (role === 'ALL') {
             for (const f of FACULTIES) {
-                const code = f.toLowerCase();
-                if (lowerEmail.includes(`${code}@`) || lowerEmail.includes(`.${code}@`) || lowerEmail.includes(`@${code}.`)) {
-                    return false; // Cannot be admin if any faculty code is found strictly
-                }
+                // If any faculty code exists as a distinct word in the prefix, REJECT as ALL Admin
+                const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
+                if (regex.test(prefix)) return false; 
             }
             return true;
         } else {
-            const code = role.toLowerCase();
-            return lowerEmail.includes(`${code}@`) || lowerEmail.includes(`.${code}@`) || lowerEmail.includes(`@${code}.`);
+            // The selected faculty code MUST exist as a distinct word in the prefix
+            const regex = new RegExp(`\\b${role.toLowerCase()}\\b`);
+            return regex.test(prefix);
         }
     };
 
@@ -374,13 +381,14 @@
 
     // Auto-select dropdown based on bulletproof logic
     window.detectFacultyFromEmail = () => {
-        const email = document.getElementById('login-email').value.toLowerCase();
+        const email = document.getElementById('login-email').value;
         const roleSelect = document.getElementById('login-role');
+        const prefix = getNormalizedPrefix(email);
         
         let found = false;
         FACULTIES.forEach(f => {
-            const code = f.toLowerCase();
-            if (email.includes(`${code}@`) || email.includes(`.${code}@`) || email.includes(`@${code}.`)) {
+            const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
+            if (regex.test(prefix)) {
                 roleSelect.value = f;
                 roleSelect.style.borderColor = "var(--gold)";
                 found = true;
@@ -429,7 +437,7 @@
     window.handleLogin = async () => {
         if (!auth) return alert("Firebase Auth not initialized.");
         const role = document.getElementById('login-role').value;
-        const email = document.getElementById('login-email').value.toLowerCase();
+        const email = document.getElementById('login-email').value;
         const pass = document.getElementById('login-password').value;
         
         // 🚀 BULLETPROOF LOGIN VALIDATION GATEKEEPER
@@ -450,7 +458,8 @@
             document.getElementById('loader').style.display = 'none';
         } catch (error) {
             document.getElementById('loader').style.display = 'none';
-            alert("Login Failed. Please check your credentials.");
+            // Detailed error to help user know if the email actually exists in Firebase Auth
+            alert(`Login Failed: ${error.message}\n\n(ފަޔަރބޭސްގައި މި އީމެއިލް ރަޖިސްޓަރ ކުރެވިފައިވޭތޯ ޗެކްކުރައްވާ!)`);
         }
     };
 
@@ -740,7 +749,7 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
-    // 🚀 NEW: FIXED SERVER HANG - Fully robust batched save logic without artificial timeouts
+    // 🚀 NEW: FIXED SERVER HANG - Batched Save Logic (Safe implementation)
     window.saveToServer = async () => {
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -770,8 +779,7 @@
                 loader.style.display = 'none'; return;
             }
 
-            // Simple, strict chunking logic that guarantees Firebase won't choke.
-            const CHUNK_SIZE = 400; 
+            const CHUNK_SIZE = 400;
             let totalSaved = 0;
 
             for (let i = 0; i < validAssignments.length; i += CHUNK_SIZE) {
@@ -781,7 +789,7 @@
                     batch.set(doc(dbCloud, "assignments", item.code), item.data, { merge: true });
                     totalSaved++;
                 });
-                await batch.commit(); // Wait explicitly for each batch to finish
+                await batch.commit(); 
             }
             
             alert(`✅ Successfully saved ${totalSaved} assignments to the University Server!`);
