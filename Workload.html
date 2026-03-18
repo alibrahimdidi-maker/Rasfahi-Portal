@@ -284,7 +284,7 @@
                     </tr>
                 </thead>
                 <tbody id="rep-rows"></tbody>
-                <tfoot>
+                <tfoot
                     <tr class="font-black text-xs bg-gray-50">
                         <td colspan="5" class="p-2 text-right uppercase text-[#0d47a1]">Total Workload (WCH):</td>
                         <td id="rep-total" class="p-2 text-right text-purple-900 underline">0.0</td>
@@ -459,7 +459,6 @@
         location.reload();
     };
 
-    // 💡 BACKGROUND SYNC UI HELPER
     const setSyncStatus = (status) => {
         const txt = document.getElementById('cloud-txt');
         const pulse = document.getElementById('cloud-pulse');
@@ -468,11 +467,11 @@
         if(status === 'syncing') {
             txt.innerText = "Syncing to Cloud...";
             pulse.className = "pulse-orange";
-            box.style.backgroundColor = "rgba(249, 115, 22, 0.2)"; // Orange bg
+            box.style.backgroundColor = "rgba(249, 115, 22, 0.2)";
         } else if (status === 'success') {
             txt.innerText = "Connected & Saved";
             pulse.className = "pulse-green";
-            box.style.backgroundColor = "rgba(255, 255, 255, 0.2)"; // Normal bg
+            box.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
         } else {
             txt.innerText = "Offline (Saved Locally)";
             pulse.className = "pulse-orange";
@@ -562,7 +561,6 @@
         a.href = URL.createObjectURL(blob); a.download = filename; a.click();
     }
 
-    // 💡 THE BRILLIANT FIX: Async processing, HTML String Rendering, and Background Cloud Sync
     window.importData = async (type, event) => {
         const files = event.target.files;
         if (files.length === 0) return;
@@ -597,15 +595,12 @@
                 tempData.forEach(row => { row['Parent Faculty'] = activeRole; row['Kulliyyah/Centre'] = activeRole; });
             }
 
-            // 1. UPDATE LOCAL DB INSTANTLY
             localDB[type] = Array.from(new Map(tempData.map(x => [window.makeSafeId(window.getSafeVal(x, docIdKey)), x])).values());
             
-            // 2. RENDER THE UI INSTANTLY
             window.populateLecturerDropdown(); 
             window.renderMatrix(); 
             window.updateAnalytics();
 
-            // 3. REMOVE THE BLOCKING LOADER IMMEDIATELY (User can now work)
             loader.style.display = 'none';
             event.target.value = ''; 
 
@@ -613,7 +608,6 @@
                 setSyncStatus('offline'); return; 
             }
 
-            // 4. START BACKGROUND SYNC (Non-blocking)
             window.runBackgroundCloudSync(type, tempData, docIdKey);
 
         } catch (err) {
@@ -622,12 +616,11 @@
         }
     };
 
-    // 💡 THE BACKGROUND SYNC ENGINE
     window.runBackgroundCloudSync = async (type, tempData, docIdKey) => {
         setSyncStatus('syncing');
         
         try {
-            const CHUNK_SIZE = 100; // Small bite-sized chunks so the browser never freezes
+            const CHUNK_SIZE = 100;
             let totalCount = 0;
             
             for (let i = 0; i < tempData.length; i += CHUNK_SIZE) {
@@ -646,7 +639,6 @@
                 
                 if (hasWrites) {
                     await batch.commit();
-                    // Yield the thread for 50ms to allow the user to click around smoothly while it syncs
                     await new Promise(r => setTimeout(r, 50)); 
                 }
             }
@@ -670,7 +662,11 @@
             const rawId = window.getSafeVal(l, ['LecturerID', 'NationalID']);
             const id = window.makeSafeId(rawId);
             const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
-            const fac = window.getSafeVal(l, ['Kulliyyah', 'Faculty', 'Centre']);
+            const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty', 'Centre']);
+            
+            // Map strictly to FACULTIES list for grouping
+            const fac = FACULTIES.find(f => rawFac.toUpperCase().includes(f)) || rawFac;
+
             if (id && name) {
                 if (!groupedLecturers[fac]) groupedLecturers[fac] = [];
                 groupedLecturers[fac].push({ id, name });
@@ -687,7 +683,6 @@
         });
     };
 
-    // 💡 HYPER-FAST RENDER ENGINE (Builds a single string instead of manipulating the DOM 1000 times)
     window.renderMatrix = () => {
         const tbody = document.getElementById('matrix-body');
         const searchQ = document.getElementById('mSearch').value.toLowerCase();
@@ -698,7 +693,6 @@
             return;
         }
 
-        // Pre-build lecturer options HTML (to save loop time)
         let lectOptionsMap = '<option value="">-- Assign --</option>';
         FACULTIES.forEach(fac => {
             const facLecturers = localDB.lecturers.filter(l => window.getSafeVal(l, ['Kulliyyah', 'Faculty']).includes(fac));
@@ -712,7 +706,7 @@
             }
         });
 
-        let finalHTML = ''; // Use string concatenation for 100x faster rendering
+        let finalHTML = ''; 
 
         localDB.modules.forEach(m => {
             const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
@@ -730,7 +724,11 @@
                 
                 const campus = window.getSafeCampus(m);
                 const program = window.getSafeVal(m, ['ProgramName']);
-                const wch = window.getSafeVal(m, ['WeeklyContactHours', 'WCH']);
+                
+                // Safe float parsing
+                let wch = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH']));
+                if (isNaN(wch)) wch = 0;
+
                 let batch = window.getSafeVal(m, ['OfferedBatch']);
                 
                 if (combinedData) batch += ` <br><span class="text-[8px] text-purple-600 font-bold">(+ ${combinedData})</span>`;
@@ -754,7 +752,7 @@
                     <td class="p-2 align-middle">${statusBadge}</td>
                     <td class="p-2 align-middle leading-tight"><b>${campus}</b><br><span class="text-[8px] md:text-[9px] text-gray-500">${program}</span></td>
                     <td class="p-2 align-middle leading-tight"><b class="text-royal-blue text-[9px] md:text-[10px]">${mName}</b><br><code class="text-[9px] bg-gray-100 px-1 rounded">${mCode}</code><br><span class="text-[8px] text-gray-500">Batch: ${batch}</span></td>
-                    <td class="p-2 align-middle text-center font-black text-sm">${wch || 0}</td>
+                    <td class="p-2 align-middle text-center font-black text-sm">${wch}</td>
                     <td class="p-2 align-middle text-[8px] md:text-[9px] font-bold text-gray-600">${mFac}</td>
                     <td class="p-2 align-middle">
                         <div class="flex items-center gap-1 relative">
@@ -776,7 +774,7 @@
             }
         });
         
-        tbody.innerHTML = finalHTML; // Single DOM injection (Massive performance boost)
+        tbody.innerHTML = finalHTML; 
     };
 
     window.assignLecturer = (mCode, lectId) => {
@@ -806,7 +804,6 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
-    // 💡 BACKGROUND SAVE TO SERVER (No Freezing)
     window.saveToServer = async () => {
         if (!navigator.onLine) {
             alert("⚠️ Network Error: You are offline. Work is saved in your browser, but cannot reach the server.");
@@ -844,7 +841,7 @@
                 });
                 
                 await batch.commit(); 
-                await new Promise(r => setTimeout(r, 50)); // Yield thread
+                await new Promise(r => setTimeout(r, 50));
             }
             
             setSyncStatus('success');
@@ -919,7 +916,6 @@
                     let moduleCount = 0;
                     let assignmentCount = 0;
 
-                    // Instantly update Local UI
                     let newModules = [];
                     data.forEach(row => {
                         let rawId = window.getSafeVal(row, ['ModuleCode', 'Code']);
@@ -943,11 +939,10 @@
                     localStorage.setItem('workload_assignments_cache', JSON.stringify(localDB.assignments));
                     
                     window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
-                    loader.style.display = 'none'; // Unblock UI
+                    loader.style.display = 'none'; 
 
                     setSyncStatus('syncing');
 
-                    // Background Cloud Sync
                     for (let i = 0; i < data.length; i += CHUNK_SIZE) {
                         const chunk = data.slice(i, i + CHUNK_SIZE);
                         const batch = writeBatch(dbCloud);
@@ -1056,6 +1051,7 @@
         }
     }
 
+    // 💡 ފުރިހަމަ ކުރެވިފައިވާ އެނަލިޓިކްސް އަދި ޗާޓް ފަންކްޝަން
     window.updateAnalytics = () => {
         if (localDB.modules.length === 0 && localDB.lecturers.length === 0) return;
         
@@ -1067,18 +1063,30 @@
         FACULTIES.forEach(f => facStats[f] = { pt: 0, ft: 0 });
 
         localDB.lecturers.forEach(l => {
-            const fac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
+            const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
+            // Safe Faculty Mapping
+            const fac = FACULTIES.find(f => rawFac.toUpperCase().includes(f)) || rawFac; 
+
             const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
-            const type = window.getSafeVal(l, ['LecturerType', 'Type']);
-            const focus = window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category']);
             
+            // Safe Categorization
+            const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
+            const focusStr = String(window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category']) || '').toLowerCase();
+            
+            let isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
+            let isResearch = focusStr.includes('research') || focusStr === 'res';
+
             let target = TARGET_TEACHING;
-            if (type.toLowerCase().includes('part')) target = TARGET_PT;
-            else if (focus.toLowerCase().includes('research')) target = TARGET_RESEARCH;
+            if (isPartTime) target = TARGET_PT;
+            else if (isResearch) target = TARGET_RESEARCH;
             
             workloadData[id] = { 
                 name: window.getSafeVal(l, ['LecturerName', 'FullName']), 
-                wch: 0, target: target, focus: focus, type: type, fac: fac 
+                wch: 0, 
+                target: target, 
+                isPartTime: isPartTime, 
+                isResearch: isResearch,
+                fac: fac 
             };
         });
 
@@ -1086,7 +1094,12 @@
         localDB.modules.forEach(m => {
             const rawMCode = window.getSafeVal(m, ['ModuleCode']);
             const mCode = window.makeSafeId(rawMCode);
-            const wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours']) || 0);
+            
+            // 💡 NaN Poisoning ރަނގަޅުކުރުން: ވެލިއު ނެތް ނަމަ 0 ގެ ގޮތުގައި ބެލެވޭނެ
+            let rawWch = window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours']);
+            let wch = parseFloat(rawWch);
+            if (isNaN(wch)) wch = 0;
+
             const assignment = localDB.assignments[mCode] || { id: '', mode: (window.getSafeVal(m, ['CombinedBatch']) ? 'Combined' : 'Individual') };
             
             if (!assignment.id || assignment.id === '') {
@@ -1105,18 +1118,23 @@
         let idleCount = 0, overCount = 0;
 
         Object.values(workloadData).forEach(data => {
-            if (data.type.toLowerCase().includes('part')) {
-                if (facStats[data.fac]) facStats[data.fac].pt += data.wch;
+            // ބާ ޗާޓަށް ޑޭޓާ ފޮނުވުން
+            if (facStats[data.fac]) {
+                if (data.isPartTime) facStats[data.fac].pt += data.wch;
+                else facStats[data.fac].ft += data.wch;
+            }
+
+            // ޕައި ޗާޓަށް ޑޭޓާ ފޮނުވުން
+            if (data.isPartTime) {
                 focusStats["Part-Time"] += data.wch;
             } else {
-                if (facStats[data.fac]) facStats[data.fac].ft += data.wch;
-                if (data.focus.toLowerCase().includes('research')) focusStats["Research"] += data.wch;
+                if (data.isResearch) focusStats["Research"] += data.wch;
                 else focusStats["Teaching"] += data.wch;
             }
 
             const isOverloaded = data.wch > data.target;
             const isIdle = data.wch === 0;
-            const typeBadge = `<span class="px-1.5 py-0.5 rounded text-[7px] font-bold text-white ${isOverloaded ? 'bg-purple-600' : (isIdle ? 'bg-orange-500' : 'bg-blue-500')}">${data.type.includes('part') ? 'PT' : 'FT'}</span>`;
+            const typeBadge = `<span class="px-1.5 py-0.5 rounded text-[7px] font-bold text-white ${isOverloaded ? 'bg-purple-600' : (isIdle ? 'bg-orange-500' : 'bg-blue-500')}">${data.isPartTime ? 'PT' : 'FT'}</span>`;
             
             const listItem = `
                 <div class="flex justify-between items-center py-1.5 border-b border-gray-200 hover:bg-gray-50 transition">
@@ -1124,7 +1142,7 @@
                         <span class="font-bold text-gray-800 break-words">${data.name}</span><br>
                         <span class="text-[8px] md:text-[9px] text-gray-500">${data.fac} | Target: ${data.target}h ${typeBadge}</span>
                     </div>
-                    <span class="font-black text-sm ${isOverloaded ? 'text-purple-600' : (isIdle ? 'text-orange-500' : 'text-blue-600')}">${data.wch}</span>
+                    <span class="font-black text-sm ${isOverloaded ? 'text-purple-600' : (isIdle ? 'text-orange-500' : 'text-blue-600')}">${data.wch.toFixed(1)}</span>
                 </div>
             `;
             
@@ -1207,7 +1225,10 @@
             let autoMode = (combinedData && combinedData.trim() !== '') ? 'Combined' : 'Individual';
             const config = localDB.assignments[mCode] || { mode: autoMode };
             
-            let h = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH']) || 0);
+            // 💡 NaN ރައްކާތެރިކަން
+            let h = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH']));
+            if(isNaN(h)) h = 0;
+
             let status = config.mode;
             let rowStyle = "";
             let batchInfo = window.getSafeVal(m, ['OfferedBatch']);
