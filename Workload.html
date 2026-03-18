@@ -323,29 +323,24 @@
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
-    // 🚀 NEW: BULLETPROOF PREFIX NORMALIZER
-    // This removes dots, hyphens, and underscores so we can test the exact word cleanly.
-    // Example: "admin.ksl@domain.com" -> prefix becomes "admin ksl"
-    const getNormalizedPrefix = (email) => {
-        if (!email || !email.includes('@')) return "";
-        return email.split('@')[0].toLowerCase().replace(/[\.\-_]/g, ' ');
+    // 🚀 BULLETPROOF SECURITY LOGIC
+    // Breaks email down into parts (e.g. "admin.ksl" -> ["admin", "ksl"])
+    const getEmailParts = (email) => {
+        if (!email || !email.includes('@')) return [];
+        return email.split('@')[0].toLowerCase().split(/[\.\-_]/);
     };
 
-    // 🚀 NEW: BULLETPROOF SECURITY VALIDATION
     const validateRoleEmail = (role, email) => {
-        const prefix = getNormalizedPrefix(email);
+        const parts = getEmailParts(email);
+        const lowerRole = role.toLowerCase();
         
         if (role === 'ALL') {
-            for (const f of FACULTIES) {
-                // If any faculty code exists as a distinct word in the prefix, REJECT as ALL Admin
-                const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
-                if (regex.test(prefix)) return false; 
-            }
-            return true;
+            const allFacCodes = FACULTIES.map(f => f.toLowerCase());
+            // Admin is ONLY valid if NO faculty code exists in the email prefix
+            return !parts.some(p => allFacCodes.includes(p));
         } else {
-            // The selected faculty code MUST exist as a distinct word in the prefix
-            const regex = new RegExp(`\\b${role.toLowerCase()}\\b`);
-            return regex.test(prefix);
+            // Faculty is ONLY valid if their exact code exists in the email prefix
+            return parts.includes(lowerRole);
         }
     };
 
@@ -379,21 +374,21 @@
         document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
     }
 
-    // Auto-select dropdown based on bulletproof logic
+    // Auto-select dropdown
     window.detectFacultyFromEmail = () => {
         const email = document.getElementById('login-email').value;
         const roleSelect = document.getElementById('login-role');
-        const prefix = getNormalizedPrefix(email);
+        const parts = getEmailParts(email);
         
         let found = false;
-        FACULTIES.forEach(f => {
-            const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
-            if (regex.test(prefix)) {
+        for (let f of FACULTIES) {
+            if (parts.includes(f.toLowerCase())) {
                 roleSelect.value = f;
                 roleSelect.style.borderColor = "var(--gold)";
                 found = true;
+                break;
             }
-        });
+        }
         if (!found && email.length > 0) {
             roleSelect.value = 'ALL';
             roleSelect.style.borderColor = "var(--gold)";
@@ -405,9 +400,9 @@
             if (user) {
                 activeRole = localStorage.getItem('userRole') || 'ALL';
                 
-                // 🚀 SECURITY: Kicks user out if localStorage was tampered with
+                // Kicks user out if localStorage was tampered with
                 if (!validateRoleEmail(activeRole, user.email)) {
-                    alert("Security Violation: Unauthorized role tampering detected. Logging out.");
+                    alert("[ސެކިއުރިޓީ ބްލޮކް]: ރޯލް އަދި އީމެއިލް ދިމައެއްނުވޭ. ލޮގްއައުޓް ކުރެވެނީ.");
                     await signOut(auth);
                     localStorage.removeItem('userRole');
                     location.reload();
@@ -435,38 +430,32 @@
     }
 
     window.handleLogin = async () => {
-        if (!auth) return alert("Firebase Auth not initialized.");
+        if (!auth) return alert("Firebase Auth not initialized. ކޯޑު ޗެކްކުރައްވާ.");
         const role = document.getElementById('login-role').value;
-        const email = document.getElementById('login-email').value.toLowerCase();
-        const pass = document.getElementById('login-password').value;
+        const email = document.getElementById('login-email').value.toLowerCase().trim();
+        const pass = document.getElementById('login-password').value.trim();
         
-        // 🚀 BULLETPROOF LOGIN VALIDATION GATEKEEPER
+        // 🚀 PREVENT UNAUTHORIZED LOGIN ATTEMPT
         if (!validateRoleEmail(role, email)) {
             if (role === 'ALL') {
-                alert(`Security Block:\nފެކަލްޓީ އެކައުންޓަކުން (e.g. ${email}) ގްލޯބަލް އެޑްމިންއަކަށް ނުވަދެވޭނެ!`);
+                alert(`[ސެކިއުރިޓީ ބްލޮކް]:\nފެކަލްޓީ މެއިލް އަކުން (${email}) ގްލޯބަލް އެޑްމިންއަކަށް ނުވަދެވޭނެ!`);
             } else {
-                alert(`Security Block:\nމި އީމެއިލްއިން (${email}) ފެކަލްޓީ އޮފް ${role} އަށް ނުވަދެވޭނެ!`);
+                alert(`[ސެކިއުރިޓީ ބްލޮކް]:\nމި މެއިލްއަކީ (${email}) ފެކަލްޓީ އޮފް ${role} ގެ މެއިލްއެއް ނޫން!`);
             }
-            return; // Stops Firebase from even attempting to log in
+            return; 
         }
 
         document.getElementById('loader').style.display = 'flex';
-        document.getElementById('loader-text').innerText = "Authenticating...";
+        document.getElementById('loader-text').innerText = "Authenticating with Firebase...";
         try {
             await signInWithEmailAndPassword(auth, email, pass);
             localStorage.setItem('userRole', role);
             document.getElementById('loader').style.display = 'none';
         } catch (error) {
             document.getElementById('loader').style.display = 'none';
-            
-            // Provide explicit error messages to help user know exactly what's wrong in Firebase
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                alert("ލޮގިން ފެއިލްވި: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި.\n\n(ފަޔަރބޭސްގައި މި އީމެއިލް ރަޖިސްޓަރ ކުރެވިފައިވޭތޯ ޔަޤީންކުރައްވާ!)");
-            } else if (error.code === 'auth/wrong-password') {
-                alert("ލޮގިން ފެއިލްވި: ޕާސްވޯޑް ނުބައި.");
-            } else {
-                alert(`ލޮގިން ފެއިލްވި: ${error.message}`);
-            }
+            // 🚀 EXPLICIT FIREBASE ERROR MESSAGE
+            alert(`[ފަޔަރބޭސް އެރަރ]: ${error.code}\n\nސަބަބު: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި، ނުވަތަ ފަޔަރބޭސްގައި މި ޔޫޒަރ ރަޖިސްޓަރ ކޮށްފައި ނެތީ.`);
+            console.error("Firebase Login Error:", error);
         }
     };
 
@@ -756,7 +745,7 @@
         window.renderMatrix(); window.updateAnalytics();
     };
 
-    // 🚀 NEW: FIXED SERVER HANG - Batched Save Logic (Safe implementation)
+    // 🚀 FIXED BATCH SAVE LOGIC
     window.saveToServer = async () => {
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
