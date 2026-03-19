@@ -383,6 +383,7 @@
         /* ============================================================
            VII. INTERACTIVE ELEMENTS (VOTING & SUPPORT)
            ============================================================ */
+        /* FULLY ACTIVE FOR EVERYONE! No more faded buttons */
         .control-toggle { 
             width: 44px; height: 44px; 
             border-radius: 10px; 
@@ -397,7 +398,7 @@
             justify-content: center; 
         }
 
-        .control-toggle:hover:not(:disabled) { 
+        .control-toggle:hover { 
             border-color: var(--success-green); 
             color: var(--success-green); 
         }
@@ -425,15 +426,8 @@
             transition: 0.2s;
         }
 
-        .support-dropdown:focus:not(:disabled), .support-dropdown:hover:not(:disabled) { 
+        .support-dropdown:focus, .support-dropdown:hover { 
             border-color: var(--accent-gold); 
-        }
-        
-        .admin-disabled-btn { 
-            opacity: 0.4; 
-            cursor: not-allowed; 
-            background-color: #f1f5f9; 
-            pointer-events: none;
         }
 
         /* Toast Notification */
@@ -594,7 +588,7 @@
                     <i class="fas fa-file-csv"></i> ޑަމީ ޑޭޓާ
                 </button>
                 <button class="action-btn btn-reset admin-only-btn" onclick="resetServerData()">
-                    <i class="fas fa-trash-alt"></i> ސަރވަރ ރީސެޓް
+                    <i class="fas fa-trash-alt"></i> ހާޑް ރީސެޓް
                 </button>
                 
                 <button class="action-btn btn-logout" onclick="logoutCloud()">
@@ -668,7 +662,7 @@
     }, 1000);
 
     /* ============================================================
-       VI. FIREBASE AUTHENTICATION
+       VI. FIREBASE AUTHENTICATION & ADMIN LOCKDOWN
        ============================================================ */
     auth.onAuthStateChanged((user) => {
         if (user) {
@@ -676,6 +670,13 @@
             document.getElementById('main-app').style.display = 'block';
             
             let savedStation = localStorage.getItem('rasfahi_active_station') || "Admin"; 
+            
+            // Ultimate Admin Security: If someone forces "Admin" in localstorage but isn't the admin email, kick them to Center 1
+            if (savedStation === "Admin" && user.email.toLowerCase() !== "admin@rasfahi.com") {
+                savedStation = "Center 1";
+                localStorage.setItem('rasfahi_active_station', savedStation);
+            }
+
             currentUserRole = (savedStation === "Admin") ? "admin" : savedStation;
             
             document.getElementById('display-user-role').innerText = currentUserRole === 'admin' ? "MAIN ADMIN" : currentUserRole.toUpperCase();
@@ -697,6 +698,13 @@
 
         if (!email || !pass) { msg.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!"; return; }
         
+        // Strict Admin Check at Login
+        if (station === "Admin" && email.toLowerCase() !== "admin@rasfahi.com") {
+            msg.style.color = "#e74c3c";
+            msg.innerText = "އެޑްމިން އަށް ވަދެވޭނީ ހަމައެކަނި އެޑްމިން އީމެއިލް ބޭނުންކޮށްގެންނެވެ.";
+            return;
+        }
+
         msg.style.color = "#ffc300"; 
         msg.innerText = "ކްލައުޑަށް ގުޅެނީ...";
 
@@ -757,6 +765,7 @@
             if(stations.includes(currentSel) || currentSel === 'all') select.value = currentSel;
             select.disabled = false;
         } else {
+            // Force the dropdown to only show the user's assigned center
             select.innerHTML = `<option value="${currentUserRole}">${currentUserRole}</option>`;
             select.disabled = true;
         }
@@ -787,7 +796,6 @@
         
         const searchQuery = document.getElementById('masterSearch').value.toLowerCase();
         const activeStation = document.getElementById('stationFilter').value;
-        const isAdmin = currentUserRole === 'admin';
 
         // Dashboard Stats
         const dashboardList = VOTER_STORE.filter(v => activeStation === 'all' || v.st === activeStation);
@@ -811,30 +819,24 @@
         });
         dualChartInstance.update();
 
-        const currentRoleSafe = String(currentUserRole).trim().toLowerCase();
-        
         // Filter Table Search
+        const currentRoleSafe = String(currentUserRole).trim().toLowerCase();
         const tableList = VOTER_STORE.filter(v => {
             const matchesSearch = (v.name.toLowerCase().includes(searchQuery) || v.id.toLowerCase().includes(searchQuery) || v.pa.toLowerCase().includes(searchQuery) || (v.phone && v.phone.includes(searchQuery)));
             const matchesStation = (activeStation === 'all' || v.st === activeStation);
+            
             // Allow Admin to see all, Center user to see ONLY their center
-            const accessAllowed = (isAdmin || String(v.st).trim().toLowerCase() === currentRoleSafe);
+            const accessAllowed = (currentUserRole === 'admin' || String(v.st).trim().toLowerCase() === currentRoleSafe);
             return matchesSearch && matchesStation && accessAllowed;
         });
 
-        // Table Rows Render
+        // Table Rows Render (FULLY ACTIVE FOR ALL USERS)
         const tbody = document.getElementById('voterDataRows');
         tbody.innerHTML = tableList.map(v => {
             let currentSup = String(v.sup || 'none').trim();
-            const voterStSafe = String(v.st).trim().toLowerCase();
             
-            // Logic for active fields:
-            // Admin CANNOT edit anything. Center CAN edit ONLY their own voters.
-            const canEdit = (!isAdmin && voterStSafe === currentRoleSafe);
-            const disabledAttr = canEdit ? '' : 'disabled';
-            const disabledClass = canEdit ? '' : 'admin-disabled-btn';
-
-            let dropdownHTML = `<select class="support-dropdown ${disabledClass}" onchange="updateVoter('${v.firebaseId}', 'sup', this.value)" ${disabledAttr}>`;
+            // Dynamic Dropdown generation showing 10 candidates
+            let dropdownHTML = `<select class="support-dropdown" onchange="updateVoter('${v.firebaseId}', 'sup', this.value)">`;
             dropdownHTML += `<option value="none" ${currentSup === 'none' ? 'selected' : ''}>ނޭނގޭ</option>`;
             CANDIDATE_STORE.forEach(c => { 
                 dropdownHTML += `<option value="${c.id}" ${currentSup === c.id ? 'selected' : ''}>${c.name}</option>`; 
@@ -851,8 +853,8 @@
                 <td>${v.st}</td>
                 <td>${dropdownHTML}</td>
                 <td>
-                    <button class="control-toggle ${v.voted?'active-voted':''} ${disabledClass}" 
-                            onclick="updateVoter('${v.firebaseId}', 'voted', ${!v.voted})" ${disabledAttr}>
+                    <button class="control-toggle ${v.voted?'active-voted':''}" 
+                            onclick="updateVoter('${v.firebaseId}', 'voted', ${!v.voted})">
                         <i class="fas fa-check"></i>
                     </button>
                 </td>
@@ -864,7 +866,13 @@
        VIII. ACTION UPDATES (OPTIMISTIC UI + FIREBASE)
        ============================================================ */
     function updateVoter(docId, field, val) {
-        if (currentUserRole === 'admin') return; 
+        // Stop Main Admin from editing (as per requirement)
+        if (currentUserRole === 'admin') { 
+            alert("މެއިން އެޑްމިން އަށް ވޯޓަރ ލިސްޓަށް ބަދަލު ނުގެނެވޭނެއެވެ."); 
+            // Re-render to revert the optimistic local change the admin just tried to make
+            refreshUI(); 
+            return; 
+        }
         
         const voterIndex = VOTER_STORE.findIndex(v => v.firebaseId === docId);
         if(voterIndex === -1) return;
