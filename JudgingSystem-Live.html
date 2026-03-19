@@ -185,7 +185,8 @@
         .rank-2 { background: linear-gradient(135deg, #E0E0E0, #A9A9A9); color: #000; } 
         .rank-3 { background: linear-gradient(135deg, #CD7F32, #8B4513); } 
         .rank-other { background: var(--royal-blue); }
-        .btn-delete { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-delete { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; cursor: pointer; font-weight: bold; border-radius:6px;}
+        .btn-edit-row { background: #e0f2fe; color: #0284c7; border: 1px solid #7dd3fc; cursor: pointer; font-weight: bold; border-radius:6px; margin-bottom:5px;}
 
         /* Modal & Print UI */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; direction: rtl;}
@@ -459,7 +460,7 @@
 
         <div class="form-panel" id="addForm" oninput="saveFormDraft()">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
-                <h2 style="margin:0; color:var(--royal-blue); font-size:20px;">ދަރިވަރުގެ މަޢުލޫމާތު އަދި ތަފްޞީލީ މާކްސް</h2>
+                <h2 style="margin:0; color:var(--royal-blue); font-size:20px;" id="formTitle">ދަރިވަރުގެ މަޢުލޫމާތު އަދި ތަފްޞީލީ މާކްސް (Add / Edit)</h2>
                 <span id="autoSaveIndicator" style="font-size:14px; color:var(--royal-green); font-weight:bold; display:none;">✓ ޑްރާފްޓް ސޭވްވެއްޖެ</span>
             </div>
             <div class="form-grid">
@@ -491,8 +492,8 @@
                 </div>
             </div>
             <div style="margin-top: 20px; display:flex; gap:10px;">
-                <button class="btn btn-blue" onclick="saveStudent()">💾 ސޭވް ކުރައްވާ</button>
-                <button class="btn btn-dark" onclick="clearFormDraft()">ފޯމު ހުސްކުރައްވާ</button>
+                <button class="btn btn-blue" onclick="saveStudent()">💾 ސޭވް / އޯވަރރައިޓް ކުރައްވާ</button>
+                <button class="btn btn-dark" onclick="clearFormDraft()">ފޯމު ކެންސަލް / ހުސްކުރައްވާ</button>
             </div>
         </div>
 
@@ -858,6 +859,7 @@
 
     let isJudgePopup = false; let currentJudgeId = 1; 
     let myJudgeMarks = { c1: 40, c2: 20, c3: 10, c4: 10, c5: 10, c6: 10 }; let myJudgeLogs = [];
+    let editingUid = null; // NEW: Track currently editing student
     
     // Firebase Setup Variables
     let db;
@@ -898,7 +900,6 @@
         
         if(!email || !pass) { err.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!"; return; }
 
-        // NEW SECURITY CHECK: Email prefix must contain the role code
         const emailPrefix = email.split('@')[0].toLowerCase();
         if(!emailPrefix.includes(roleVal.toLowerCase())) {
             err.innerText = "މި އީމެއިލްއަށް ހުއްދަދެވިފައިވާ ސެކްޝަން (Authorize Section) އިޚްތިޔާރުކުރައްވާ!";
@@ -916,7 +917,7 @@
             else if(roleVal.startsWith('jdg')) redirectUrl += '?role=judge&id=' + roleVal.replace('jdg', '');
             else if(roleVal === 'live') redirectUrl += '?role=liveCtrl';
             else if(roleVal === 'stu') redirectUrl += '?role=student';
-            else redirectUrl += '?role=' + roleVal; // tv
+            else redirectUrl += '?role=' + roleVal; 
             
             window.location.href = redirectUrl;
         })
@@ -951,7 +952,6 @@
                 let savedRole = localStorage.getItem('rasfahi_current_role') || 'admin';
                 let urlId = urlParams.get('id');
 
-                // Security: Prevent accessing screens outside of assigned role
                 if (savedRole !== 'admin') {
                     let expectedUrlRole = '';
                     let expectedId = null;
@@ -971,14 +971,13 @@
                         let redirectUrl = window.location.pathname + '?role=' + expectedUrlRole;
                         if (expectedId) redirectUrl += '&id=' + expectedId;
                         window.location.href = redirectUrl;
-                        return; // Halt loading to redirect
+                        return; 
                     }
                 }
 
                 document.getElementById('loginScreen').style.display = 'none';
                 let activeRole = urlRole || savedRole;
 
-                // Sync legacy local storage
                 studentsRef.once('value', (snapshot) => {
                     if (!snapshot.exists() || snapshot.val() === "[]") {
                         let localDB = localStorage.getItem('rasfahi_db_v1');
@@ -992,14 +991,12 @@
                     }
                 });
 
-                // Hide all main containers
                 ['app_db', 'app_liveCtrl', 'app_student', 'app_judge', 'app_tv', 'roleScreen'].forEach(id => {
                     let el = document.getElementById(id);
                     if(el) el.classList.add('hidden');
                 });
                 document.getElementById('globalHeader').style.display = 'none';
 
-                // Display appropriate screen based on role
                 if (activeRole === 'admin') {
                     document.getElementById('roleScreen').classList.remove('hidden');
                 } 
@@ -1120,6 +1117,7 @@
     }
     
     function clearFormDraft() { 
+        editingUid = null;
         formFields.forEach(id => { 
             let el = document.getElementById(id); 
             if(el) { 
@@ -1129,6 +1127,7 @@
             } 
         }); 
         localStorage.removeItem('rasfahi_draft_form'); 
+        if(document.getElementById('addForm')) document.getElementById('addForm').style.display = 'none';
     }
     
     const ageGroups = []; for(let i=5; i<=20; i++) ageGroups.push(`${i} އަހަރުން ދަށް`); ageGroups.push(`20 އަހަރުން މަތި`);
@@ -1146,7 +1145,16 @@
     
     function toggleForm() { 
         const f = document.getElementById('addForm'); 
-        f.style.display = f.style.display === 'block' ? 'none' : 'block'; 
+        if (f.style.display === 'block' && editingUid === null) {
+            f.style.display = 'none';
+        } else {
+            editingUid = null;
+            f.style.display = 'block';
+            formFields.forEach(id => { 
+                let el = document.getElementById(id); 
+                if(el) { if(el.type === 'number') el.value = ''; else if (el.tagName !== 'SELECT') el.value = ''; } 
+            });
+        }
     }
     
     function calculateStatsAndRank(list) {
@@ -1189,19 +1197,45 @@
         renderTable(filtered);
     }
 
-    function saveStudent() { 
-        const s = { uid: Date.now() }; 
-        formFields.forEach(id => { s[id] = document.getElementById(id).value || (id.startsWith('j') ? 0 : ''); }); 
+    // NEW EDIT FUNCTION
+    function editStudent(uid) {
+        let s = students.find(x => x.uid === uid);
+        if(!s) return;
+        editingUid = uid;
         
-        for(let i=1; i<=5; i++) {
-            s[`j${i}_submitted`] = false;
-        }
+        formFields.forEach(id => {
+            if(document.getElementById(id)) {
+                document.getElementById(id).value = s[id] !== undefined ? s[id] : '';
+            }
+        });
+        
+        document.getElementById('addForm').style.display = 'block';
+        window.scrollTo({ top: document.getElementById('addForm').offsetTop - 50, behavior: 'smooth' });
+    }
 
-        students.push(s); 
+    // UPDATED SAVE FUNCTION TO HANDLE EDITS
+    function saveStudent() { 
+        if (editingUid) {
+            let idx = students.findIndex(s => s.uid === editingUid);
+            if (idx !== -1) {
+                formFields.forEach(id => { 
+                    students[idx][id] = document.getElementById(id).value || (id.startsWith('j') ? 0 : ''); 
+                });
+                // Admin manually amends marks, judge lock remains intact so judges can't alter again.
+            }
+            editingUid = null;
+            alert("✅ ދަރިވަރުގެ މަޢުލޫމާތާއި މާކްސް ކާމިޔާބުކަމާއެކު އިޞްލާޙު ކުރެވިއްޖެ!");
+        } else {
+            const s = { uid: Date.now() }; 
+            formFields.forEach(id => { s[id] = document.getElementById(id).value || (id.startsWith('j') ? 0 : ''); }); 
+            for(let i=1; i<=5; i++) { s[`j${i}_submitted`] = false; }
+            students.push(s); 
+            alert("✅ އައު ދަރިވަރެއް ޑޭޓާބޭސްއަށް އެޑްކުރެވިއްޖެ!");
+        }
+        
         saveDB(); 
         clearFormDraft(); 
         generateLeaderboard(); 
-        toggleForm(); 
     }
     
     function deleteStudent(uid) { 
@@ -1225,7 +1259,12 @@
             let dJ5 = s.j5_total > 0 ? s.j5_total.toFixed(2) : '-';
             
             tbody.innerHTML += `<tr>
-                <td><button class="btn-delete" onclick="deleteStudent(${s.uid})">❌</button></td>
+                <td>
+                    <div style="display:flex; gap:5px; flex-direction:column;">
+                        <button class="btn-edit-row" onclick="editStudent(${s.uid})" title="އެޑިޓް / އިޞްލާޙުކުރުން">✏️</button>
+                        <button class="btn-delete" onclick="deleteStudent(${s.uid})" title="ފޮހެލުން">❌</button>
+                    </div>
+                </td>
                 <td>${s.f_serial}</td>
                 <td>${s.f_regNo}</td>
                 <td style="font-weight:bold; color:var(--royal-blue);">${s.f_name}</td>
