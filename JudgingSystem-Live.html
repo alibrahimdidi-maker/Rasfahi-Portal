@@ -379,22 +379,22 @@
             <h1>ސިސްޓަމް ލޮގިން</h1>
             
             <select id="loginRole" style="width: 100%; padding: 15px; margin: 0 0 15px 0; border-radius: 8px; font-size: 16px; border: 2px solid #ccc; font-family: 'Faruma', sans-serif; appearance: none; -webkit-appearance: none; font-weight: bold; color: var(--royal-blue); text-align: center; direction: rtl; cursor: pointer; background-color: #f9f9f9;">
-                <option value="admin">👨‍💻 މެއިން އެޑްމިން (Admin)</option>
-                <option value="judge_1">👨‍⚖️ ޖަޖު 1</option>
-                <option value="judge_2">👨‍⚖️ ޖަޖު 2</option>
-                <option value="judge_3">👨‍⚖️ ޖަޖު 3</option>
-                <option value="judge_4">👨‍⚖️ ޖަޖު 4</option>
-                <option value="judge_5">👨‍⚖️ ޖަޖު 5</option>
-                <option value="liveCtrl">⚙️ ލައިވް ކޮންޓްރޯލް</option>
-                <option value="student">📖 ދަރިވަރު ސްކްރީން</option>
-                <option value="tv">📺 ވެއިޓިންގ ރޫމް ޓީވީ</option>
+                <option value="admin">👨‍💻 މެއިން އެޑްމިން (admin)</option>
+                <option value="jdg1">👨‍⚖️ ޖަޖު 1 (jdg1)</option>
+                <option value="jdg2">👨‍⚖️ ޖަޖު 2 (jdg2)</option>
+                <option value="jdg3">👨‍⚖️ ޖަޖު 3 (jdg3)</option>
+                <option value="jdg4">👨‍⚖️ ޖަޖު 4 (jdg4)</option>
+                <option value="jdg5">👨‍⚖️ ޖަޖު 5 (jdg5)</option>
+                <option value="live">⚙️ ލައިވް ކޮންޓްރޯލް (live)</option>
+                <option value="stu">📖 ދަރިވަރު ސްކްރީން (stu)</option>
+                <option value="tv">📺 ވެއިޓިންގ ރޫމް ޓީވީ (tv)</option>
             </select>
 
             <input type="email" id="emailInput" placeholder="އީމެއިލް އެޑްރެސް ޖައްސަވާ..." style="direction:ltr;">
             <input type="password" id="passwordInput" placeholder="ޕާސްވޯޑް ޖައްސަވާ..." style="direction:ltr;" onkeypress="if(event.key === 'Enter') loginSystem()">
             
             <button class="btn-main" id="loginBtn" onclick="loginSystem()">ސެކިއުއަރ ލޮގިން</button>
-            <div id="loginError" style="color:var(--ruby); margin-top:10px; font-weight:bold; font-size:15px;"></div>
+            <div id="loginError" style="color:var(--ruby); margin-top:10px; font-weight:bold; font-size:15px; line-height: 1.5;"></div>
             
             <div style="margin-top: 30px; font-size: 14px; color: #666; line-height: 1.8;">
                 <p style="margin: 0; color: var(--royal-green); font-weight: bold;">Cloud Synchronized & Secured.</p>
@@ -897,6 +897,13 @@
         const roleVal = document.getElementById('loginRole').value;
         
         if(!email || !pass) { err.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!"; return; }
+
+        // NEW SECURITY CHECK: Email prefix must contain the role code
+        const emailPrefix = email.split('@')[0].toLowerCase();
+        if(!emailPrefix.includes(roleVal.toLowerCase())) {
+            err.innerText = "މި އީމެއިލްއަށް ހުއްދަދެވިފައިވާ ސެކްޝަން (Authorize Section) އިޚްތިޔާރުކުރައްވާ!";
+            return;
+        }
         
         btn.innerText = "AUTHENTICATING..."; err.innerText = "";
         
@@ -906,8 +913,10 @@
             
             let redirectUrl = window.location.pathname;
             if(roleVal === 'admin') redirectUrl += '?role=admin';
-            else if(roleVal.startsWith('judge_')) redirectUrl += '?role=judge&id=' + roleVal.split('_')[1];
-            else redirectUrl += '?role=' + roleVal;
+            else if(roleVal.startsWith('jdg')) redirectUrl += '?role=judge&id=' + roleVal.replace('jdg', '');
+            else if(roleVal === 'live') redirectUrl += '?role=liveCtrl';
+            else if(roleVal === 'stu') redirectUrl += '?role=student';
+            else redirectUrl += '?role=' + roleVal; // tv
             
             window.location.href = redirectUrl;
         })
@@ -944,8 +953,19 @@
 
                 // Security: Prevent accessing screens outside of assigned role
                 if (savedRole !== 'admin') {
-                    let expectedUrlRole = savedRole.startsWith('judge_') ? 'judge' : savedRole;
-                    let expectedId = savedRole.startsWith('judge_') ? savedRole.split('_')[1] : null;
+                    let expectedUrlRole = '';
+                    let expectedId = null;
+
+                    if(savedRole.startsWith('jdg')) {
+                        expectedUrlRole = 'judge';
+                        expectedId = savedRole.replace('jdg', '');
+                    } else if (savedRole === 'live') {
+                        expectedUrlRole = 'liveCtrl';
+                    } else if (savedRole === 'stu') {
+                        expectedUrlRole = 'student';
+                    } else {
+                        expectedUrlRole = savedRole; // tv
+                    }
 
                     if (urlRole !== expectedUrlRole || (expectedId && urlId !== expectedId)) {
                         let redirectUrl = window.location.pathname + '?role=' + expectedUrlRole;
@@ -1170,12 +1190,9 @@
     }
 
     function saveStudent() { 
-        // Note: For admins amending marks, they currently have to clear and re-add or use export/import logic if direct edit is missing. 
-        // This maintains your existing system logic.
         const s = { uid: Date.now() }; 
         formFields.forEach(id => { s[id] = document.getElementById(id).value || (id.startsWith('j') ? 0 : ''); }); 
         
-        // When admin resaves, we ensure judge locks are reset for this new record
         for(let i=1; i<=5; i++) {
             s[`j${i}_submitted`] = false;
         }
@@ -1647,7 +1664,6 @@
             let stuIndex = tempStudents.findIndex(s => String(s.uid) === String(st.uid));
             
             if(stuIndex !== -1) {
-                // Check if already submitted
                 if(tempStudents[stuIndex][`j${currentJudgeId}_submitted`]) {
                     return alert("މި ދަރިވަރަށް މާކްސް ދީ ނިމިފައި! ބަދަލުކުރެވޭނީ އެޑްމިންއަށް.");
                 }
@@ -1658,12 +1674,12 @@
                 tempStudents[stuIndex][`j${currentJudgeId}_c4`] = myJudgeMarks.c4; 
                 tempStudents[stuIndex][`j${currentJudgeId}_c5`] = myJudgeMarks.c5;
                 tempStudents[stuIndex][`j${currentJudgeId}_c6`] = myJudgeMarks.c6;
-                tempStudents[stuIndex][`j${currentJudgeId}_submitted`] = true; // Lock the submission
+                tempStudents[stuIndex][`j${currentJudgeId}_submitted`] = true;
                 
                 students = tempStudents;
                 saveDB(); 
                 alert(`ޖަޖު ${currentJudgeId} ގެ މާކްސް ސޭވްވެއްޖެ ✓`);
-                syncLiveStateUI(); // Force UI update to lock screen immediately
+                syncLiveStateUI(); 
             } else { alert("މެއިން ޑޭޓާބޭސްއިން މި ދަރިވަރު ނުފެނުނު!"); }
         }
     }
@@ -1802,7 +1818,6 @@
                 resetJudgeMarks(); 
             }
             
-            // Check if this judge has already submitted for this student
             let dbStr = localStorage.getItem('rasfahi_db_v1');
             let isSubmitted = false;
             if(dbStr && st.uid) {
@@ -1813,7 +1828,6 @@
                 }
             }
 
-            // Update UI based on submission lock
             let metaText = `${st.branch} | ${st.ageGroup} | ${st.capacity}`;
             if(isSubmitted) {
                 metaText += ` <span style="color:var(--ruby); font-weight:bold; background:#fff; padding:2px 8px; border-radius:5px; border:1px solid var(--ruby); margin-right:10px;">(މާކްސް ލޮކްކުރެވިފައި 🔒)</span>`;
