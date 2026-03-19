@@ -321,10 +321,11 @@
             if (user.email.toLowerCase() === 'admin@rasfahi.com') {
                 currentUserRole = "admin";
             } else {
-                currentUserRole = user.email.split('@')[0].toUpperCase();
+                // FIXED: Case-sensitivity issue for role parsing
+                currentUserRole = user.email.split('@')[0];
             }
             
-            document.getElementById('display-user-role').innerText = currentUserRole === 'admin' ? "MAIN ADMIN (VIEW ONLY VOTERS)" : currentUserRole;
+            document.getElementById('display-user-role').innerText = currentUserRole === 'admin' ? "MAIN ADMIN (VIEW ONLY)" : currentUserRole.toUpperCase();
             setupUIForRole();
             initDualPerformanceChart();
             startCloudSync();
@@ -456,7 +457,7 @@
 
         dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c, idx) => {
             let manual = parseInt(c.manualOffset) || 0;
-            // Support is mapped strictly: Cand 1 = Yes, Cand 2 = No. Others rely on manual votes.
+            // Cand 1 gets "Yes", Cand 2 gets "No". Candidates 3-10 rely purely on manual vote entry box
             let live = dashboardList.filter(v => v.sup === (idx === 0 ? 'yes' : (idx === 1 ? 'no' : 'none_match'))).length;
             return manual + live;
         });
@@ -467,14 +468,11 @@
         });
         dualChartInstance.update();
 
-        // Admin disabled controls rendering
-        const disabledAttr = isAdmin ? 'disabled class="control-toggle admin-disabled-btn"' : 'class="control-toggle"';
-
-        // Table List Rendering
+        // Table List Rendering (Case-Insensitive Station Checking)
         const tableList = VOTER_STORE.filter(v => {
             const matchesSearch = (v.name.toLowerCase().includes(searchQuery) || v.id.toLowerCase().includes(searchQuery) || v.pa.toLowerCase().includes(searchQuery) || (v.phone && v.phone.includes(searchQuery)));
             const matchesStation = (activeStation === 'all' || v.st === activeStation);
-            const accessAllowed = (isAdmin || v.st === currentUserRole);
+            const accessAllowed = (isAdmin || v.st.toLowerCase() === currentUserRole.toLowerCase());
             return matchesSearch && matchesStation && accessAllowed;
         });
 
@@ -488,11 +486,23 @@
                 <td>${v.phone || '-'}</td>
                 <td>${v.st}</td>
                 <td>
-                    <button ${isAdmin ? 'disabled class="control-toggle admin-disabled-btn ' : 'class="control-toggle '} ${v.sup==='yes'?'active-yes':''}" onclick="updateVoter('${v.firebaseId}', 'sup', 'yes')"><i class="fas fa-thumbs-up"></i></button>
-                    <button ${isAdmin ? 'disabled class="control-toggle admin-disabled-btn ' : 'class="control-toggle '} ${v.sup==='no'?'active-no':''}" onclick="updateVoter('${v.firebaseId}', 'sup', 'no')"><i class="fas fa-thumbs-down"></i></button>
+                    <button class="control-toggle ${v.sup==='yes'?'active-yes':''} ${isAdmin ? 'admin-disabled-btn' : ''}" 
+                            ${isAdmin ? 'disabled' : ''} 
+                            onclick="updateVoter('${v.firebaseId}', 'sup', 'yes')">
+                        <i class="fas fa-thumbs-up"></i>
+                    </button>
+                    <button class="control-toggle ${v.sup==='no'?'active-no':''} ${isAdmin ? 'admin-disabled-btn' : ''}" 
+                            ${isAdmin ? 'disabled' : ''} 
+                            onclick="updateVoter('${v.firebaseId}', 'sup', 'no')">
+                        <i class="fas fa-thumbs-down"></i>
+                    </button>
                 </td>
                 <td>
-                    <button ${isAdmin ? 'disabled class="control-toggle admin-disabled-btn ' : 'class="control-toggle '} ${v.voted?'active-voted':''}" onclick="updateVoter('${v.firebaseId}', 'voted', ${!v.voted})"><i class="fas fa-check"></i></button>
+                    <button class="control-toggle ${v.voted?'active-voted':''} ${isAdmin ? 'admin-disabled-btn' : ''}" 
+                            ${isAdmin ? 'disabled' : ''} 
+                            onclick="updateVoter('${v.firebaseId}', 'voted', ${!v.voted})">
+                        <i class="fas fa-check"></i>
+                    </button>
                 </td>
             </tr>
         `).join('');
@@ -503,12 +513,14 @@
        ============================================================ */
     function updateVoter(docId, field, val) {
         if (currentUserRole === 'admin') {
-            alert("އެޑްމިން އަށް ވޯޓަރ ލިސްޓަށް ބަދަލު ނުގެނެވޭނެއެވެ. ބަދަލު ގެނެވޭނީ ހަމައެކަނި މަރުކަޒުތަކަށެވެ.");
+            alert("އެޑްމިން އަށް ވޯޓަރ ލިސްޓަށް ބަދަލު ނުގެނެވޭނެއެވެ.");
             return;
         }
 
         const voter = VOTER_STORE.find(v => v.firebaseId === docId);
-        if (voter.st !== currentUserRole) {
+        
+        // FIXED: Case-insensitive check to prevent mismatch errors
+        if (voter.st.toLowerCase() !== currentUserRole.toLowerCase()) {
             alert("އެހެން މަރުކަޒެއްގެ ޑޭޓާ ބަދަލެއް ނުކުރެވޭނެއެވެ.");
             return;
         }
@@ -606,7 +618,7 @@
         if (VOTER_STORE.length === 0) { alert("ޑޭޓާއެއް ނެތް!"); return; }
         let csvContent = "\ufeffSerial,Full Name,ID Card,Address,Phone,Station,Support,Voted\n";
         
-        const exportList = VOTER_STORE.filter(v => currentUserRole === 'admin' || v.st === currentUserRole);
+        const exportList = VOTER_STORE.filter(v => currentUserRole === 'admin' || v.st.toLowerCase() === currentUserRole.toLowerCase());
 
         exportList.forEach(v => {
             let supportStatus = v.sup === 'yes' ? 'Support' : (v.sup === 'no' ? 'No Support' : 'Neutral');
@@ -729,7 +741,6 @@
 
             if (leaderboardContainer) {
                 const sorted = [...activeCandidates].sort((a, b) => b.totalVotes - a.totalVotes);
-                // only show top 8 in leaderboard if space is tight
                 const displayLimit = Math.min(sorted.length, 8);
                 
                 leaderboardContainer.innerHTML = sorted.slice(0, displayLimit).map((c, i) => `
