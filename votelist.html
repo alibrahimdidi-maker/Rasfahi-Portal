@@ -138,6 +138,7 @@
         .active-voted { background: var(--success-green) !important; color: #fff !important; border-color: transparent !important; }
         .active-yes { background: var(--accent-gold) !important; color: #000 !important; border-color: transparent !important; }
         .active-no { background: var(--danger-red) !important; color: #fff !important; border-color: transparent !important; }
+        .admin-disabled-btn { opacity: 0.4; cursor: not-allowed; }
 
         /* Mobile & Print Optimizations */
         @media (max-width: 1100px) { .main-dashboard { grid-template-columns: 1fr; } .card { height: auto !important; } }
@@ -285,18 +286,22 @@
     const db = firebase.firestore();
 
     /* ============================================================
-       IV. SYSTEM STATE MANAGER
+       IV. SYSTEM STATE MANAGER & 10 CANDIDATES INIT
        ============================================================ */
     let VOTER_STORE = [];
     let CANDIDATE_STORE = [];
     let currentUserRole = "none";
     let dualChartInstance;
 
-    const defaultCandidates = Array.from({length: 2}, (_, i) => ({
+    // 10 Distinct Theme Colors for 10 Candidates
+    const candColors = ['#ffc300', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c', '#34495e', '#ff9ff3'];
+    
+    // Initialize 10 candidates
+    const defaultCandidates = Array.from({length: 10}, (_, i) => ({
         id: `cand_${i}`,
         name: `ކެނޑިޑޭޓް ${i + 1}`,
         manualOffset: 0,
-        themeColor: i === 0 ? '#ffc300' : '#e74c3c',
+        themeColor: candColors[i],
         photo: 'https://via.placeholder.com/65'
     }));
 
@@ -310,23 +315,20 @@
        ============================================================ */
     auth.onAuthStateChanged((user) => {
         if (user) {
-            // User is logged in
             document.getElementById('firebase-login-overlay').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
             
-            // Set User Role
             if (user.email.toLowerCase() === 'admin@rasfahi.com') {
                 currentUserRole = "admin";
             } else {
                 currentUserRole = user.email.split('@')[0].toUpperCase();
             }
             
-            document.getElementById('display-user-role').innerText = currentUserRole === 'admin' ? "MAIN ADMIN" : currentUserRole;
+            document.getElementById('display-user-role').innerText = currentUserRole === 'admin' ? "MAIN ADMIN (VIEW ONLY VOTERS)" : currentUserRole;
             setupUIForRole();
             initDualPerformanceChart();
             startCloudSync();
         } else {
-            // User is logged out
             document.getElementById('firebase-login-overlay').style.display = 'flex';
             document.getElementById('main-app').style.display = 'none';
         }
@@ -344,7 +346,6 @@
 
         auth.signInWithEmailAndPassword(email, pass).then(() => {
             msg.innerText = "";
-            // Success -> auth.onAuthStateChanged will show the app
         }).catch((error) => {
             msg.style.color = "#e74c3c";
             let errorText = error.message;
@@ -371,20 +372,23 @@
     }
 
     function startCloudSync() {
-        // Sync Voters
         db.collection('rasfahi_voters').onSnapshot((snapshot) => {
             VOTER_STORE = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
             syncStationDropdown();
             refreshUI();
         });
 
-        // Sync Candidates
         db.collection('rasfahi_candidates').onSnapshot((snapshot) => {
             if (snapshot.empty && currentUserRole === 'admin') {
                 defaultCandidates.forEach(c => db.collection('rasfahi_candidates').doc(c.id).set(c));
             } else {
                 CANDIDATE_STORE = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
-                CANDIDATE_STORE.sort((a, b) => a.id.localeCompare(b.id)); // Maintain Order
+                // Ensure proper sort order based on ID (cand_0, cand_1... cand_9)
+                CANDIDATE_STORE.sort((a, b) => {
+                    let numA = parseInt(a.id.split('_')[1]);
+                    let numB = parseInt(b.id.split('_')[1]);
+                    return numA - numB;
+                });
                 if (currentUserRole === 'admin') renderCandidateControls();
                 refreshUI();
             }
@@ -434,15 +438,15 @@
 
         const searchQuery = document.getElementById('masterSearch').value.toLowerCase();
         const activeStation = document.getElementById('stationFilter').value;
+        const isAdmin = currentUserRole === 'admin';
 
-        // Determine which list to use for Dashboard Stats
         const dashboardList = VOTER_STORE.filter(v => activeStation === 'all' || v.st === activeStation);
         
         document.getElementById('disp-total-reg').innerText = dashboardList.length;
         document.getElementById('disp-voted-count').innerText = dashboardList.filter(v => v.voted).length;
         document.getElementById('disp-pending-count').innerText = dashboardList.length - dashboardList.filter(v => v.voted).length;
 
-        // Update Chart
+        // Chart Update
         dualChartInstance.data.labels = CANDIDATE_STORE.map(c => c.name);
         const colors = CANDIDATE_STORE.map(c => c.themeColor);
         dualChartInstance.data.datasets[0].backgroundColor = colors.map(c => c + '66');
@@ -452,21 +456,25 @@
 
         dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c, idx) => {
             let manual = parseInt(c.manualOffset) || 0;
-            let live = dashboardList.filter(v => v.sup === (idx === 0 ? 'yes' : 'no')).length;
+            // Support is mapped strictly: Cand 1 = Yes, Cand 2 = No. Others rely on manual votes.
+            let live = dashboardList.filter(v => v.sup === (idx === 0 ? 'yes' : (idx === 1 ? 'no' : 'none_match'))).length;
             return manual + live;
         });
         dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map((c, idx) => {
             let manual = parseInt(c.manualOffset) || 0;
-            let live = dashboardList.filter(v => v.voted && v.sup === (idx === 0 ? 'yes' : 'no')).length;
+            let live = dashboardList.filter(v => v.voted && v.sup === (idx === 0 ? 'yes' : (idx === 1 ? 'no' : 'none_match'))).length;
             return manual + live;
         });
         dualChartInstance.update();
 
-        // Update Table List
+        // Admin disabled controls rendering
+        const disabledAttr = isAdmin ? 'disabled class="control-toggle admin-disabled-btn"' : 'class="control-toggle"';
+
+        // Table List Rendering
         const tableList = VOTER_STORE.filter(v => {
             const matchesSearch = (v.name.toLowerCase().includes(searchQuery) || v.id.toLowerCase().includes(searchQuery) || v.pa.toLowerCase().includes(searchQuery) || (v.phone && v.phone.includes(searchQuery)));
             const matchesStation = (activeStation === 'all' || v.st === activeStation);
-            const accessAllowed = (currentUserRole === 'admin' || v.st === currentUserRole);
+            const accessAllowed = (isAdmin || v.st === currentUserRole);
             return matchesSearch && matchesStation && accessAllowed;
         });
 
@@ -480,11 +488,11 @@
                 <td>${v.phone || '-'}</td>
                 <td>${v.st}</td>
                 <td>
-                    <button class="control-toggle ${v.sup==='yes'?'active-yes':''}" onclick="updateVoter('${v.firebaseId}', 'sup', 'yes')"><i class="fas fa-thumbs-up"></i></button>
-                    <button class="control-toggle ${v.sup==='no'?'active-no':''}" onclick="updateVoter('${v.firebaseId}', 'sup', 'no')"><i class="fas fa-thumbs-down"></i></button>
+                    <button ${isAdmin ? 'disabled class="control-toggle admin-disabled-btn ' : 'class="control-toggle '} ${v.sup==='yes'?'active-yes':''}" onclick="updateVoter('${v.firebaseId}', 'sup', 'yes')"><i class="fas fa-thumbs-up"></i></button>
+                    <button ${isAdmin ? 'disabled class="control-toggle admin-disabled-btn ' : 'class="control-toggle '} ${v.sup==='no'?'active-no':''}" onclick="updateVoter('${v.firebaseId}', 'sup', 'no')"><i class="fas fa-thumbs-down"></i></button>
                 </td>
                 <td>
-                    <button class="control-toggle ${v.voted?'active-voted':''}" onclick="updateVoter('${v.firebaseId}', 'voted', ${!v.voted})"><i class="fas fa-check"></i></button>
+                    <button ${isAdmin ? 'disabled class="control-toggle admin-disabled-btn ' : 'class="control-toggle '} ${v.voted?'active-voted':''}" onclick="updateVoter('${v.firebaseId}', 'voted', ${!v.voted})"><i class="fas fa-check"></i></button>
                 </td>
             </tr>
         `).join('');
@@ -494,8 +502,13 @@
        VIII. FIRESTORE WRITES (Updates)
        ============================================================ */
     function updateVoter(docId, field, val) {
+        if (currentUserRole === 'admin') {
+            alert("އެޑްމިން އަށް ވޯޓަރ ލިސްޓަށް ބަދަލު ނުގެނެވޭނެއެވެ. ބަދަލު ގެނެވޭނީ ހަމައެކަނި މަރުކަޒުތަކަށެވެ.");
+            return;
+        }
+
         const voter = VOTER_STORE.find(v => v.firebaseId === docId);
-        if (currentUserRole !== 'admin' && voter.st !== currentUserRole) {
+        if (voter.st !== currentUserRole) {
             alert("އެހެން މަރުކަޒެއްގެ ޑޭޓާ ބަދަލެއް ނުކުރެވޭނެއެވެ.");
             return;
         }
@@ -545,7 +558,7 @@
     }
 
     /* ============================================================
-       IX. CSV IMPORT / EXPORT (Admin Only for Import)
+       IX. CSV IMPORT / EXPORT
        ============================================================ */
     function handleCSVImport(event) {
         if(currentUserRole !== 'admin') return;
@@ -628,7 +641,7 @@
     }
 
     /* ============================================================
-       X. TV SCREEN POPUP LOGIC
+       X. TV SCREEN POPUP LOGIC (Optimized for 10 Candidates)
        ============================================================ */
     function openTVScreen() {
         const tvWindow = window.open("", "ElectionTV", "width=1280,height=720");
@@ -687,11 +700,14 @@
             });
 
             const grandTotalVotes = processedData.reduce((sum, c) => sum + c.totalVotes, 0);
-            const activeCandidates = processedData.filter(c => c.totalVotes > 0);
+            const activeCandidates = processedData.filter(c => c.totalVotes > 0 || c.name); // Show all configured
             const maxVotes = Math.max(...processedData.map(c => c.totalVotes), 1);
 
             if (barContainer) {
-                const maxWidth = activeCandidates.length > 8 ? "60px" : (activeCandidates.length > 5 ? "90px" : "140px");
+                // Adjust width dynamically for up to 10 candidates
+                const maxWidth = activeCandidates.length > 8 ? "60px" : (activeCandidates.length > 5 ? "80px" : "120px");
+                const labelFontSize = activeCandidates.length > 8 ? "9px" : "12px";
+                
                 barContainer.innerHTML = activeCandidates.map(c => {
                     const percent = grandTotalVotes > 0 ? ((c.totalVotes / grandTotalVotes) * 100).toFixed(1) : 0;
                     const barHeightPercent = (c.totalVotes / maxVotes) * 75;
@@ -699,13 +715,13 @@
                     return `
                         <div class="bar-column" style="max-width: ${maxWidth};">
                             <div class="bar-wrapper">
-                                <div style="color:#ffc300; font-weight:900; font-size:1.3rem; margin-bottom:5px;">${percent}%</div>
+                                <div style="color:#ffc300; font-weight:900; font-size:1.1rem; margin-bottom:5px;">${percent}%</div>
                                 <div class="bar-visual" style="height:${barHeightPercent}%; --c-color:${c.color}; --shadow-color:${c.color}66;"></div>
                             </div>
-                            <div class="candidate-label-box" style="--c-color:${c.color};">
-                                <img src="${c.photo}" style="width:45px; height:45px; border-radius:50%; border:2px solid ${c.color}; object-fit:cover; background:#000;">
-                                <div style="font-size:12px; color:#fff; font-weight:bold; font-family:'Faruma'; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin:4px 0;">${c.name}</div>
-                                <div style="font-size:22px; font-weight:900; color:${c.color}; line-height:1;">${c.totalVotes}</div>
+                            <div class="candidate-label-box" style="--c-color:${c.color}; padding: 5px 2px;">
+                                <img src="${c.photo}" style="width:35px; height:35px; border-radius:50%; border:2px solid ${c.color}; object-fit:cover; background:#000;">
+                                <div style="font-size:${labelFontSize}; color:#fff; font-weight:bold; font-family:'Faruma'; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin:4px 0;">${c.name}</div>
+                                <div style="font-size:18px; font-weight:900; color:${c.color}; line-height:1;">${c.totalVotes}</div>
                             </div>
                         </div>`;
                 }).join('');
@@ -713,15 +729,18 @@
 
             if (leaderboardContainer) {
                 const sorted = [...activeCandidates].sort((a, b) => b.totalVotes - a.totalVotes);
-                leaderboardContainer.innerHTML = sorted.map((c, i) => `
+                // only show top 8 in leaderboard if space is tight
+                const displayLimit = Math.min(sorted.length, 8);
+                
+                leaderboardContainer.innerHTML = sorted.slice(0, displayLimit).map((c, i) => `
                     <div class="leader-row" style="border-right-color: ${c.color};">
-                        <div style="font-size:20px; font-weight:bold; color:#ffc300; width:35px; text-align:center;">${i+1}</div>
-                        <img src="${c.photo}" style="width:35px; height:35px; border-radius:50%; margin: 0 12px; border:1.5px solid ${c.color}; object-fit:cover;">
+                        <div style="font-size:16px; font-weight:bold; color:#ffc300; width:30px; text-align:center;">${i+1}</div>
+                        <img src="${c.photo}" style="width:30px; height:30px; border-radius:50%; margin: 0 8px; border:1.5px solid ${c.color}; object-fit:cover;">
                         <div style="flex-grow:1; text-align:right;">
-                            <div style="font-family:'Faruma'; font-size:15px; color:#fff; font-weight:bold; line-height:1;">${c.name}</div>
-                            <div style="font-size:10px; color:rgba(255,195,0,0.5);">${((c.totalVotes/grandTotalVotes)*100).toFixed(1)}%</div>
+                            <div style="font-family:'Faruma'; font-size:14px; color:#fff; font-weight:bold; line-height:1;">${c.name}</div>
+                            <div style="font-size:10px; color:rgba(255,195,0,0.5);">${((c.totalVotes/Math.max(grandTotalVotes, 1))*100).toFixed(1)}%</div>
                         </div>
-                        <div style="font-size:24px; font-weight:900; color:${c.color}; margin-right:12px;">${c.totalVotes}</div>
+                        <div style="font-size:20px; font-weight:900; color:${c.color}; margin-right:12px;">${c.totalVotes}</div>
                     </div>`).join('');
             }
 
