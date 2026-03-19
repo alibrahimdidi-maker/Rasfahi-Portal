@@ -67,7 +67,7 @@
             border: 2px solid var(--accent-gold); box-shadow: 0 0 40px rgba(255, 195, 0, 0.2);
         }
 
-        .login-box input {
+        .login-input {
             width: 100%; padding: 15px; margin-bottom: 15px; border-radius: 10px;
             background: #000; font-size: 16px; text-align: center; font-family: 'Faruma', sans-serif;
             border: 1px solid var(--border-gold); color: #fff;
@@ -136,17 +136,13 @@
 
         .control-toggle { width: 45px; height: 45px; border-radius: 12px; border: 2.5px solid #cbd5e1; background: #fff; cursor: pointer; font-size: 1.1rem; transition: 0.3s; }
         .active-voted { background: var(--success-green) !important; color: #fff !important; border-color: transparent !important; }
-        .active-yes { background: var(--accent-gold) !important; color: #000 !important; border-color: transparent !important; }
-        .active-no { background: var(--danger-red) !important; color: #fff !important; border-color: transparent !important; }
-        .admin-disabled-btn { opacity: 0.4; cursor: not-allowed; }
+        
+        .support-dropdown { padding: 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-family: 'Faruma'; background: #f8fafc; font-weight: bold; outline: none; font-size: 0.95rem; cursor: pointer; }
+        .support-dropdown:focus { border-color: var(--accent-gold); }
+        .admin-disabled-btn { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 
         /* Mobile & Print Optimizations */
         @media (max-width: 1100px) { .main-dashboard { grid-template-columns: 1fr; } .card { height: auto !important; } }
-        @media (max-width: 768px) {
-            body { border-width: 5px; } .app-header { padding: 15px; flex-direction: column; gap: 15px; }
-            .command-toolbar { flex-direction: column; padding: 15px; } .btn-stack { grid-template-columns: 1fr 1fr; display: grid; }
-            .search-engine { width: 100%; min-width: auto; }
-        }
         @media print { .no-print { display: none !important; } body { border: none; background: #fff; color: #000; } .repository-container {box-shadow: none; border: 1px solid #000;} table, th, td { border: 1px solid #000; color: #000; padding: 8px;} }
     </style>
 </head>
@@ -156,10 +152,24 @@
     <div class="login-box">
         <i class="fas fa-cloud" style="font-size: 40px; color: var(--accent-gold); margin-bottom: 15px;"></i>
         <h1 style="color: var(--accent-gold); margin-bottom: 5px; font-size: 28px; font-family: 'Faruma';">RASFAHI CLOUD</h1>
-        <p style="color: #94a3b8; font-size: 12px; margin-bottom: 30px; letter-spacing: 2px;">SECURE LOGIN</p>
+        <p style="color: #94a3b8; font-size: 12px; margin-bottom: 25px; letter-spacing: 2px;">SECURE LOGIN</p>
         
-        <input type="email" id="login-email" placeholder="އީމެއިލް (މިސާލު: admin@rasfahi.com)">
-        <input type="password" id="login-pass" placeholder="ޕާސްވޯޑް">
+        <select id="login-station" class="login-input" style="cursor: pointer;">
+            <option value="Admin">މެއިން އެޑްމިން (Main Admin)</option>
+            <option value="Center 1">Center 1</option>
+            <option value="Center 2">Center 2</option>
+            <option value="Center 3">Center 3</option>
+            <option value="Center 4">Center 4</option>
+            <option value="Center 5">Center 5</option>
+            <option value="Center 6">Center 6</option>
+            <option value="Center 7">Center 7</option>
+            <option value="Center 8">Center 8</option>
+            <option value="Center 9">Center 9</option>
+            <option value="Center 10">Center 10</option>
+        </select>
+
+        <input type="email" id="login-email" class="login-input" placeholder="ފަޔަރބޭސް އީމެއިލް">
+        <input type="password" id="login-pass" class="login-input" placeholder="ޕާސްވޯޑް">
         
         <button onclick="loginToCloud()">ސިސްޓަމަށް ވަންނަވާ</button>
         <p id="login-msg" style="color:#ff5252; font-size:14px; margin-top:15px; font-weight:bold;"></p>
@@ -253,8 +263,8 @@
                             <th style="width: 12%;">އައިޑީ ކާޑު</th>
                             <th style="width: 18%;">އެޑްރެސް</th>
                             <th style="width: 10%;">ފޯނު ނަންބަރު</th>
-                            <th style="width: 12%;">މަރުކަޒު</th>
-                            <th style="width: 10%;">ތާއީދު</th>
+                            <th style="width: 10%;">މަރުކަޒު</th>
+                            <th style="width: 12%;">ތާއީދުކުރަނީ</th>
                             <th style="width: 10%;">ވޯޓު</th>
                         </tr>
                     </thead>
@@ -293,10 +303,8 @@
     let currentUserRole = "none";
     let dualChartInstance;
 
-    // 10 Distinct Theme Colors for 10 Candidates
     const candColors = ['#ffc300', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c', '#34495e', '#ff9ff3'];
     
-    // Initialize 10 candidates
     const defaultCandidates = Array.from({length: 10}, (_, i) => ({
         id: `cand_${i}`,
         name: `ކެނޑިޑޭޓް ${i + 1}`,
@@ -318,12 +326,11 @@
             document.getElementById('firebase-login-overlay').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
             
-            if (user.email.toLowerCase() === 'admin@rasfahi.com') {
-                currentUserRole = "admin";
-            } else {
-                // FIXED: Case-sensitivity issue for role parsing
-                currentUserRole = user.email.split('@')[0];
-            }
+            // Retrieve explicitly selected station from Login screen
+            let savedStation = localStorage.getItem('rasfahi_active_station');
+            if (!savedStation) savedStation = "Admin"; 
+            
+            currentUserRole = (savedStation === "Admin") ? "admin" : savedStation;
             
             document.getElementById('display-user-role').innerText = currentUserRole === 'admin' ? "MAIN ADMIN (VIEW ONLY)" : currentUserRole.toUpperCase();
             setupUIForRole();
@@ -338,6 +345,7 @@
     function loginToCloud() {
         const email = document.getElementById('login-email').value.trim();
         const pass = document.getElementById('login-pass').value.trim();
+        const station = document.getElementById('login-station').value;
         const msg = document.getElementById('login-msg');
 
         if (!email || !pass) { msg.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!"; return; }
@@ -346,16 +354,17 @@
         msg.innerText = "ކްލައުޑަށް ގުޅެނީ...";
 
         auth.signInWithEmailAndPassword(email, pass).then(() => {
+            // Save the exact station name so we match perfectly with the database records!
+            localStorage.setItem('rasfahi_active_station', station);
             msg.innerText = "";
         }).catch((error) => {
             msg.style.color = "#e74c3c";
-            let errorText = error.message;
-            if(error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') errorText = "އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި.";
-            msg.innerText = "ލޮގިން ފެއިލްވި: " + errorText;
+            msg.innerText = "ލޮގިން ފެއިލްވި: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި.";
         });
     }
 
     function logoutCloud() { 
+        localStorage.removeItem('rasfahi_active_station');
         auth.signOut().then(() => {
             location.reload(); 
         }); 
@@ -384,12 +393,7 @@
                 defaultCandidates.forEach(c => db.collection('rasfahi_candidates').doc(c.id).set(c));
             } else {
                 CANDIDATE_STORE = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
-                // Ensure proper sort order based on ID (cand_0, cand_1... cand_9)
-                CANDIDATE_STORE.sort((a, b) => {
-                    let numA = parseInt(a.id.split('_')[1]);
-                    let numB = parseInt(b.id.split('_')[1]);
-                    return numA - numB;
-                });
+                CANDIDATE_STORE.sort((a, b) => parseInt(a.id.split('_')[1]) - parseInt(b.id.split('_')[1]));
                 if (currentUserRole === 'admin') renderCandidateControls();
                 refreshUI();
             }
@@ -447,7 +451,7 @@
         document.getElementById('disp-voted-count').innerText = dashboardList.filter(v => v.voted).length;
         document.getElementById('disp-pending-count').innerText = dashboardList.length - dashboardList.filter(v => v.voted).length;
 
-        // Chart Update
+        // Chart Update handles dynamic Candidate IDs correctly
         dualChartInstance.data.labels = CANDIDATE_STORE.map(c => c.name);
         const colors = CANDIDATE_STORE.map(c => c.themeColor);
         dualChartInstance.data.datasets[0].backgroundColor = colors.map(c => c + '66');
@@ -455,29 +459,43 @@
         dualChartInstance.data.datasets[1].backgroundColor = colors;
         dualChartInstance.data.datasets[1].borderColor = colors;
 
-        dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c, idx) => {
+        dualChartInstance.data.datasets[0].data = CANDIDATE_STORE.map((c) => {
             let manual = parseInt(c.manualOffset) || 0;
-            // Cand 1 gets "Yes", Cand 2 gets "No". Candidates 3-10 rely purely on manual vote entry box
-            let live = dashboardList.filter(v => v.sup === (idx === 0 ? 'yes' : (idx === 1 ? 'no' : 'none_match'))).length;
+            // Checks if the voter's 'sup' field matches the candidate's ID (e.g., 'cand_0')
+            let live = dashboardList.filter(v => v.sup === c.id || (v.sup === 'yes' && c.id === 'cand_0') || (v.sup === 'no' && c.id === 'cand_1')).length;
             return manual + live;
         });
-        dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map((c, idx) => {
+        dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map((c) => {
             let manual = parseInt(c.manualOffset) || 0;
-            let live = dashboardList.filter(v => v.voted && v.sup === (idx === 0 ? 'yes' : (idx === 1 ? 'no' : 'none_match'))).length;
+            let live = dashboardList.filter(v => v.voted && (v.sup === c.id || (v.sup === 'yes' && c.id === 'cand_0') || (v.sup === 'no' && c.id === 'cand_1'))).length;
             return manual + live;
         });
         dualChartInstance.update();
 
-        // Table List Rendering (Case-Insensitive Station Checking)
+        // Table List Rendering
         const tableList = VOTER_STORE.filter(v => {
             const matchesSearch = (v.name.toLowerCase().includes(searchQuery) || v.id.toLowerCase().includes(searchQuery) || v.pa.toLowerCase().includes(searchQuery) || (v.phone && v.phone.includes(searchQuery)));
             const matchesStation = (activeStation === 'all' || v.st === activeStation);
-            const accessAllowed = (isAdmin || v.st.toLowerCase() === currentUserRole.toLowerCase());
+            // PERFECT MATCH: The explicit dropdown value vs the database value
+            const accessAllowed = (isAdmin || v.st === currentUserRole);
             return matchesSearch && matchesStation && accessAllowed;
         });
 
+        // Generate Candidates Dropdown Options once for speed
+        const supportOptions = `<option value="none">ނޭނގޭ</option>` + CANDIDATE_STORE.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
         const tbody = document.getElementById('voterDataRows');
-        tbody.innerHTML = tableList.map(v => `
+        tbody.innerHTML = tableList.map(v => {
+            // Backwards compatibility for old yes/no data
+            let currentSup = v.sup;
+            if(currentSup === 'yes') currentSup = 'cand_0';
+            if(currentSup === 'no') currentSup = 'cand_1';
+
+            // Pre-select the correct option
+            let individualDropdown = supportOptions.replace(`value="${currentSup}"`, `value="${currentSup}" selected`);
+            let dropdownStyle = currentSup !== 'none' && currentSup ? 'border-color:var(--accent-gold); background:#fff9e6;' : '';
+
+            return `
             <tr>
                 <td style="color:var(--danger-red);">${v.sn || '-'}</td>
                 <td style="text-align:right;">${v.name}</td>
@@ -486,26 +504,19 @@
                 <td>${v.phone || '-'}</td>
                 <td>${v.st}</td>
                 <td>
-                    <button class="control-toggle ${v.sup==='yes'?'active-yes':''} ${isAdmin ? 'admin-disabled-btn' : ''}" 
-                            ${isAdmin ? 'disabled' : ''} 
-                            onclick="updateVoter('${v.firebaseId}', 'sup', 'yes')">
-                        <i class="fas fa-thumbs-up"></i>
-                    </button>
-                    <button class="control-toggle ${v.sup==='no'?'active-no':''} ${isAdmin ? 'admin-disabled-btn' : ''}" 
-                            ${isAdmin ? 'disabled' : ''} 
-                            onclick="updateVoter('${v.firebaseId}', 'sup', 'no')">
-                        <i class="fas fa-thumbs-down"></i>
-                    </button>
+                    <select class="support-dropdown ${isAdmin ? 'admin-disabled-btn' : ''}" style="${dropdownStyle}" 
+                            onchange="updateVoter('${v.firebaseId}', 'sup', this.value)">
+                        ${individualDropdown}
+                    </select>
                 </td>
                 <td>
                     <button class="control-toggle ${v.voted?'active-voted':''} ${isAdmin ? 'admin-disabled-btn' : ''}" 
-                            ${isAdmin ? 'disabled' : ''} 
                             onclick="updateVoter('${v.firebaseId}', 'voted', ${!v.voted})">
                         <i class="fas fa-check"></i>
                     </button>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     }
 
     /* ============================================================
@@ -519,15 +530,14 @@
 
         const voter = VOTER_STORE.find(v => v.firebaseId === docId);
         
-        // FIXED: Case-insensitive check to prevent mismatch errors
-        if (voter.st.toLowerCase() !== currentUserRole.toLowerCase()) {
+        // Exact String Match ensured by the Login Dropdown
+        if (voter.st !== currentUserRole) {
             alert("އެހެން މަރުކަޒެއްގެ ޑޭޓާ ބަދަލެއް ނުކުރެވޭނެއެވެ.");
             return;
         }
 
         let updateData = {};
-        if (field === 'sup') { updateData[field] = (voter.sup === val) ? 'none' : val; } 
-        else { updateData[field] = val; }
+        updateData[field] = val;
         
         db.collection('rasfahi_voters').doc(docId).update(updateData);
     }
@@ -590,8 +600,8 @@
                 const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(part => part.replace(/^"|"$/g, '').trim());
                 if (parts.length >= 5) {
                     let supportVal = 'none';
-                    if (parts[6] === 'Support') supportVal = 'yes';
-                    else if (parts[6] === 'No Support') supportVal = 'no';
+                    if (parts[6] === 'Support') supportVal = 'cand_0';
+                    else if (parts[6] === 'No Support') supportVal = 'cand_1';
                     
                     let votedVal = (parts[7] === 'Voted') ? true : false;
 
@@ -618,10 +628,10 @@
         if (VOTER_STORE.length === 0) { alert("ޑޭޓާއެއް ނެތް!"); return; }
         let csvContent = "\ufeffSerial,Full Name,ID Card,Address,Phone,Station,Support,Voted\n";
         
-        const exportList = VOTER_STORE.filter(v => currentUserRole === 'admin' || v.st.toLowerCase() === currentUserRole.toLowerCase());
+        const exportList = VOTER_STORE.filter(v => currentUserRole === 'admin' || v.st === currentUserRole);
 
         exportList.forEach(v => {
-            let supportStatus = v.sup === 'yes' ? 'Support' : (v.sup === 'no' ? 'No Support' : 'Neutral');
+            let supportStatus = v.sup === 'cand_0' ? 'Support' : (v.sup === 'cand_1' ? 'No Support' : v.sup);
             let voteStatus = v.voted ? 'Voted' : 'Pending';
             let row = [`"${v.sn || ''}"`, `"${v.name}"`, `"${v.id}"`, `"${v.pa}"`, `"${v.phone || ''}"`, `"${v.st}"`, `"${supportStatus}"`, `"${voteStatus}"`].join(",");
             csvContent += row + "\n";
@@ -641,19 +651,19 @@
 
     function generateAndDownloadDummyCSV() {
         let csvContent = "Serial,Name,ID,Address,Phone,Station\n";
-        for (let i = 1; i <= 3000; i++) {
-            const stationNum = Math.floor(Math.random() * 20) + 1;
-            csvContent += `${i},Voter Name ${i},A${100000 + i},House Address ${i},77${Math.floor(Math.random()*99999)},މަރުކަޒު ${stationNum}\n`;
+        for (let i = 1; i <= 300; i++) {
+            const stationNum = Math.floor(Math.random() * 5) + 1; // Center 1 to 5 for easier testing
+            csvContent += `${i},Voter Name ${i},A${100000 + i},House Address ${i},77${Math.floor(Math.random()*99999)},Center ${stationNum}\n`;
         }
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.setAttribute("href", URL.createObjectURL(blob));
-        link.setAttribute("download", "dummy_voters_3000.csv");
+        link.setAttribute("download", "dummy_voters.csv");
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
     /* ============================================================
-       X. TV SCREEN POPUP LOGIC (Optimized for 10 Candidates)
+       X. TV SCREEN POPUP LOGIC
        ============================================================ */
     function openTVScreen() {
         const tvWindow = window.open("", "ElectionTV", "width=1280,height=720");
@@ -702,21 +712,17 @@
             const leaderboardContainer = tvWindow.document.getElementById('leaderboard-container');
             const totalDisplay = tvWindow.document.getElementById('total-voted-display');
 
-            const liveVotedYes = VOTER_STORE.filter(v => v.voted && v.sup === 'yes').length;
-            const liveVotedNo = VOTER_STORE.filter(v => v.voted && v.sup === 'no').length;
-
-            const processedData = CANDIDATE_STORE.map((c, idx) => {
+            const processedData = CANDIDATE_STORE.map((c) => {
                 let manual = parseInt(c.manualOffset) || 0;
-                let live = (idx === 0) ? liveVotedYes : ((idx === 1) ? liveVotedNo : 0);
+                let live = VOTER_STORE.filter(v => v.voted && (v.sup === c.id || (v.sup === 'yes' && c.id === 'cand_0') || (v.sup === 'no' && c.id === 'cand_1'))).length;
                 return { name: c.name || "ކެނޑިޑޭޓް", totalVotes: manual + live, color: c.themeColor || "#ffc300", photo: c.photo || 'https://via.placeholder.com/50' };
             });
 
             const grandTotalVotes = processedData.reduce((sum, c) => sum + c.totalVotes, 0);
-            const activeCandidates = processedData.filter(c => c.totalVotes > 0 || c.name); // Show all configured
+            const activeCandidates = processedData.filter(c => c.totalVotes > 0 || c.name); 
             const maxVotes = Math.max(...processedData.map(c => c.totalVotes), 1);
 
             if (barContainer) {
-                // Adjust width dynamically for up to 10 candidates
                 const maxWidth = activeCandidates.length > 8 ? "60px" : (activeCandidates.length > 5 ? "80px" : "120px");
                 const labelFontSize = activeCandidates.length > 8 ? "9px" : "12px";
                 
