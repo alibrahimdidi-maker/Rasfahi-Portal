@@ -537,7 +537,7 @@
         <input type="email" id="login-email" class="login-input" placeholder="ފަޔަރބޭސް އީމެއިލް" onkeypress="if(event.key === 'Enter') loginToCloud()">
         <input type="password" id="login-pass" class="login-input" placeholder="ޕާސްވޯޑް" onkeypress="if(event.key === 'Enter') loginToCloud()">
         
-        <button id="login-btn" onclick="loginToCloud()">ސިސްޓަމަށް ވަންނަވާ</button>
+        <button type="button" id="login-btn" onclick="loginToCloud()">ސިސްޓަމަށް ވަންނަވާ</button>
         <p id="login-msg" style="color:#ff5252; font-size:14px; margin-top:15px; font-weight:bold;"></p>
     </div>
 </div>
@@ -655,7 +655,7 @@
 </div>
 
 <script>
-    // 1. Firebase Initialization
+    // 1. Firebase Initialization (ރައްކާތެރިކުރެވިފައި)
     const firebaseConfig = {
       apiKey: "AIzaSyBJCkYPTLQde8RWKtrPrpCqOIupGxE3TQI",
       authDomain: "votelive-79601.firebaseapp.com",
@@ -665,12 +665,21 @@
       appId: "1:711768145372:web:14aec408485a3d835da319"
     };
     
-    if (!firebase.apps.length) { 
-        firebase.initializeApp(firebaseConfig); 
+    let auth = null;
+    let db = null;
+
+    try {
+        if (!firebase.apps.length) { 
+            firebase.initializeApp(firebaseConfig); 
+        }
+        auth = firebase.auth(); 
+        db = firebase.firestore();
+    } catch (initError) {
+        console.error("Firebase Init Error:", initError);
+        setTimeout(() => {
+            alert("ސަމާލުކުރައްވާ! ފަޔަރބޭސް ލޯޑެއް ނުވި. މިއީ އިންޓަނެޓް ކަނެކްޝަން ނެތުމުން ނުވަތަ އެޑް-ބްލޮކަރ އެއްގެ ސަބަބުން ދިމާވާ ކަމެކެވެ. އިންޓަނެޓް ޗެކްކުރައްވާފައި ޕޭޖް ރީލޯޑް ކުރައްވާ!");
+        }, 1000);
     }
-    
-    const auth = firebase.auth(); 
-    const db = firebase.firestore();
 
     // 2. Global Variables & 10 Candidates Setup
     let VOTER_STORE = []; 
@@ -680,7 +689,6 @@
     
     const candColors = ['#ffc300', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c', '#34495e', '#ff9ff3'];
     
-    // Array of 10 default candidates
     const defaultCandidates = Array.from({length: 10}, (_, i) => ({
         id: `cand_${i}`, 
         name: `ކެނޑިޑޭޓް ${i + 1}`, 
@@ -689,53 +697,63 @@
         photo: 'https://via.placeholder.com/65'
     }));
 
-    // Digital Clock Timer
     setInterval(() => { 
         const clk = document.getElementById('digital-clock'); 
         if(clk) clk.innerText = new Date().toLocaleTimeString('en-GB'); 
     }, 1000);
 
     // 3. Authentication State Listener
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            document.getElementById('firebase-login-overlay').style.display = 'none';
-            document.getElementById('main-app').style.display = 'block';
-            
-            let savedStation = "Admin";
-            try {
-                savedStation = localStorage.getItem('rasfahi_active_station') || "Admin"; 
-            } catch (e) {
-                console.warn("Local storage blocked, continuing session.");
-            }
-            
-            // STRICT ADMIN SECURITY CHECK
-            if (savedStation === "Admin" && user.email.toLowerCase() !== "admin@rasfahi.com") {
-                savedStation = "Center 1"; 
-                try { localStorage.setItem('rasfahi_active_station', savedStation); } catch(e){}
-            }
-            
-            currentUserRole = (savedStation === "Admin") ? "admin" : savedStation;
-            document.getElementById('display-user-role').innerText = currentUserRole === 'admin' ? "MAIN ADMIN" : currentUserRole.toUpperCase();
-            
-            setupUIForRole(); 
-            initDualPerformanceChart(); 
-            startCloudSync();
-        } else {
-            document.getElementById('firebase-login-overlay').style.display = 'flex';
-            document.getElementById('main-app').style.display = 'none';
-        }
-    });
-
-    // 4. Login Logic (FULLY BUG-FIXED & ERROR HANDLED)
-    function loginToCloud() {
+    if (auth) {
         try {
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    document.getElementById('firebase-login-overlay').style.display = 'none';
+                    document.getElementById('main-app').style.display = 'block';
+                    
+                    let savedStation = "Admin";
+                    try {
+                        savedStation = localStorage.getItem('rasfahi_active_station') || "Admin"; 
+                    } catch (e) {
+                        console.warn("Local storage blocked");
+                    }
+                    
+                    if (savedStation === "Admin" && (!user.email || user.email.toLowerCase() !== "admin@rasfahi.com")) {
+                        savedStation = "Center 1"; 
+                        try { localStorage.setItem('rasfahi_active_station', savedStation); } catch(e){}
+                    }
+                    
+                    currentUserRole = (savedStation === "Admin") ? "admin" : savedStation;
+                    document.getElementById('display-user-role').innerText = currentUserRole === 'admin' ? "MAIN ADMIN" : currentUserRole.toUpperCase();
+                    
+                    setupUIForRole(); 
+                    initDualPerformanceChart(); 
+                    startCloudSync();
+                } else {
+                    document.getElementById('firebase-login-overlay').style.display = 'flex';
+                    document.getElementById('main-app').style.display = 'none';
+                }
+            });
+        } catch(e) {
+            console.error("Auth Listener Error:", e);
+        }
+    }
+
+    // 4. Login Logic (FULLY BUG-FIXED)
+    window.loginToCloud = function() {
+        try {
+            if (!auth) {
+                alert("ފަޔަރބޭސްއާ ގުޅިފައެއް ނުވޭ! އިންޓަނެޓް ކަނެކްޝަން ރަނގަޅުތޯ ބައްލަވާލައްވާ.");
+                return;
+            }
+
             const email = document.getElementById('login-email').value.trim();
-            const pass = document.getElementById('login-pass').value; // .trim() އެއްކޮށް ނެގިފައި
+            const pass = document.getElementById('login-pass').value; // ޕާސްވޯޑް އިންނާނީ ހަމަ ޖަހާގޮތަށް
             const station = document.getElementById('login-station').value;
             const msg = document.getElementById('login-msg');
             const loginBtn = document.getElementById('login-btn');
 
             if (!email || !pass) { 
+                msg.style.color = "#e74c3c";
                 msg.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!"; 
                 return; 
             }
@@ -750,7 +768,6 @@
             msg.innerText = "ކްލައުޑަށް ގުޅެނީ... މަޑުކޮށްލައްވާ";
             if(loginBtn) loginBtn.disabled = true;
 
-            // ބައެއް ބްރައުޒަރ ތަކުގައި ފައިލް ސީދާ ހުޅުވުމުން ލޯކަލް ސްޓޯރޭޖް މައްސަލަ ޖެހޭތީ try-catch ލެވިފައި
             try {
                 localStorage.setItem('rasfahi_active_station', station); 
             } catch(e) {
@@ -775,19 +792,21 @@
                 }
             });
         } catch (jsError) {
-            // ބްރައުޒަރގެ އެހެން މައްސަލައެއް އުޅޭނަމަ އެލާޓް ކުރާނެ
             alert("ސިސްޓަމް އެރަރ: " + jsError.message);
+            console.error(jsError);
         }
-    }
+    };
 
     // 5. Logout
     function logoutCloud() { 
+        if(!auth) return;
         try { localStorage.removeItem('rasfahi_active_station'); } catch(e){} 
         auth.signOut().then(() => location.reload()); 
     }
 
     // 6. Change Password Logic
     function changeUserPassword() {
+        if(!auth) return;
         const user = auth.currentUser;
         if (!user) return;
         
@@ -821,6 +840,8 @@
 
     // 8. Firebase Realtime Sync
     function startCloudSync() {
+        if(!db) return;
+        
         db.collection('rasfahi_voters').onSnapshot((snapshot) => {
             VOTER_STORE = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
             syncStationDropdown(); 
@@ -830,7 +851,6 @@
         db.collection('rasfahi_candidates').onSnapshot((snapshot) => {
             let loadedCands = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
             
-            // Ensure 10 candidates are always injected
             if (loadedCands.length < 10) {
                 if (currentUserRole === 'admin') {
                     defaultCandidates.forEach(dc => { 
@@ -921,7 +941,7 @@
         dualChartInstance.data.datasets[1].data = CANDIDATE_STORE.map(c => (parseInt(c.manualOffset) || 0) + dashboardList.filter(v => v.voted && String(v.sup).trim() === c.id).length);
         dualChartInstance.update();
 
-        // Table List Logic (Everyone can see based on the dropdown filter)
+        // Table List Logic 
         const tableList = VOTER_STORE.filter(v => {
             const matchesSearch = (v.name.toLowerCase().includes(searchQuery) || v.id.toLowerCase().includes(searchQuery) || v.pa.toLowerCase().includes(searchQuery) || (v.phone && v.phone.includes(searchQuery)));
             const matchesStation = (activeStation === 'all' || v.st === activeStation);
@@ -936,7 +956,6 @@
             const disabledAttr = '';
             const disabledClass = '';
             
-            // Support Dropdown showing 10 candidates
             let dropdownHTML = `<select class="support-dropdown ${disabledClass}" onchange="updateVoter('${v.firebaseId}', 'sup', this.value)" ${disabledAttr}>`;
             dropdownHTML += `<option value="none" ${currentSup === 'none' ? 'selected' : ''}>ނޭނގޭ</option>`;
             CANDIDATE_STORE.forEach(c => { 
@@ -963,42 +982,42 @@
     }
 
     // 12. Voter Updates
-    function updateVoter(docId, field, val) {
+    window.updateVoter = function(docId, field, val) {
+        if(!db) return;
         const voterIndex = VOTER_STORE.findIndex(v => v.firebaseId === docId); 
         if(voterIndex === -1) return;
         
-        // Optimistic UI Update
         VOTER_STORE[voterIndex][field] = val; 
         refreshUI(); 
         
-        // Firebase Update
         let updateData = {}; 
         updateData[field] = val; 
         db.collection('rasfahi_voters').doc(docId).update(updateData).catch(err => alert("މައްސަލައެއް ދިމާވެއްޖެ: " + err.message));
-    }
+    };
 
     // 13. UI Toast & Print
-    function showToast(msg) {
+    window.showToast = function(msg) {
         var toast = document.getElementById("toast-msg");
         if(msg) toast.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`;
         toast.className = "show"; 
         setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
-    }
+    };
     
-    function forceSaveData() { 
+    window.forceSaveData = function() { 
         showToast("ސަރވަރަށް މައުލޫމާތު ސޭވްވެއްޖެ!"); 
-    }
+    };
 
-    function printReport() {
+    window.printReport = function() {
         const center = document.getElementById('stationFilter').value;
         const dateStr = new Date().toLocaleString('en-GB');
         let metaTxt = `މަރުކަޒު: ${center === 'all' ? 'ހުރިހާ މަރުކަޒެއް' : center} | ވަގުތު: ${dateStr}`;
         document.getElementById('print-meta').innerText = metaTxt;
         window.print();
-    }
+    };
 
     // 14. Hard Reset (Admin Only)
-    async function resetServerData() {
+    window.resetServerData = async function() {
+        if(!db) return;
         if (currentUserRole !== 'admin') { 
             alert("މިކަން ކުރެވޭނީ ހަމައެކަނި އެޑްމިންއަށެވެ."); 
             return; 
@@ -1023,7 +1042,7 @@
         } catch (error) { 
             alert("މައްސަލައެއް އުޅޭ: " + error.message); 
         }
-    }
+    };
 
     // 15. Admin Candidate Controls
     function renderCandidateControls() {
@@ -1044,14 +1063,15 @@
         `).join('');
     }
 
-    function updateCandidateDb(docId, field, value) { 
-        if(currentUserRole !== 'admin') return; 
+    window.updateCandidateDb = function(docId, field, value) { 
+        if(!db || currentUserRole !== 'admin') return; 
         let updateData = {}; 
         updateData[field] = value; 
         db.collection('rasfahi_candidates').doc(docId).update(updateData); 
-    }
+    };
     
-    function uploadCandidatePhoto(docId, event) { 
+    window.uploadCandidatePhoto = function(docId, event) { 
+        if(!db) return;
         const file = event.target.files[0]; 
         if (file) { 
             const reader = new FileReader(); 
@@ -1060,11 +1080,11 @@
             }; 
             reader.readAsDataURL(file); 
         } 
-    }
+    };
 
     // 16. CSV Handlers
-    function handleCSVImport(event) {
-        if(currentUserRole !== 'admin') return;
+    window.handleCSVImport = function(event) {
+        if(!db || currentUserRole !== 'admin') return;
         const file = event.target.files[0]; 
         if (!file) return; 
         
@@ -1091,9 +1111,9 @@
             document.getElementById('csvInput').value = "";
         }; 
         reader.readAsText(file, 'UTF-8');
-    }
+    };
 
-    function exportToCSV() {
+    window.exportToCSV = function() {
         if (VOTER_STORE.length === 0) { alert("ޑޭޓާއެއް ނެތް!"); return; }
         
         let csvContent = "\ufeffSerial,Full Name,ID Card,Address,Phone,Station,Support,Voted\n";
@@ -1114,9 +1134,9 @@
         document.body.appendChild(link); 
         link.click(); 
         document.body.removeChild(link);
-    }
+    };
 
-    function generateAndDownloadDummyCSV() {
+    window.generateAndDownloadDummyCSV = function() {
         let csvContent = "Serial,Name,ID,Address,Phone,Station\n";
         for (let i = 1; i <= 200; i++) { 
             csvContent += `${i},Voter Name ${i},A${100000 + i},House Address ${i},77${Math.floor(Math.random()*99999)},Center ${Math.floor(Math.random() * 10) + 1}\n`; 
@@ -1127,10 +1147,10 @@
         document.body.appendChild(link); 
         link.click(); 
         document.body.removeChild(link);
-    }
+    };
 
     // 17. Premium TV Screen Logic
-    function openTVScreen() {
+    window.openTVScreen = function() {
         const tvWindow = window.open("", "ElectionTV", "width=1280,height=720");
         
         const tvContent = `
@@ -1153,7 +1173,7 @@
                     width: 100vw; 
                     border: 8px solid #d4af37; 
                     box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
-                    cursor: pointer; /* ފުލް ސްކްރީން ކުރަން ކްލިކް ކުރެވޭކަން އެންގުމަށް */
+                    cursor: pointer; 
                 }
                 
                 .header { 
@@ -1193,7 +1213,6 @@
                 #bar-chart-container { display: flex; align-items: flex-end; justify-content: space-evenly; gap: 10px; height: 100%; width: 100%; overflow: hidden;}
                 .bar-column { display: flex; flex-direction: column; align-items: center; height: 100%; width: 100%; justify-content: flex-end; }
                 
-                /* ފޮޓޯ ކަނޑައިގެން ދާ މައްސަލައިގެ ހައްލު (height ގެ ބަދަލުގައި flex: 1 ބޭނުންކުރުން) */
                 .bar-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; flex: 1; justify-content: flex-end; min-height: 0; }
                 .bar-visual { width: 75%; border-radius: 8px 8px 0 0; background: linear-gradient(to top, var(--c-color), #ffffff); box-shadow: 0 0 20px var(--shadow-color); transition: height 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
                 
@@ -1202,10 +1221,8 @@
                 .leader-row { display: flex; align-items: center; background: rgba(0,0,0,0.3); border-radius: 12px; border-right: 6px solid #d4af37; margin-bottom: 8px; padding: 8px 15px; flex-shrink: 0; transition: transform 0.3s; }
                 .leader-row:first-child { background: linear-gradient(90deg, rgba(212, 175, 55, 0.1), rgba(0,0,0,0.3)); border-color: #ffd700; transform: scale(1.02); margin-bottom: 12px;}
                 
-                /* ސައިޑްބާ ތިރިއަށް ފައިބާ މައްސަލައިގެ ހައްލު */
                 #leaderboard-container { display:flex; flex-direction:column; flex:1; overflow-y: auto; padding-right: 5px; padding-bottom: 5px; }
                 
-                /* ލީޑަރބޯޑުގެ ސްކްރޯލްބާ ޑިޒައިން */
                 #leaderboard-container::-webkit-scrollbar { width: 5px; }
                 #leaderboard-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
                 #leaderboard-container::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.5); border-radius: 4px; }
@@ -1229,7 +1246,6 @@
             </div>
 
             <script>
-                // ފުލް ސްކްރީން ހަދައިދޭ ފަންކްޝަން
                 function toggleFullScreen() {
                     if (!document.fullscreenElement) {
                         document.documentElement.requestFullscreen().catch(err => {
@@ -1307,7 +1323,7 @@
                 totalDisplay.innerHTML = `<span style="font-size:16px; color:#94a3b8; font-weight:normal;">ޖުމްލަ ވޯޓު:</span> ${grandTotalVotes}`; 
             }
         }, 1500);
-    }
+    };
 </script>
 </body>
 </html>
