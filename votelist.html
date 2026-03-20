@@ -117,6 +117,7 @@
         }
 
         .login-box button:hover { filter: brightness(1.2); }
+        .login-box button:disabled { opacity: 0.6; cursor: not-allowed; }
 
         /* ==========================================
            III. APP LAYOUT & CARDS
@@ -536,7 +537,7 @@
         <input type="email" id="login-email" class="login-input" placeholder="ފަޔަރބޭސް އީމެއިލް" onkeypress="if(event.key === 'Enter') loginToCloud()">
         <input type="password" id="login-pass" class="login-input" placeholder="ޕާސްވޯޑް" onkeypress="if(event.key === 'Enter') loginToCloud()">
         
-        <button onclick="loginToCloud()">ސިސްޓަމަށް ވަންނަވާ</button>
+        <button id="login-btn" onclick="loginToCloud()">ސިސްޓަމަށް ވަންނަވާ</button>
         <p id="login-msg" style="color:#ff5252; font-size:14px; margin-top:15px; font-weight:bold;"></p>
     </div>
 </div>
@@ -720,12 +721,14 @@
         }
     });
 
-    // 4. Login Logic
+    // 4. Login Logic (UPDATED)
     function loginToCloud() {
+        // .trim() ބޭނުންކޮށްފައިވަނީ ކޮޕީކުރާއިރު ނުވަތަ ފޯނުން ޖަހާއިރު އިތުރުވާ ސްޕޭސް ކަނޑާލުމަށް
         const email = document.getElementById('login-email').value.trim();
-        const pass = document.getElementById('login-pass').value; // .trim() އުނިކުރެވިފައި
+        const pass = document.getElementById('login-pass').value.trim(); 
         const station = document.getElementById('login-station').value;
         const msg = document.getElementById('login-msg');
+        const loginBtn = document.getElementById('login-btn');
 
         if (!email || !pass) { 
             msg.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!"; 
@@ -741,16 +744,25 @@
         // Set local storage BEFORE logging in to avoid race conditions
         localStorage.setItem('rasfahi_active_station', station); 
         msg.style.color = "#ffc300"; 
-        msg.innerText = "ކްލައުޑަށް ގުޅެނީ...";
+        msg.innerText = "ކްލައުޑަށް ގުޅެނީ... މަޑުކޮށްލައްވާ";
+        if(loginBtn) loginBtn.disabled = true;
 
         auth.signInWithEmailAndPassword(email, pass).then(() => {
             msg.innerText = "";
+            if(loginBtn) loginBtn.disabled = false;
         }).catch((err) => { 
+            if(loginBtn) loginBtn.disabled = false;
             msg.style.color = "#e74c3c"; 
-            if(err.code === 'auth/wrong-password') {
-                msg.innerText = "ލޮގިން ފެއިލްވި: ޕާސްވޯޑް ނުބައި.";
-            } else if(err.code === 'auth/user-not-found') {
-                msg.innerText = "ލޮގިން ފެއިލްވި: އީމެއިލް ނުބައި.";
+            
+            // ފަޔަރބޭސްގެ އެންމެ ފަހުގެ އެރަރ ކޯޑުތަކާއެކު ދިވެހިން މެސެޖު ދެއްކުން
+            if(err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
+                msg.innerText = "ލޮގިން ފެއިލްވި: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި.";
+            } else if(err.code === 'auth/invalid-email') {
+                msg.innerText = "ލޮގިން ފެއިލްވި: އީމެއިލް ފޯމެޓް ނުބައި.";
+            } else if(err.code === 'auth/network-request-failed') {
+                msg.innerText = "ލޮގިން ފެއިލްވި: އިންޓަނެޓް ކަނެކްޝަން ޗެކްކުރައްވާ.";
+            } else if(err.code === 'auth/too-many-requests') {
+                msg.innerText = "ލޮގިން ފެއިލްވި: ގިނަ ފަހަރަށް މަސައްކަތް ކުރެވިއްޖެ. އިރުކޮޅަކުން މަސައްކަތް ކުރައްވާ.";
             } else {
                 msg.innerText = "ލޮގިން ފެއިލްވި: " + err.message; 
             }
