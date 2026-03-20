@@ -701,12 +701,17 @@
             document.getElementById('firebase-login-overlay').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
             
-            let savedStation = localStorage.getItem('rasfahi_active_station') || "Admin"; 
+            let savedStation = "Admin";
+            try {
+                savedStation = localStorage.getItem('rasfahi_active_station') || "Admin"; 
+            } catch (e) {
+                console.warn("Local storage blocked, continuing session.");
+            }
             
             // STRICT ADMIN SECURITY CHECK
             if (savedStation === "Admin" && user.email.toLowerCase() !== "admin@rasfahi.com") {
                 savedStation = "Center 1"; 
-                localStorage.setItem('rasfahi_active_station', savedStation);
+                try { localStorage.setItem('rasfahi_active_station', savedStation); } catch(e){}
             }
             
             currentUserRole = (savedStation === "Admin") ? "admin" : savedStation;
@@ -721,57 +726,63 @@
         }
     });
 
-    // 4. Login Logic (UPDATED)
+    // 4. Login Logic (FULLY BUG-FIXED & ERROR HANDLED)
     function loginToCloud() {
-        // .trim() ބޭނުންކޮށްފައިވަނީ ކޮޕީކުރާއިރު ނުވަތަ ފޯނުން ޖަހާއިރު އިތުރުވާ ސްޕޭސް ކަނޑާލުމަށް
-        const email = document.getElementById('login-email').value.trim();
-        const pass = document.getElementById('login-pass').value.trim(); 
-        const station = document.getElementById('login-station').value;
-        const msg = document.getElementById('login-msg');
-        const loginBtn = document.getElementById('login-btn');
+        try {
+            const email = document.getElementById('login-email').value.trim();
+            const pass = document.getElementById('login-pass').value; // .trim() އެއްކޮށް ނެގިފައި
+            const station = document.getElementById('login-station').value;
+            const msg = document.getElementById('login-msg');
+            const loginBtn = document.getElementById('login-btn');
 
-        if (!email || !pass) { 
-            msg.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!"; 
-            return; 
-        }
-        
-        if (station === "Admin" && email.toLowerCase() !== "admin@rasfahi.com") {
-            msg.style.color = "#e74c3c"; 
-            msg.innerText = "އެޑްމިން އަށް ވަދެވޭނީ ހަމައެކަނި އެޑްމިން އީމެއިލްއިންނެވެ."; 
-            return;
-        }
-
-        // Set local storage BEFORE logging in to avoid race conditions
-        localStorage.setItem('rasfahi_active_station', station); 
-        msg.style.color = "#ffc300"; 
-        msg.innerText = "ކްލައުޑަށް ގުޅެނީ... މަޑުކޮށްލައްވާ";
-        if(loginBtn) loginBtn.disabled = true;
-
-        auth.signInWithEmailAndPassword(email, pass).then(() => {
-            msg.innerText = "";
-            if(loginBtn) loginBtn.disabled = false;
-        }).catch((err) => { 
-            if(loginBtn) loginBtn.disabled = false;
-            msg.style.color = "#e74c3c"; 
-            
-            // ފަޔަރބޭސްގެ އެންމެ ފަހުގެ އެރަރ ކޯޑުތަކާއެކު ދިވެހިން މެސެޖު ދެއްކުން
-            if(err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
-                msg.innerText = "ލޮގިން ފެއިލްވި: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި.";
-            } else if(err.code === 'auth/invalid-email') {
-                msg.innerText = "ލޮގިން ފެއިލްވި: އީމެއިލް ފޯމެޓް ނުބައި.";
-            } else if(err.code === 'auth/network-request-failed') {
-                msg.innerText = "ލޮގިން ފެއިލްވި: އިންޓަނެޓް ކަނެކްޝަން ޗެކްކުރައްވާ.";
-            } else if(err.code === 'auth/too-many-requests') {
-                msg.innerText = "ލޮގިން ފެއިލްވި: ގިނަ ފަހަރަށް މަސައްކަތް ކުރެވިއްޖެ. އިރުކޮޅަކުން މަސައްކަތް ކުރައްވާ.";
-            } else {
-                msg.innerText = "ލޮގިން ފެއިލްވި: " + err.message; 
+            if (!email || !pass) { 
+                msg.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!"; 
+                return; 
             }
-        });
+            
+            if (station === "Admin" && email.toLowerCase() !== "admin@rasfahi.com") {
+                msg.style.color = "#e74c3c"; 
+                msg.innerText = "އެޑްމިން އަށް ވަދެވޭނީ ހަމައެކަނި އެޑްމިން އީމެއިލްއިންނެވެ."; 
+                return;
+            }
+
+            msg.style.color = "#ffc300"; 
+            msg.innerText = "ކްލައުޑަށް ގުޅެނީ... މަޑުކޮށްލައްވާ";
+            if(loginBtn) loginBtn.disabled = true;
+
+            // ބައެއް ބްރައުޒަރ ތަކުގައި ފައިލް ސީދާ ހުޅުވުމުން ލޯކަލް ސްޓޯރޭޖް މައްސަލަ ޖެހޭތީ try-catch ލެވިފައި
+            try {
+                localStorage.setItem('rasfahi_active_station', station); 
+            } catch(e) {
+                console.warn("Local storage unavailable.");
+            }
+
+            auth.signInWithEmailAndPassword(email, pass).then(() => {
+                msg.innerText = "ލޮގިން ކާމިޔާބުވެއްޖެ!";
+                if(loginBtn) loginBtn.disabled = false;
+            }).catch((err) => { 
+                if(loginBtn) loginBtn.disabled = false;
+                msg.style.color = "#e74c3c"; 
+                
+                if(err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
+                    msg.innerText = "ލޮގިން ފެއިލްވި: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި.";
+                } else if(err.code === 'auth/invalid-email') {
+                    msg.innerText = "ލޮގިން ފެއިލްވި: އީމެއިލް ފޯމެޓް ނުބައި.";
+                } else if(err.code === 'auth/network-request-failed') {
+                    msg.innerText = "ލޮގިން ފެއިލްވި: އިންޓަނެޓް ކަނެކްޝަން ޗެކްކުރައްވާ.";
+                } else {
+                    msg.innerText = "އެރަރ: " + err.message; 
+                }
+            });
+        } catch (jsError) {
+            // ބްރައުޒަރގެ އެހެން މައްސަލައެއް އުޅޭނަމަ އެލާޓް ކުރާނެ
+            alert("ސިސްޓަމް އެރަރ: " + jsError.message);
+        }
     }
 
     // 5. Logout
     function logoutCloud() { 
-        localStorage.removeItem('rasfahi_active_station'); 
+        try { localStorage.removeItem('rasfahi_active_station'); } catch(e){} 
         auth.signOut().then(() => location.reload()); 
     }
 
