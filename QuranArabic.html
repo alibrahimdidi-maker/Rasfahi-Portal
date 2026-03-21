@@ -8,6 +8,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
         
+        /* ފޮންޓް ލޯޑްކުރުން */
         @font-face { 
             font-family: 'Faruma'; 
             src: url('fonts/faruma.ttf') format('truetype'),
@@ -25,6 +26,7 @@
             --gemini-border: #1565c0;
         }
 
+        /* --- އާންމު ސެކިއުރިޓީ --- */
         * { box-sizing: border-box; transition: all 0.2s ease; }
 
         .q-text *, input, textarea, select {
@@ -88,22 +90,20 @@
         
         .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; padding-top: 15px; }
 
-        /* --- MOBILE & TABLET RESPONSIVENESS (FIXED) --- */
+        /* --- MOBILE & TABLET RESPONSIVENESS --- */
         @media (max-width: 1024px) {
-            body, html { height: auto; overflow: auto; } /* Allow full page scrolling on mobile */
-            .royal-wrapper { height: auto; overflow: visible; display: none; } /* Kept display logic for JS */
+            body, html { height: auto; overflow: auto; } 
+            .royal-wrapper { height: auto; overflow: visible; display: none; } 
             .main-container { flex-direction: column; overflow: visible; height: auto; }
             
-            /* Give panels generous height so text is readable */
             .quran-panel { height: 50vh; min-height: 400px; flex: none; border-bottom: 4px solid #ddd; padding: 15px; overflow-y: auto; }
-            
-            /* HUGE FIX: Side panels take up more space and scroll properly */
             .side-panel { height: auto; min-height: 60vh; width: 100% !important; flex: none; border: none !important; border-bottom: 4px solid #ddd !important; padding: 15px; overflow-y: visible; }
             
             .search-area { grid-template-columns: 1fr; gap: 8px; padding: 12px; margin-bottom: 15px; }
             .q-text { font-size: 30px; line-height: 2.3; }
         }
 
+        /* --- PRINT STYLES --- */
         @media print {
             body, html { height: auto !important; overflow: visible !important; background: #fff !important; }
             #lock-screen, header, .search-area, .quran-panel, .action-btn, .button-group, #floating-search-btn { display: none !important; }
@@ -111,6 +111,7 @@
             .main-container { display: block !important; flex-direction: column !important; }
             .side-panel { width: 100% !important; border: none !important; margin: 0 !important; padding: 0 !important; height: auto !important; overflow: visible !important; }
             .hide-for-print { display: none !important; }
+            .rep-entry { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; page-break-inside: avoid; }
         }
     </style>
 </head>
@@ -181,6 +182,19 @@
     </div>
 
 <script>
+    // --- SECURITY ANTI-COPY SCRIPT ---
+    document.addEventListener('contextmenu', event => event.preventDefault()); 
+    document.onkeydown = function(e) {
+        if (e.keyCode == 123) return false; 
+        if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false; 
+        if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; 
+        if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; 
+        if (e.ctrlKey && e.keyCode == 'S'.charCodeAt(0)) return false; 
+        if (e.ctrlKey && e.keyCode == 'C'.charCodeAt(0)) { 
+            if(!window.getSelection().toString()) return false;
+        }
+    }
+
     // --- API KEY CONFIGURATION ---
     const GEMINI_API_KEY = "AIzaSyDj7k1Cuh2SnqT2lT-aCnXlcuozCCfRYrg"; 
     
@@ -207,7 +221,6 @@
             }
             
             document.getElementById('lock-screen').style.display = 'none';
-            // Important for mobile layout
             document.getElementById('mainApp').style.display = window.innerWidth <= 1024 ? 'block' : 'flex';
             document.getElementById('licTag').innerText = `Licensed to: ${custName.replace(/-/g, ' ')}`;
             initApp();
@@ -234,19 +247,39 @@
         }, 1000);
     }
 
-    // --- GEMINI API CALLER ---
+    // --- GEMINI API CALLER (WITH ERROR DEBUGGING) ---
     async function askGemini(promptText) {
-        if(!GEMINI_API_KEY) return "ޖެމިނައި އޭޕީއައި ކީ ސެޓަޕް ކުރެވިފައެއް ނުވޭ.";
+        if(!GEMINI_API_KEY || GEMINI_API_KEY === "") {
+            return "ޖެމިނައި އޭޕީއައި ކީ ސެޓަޕް ކުރެވިފައެއް ނުވޭ.";
+        }
+        
         try {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
             const response = await fetch(url, {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }]
+                })
             });
+            
             const data = await response.json();
-            return data.candidates[0].content.parts[0].text;
+            
+            // މައްސަލައެއް އުޅޭނަމަ ގޫގްލް އިން ފޮނުވާ އަސްލު އެރަރ ދެއްކުން
+            if (!response.ok) {
+                console.error("API Error Data:", data);
+                return `⚠️ API Error (${response.status}): ${data.error?.message || 'Unknown Error'}. <br><br><small>ފައިލް ލޯކަލްކޮށް ހުޅުވާފައި އިންނަމަ (CORS) މައްސަލައަކަށް ވެދާނެއެވެ.</small>`;
+            }
+
+            if (data.candidates && data.candidates.length > 0) {
+                return data.candidates[0].content.parts[0].text;
+            } else {
+                return "⚠️ ޖަވާބެއް ނުލިބުނު! (No data returned)";
+            }
+            
         } catch (error) {
-            return "ޖެމިނައި އިން މަޢުލޫމާތު ގެނައުމުގައި މައްސަލައެއް ދިމާވެއްޖެ. އިންޓަނެޓް ކަނެކްޝަން ޗެކްކުރައްވާ.";
+            console.error("Fetch Error:", error);
+            return `⚠️ ސިސްޓަމް ނެޓްވޯކް އެރަރ (CORS/Internet): ${error.message}. <br><br><small>މައްސަލަ ޙައްލުކުރުމަށް ގިޓްހަބް ފަދަ އޮންލައިން ސަރވަރަކަށް އަޕްލޯޑްކޮށްގެން ޓެސްޓުކުރައްވާށެވެ.</small>`;
         }
     }
 
@@ -407,7 +440,6 @@
         if(contentBox) contentBox.innerHTML = content;
     }
 
-    // މޯބައިލްގައި ނަތީޖާ އަންނައިރު އެ ޕެނަލްއަށް އޮޓޯއިން ސްކްރޯލް ވުމަށް
     function scrollToPanel(panelId) {
         if(window.innerWidth <= 1024) {
             document.getElementById(panelId).scrollIntoView({ behavior: 'smooth' });
