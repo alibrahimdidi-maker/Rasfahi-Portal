@@ -836,6 +836,7 @@
         a.href = URL.createObjectURL(blob); a.download = filename; a.click();
     }
 
+    // 💡 MERGE FIX: Ensure data is Upserted safely without overwriting other faculties
     window.importData = async (type, event) => {
         const files = event.target.files;
         if (files.length === 0) return;
@@ -866,20 +867,36 @@
 
             if (tempData.length === 0) throw new Error("No valid data found in the CSV.");
 
-            if (activeRole !== 'ALL' && type === 'modules') {
-                tempData.forEach(row => { row['Parent Faculty'] = activeRole; row['Kulliyyah/Centre'] = activeRole; });
-            }
+            // Create a map from existing data to safely merge
+            let existingMap = new Map(localDB[type].map(x => [window.makeSafeId(window.getSafeVal(x, docIdKey)), x]));
 
-            // Merge Logic to retain custom targets
+            // Merge new data securely
             tempData.forEach(x => {
                 let id = window.makeSafeId(window.getSafeVal(x, docIdKey));
-                let existing = localDB[type].find(e => window.makeSafeId(window.getSafeVal(e, docIdKey)) === id);
-                if(type === 'lecturers' && existing && existing.custom_target) {
-                    x.custom_target = existing.custom_target;
+                if(id) {
+                    let existing = existingMap.get(id);
+                    
+                    // Retain custom targets if they exist
+                    if(type === 'lecturers' && existing && existing.custom_target) {
+                        x.custom_target = existing.custom_target;
+                    }
+
+                    // Strict Faculty isolation logic
+                    if (activeRole !== 'ALL') {
+                        if (type === 'modules') {
+                             x['Parent Faculty'] = activeRole; 
+                             x['Kulliyyah/Centre'] = activeRole;
+                        } else if (type === 'lecturers') {
+                             x['Kulliyyah / Centre'] = activeRole;
+                        }
+                    }
+
+                    existingMap.set(id, x); // Updates if exists, adds if new
                 }
             });
 
-            localDB[type] = Array.from(new Map(tempData.map(x => [window.makeSafeId(window.getSafeVal(x, docIdKey)), x])).values());
+            // Save back merged list securely
+            localDB[type] = Array.from(existingMap.values());
             
             window.saveLocal(true);
             window.populateLecturerDropdown(); 
@@ -889,11 +906,52 @@
 
             loader.style.display = 'none';
             event.target.value = ''; 
-            window.showToast(`${type} imported to Local Browser successfully.`, "success");
+            window.showToast(`${type} merged securely to Local Browser successfully.`, "success");
+
+            if (!dbCloud || !navigator.onLine) {
+                setSyncStatus('offline'); return; 
+            }
+
+            window.runBackgroundCloudSync(type, tempData, docIdKey);
 
         } catch (err) {
             console.error(err); alert("Upload Note: " + err.message);
             loader.style.display = 'none'; event.target.value = ''; 
+        }
+    };
+
+    window.runBackgroundCloudSync = async (type, tempData, docIdKey) => {
+        setSyncStatus('syncing');
+        
+        try {
+            const CHUNK_SIZE = 100;
+            let totalCount = 0;
+            
+            for (let i = 0; i < tempData.length; i += CHUNK_SIZE) {
+                const chunk = tempData.slice(i, i + CHUNK_SIZE);
+                const batch = writeBatch(dbCloud);
+                let hasWrites = false;
+                
+                chunk.forEach(item => {
+                    let rawId = window.getSafeVal(item, docIdKey);
+                    if (rawId && String(rawId).trim() !== '') {
+                        let safeId = window.makeSafeId(rawId);
+                        batch.set(doc(dbCloud, type, safeId), item, { merge: true });
+                        totalCount++; hasWrites = true;
+                    }
+                });
+                
+                if (hasWrites) {
+                    await batch.commit();
+                    await new Promise(r => setTimeout(r, 50)); 
+                }
+            }
+            setSyncStatus('success');
+            console.log(`✅ Background Sync Complete: ${totalCount} records.`);
+        } catch(error) {
+            console.error("Background sync failed", error);
+            setSyncStatus('offline');
+            window.showToast("Cloud sync failed. Progress safely backed up locally.", "warning");
         }
     };
 
@@ -1106,6 +1164,7 @@
         });
     };
 
+    // DOM Optimized Assign Function (Prevents full table redraw)
     window.assignLecturer = (mCode, lectId) => {
         const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
         const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
@@ -1120,6 +1179,7 @@
         window.saveLocal(true);
         window.showToast("Lecturer assigned. Local state auto-saved.", "info");
         
+        // Optimistic DOM Update
         const row = document.getElementById(`row-${mCode}`);
         if(row) {
             const isAssigned = lectId && lectId !== '';
@@ -1247,7 +1307,7 @@
         window.showToast("Local CSV Exported.", "success");
     };
     
-    // 💡 NEW CLOUD CSV EXPORT LOGIC
+    // 💡 NEW CLOUD CSV EXPORT LOGIC (Merges properly)
     window.exportCloudCSV = async () => {
         if (activeRole !== 'ALL') return;
         window.showToast("Fetching live data from Cloud Server...", "info");
@@ -1282,6 +1342,7 @@
         }
     };
 
+    // 💡 IMPORT MASTER ALSO USES MERGE/UPSERT STRATEGY
     window.importMasterCSV = async (event) => {
         if (activeRole !== 'ALL') return alert("Unauthorized Action.");
         const file = event.target.files[0];
@@ -1309,7 +1370,9 @@
                     let moduleCount = 0;
                     let assignmentCount = 0;
 
-                    let newModules = [];
+                    // Merge safely with existing modules
+                    let existingMap = new Map(localDB.modules.map(x => [window.makeSafeId(window.getSafeVal(x, ['ModuleCode', 'Code'])), x]));
+
                     data.forEach(row => {
                         let rawId = window.getSafeVal(row, ['ModuleCode', 'Code']);
                         if(rawId && String(rawId).trim() !== '') {
@@ -1318,7 +1381,7 @@
                             delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID;
                             delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME;
                             delete moduleData.SYSTEM_SYNC_MODE;
-                            newModules.push(moduleData);
+                            existingMap.set(safeId, moduleData); // Upsert
                             
                             let lectId = row['SYSTEM_ASSIGNED_LECTURER_ID'];
                             let mode = row['SYSTEM_SYNC_MODE'] || 'Individual';
@@ -1328,7 +1391,7 @@
                         }
                     });
                     
-                    localDB.modules = newModules;
+                    localDB.modules = Array.from(existingMap.values());
                     window.saveLocal(true);
                     
                     window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
@@ -1336,6 +1399,7 @@
 
                     setSyncStatus('syncing');
 
+                    // Push to Cloud
                     for (let i = 0; i < data.length; i += CHUNK_SIZE) {
                         const chunk = data.slice(i, i + CHUNK_SIZE);
                         const batch = writeBatch(dbCloud);
@@ -1349,7 +1413,7 @@
                                 delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID;
                                 delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME;
                                 delete moduleData.SYSTEM_SYNC_MODE;
-                                batch.set(doc(dbCloud, 'modules', safeId), moduleData);
+                                batch.set(doc(dbCloud, 'modules', safeId), moduleData, {merge: true});
                                 moduleCount++; hasWrites = true;
 
                                 let lectId = row['SYSTEM_ASSIGNED_LECTURER_ID'];
@@ -1367,11 +1431,11 @@
                         }
                     }
                     setSyncStatus('success');
-                    alert(`✅ Backup Restored to Server!\nModules Loaded: ${moduleCount}\nAssignments Restored: ${assignmentCount}`);
+                    window.showToast(`✅ Backup Restored!\nModules: ${moduleCount}\nAssignments: ${assignmentCount}`, "success");
                 } catch(err) {
                     console.error("Master Restore Error", err);
                     setSyncStatus('offline');
-                    alert("Master Restore Failed: " + err.message);
+                    window.showToast("Master Restore Failed.", "warning");
                 } finally {
                     event.target.value = '';
                 }
