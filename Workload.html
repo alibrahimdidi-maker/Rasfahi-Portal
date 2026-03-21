@@ -28,7 +28,7 @@
             if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
                 e.preventDefault();
             }
-            // Disable Ctrl+U (View Source), Ctrl+S (Save), Ctrl+P (Print)
+            // Disable Ctrl+U (View Source), Ctrl+S (Save), Ctrl+P (Print - handled via custom function now, but native browser print shortcut is disabled here to force use of our styled print button)
             if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's' || e.key === 'P' || e.key === 'p')) {
                 e.preventDefault();
             }
@@ -72,6 +72,25 @@
             user-select: auto;
         }
 
+        /* 💡 LECTURER NAME CLICKABLE EFFECTS */
+        .clickable-name {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            display: inline-block;
+        }
+        .clickable-name:hover {
+            color: var(--royal-blue);
+            text-decoration: underline;
+            text-decoration-color: var(--gold);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
+            transform: scale(1.02);
+            background-color: #f0f9ff;
+            padding: 0 4px;
+            border-radius: 4px;
+        }
+
         /* Gradients and Backgrounds */
         .bg-gradient-royal { 
             background: linear-gradient(135deg, var(--royal-green), var(--royal-blue), var(--royal-purple)); 
@@ -91,7 +110,7 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.2); 
         }
 
-        /* 💡 NEW ROYAL BUTTONS FOR SAVING & ANIMATIONS */
+        /* ROYAL BUTTONS FOR SAVING & ANIMATIONS */
         .btn-royal-blue {
             background: linear-gradient(135deg, #0d47a1, #1976d2);
             color: white;
@@ -322,6 +341,36 @@
         @keyframes fadeOut { 
             to { opacity: 0; transform: translateX(120%); } 
         }
+
+        /* 💡 PRINT SPECIFIC CSS */
+        @media print {
+            body.is-printing > :not(#report-frame) { 
+                display: none !important; 
+            }
+            body.is-printing { 
+                background: white; 
+            }
+            #report-frame { 
+                display: block !important; 
+                position: relative !important; 
+                left: 0 !important; 
+                top: 0 !important;
+                width: 100% !important; 
+                margin: 0 !important; 
+            }
+            .pdf-border-outer { 
+                border: 2px solid black !important; 
+                padding: 10px !important; 
+            }
+            .pdf-border-inner { 
+                border: 1px solid black !important; 
+                padding: 20px !important; 
+            }
+            /* Ensure modal overlay hides completely during printing */
+            .modal-overlay { 
+                display: none !important; 
+            }
+        }
     </style>
 </head>
 <body>
@@ -430,10 +479,10 @@
                         </button>
                     </div>
                     <div class="flex gap-2 justify-center xl:justify-end mt-1">
-                        <button onclick="window.exportLocalCSV()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-[9px] font-bold transition flex items-center gap-1 shadow-sm">
+                        <button onclick="window.exportLocalCSV()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-[9px] font-bold transition flex items-center gap-1 shadow-sm" title="Download the latest data saved in your browser">
                             📥 Export Local CSV
                         </button>
-                        <button onclick="window.exportCloudCSV()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-[9px] font-bold transition flex items-center gap-1 shadow-sm">
+                        <button onclick="window.exportCloudCSV()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-[9px] font-bold transition flex items-center gap-1 shadow-sm" title="Download the actual live data from the University Server">
                             ☁️ Export Cloud CSV
                         </button>
                     </div>
@@ -502,6 +551,7 @@
             <div id="tab-staff" class="tab-content">
                 <div class="card overflow-hidden p-4">
                     <h2 class="font-black text-royal-green uppercase mb-4 text-xs">Staff Workload Targets</h2>
+                    <p class="text-[9px] text-gray-500 mb-4 font-bold">Hint: Click on any staff name to view their full workload slip and print it.</p>
                     <div class="overflow-x-auto max-h-[600px]">
                         <table class="w-full text-left text-[10px] md:text-xs min-w-[800px]">
                             <thead class="sticky top-0 bg-gray-100 text-gray-600 uppercase shadow-sm">
@@ -531,6 +581,8 @@
                         <div class="h-48 md:h-56"><canvas id="focusChart"></canvas></div>
                     </div>
                 </div>
+                
+                <p class="text-[9px] text-gray-500 mb-2 font-bold px-2">Hint: Click on any staff name below to instantly view and print their workload slip.</p>
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div class="card p-4 border-t-4 border-orange-500 bg-orange-50/30">
@@ -570,7 +622,7 @@
     <div class="modal-content flex flex-col">
         <div class="p-3 md:p-4 border-b flex justify-between items-center bg-gray-50">
             <h2 class="text-base md:text-lg font-black text-[#004d40] uppercase">Workload Review</h2>
-            <button onclick="window.closeHRView()" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none">&times;</button>
+            <button onclick="window.closeHRView()" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none" title="Close Window">&times;</button>
         </div>
         <div class="p-3 md:p-4 flex-1">
             <div id="hr-meta" class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 bg-blue-50 p-3 md:p-4 rounded-lg mb-4 border-l-4 border-royal-blue text-[9px] md:text-[10px]"></div>
@@ -597,9 +649,16 @@
                 </table>
             </div>
         </div>
-        <div class="p-3 border-t bg-gray-50 flex flex-wrap justify-end gap-2 md:gap-3">
-            <button onclick="window.closeHRView()" class="px-4 py-2 bg-gray-300 rounded-lg font-bold text-[9px] md:text-[10px] hover:bg-gray-400 transition">Close</button>
-            <button onclick="window.downloadOfficialPDF()" class="btn-gold px-4 py-2 rounded-lg text-[9px] md:text-[10px] shadow-lg">Download Official PDF</button>
+        <div class="p-3 border-t bg-gray-50 flex flex-wrap justify-end gap-2 md:gap-3 items-center">
+            <button onclick="window.closeHRView()" class="px-4 py-2 bg-gray-300 rounded-lg font-bold text-[9px] md:text-[10px] hover:bg-gray-400 transition mr-auto">Close</button>
+            
+            <button onclick="window.printOfficialDocument()" class="bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-lg text-[9px] md:text-[10px] font-bold transition flex items-center gap-1 shadow-lg">
+                🖨️ Print Slip
+            </button>
+            
+            <button onclick="window.downloadOfficialPDF()" class="btn-gold px-4 py-2 rounded-lg text-[9px] md:text-[10px] shadow-lg flex items-center gap-1">
+                📄 Download PDF
+            </button>
         </div>
     </div>
 </div>
@@ -671,8 +730,6 @@
     /**
      * TOAST NOTIFICATION SYSTEM
      * Creates and displays sliding toast notifications on screen.
-     * @param {string} msg - The message to display.
-     * @param {string} type - 'info', 'success', or 'warning'.
      */
     window.showToast = (msg, type = 'info') => {
         const container = document.getElementById('toast-container');
@@ -688,25 +745,16 @@
         }, 4000);
     };
 
-    /**
-     * Sanitizes strings to be used as robust ID keys in Firebase and objects.
-     */
     window.makeSafeId = (id) => {
         if (!id) return `UNKNOWN-${Math.floor(Math.random()*100000)}`;
         return String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
     };
 
-    /**
-     * Normalizes email prefixes for role detection.
-     */
     const getNormalizedPrefix = (email) => {
         if (!email || !email.includes('@')) return "";
         return email.split('@')[0].toLowerCase().replace(/[\.\-_]/g, ' ');
     };
 
-    /**
-     * Validates if the user's email actually grants them the role they selected.
-     */
     const validateRoleEmail = (role, email) => {
         const prefix = getNormalizedPrefix(email);
         if (role === 'ALL') {
@@ -722,9 +770,6 @@
         }
     };
 
-    /**
-     * Auto-detects user role based on email domain prefix.
-     */
     const getRoleFromEmail = (email) => {
         if (!email || !email.includes('@')) return 'ALL';
         const prefix = getNormalizedPrefix(email);
@@ -750,9 +795,6 @@
         }
     };
 
-    /**
-     * Loads the last saved local state from cache.
-     */
     const loadLocalCache = () => {
         try {
             const m = localStorage.getItem('wl_modules');
@@ -771,9 +813,6 @@
         }
     };
 
-    /**
-     * Builds the main navigation dropdowns dynamically based on roles.
-     */
     const buildDropdowns = () => {
         let options = `<option value="ALL">Academic Affairs (Global Admin)</option>`;
         options += `<option value="LECTURER">Lecturer Access (Slip View)</option>`;
@@ -804,9 +843,6 @@
         document.getElementById('login-role').value = getRoleFromEmail(email);
     };
 
-    /**
-     * 💡 NEW: Generates Quick Faculty Filter Buttons for Admin Dashboard
-     */
     window.populateFacultyFilters = () => {
         const container = document.getElementById('admin-faculty-filters');
         if (!container) return;
@@ -935,9 +971,6 @@
         location.reload();
     };
 
-    /**
-     * UI Helper to change sync status visuals
-     */
     const setSyncStatus = (status) => {
         const txt = document.getElementById('cloud-txt');
         const pulse = document.getElementById('cloud-pulse');
@@ -982,12 +1015,8 @@
         return keys.length > 2 ? (row[keys[2]] || 'MALE') : 'MALE';
     };
 
-    /**
-     * TARGET CALCULATION LOGIC
-     * Evaluates whether a lecturer is FT, PT, or Dean and assigns default teaching target.
-     */
     window.getDefaultTarget = (l) => {
-        if (l.custom_target) return parseInt(l.custom_target); // Priority to manual override
+        if (l.custom_target) return parseInt(l.custom_target); 
         
         const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
         const focusStr = String(window.getSafeVal(l, ['LecturerCategory', 'Category', 'AcademicFocus', 'Focus']) || '').toLowerCase();
@@ -996,10 +1025,9 @@
         if (typeStr.includes('part') || typeStr === 'pt' || focusStr.includes('part')) return 9;
         if (focusStr.includes('research') || focusStr === 'res') return 9;
         
-        return 15; // Default for Full-time Teaching Focused
+        return 15; 
     };
 
-    // Update target for specific staff via Dropdown
     window.updateStaffTarget = (safeId, val) => {
         let lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === safeId);
         if(lect) {
@@ -1010,10 +1038,6 @@
         }
     };
 
-    /**
-     * DUMMY DATA GENERATOR
-     * Fully expands and simulates 1000s of rows for robust testing.
-     */
     window.generateDummies = (type) => {
         let rows = [];
         const faculties = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "CPS", "CCE"];
@@ -1140,9 +1164,6 @@
         }
     };
 
-    /**
-     * CSV Exporter Utility
-     */
     function downloadCSV(data, filename) {
         const csv = Papa.unparse(data);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1150,10 +1171,6 @@
         a.href = URL.createObjectURL(blob); a.download = filename; a.click();
     }
 
-    /**
-     * MERGE FIX: Ensure data is Upserted safely without overwriting other faculties.
-     * Only merges based on Module Code or Lecturer ID.
-     */
     window.importData = async (type, event) => {
         const files = event.target.files;
         if (files.length === 0) return;
@@ -1184,21 +1201,15 @@
 
             if (tempData.length === 0) throw new Error("No valid data found in the CSV.");
 
-            // Create a map from existing data to safely merge
             let existingMap = new Map(localDB[type].map(x => [window.makeSafeId(window.getSafeVal(x, docIdKey)), x]));
 
-            // Merge new data securely
             tempData.forEach(x => {
                 let id = window.makeSafeId(window.getSafeVal(x, docIdKey));
                 if(id) {
                     let existing = existingMap.get(id);
-                    
-                    // Retain custom targets if they exist
                     if(type === 'lecturers' && existing && existing.custom_target) {
                         x.custom_target = existing.custom_target;
                     }
-
-                    // Strict Faculty isolation logic
                     if (activeRole !== 'ALL') {
                         if (type === 'modules') {
                              x['Parent Faculty'] = activeRole; 
@@ -1207,12 +1218,10 @@
                              x['Kulliyyah / Centre'] = activeRole;
                         }
                     }
-
-                    existingMap.set(id, x); // Updates if exists, adds if new
+                    existingMap.set(id, x); 
                 }
             });
 
-            // Save back merged list securely
             localDB[type] = Array.from(existingMap.values());
             
             window.saveLocal(true);
@@ -1237,9 +1246,6 @@
         }
     };
 
-    /**
-     * Silently pushes updates to Firebase in batches
-     */
     window.runBackgroundCloudSync = async (type, tempData, docIdKey) => {
         setSyncStatus('syncing');
         
@@ -1354,9 +1360,13 @@
                     opts += `<option value="${i}" ${target === i ? 'selected' : ''}>${i} Hours</option>`;
                 }
                 
+                // 💡 CLICKABLE NAME ADDED HERE
                 html += `
                 <tr class="border-b hover:bg-gray-50 transition">
-                    <td class="p-2 font-bold">${name} <br><span class="text-[9px] text-gray-500 font-mono">${window.getSafeVal(l, ['LecturerID', 'NationalID'])}</span></td>
+                    <td class="p-2 font-bold">
+                        <span class="clickable-name" title="Click to view full workload slip" onclick="window.openHRView('${safeId}')">${name}</span> 
+                        <br><span class="text-[9px] text-gray-500 font-mono">${window.getSafeVal(l, ['LecturerID', 'NationalID'])}</span>
+                    </td>
                     <td class="p-2 text-[10px] text-gray-600 font-bold">${fac}</td>
                     <td class="p-2 text-[10px]">${cat} <br><span class="text-blue-600 font-bold">${type}</span></td>
                     <td class="p-2 text-center">
@@ -1371,9 +1381,6 @@
         tbody.innerHTML = html || '<tr><td colspan="4" class="p-4 text-center text-gray-400">No staff found for this faculty.</td></tr>';
     };
 
-    /**
-     * 💡 UPDATED: SEARCH BAR NOW ALSO CHECKS FACULTY CODE
-     */
     window.renderMatrix = () => {
         const tbody = document.getElementById('matrix-body');
         const searchQ = document.getElementById('mSearch').value.toLowerCase();
@@ -1412,7 +1419,6 @@
             const mCode = window.getSafeVal(m, ['ModuleCode']);
             const combinedData = window.getSafeVal(m, ['CombinedBatch']);
             
-            // 💡 Search checks Module Name, Module Code OR Faculty Code
             const matchesSearch = (
                 mName.toLowerCase().includes(searchQ) || 
                 mCode.toLowerCase().includes(searchQ) || 
@@ -1463,7 +1469,7 @@
                                 ${currentLectOptions}
                             </select>
                             ${!canEdit ? `<span class="absolute right-8 text-[10px] pointer-events-none">${lockIcon}</span>` : ''}
-                            <button onclick="window.checkAssignedWorkload('${safeMCode}')" title="Check Workload" class="btn-check-workload ml-1 p-1.5 bg-gray-100 hover:bg-blue-100 rounded text-blue-600 ${!isAssigned ? 'opacity-50 cursor-not-allowed' : ''}">🔍</button>
+                            <button onclick="window.checkAssignedWorkload('${safeMCode}')" title="View Workload Slip" class="btn-check-workload ml-1 p-1.5 bg-gray-100 hover:bg-blue-100 rounded text-blue-600 ${!isAssigned ? 'opacity-50 cursor-not-allowed' : ''}">🔍</button>
                         </div>
                     </td>
                     <td class="p-2 align-middle relative">
@@ -1493,7 +1499,6 @@
         });
     };
 
-    // DOM Optimized Assign Function
     window.assignLecturer = (mCode, lectId) => {
         const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
         const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
@@ -1581,7 +1586,6 @@
                 await new Promise(r => setTimeout(r, 50));
             }
             
-            // Push updated targets
             const lectBatch = writeBatch(dbCloud);
             localDB.lecturers.filter(l => l.custom_target).forEach(l => {
                 lectBatch.set(doc(dbCloud, "lecturers", window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']))), { custom_target: l.custom_target }, { merge: true });
@@ -1615,13 +1619,9 @@
         }
     };
 
-    /**
-     * 💡 EXPORTS CURRENT LOCAL CACHE STATE
-     */
     window.exportLocalCSV = () => {
         let exportModules = [...localDB.modules];
         
-        // Filter by Role for Export Security
         if (activeRole !== 'ALL') {
             exportModules = exportModules.filter(m => window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']).includes(activeRole));
         }
@@ -1644,9 +1644,6 @@
         window.showToast("Local CSV Exported.", "success");
     };
     
-    /**
-     * 💡 EXPORTS LATEST CLOUD SERVER STATE
-     */
     window.exportCloudCSV = async () => {
         window.showToast("Fetching live data from Cloud Server...", "info");
         try {
@@ -1659,7 +1656,6 @@
             let c_assignments = {};
             assSnap.docs.forEach(d => c_assignments[d.id] = d.data());
             
-            // Filter by Role for Export Security
             if (activeRole !== 'ALL') {
                 c_modules = c_modules.filter(m => window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']).includes(activeRole));
             }
@@ -1927,10 +1923,11 @@
             
             const rwTag = `<span class="font-black text-[9px] bg-gray-200 px-1 rounded ml-1 text-gray-700">(RW: ${data.wch.toFixed(1)})</span>`;
             
+            // 💡 CLICKABLE NAME ADDED HERE
             const listItem = `
                 <div class="flex justify-between items-center py-1.5 border-b border-gray-200 hover:bg-gray-50 transition">
                     <div class="pr-2">
-                        <span class="font-bold text-gray-800 break-words">${data.name} ${rwTag}</span><br>
+                        <span class="font-bold text-gray-800 break-words clickable-name" title="Click to view full workload slip" onclick="window.openHRView('${data.id || Object.keys(workloadData).find(key => workloadData[key] === data)}')">${data.name}</span> ${rwTag}<br>
                         <span class="text-[8px] md:text-[9px] text-gray-500">${data.fac} | Target: ${data.target}h ${typeBadge}</span>
                     </div>
                     <span class="font-black text-sm ${data.wch > data.target ? 'text-purple-600' : (isIdle ? 'text-orange-500' : 'text-blue-600')}">${data.wch.toFixed(1)}</span>
@@ -2073,6 +2070,17 @@
     window.closeHRView = () => { 
         document.getElementById('hr-modal').style.display = 'none'; 
         currentLecturerId = null; 
+    };
+
+    // 💡 NEW PRINT DOCUMENT FUNCTIONALITY
+    window.printOfficialDocument = () => {
+        if (!currentLecturerId) return;
+        // Temporarily adds the is-printing class to body which utilizes the @media print CSS to isolate the frame
+        document.body.classList.add('is-printing');
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('is-printing');
+        }, 500);
     };
 
     window.downloadOfficialPDF = async () => {
