@@ -28,7 +28,7 @@
             if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
                 e.preventDefault();
             }
-            // Disable Ctrl+U (View Source), Ctrl+S (Save), Ctrl+P (Print - handled via custom function now, but native browser print shortcut is disabled here to force use of our styled print button)
+            // Disable Ctrl+U (View Source), Ctrl+S (Save), Ctrl+P (Print - handled via custom function now)
             if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's' || e.key === 'P' || e.key === 'p')) {
                 e.preventDefault();
             }
@@ -342,7 +342,7 @@
             to { opacity: 0; transform: translateX(120%); } 
         }
 
-        /* 💡 PRINT SPECIFIC CSS */
+        /* PRINT SPECIFIC CSS */
         @media print {
             body.is-printing > :not(#report-frame) { 
                 display: none !important; 
@@ -366,7 +366,6 @@
                 border: 1px solid black !important; 
                 padding: 20px !important; 
             }
-            /* Ensure modal overlay hides completely during printing */
             .modal-overlay { 
                 display: none !important; 
             }
@@ -727,9 +726,28 @@
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
+    // 💡 IDLE TIMER LOGIC (Auto Sync)
+    let idleTimeout;
+    const IDLE_TIME_MS = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+    function resetIdleTimer() {
+        clearTimeout(idleTimeout);
+        idleTimeout = setTimeout(() => {
+            if (navigator.onLine && activeRole) {
+                window.showToast("System idle for 30 mins. Auto-syncing to cloud...", "info");
+                window.saveToServer(true); // Pass true to indicate it's an auto-save (can suppress alerts if needed)
+            }
+        }, IDLE_TIME_MS);
+    }
+
+    // Attach listeners for user activity to reset the idle timer
+    window.addEventListener('mousemove', resetIdleTimer);
+    window.addEventListener('keydown', resetIdleTimer);
+    window.addEventListener('click', resetIdleTimer);
+    window.addEventListener('scroll', resetIdleTimer);
+
     /**
      * TOAST NOTIFICATION SYSTEM
-     * Creates and displays sliding toast notifications on screen.
      */
     window.showToast = (msg, type = 'info') => {
         const container = document.getElementById('toast-container');
@@ -782,7 +800,6 @@
 
     /**
      * HYBRID AUTO-SAVE
-     * Persists all memory states to browser local storage.
      */
     window.saveLocal = (silent = false) => {
         try {
@@ -837,7 +854,6 @@
         document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
     }
 
-    // Bind event to login screen
     window.detectFacultyFromEmail = () => {
         const email = document.getElementById('login-email').value;
         document.getElementById('login-role').value = getRoleFromEmail(email);
@@ -895,8 +911,9 @@
                     }
                 }
                 
-                window.populateFacultyFilters(); // Build the Quick Filters for Admins
-                loadCloudData(); // Hybrid: Fetch once on load, then work locally
+                window.populateFacultyFilters(); 
+                loadCloudData(); 
+                resetIdleTimer(); // Start the idle timer once logged in
             } else {
                 document.getElementById('app-screen').style.display = 'none';
                 document.getElementById('login-screen').style.display = 'flex';
@@ -904,10 +921,6 @@
         });
     }
 
-    /**
-     * HYBRID LOGIC
-     * Load once from Firebase instead of real-time aggressive snapshots.
-     */
     async function loadCloudData() {
         document.getElementById('loader').style.display = 'flex';
         document.getElementById('loader-text').innerText = "Syncing from Cloud...";
@@ -923,7 +936,7 @@
             const assSnap = await getDocs(collection(dbCloud, "assignments"));
             assSnap.docs.forEach(doc => { localDB.assignments[doc.id] = doc.data(); });
             
-            window.saveLocal(true); // Save the fresh cloud pull locally
+            window.saveLocal(true); 
             window.showToast("Live data fetched from Cloud successfully.", "success");
             
         } catch (error) {
@@ -1207,9 +1220,11 @@
                 let id = window.makeSafeId(window.getSafeVal(x, docIdKey));
                 if(id) {
                     let existing = existingMap.get(id);
+                    
                     if(type === 'lecturers' && existing && existing.custom_target) {
                         x.custom_target = existing.custom_target;
                     }
+
                     if (activeRole !== 'ALL') {
                         if (type === 'modules') {
                              x['Parent Faculty'] = activeRole; 
@@ -1218,6 +1233,7 @@
                              x['Kulliyyah / Centre'] = activeRole;
                         }
                     }
+
                     existingMap.set(id, x); 
                 }
             });
@@ -1360,7 +1376,6 @@
                     opts += `<option value="${i}" ${target === i ? 'selected' : ''}>${i} Hours</option>`;
                 }
                 
-                // 💡 CLICKABLE NAME ADDED HERE
                 html += `
                 <tr class="border-b hover:bg-gray-50 transition">
                     <td class="p-2 font-bold">
@@ -1547,12 +1562,12 @@
         window.updateAnalytics();
     };
 
-    window.saveToServer = async () => {
+    window.saveToServer = async (isAuto = false) => {
         if (!navigator.onLine) {
-            window.showToast("Offline. Cannot push to Cloud.", "warning");
+            if(!isAuto) window.showToast("Offline. Cannot push to Cloud.", "warning");
             return;
         }
-        setSyncStatus('syncing');
+        if(!isAuto) setSyncStatus('syncing');
 
         try {
             let validAssignments = [];
@@ -1567,7 +1582,7 @@
             });
 
             if(validAssignments.length === 0) {
-                window.showToast("No assignments to push.", "info");
+                if(!isAuto) window.showToast("No assignments to push.", "info");
                 setSyncStatus('success'); return;
             }
 
@@ -1593,11 +1608,11 @@
             await lectBatch.commit();
             
             setSyncStatus('success');
-            window.showToast(`✅ Successfully synced ${totalSaved} assignments to Server!`, "success");
+            if(!isAuto) window.showToast(`✅ Successfully synced ${totalSaved} assignments to Server!`, "success");
         } catch (error) {
             console.error("Save error", error);
             setSyncStatus('offline');
-            window.showToast("Cloud sync failed.", "warning");
+            if(!isAuto) window.showToast("Cloud sync failed.", "warning");
         }
     };
 
@@ -1736,7 +1751,6 @@
 
                     setSyncStatus('syncing');
 
-                    // Push to Cloud
                     for (let i = 0; i < data.length; i += CHUNK_SIZE) {
                         const chunk = data.slice(i, i + CHUNK_SIZE);
                         const batch = writeBatch(dbCloud);
@@ -1921,13 +1935,14 @@
             const isIdle = data.wch === 0;
             const typeBadge = `<span class="px-1.5 py-0.5 rounded text-[7px] font-bold text-white ${data.wch > data.target ? 'bg-purple-600' : (isIdle ? 'bg-orange-500' : 'bg-blue-500')}">${data.isPartTime ? 'PT' : 'FT'}</span>`;
             
+            // 💡 RECENT WORKLOAD (RW) TAG
             const rwTag = `<span class="font-black text-[9px] bg-gray-200 px-1 rounded ml-1 text-gray-700">(RW: ${data.wch.toFixed(1)})</span>`;
             
             // 💡 CLICKABLE NAME ADDED HERE
             const listItem = `
                 <div class="flex justify-between items-center py-1.5 border-b border-gray-200 hover:bg-gray-50 transition">
                     <div class="pr-2">
-                        <span class="font-bold text-gray-800 break-words clickable-name" title="Click to view full workload slip" onclick="window.openHRView('${data.id || Object.keys(workloadData).find(key => workloadData[key] === data)}')">${data.name}</span> ${rwTag}<br>
+                        <span class="font-bold text-gray-800 break-words clickable-name" title="Click to view full workload slip" onclick="window.openHRView('${Object.keys(workloadData).find(key => workloadData[key] === data)}')">${data.name}</span> ${rwTag}<br>
                         <span class="text-[8px] md:text-[9px] text-gray-500">${data.fac} | Target: ${data.target}h ${typeBadge}</span>
                     </div>
                     <span class="font-black text-sm ${data.wch > data.target ? 'text-purple-600' : (isIdle ? 'text-orange-500' : 'text-blue-600')}">${data.wch.toFixed(1)}</span>
@@ -1990,6 +2005,8 @@
         currentLecturerId = id;
         
         const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === id);
+        if(!lect) return;
+        
         const mods = localDB.modules.filter(m => {
             let safeMCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
             return localDB.assignments[safeMCode]?.id === id;
@@ -2072,10 +2089,9 @@
         currentLecturerId = null; 
     };
 
-    // 💡 NEW PRINT DOCUMENT FUNCTIONALITY
+    // 💡 PRINT DOCUMENT FUNCTIONALITY
     window.printOfficialDocument = () => {
         if (!currentLecturerId) return;
-        // Temporarily adds the is-printing class to body which utilizes the @media print CSS to isolate the frame
         document.body.classList.add('is-printing');
         setTimeout(() => {
             window.print();
