@@ -83,9 +83,20 @@
         .tom-select-assign .ts-control { padding: 0.25rem; font-size: 9px; min-height: 28px; }
         .ts-dropdown { font-size: 10px; border-radius: 0.5rem; overflow: hidden; }
         .ts-wrapper.disabled .ts-control { background-color: #f3f4f6; opacity: 0.7; cursor: not-allowed; }
+
+        /* Toast Notifications */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #1e293b; color: #fff; padding: 14px 24px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideIn 0.3s ease-out forwards; display: flex; align-items: center; gap: 10px; min-width: 250px; }
+        .toast.success { border-left: 5px solid #4ade80; }
+        .toast.warning { border-left: 5px solid #f97316; }
+        .toast.info { border-left: 5px solid #3b82f6; }
+        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateX(120%); } }
     </style>
 </head>
 <body>
+
+<div id="toast-container"></div>
 
 <div id="loader">
     <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-royal-green mb-4"></div>
@@ -130,7 +141,7 @@
         <div class="absolute top-4 right-4 md:top-6 md:right-8 flex flex-col items-end gap-2 z-10">
             <div id="sync-status" class="bg-white/20 px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 transition-all">
                 <span id="cloud-pulse" class="pulse-green"></span> 
-                <span id="cloud-txt">Connected to Server</span> | 👤 <span id="user-badge" class="text-gold uppercase"></span>
+                <span id="cloud-txt">Connected</span> | 👤 <span id="user-badge" class="text-gold uppercase"></span>
             </div>
             <button onclick="window.handleLogout()" class="text-[10px] uppercase font-bold text-red-300 hover:text-white transition">Logout &rarr;</button>
         </div>
@@ -165,7 +176,7 @@
         </div>
 
         <div id="main-dashboard-controls">
-            <div class="card p-4 md:p-5 mb-6 md:mb-8 bg-gray-50 flex flex-col xl:flex-row justify-between items-center gap-4">
+            <div class="card p-4 md:p-5 mb-6 md:mb-8 bg-gray-50 flex flex-col xl:flex-row justify-between items-center gap-4 border-l-4 border-royal-blue">
                 <div class="flex flex-wrap justify-center gap-2">
                     <button onclick="window.generateDummies('lect')" class="btn-gold px-3 py-2 rounded shadow text-[9px] md:text-[10px]">1. Get Sample Lecturers File</button>
                     <button onclick="window.generateDummies('mod')" class="btn-gold px-3 py-2 rounded shadow text-[9px] md:text-[10px]">2. Get Sample Modules File</button>
@@ -177,23 +188,31 @@
                     <label class="text-[9px] md:text-[10px] font-bold bg-white border-2 border-dashed border-purple-400 text-purple-800 p-2 rounded cursor-pointer hover:bg-purple-50 transition">
                         ☁️ UPLOAD MODULES <input type="file" multiple accept=".csv" onchange="window.importData('modules', event)" class="hidden">
                     </label>
-                    <button onclick="window.saveToServer()" class="btn-gold px-4 py-2 rounded shadow text-[10px] flex items-center gap-1 font-black bg-green-500 text-white border-none ml-2">
-                        💾 SAVE WORK TO SERVER
-                    </button>
+                    <div class="flex flex-col gap-1 ml-2">
+                        <button onclick="window.saveLocal(false)" class="btn-gold px-4 py-1.5 rounded shadow text-[9px] font-black bg-blue-500 text-white border-none flex items-center gap-1 justify-center">
+                            💾 SAVE TO LOCAL BROWSER
+                        </button>
+                        <button onclick="window.saveToServer()" class="btn-gold px-4 py-1.5 rounded shadow text-[9px] font-black bg-green-600 text-white border-none flex items-center gap-1 justify-center">
+                            ☁️ PUSH WORK TO CLOUD
+                        </button>
+                    </div>
                 </div>
             </div>
 
             <div id="admin-controls" class="hidden card p-4 mb-6 bg-red-50 border-t-4 border-red-600 flex-col lg:flex-row justify-between items-center gap-4">
                 <div>
                     <h3 class="font-black text-red-800 uppercase text-xs">Academic Affairs (Global Admin Controls)</h3>
-                    <p class="text-[9px] text-red-600 font-bold">Full authorization enabled. Manage, import master sheets, or reset the system.</p>
+                    <p class="text-[9px] text-red-600 font-bold">Full authorization enabled. Manage exports, imports or reset system.</p>
                 </div>
-                <div class="flex gap-2 flex-wrap justify-center">
+                <div class="flex gap-2 flex-wrap justify-center items-center">
                     <label class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-2 md:px-4 md:py-2 rounded shadow text-[9px] md:text-[10px] cursor-pointer transition">
                         📤 IMPORT MASTER CSV <input type="file" accept=".csv" onchange="window.importMasterCSV(event)" class="hidden">
                     </label>
-                    <button onclick="window.exportCSV()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-2 md:px-4 md:py-2 rounded shadow text-[9px] md:text-[10px] transition">📥 EXPORT MASTER CSV</button>
-                    <button onclick="window.masterReset()" class="bg-red-700 hover:bg-red-800 text-white font-bold px-3 py-2 md:px-4 md:py-2 rounded shadow text-[9px] md:text-[10px] transition">🚨 MASTER RESET</button>
+                    <div class="flex flex-col gap-1">
+                        <button onclick="window.exportLocalCSV()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1 rounded shadow text-[8px] md:text-[9px] transition">📥 EXPORT LOCAL CSV</button>
+                        <button onclick="window.exportCloudCSV()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-1 rounded shadow text-[8px] md:text-[9px] transition">☁️ EXPORT CLOUD CSV</button>
+                    </div>
+                    <button onclick="window.masterReset()" class="bg-red-700 hover:bg-red-800 text-white font-bold px-3 py-2 md:px-4 md:py-2 rounded shadow text-[9px] md:text-[10px] transition ml-2">🚨 MASTER RESET</button>
                 </div>
             </div>
 
@@ -206,7 +225,7 @@
             <div id="tab-matrix" class="tab-content active">
                 <div class="card overflow-hidden">
                     <div class="p-3 bg-gray-50 border-b flex flex-col lg:flex-row justify-between items-center gap-3">
-                        <select id="facView" onchange="window.renderMatrix(); window.renderStaffTargets();" class="w-full lg:w-auto p-2 border rounded-lg text-xs font-bold text-royal-green outline-none focus:border-gold"></select>
+                        <select id="facView" onchange="window.renderMatrix(); window.renderStaffTargets(); window.updateAnalytics();" class="w-full lg:w-auto p-2 border rounded-lg text-xs font-bold text-royal-green outline-none focus:border-gold"></select>
                         <div class="flex flex-col md:flex-row gap-2 w-full lg:w-auto">
                             <select id="hrSelect" class="flex-1 min-w-[250px]">
                                 <option value="">-- Check Lecturer Workload --</option>
@@ -381,7 +400,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const fbConfig = {
         apiKey: "AIzaSyBpbegNLw1PZbE0BEx9CtKMC9cawyL6Ik4",
@@ -402,6 +421,20 @@
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
     const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
+    // 💡 NEW TOAST NOTIFICATION SYSTEM
+    window.showToast = (msg, type = 'info') => {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : 'ℹ️');
+        toast.innerHTML = `<span>${icon}</span> <span>${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'fadeOut 0.3s ease-out forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    };
+
     window.makeSafeId = (id) => {
         if (!id) return `UNKNOWN-${Math.floor(Math.random()*100000)}`;
         return String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
@@ -416,16 +449,14 @@
         const prefix = getNormalizedPrefix(email);
         if (role === 'ALL') {
             for (const f of FACULTIES) {
-                const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
-                if (regex.test(prefix)) return false; 
+                if (new RegExp(`\\b${f.toLowerCase()}\\b`).test(prefix)) return false; 
             }
             if (prefix.includes('lecturer')) return false;
             return true;
         } else if (role === 'LECTURER') {
             return prefix.includes('lecturer');
         } else {
-            const regex = new RegExp(`\\b${role.toLowerCase()}\\b`);
-            return regex.test(prefix);
+            return new RegExp(`\\b${role.toLowerCase()}\\b`).test(prefix);
         }
     };
 
@@ -434,17 +465,39 @@
         const prefix = getNormalizedPrefix(email);
         if (prefix.includes('lecturer')) return 'LECTURER';
         for (let f of FACULTIES) {
-            const regex = new RegExp(`\\b${f.toLowerCase()}\\b`);
-            if (regex.test(prefix)) return f;
+            if (new RegExp(`\\b${f.toLowerCase()}\\b`).test(prefix)) return f;
         }
         return 'ALL';
     };
 
+    // 💡 NEW LOCAL STORAGE AUTO-SAVE LOGIC
+    window.saveLocal = (silent = false) => {
+        try {
+            localStorage.setItem('wl_modules', JSON.stringify(localDB.modules));
+            localStorage.setItem('wl_lecturers', JSON.stringify(localDB.lecturers));
+            localStorage.setItem('wl_assignments', JSON.stringify(localDB.assignments));
+            if (!silent) window.showToast("Progress successfully saved to Local Browser Cache.", "success");
+        } catch (e) {
+            if(!silent) window.showToast("Warning: Local browser storage is full.", "warning");
+        }
+    };
+
     const loadLocalCache = () => {
-        const cached = localStorage.getItem('workload_assignments_cache');
-        if (cached) {
-            try { localDB.assignments = JSON.parse(cached); } 
-            catch(e) { console.error("Cache parsing error", e); }
+        try {
+            const m = localStorage.getItem('wl_modules');
+            const l = localStorage.getItem('wl_lecturers');
+            const a = localStorage.getItem('wl_assignments');
+            
+            if (m) localDB.modules = JSON.parse(m);
+            if (l) localDB.lecturers = JSON.parse(l);
+            if (a) localDB.assignments = JSON.parse(a);
+            
+            // Legacy cache fallback
+            const oldA = localStorage.getItem('workload_assignments_cache');
+            if (!a && oldA) localDB.assignments = JSON.parse(oldA);
+            
+        } catch(e) { 
+            console.error("Cache read error", e); 
         }
     };
 
@@ -473,9 +526,7 @@
 
     window.detectFacultyFromEmail = () => {
         const email = document.getElementById('login-email').value;
-        const roleSelect = document.getElementById('login-role');
-        const role = getRoleFromEmail(email);
-        roleSelect.value = role;
+        document.getElementById('login-role').value = getRoleFromEmail(email);
     };
 
     if (auth) {
@@ -511,13 +562,47 @@
                     }
                 }
                 
-                loadLocalCache(); 
-                startDatabaseListeners();
+                loadCloudData(); // Hybrid: Fetch once on load, then work locally
             } else {
                 document.getElementById('app-screen').style.display = 'none';
                 document.getElementById('login-screen').style.display = 'flex';
             }
         });
+    }
+
+    // 💡 HYBRID LOGIC: Load once from Firebase instead of real-time aggressive snapshots
+    async function loadCloudData() {
+        document.getElementById('loader').style.display = 'flex';
+        document.getElementById('loader-text').innerText = "Syncing from Cloud...";
+        try {
+            if (!navigator.onLine) throw new Error("Offline");
+            
+            const lectSnap = await getDocs(collection(dbCloud, "lecturers"));
+            localDB.lecturers = lectSnap.docs.map(doc => doc.data());
+            
+            const modSnap = await getDocs(collection(dbCloud, "modules"));
+            localDB.modules = modSnap.docs.map(doc => doc.data());
+            
+            const assSnap = await getDocs(collection(dbCloud, "assignments"));
+            assSnap.docs.forEach(doc => { localDB.assignments[doc.id] = doc.data(); });
+            
+            window.saveLocal(true); // Save the fresh cloud pull locally
+            window.showToast("Live data fetched from Cloud successfully.", "success");
+            
+        } catch (error) {
+            console.log("Falling back to local cache.");
+            loadLocalCache();
+            window.showToast("Working Offline. Loaded data from Local Browser.", "warning");
+            document.getElementById('cloud-pulse').style.background = "red";
+            document.getElementById('cloud-pulse').style.animation = "none";
+            document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
+        } finally {
+            window.populateLecturerDropdown();
+            window.renderMatrix();
+            window.renderStaffTargets();
+            window.updateAnalytics();
+            document.getElementById('loader').style.display = 'none';
+        }
     }
 
     window.handleLogin = async () => {
@@ -552,44 +637,22 @@
     const setSyncStatus = (status) => {
         const txt = document.getElementById('cloud-txt');
         const pulse = document.getElementById('cloud-pulse');
-        const box = document.getElementById('sync-status');
         
         if(status === 'syncing') {
             txt.innerText = "Syncing to Cloud...";
             pulse.className = "pulse-orange";
-            box.style.backgroundColor = "rgba(249, 115, 22, 0.2)";
         } else if (status === 'success') {
-            txt.innerText = "Connected & Saved";
+            txt.innerText = "Connected & Synced";
             pulse.className = "pulse-green";
-            box.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+            pulse.style.background = "";
+            pulse.style.animation = "";
         } else {
-            txt.innerText = "Offline (Saved Locally)";
+            txt.innerText = "Offline (Local Mode)";
             pulse.className = "pulse-orange";
-            pulse.style.backgroundColor = "red";
+            pulse.style.background = "red";
             pulse.style.animation = "none";
         }
     };
-
-    function startDatabaseListeners() {
-        let firstLoad = true;
-        onSnapshot(collection(dbCloud, "lecturers"), (snapshot) => {
-            localDB.lecturers = snapshot.docs.map(doc => doc.data());
-            window.populateLecturerDropdown();
-            if(!firstLoad) { window.renderMatrix(); window.renderStaffTargets(); window.updateAnalytics(); }
-        });
-        
-        onSnapshot(collection(dbCloud, "modules"), (snapshot) => {
-            localDB.modules = snapshot.docs.map(doc => doc.data());
-            if(!firstLoad) { window.renderMatrix(); window.updateAnalytics(); }
-        });
-        
-        onSnapshot(collection(dbCloud, "assignments"), (snapshot) => {
-            snapshot.docs.forEach(doc => { localDB.assignments[doc.id] = doc.data(); });
-            localStorage.setItem('workload_assignments_cache', JSON.stringify(localDB.assignments));
-            window.renderMatrix(); window.updateAnalytics();
-            firstLoad = false;
-        });
-    }
 
     window.switchTab = (tabId) => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -630,21 +693,13 @@
     };
 
     // Update target for specific staff via Dropdown
-    window.updateStaffTarget = async (safeId, val) => {
+    window.updateStaffTarget = (safeId, val) => {
         let lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === safeId);
         if(lect) {
             lect.custom_target = parseInt(val);
+            window.saveLocal(true);
             window.updateAnalytics();
-            
-            if (!navigator.onLine) {
-                alert("⚠️ Saved locally. Will sync when online.");
-                return;
-            }
-            try {
-                await setDoc(doc(dbCloud, 'lecturers', safeId), { custom_target: parseInt(val) }, { merge: true });
-            } catch(e) {
-                console.error("Target Save Error", e);
-            }
+            window.showToast(`Staff target updated to ${val} hrs. Auto-saved locally.`, "success");
         }
     };
 
@@ -698,6 +753,7 @@
                 });
             }
             downloadCSV(rows, "Lecturer_Workload_Master_Data.csv");
+            window.showToast("Sample Lecturer CSV Generated.", "info");
         } else {
             const samples = [
                 {"Session":"Morning","Program Name":"Bachelor of Studies","Offered Batch":"Batch 2","Lecturer Category":"","Parent Kulliyya":"KAL","Parent Faculty":"KSL","Medium of Instruction":"English","Combined Batch":"","Offered Status":"Existing","New / Revision":"New","MALE":"Hulhumale","Module Name":"Arabic Language Level 1 (MNQF Level 5-7)","Modality":"Face to Face","Kulliyyah/Centre":"KSL","Module Code":"ARB0001","Full-time Helper":"","Phone Number":"","No of Students":"18","Weekly Contact Hours":"2","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"Jan-26","SYSTEM_ASSIGNED_LECTURER_ID":"NID1100","SYSTEM_ASSIGNED_LECTURER_NAME":"Dr. Academic 100","SYSTEM_SYNC_MODE":"Individual"},
@@ -769,6 +825,7 @@
                 });
             }
             downloadCSV(rows, "Academic_Affairs_Master_Workload.csv");
+            window.showToast("Sample Module CSV Generated.", "info");
         }
     };
 
@@ -813,7 +870,7 @@
                 tempData.forEach(row => { row['Parent Faculty'] = activeRole; row['Kulliyyah/Centre'] = activeRole; });
             }
 
-            // Merge Logic to not overwrite custom targets on re-import
+            // Merge Logic to retain custom targets
             tempData.forEach(x => {
                 let id = window.makeSafeId(window.getSafeVal(x, docIdKey));
                 let existing = localDB[type].find(e => window.makeSafeId(window.getSafeVal(e, docIdKey)) === id);
@@ -824,57 +881,19 @@
 
             localDB[type] = Array.from(new Map(tempData.map(x => [window.makeSafeId(window.getSafeVal(x, docIdKey)), x])).values());
             
+            window.saveLocal(true);
             window.populateLecturerDropdown(); 
             window.renderMatrix(); 
+            window.renderStaffTargets();
             window.updateAnalytics();
 
             loader.style.display = 'none';
             event.target.value = ''; 
-
-            if (!dbCloud || !navigator.onLine) {
-                setSyncStatus('offline'); return; 
-            }
-
-            window.runBackgroundCloudSync(type, tempData, docIdKey);
+            window.showToast(`${type} imported to Local Browser successfully.`, "success");
 
         } catch (err) {
             console.error(err); alert("Upload Note: " + err.message);
             loader.style.display = 'none'; event.target.value = ''; 
-        }
-    };
-
-    window.runBackgroundCloudSync = async (type, tempData, docIdKey) => {
-        setSyncStatus('syncing');
-        
-        try {
-            const CHUNK_SIZE = 100;
-            let totalCount = 0;
-            
-            for (let i = 0; i < tempData.length; i += CHUNK_SIZE) {
-                const chunk = tempData.slice(i, i + CHUNK_SIZE);
-                const batch = writeBatch(dbCloud);
-                let hasWrites = false;
-                
-                chunk.forEach(item => {
-                    let rawId = window.getSafeVal(item, docIdKey);
-                    if (rawId && String(rawId).trim() !== '') {
-                        let safeId = window.makeSafeId(rawId);
-                        batch.set(doc(dbCloud, type, safeId), item, { merge: true });
-                        totalCount++; hasWrites = true;
-                    }
-                });
-                
-                if (hasWrites) {
-                    await batch.commit();
-                    await new Promise(r => setTimeout(r, 50)); 
-                }
-            }
-            setSyncStatus('success');
-            console.log(`✅ Background Sync Complete: ${totalCount} records.`);
-        } catch(error) {
-            console.error("Background sync failed", error);
-            setSyncStatus('offline');
-            alert("⚠️ Cloud sync failed. But your data is saved locally in the browser!");
         }
     };
 
@@ -958,7 +977,7 @@
                 }
                 
                 html += `
-                <tr class="border-b hover:bg-gray-50">
+                <tr class="border-b hover:bg-gray-50 transition">
                     <td class="p-2 font-bold">${name} <br><span class="text-[9px] text-gray-500 font-mono">${window.getSafeVal(l, ['LecturerID', 'NationalID'])}</span></td>
                     <td class="p-2 text-[10px] text-gray-600 font-bold">${fac}</td>
                     <td class="p-2 text-[10px]">${cat} <br><span class="text-blue-600 font-bold">${type}</span></td>
@@ -1087,7 +1106,6 @@
         });
     };
 
-    // DOM Optimized Assign Function (Prevents full table redraw)
     window.assignLecturer = (mCode, lectId) => {
         const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
         const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
@@ -1099,9 +1117,9 @@
         if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { mode: 'Individual' };
         localDB.assignments[mCode].id = lectId;
         
-        localStorage.setItem('workload_assignments_cache', JSON.stringify(localDB.assignments));
+        window.saveLocal(true);
+        window.showToast("Lecturer assigned. Local state auto-saved.", "info");
         
-        // Optimistic DOM Update
         const row = document.getElementById(`row-${mCode}`);
         if(row) {
             const isAssigned = lectId && lectId !== '';
@@ -1131,13 +1149,14 @@
         if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { id: '' };
         localDB.assignments[mCode].mode = mode;
         
-        localStorage.setItem('workload_assignments_cache', JSON.stringify(localDB.assignments));
+        window.saveLocal(true);
+        window.showToast(`Sync mode updated to ${mode}. Auto-saved.`, "info");
         window.updateAnalytics();
     };
 
     window.saveToServer = async () => {
         if (!navigator.onLine) {
-            alert("⚠️ Network Error: You are offline. Work is saved in your browser, but cannot reach the server.");
+            window.showToast("Offline. Cannot push to Cloud.", "warning");
             return;
         }
         setSyncStatus('syncing');
@@ -1155,7 +1174,7 @@
             });
 
             if(validAssignments.length === 0) {
-                alert("No active assignments found to save for your faculty.");
+                window.showToast("No assignments to push.", "info");
                 setSyncStatus('success'); return;
             }
 
@@ -1174,12 +1193,19 @@
                 await new Promise(r => setTimeout(r, 50));
             }
             
+            // Also push updated targets
+            const lectBatch = writeBatch(dbCloud);
+            localDB.lecturers.filter(l => l.custom_target).forEach(l => {
+                lectBatch.set(doc(dbCloud, "lecturers", window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']))), { custom_target: l.custom_target }, { merge: true });
+            });
+            await lectBatch.commit();
+            
             setSyncStatus('success');
-            alert(`✅ Successfully saved ${totalSaved} assignments to the University Server!`);
+            window.showToast(`✅ Successfully synced ${totalSaved} assignments to Server!`, "success");
         } catch (error) {
             console.error("Save error", error);
             setSyncStatus('offline');
-            alert("Server sync failed: " + error.message);
+            window.showToast("Cloud sync failed.", "warning");
         }
     };
 
@@ -1188,7 +1214,7 @@
         if (confirm(`Are you sure you want to permanently delete module [${mCode}]?`)) {
             localDB.modules = localDB.modules.filter(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])) !== mCode);
             delete localDB.assignments[mCode];
-            localStorage.setItem('workload_assignments_cache', JSON.stringify(localDB.assignments));
+            window.saveLocal(true);
             
             if (dbCloud) {
                 try {
@@ -1197,10 +1223,11 @@
                 } catch(e) { console.error("Cloud delete error", e); }
             }
             window.renderMatrix(); window.updateAnalytics();
+            window.showToast("Module deleted successfully.", "success");
         }
     };
 
-    window.exportCSV = () => {
+    window.exportLocalCSV = () => {
         if (activeRole !== 'ALL') return alert("Unauthorized Action.");
         const exportData = localDB.modules.map(m => {
             const rawCode = window.getSafeVal(m, ['ModuleCode']);
@@ -1216,7 +1243,43 @@
                 "SYSTEM_SYNC_MODE": assignment.mode || "Individual"
             };
         });
-        downloadCSV(exportData, "Academic_Affairs_Master_Workload.csv");
+        downloadCSV(exportData, "Local_Browser_Workload_Export.csv");
+        window.showToast("Local CSV Exported.", "success");
+    };
+    
+    // 💡 NEW CLOUD CSV EXPORT LOGIC
+    window.exportCloudCSV = async () => {
+        if (activeRole !== 'ALL') return;
+        window.showToast("Fetching live data from Cloud Server...", "info");
+        try {
+            const modSnap = await getDocs(collection(dbCloud, "modules"));
+            const lectSnap = await getDocs(collection(dbCloud, "lecturers"));
+            const assSnap = await getDocs(collection(dbCloud, "assignments"));
+            
+            let c_modules = modSnap.docs.map(d => d.data());
+            let c_lecturers = lectSnap.docs.map(d => d.data());
+            let c_assignments = {};
+            assSnap.docs.forEach(d => c_assignments[d.id] = d.data());
+            
+            const exportData = c_modules.map(m => {
+                const safeCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+                const assignment = c_assignments[safeCode] || {};
+                const lectId = assignment.id;
+                const lecturer = c_lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === lectId);
+                
+                return {
+                    ...m,
+                    "SYSTEM_ASSIGNED_LECTURER_ID": assignment.id || "UNASSIGNED",
+                    "SYSTEM_ASSIGNED_LECTURER_NAME": lecturer ? window.getSafeVal(lecturer, ['LecturerName', 'FullName']) : "UNASSIGNED",
+                    "SYSTEM_SYNC_MODE": assignment.mode || "Individual"
+                };
+            });
+            downloadCSV(exportData, "Cloud_Server_Workload_Export.csv");
+            window.showToast("Cloud CSV Exported Successfully.", "success");
+        } catch(e) {
+            console.error(e);
+            window.showToast("Cloud fetch failed. Check network.", "warning");
+        }
     };
 
     window.importMasterCSV = async (event) => {
@@ -1239,7 +1302,7 @@
                     const CHUNK_SIZE = 100;
                     
                     if (!dbCloud || !navigator.onLine) {
-                        alert("Cannot restore Master CSV while offline.");
+                        window.showToast("Cannot restore Master to Cloud while offline.", "warning");
                         loader.style.display = 'none'; return;
                     }
 
@@ -1266,7 +1329,7 @@
                     });
                     
                     localDB.modules = newModules;
-                    localStorage.setItem('workload_assignments_cache', JSON.stringify(localDB.assignments));
+                    window.saveLocal(true);
                     
                     window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
                     loader.style.display = 'none'; 
@@ -1324,7 +1387,7 @@
 
         const confirmCode = prompt("To execute MASTER RESET, please type 'CONFIRM RESET' below:");
         if(confirmCode !== "CONFIRM RESET") {
-            alert("Reset Aborted. Incorrect confirmation code.");
+            window.showToast("Reset Aborted.", "info");
             return;
         }
 
@@ -1333,7 +1396,7 @@
         document.getElementById('loader-text').innerText = "WIPING ENTIRE DATABASE...";
 
         try {
-            localStorage.removeItem('workload_assignments_cache');
+            localStorage.clear(); // Clear all local storage for fresh start
             
             if(dbCloud) {
                 const batch = writeBatch(dbCloud);
@@ -1360,8 +1423,8 @@
 
             localDB = { lecturers: [], modules: [], assignments: {} };
             
-            window.renderMatrix(); window.updateAnalytics(); window.populateLecturerDropdown();
-            alert("✅ SYSTEM RESET SUCCESSFUL.\nAll data has been wiped.");
+            window.renderMatrix(); window.renderStaffTargets(); window.updateAnalytics(); window.populateLecturerDropdown();
+            window.showToast("✅ SYSTEM RESET SUCCESSFUL.", "success");
 
         } catch(error) {
             console.error("Reset Error", error);
@@ -1377,7 +1440,7 @@
         if (assignment && assignment.id) {
             window.openHRView(assignment.id);
         } else {
-            alert("No lecturer assigned to this module yet.");
+            window.showToast("No lecturer assigned to this module yet.", "warning");
         }
     }
 
@@ -1456,6 +1519,8 @@
 
             const isIdle = data.wch === 0;
             const typeBadge = `<span class="px-1.5 py-0.5 rounded text-[7px] font-bold text-white ${data.wch > data.target ? 'bg-purple-600' : (isIdle ? 'bg-orange-500' : 'bg-blue-500')}">${data.isPartTime ? 'PT' : 'FT'}</span>`;
+            
+            // 💡 RECENT WORKLOAD (RW) TAG
             const rwTag = `<span class="font-black text-[9px] bg-gray-200 px-1 rounded ml-1 text-gray-700">(RW: ${data.wch.toFixed(1)})</span>`;
             
             const listItem = `
@@ -1481,7 +1546,7 @@
 
         document.getElementById('hdr-unassigned').innerText = unassignedCount;
         document.getElementById('hdr-idle').innerText = idleCount;
-        document.getElementById('hdr-overload').innerText = ftOverCount; // Main header shows FT overload
+        document.getElementById('hdr-overload').innerText = ftOverCount;
         
         document.getElementById('list-idle').innerHTML = htmlIdle || '<p class="text-gray-400 p-2 text-[10px] italic">No idle lecturers.</p>';
         document.getElementById('list-ft-under').innerHTML = htmlFtUnder || '<p class="text-gray-400 p-2 text-[10px] italic">No underloaded FT staff.</p>';
@@ -1626,6 +1691,7 @@
             frame.style.display = 'none';
             document.getElementById('loader').style.display = 'none';
             document.getElementById('hr-modal').style.display = 'flex';
+            window.showToast("PDF Downloaded.", "success");
         }, 500); 
     };
 </script>
