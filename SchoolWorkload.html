@@ -252,7 +252,7 @@
             <div>
                 <label class="text-[10px] font-bold text-gray-600 uppercase">Role (Auto-Detected)</label>
                 <select id="login-role" disabled class="w-full p-3 border-2 border-gray-200 bg-gray-50 rounded-lg font-bold text-sm outline-none text-gray-600 cursor-not-allowed"></select>
-                <p class="text-[8px] text-gray-400 mt-1">Your role is automatically selected based on your email address.</p>
+                <p class="text-[8px] text-gray-400 mt-1">Format Example: grade1@school.edu.mv or admin@school.edu.mv</p>
             </div>
             <div>
                 <label class="text-[10px] font-bold text-gray-600 uppercase">Email Address</label>
@@ -368,7 +368,7 @@
                 </div>
             </div>
 
-            <div id="grade-filters-container" class="flex overflow-x-auto gap-2 mb-6 pb-2 scrollbar-hide">
+            <div id="grade-filters-container" class="flex justify-center overflow-x-auto gap-2 mb-6 pb-2 scrollbar-hide w-full">
                 </div>
 
             <div class="flex justify-center border-b mb-4 md:mb-6 gap-2 md:gap-8 overflow-x-auto px-2">
@@ -678,7 +678,8 @@ const firebaseConfig = {
         if (!email || !email.includes('@')) return 'ALL';
         const prefix = getNormalizedPrefix(email);
         if (prefix.includes('teacher')) return 'TEACHER';
-        for (let g of GRADES) {
+        // 💡 FIX: Sort by length so "Grade 12" checks before "Grade 1"
+        for (let g of GRADES.slice().sort((a, b) => b.length - a.length)) {
             if (new RegExp(`\\b${g.toLowerCase().replace(' ', '')}\\b`).test(prefix)) return g;
         }
         return 'ALL';
@@ -719,7 +720,7 @@ const firebaseConfig = {
     };
     buildDropdowns();
 
-    // 💡 NEW: POPULATE GRADE FILTERS HORIZONTAL BAR
+    // 💡 POPULATE GRADE FILTERS HORIZONTAL BAR
     window.populateGradeFilters = () => {
         const container = document.getElementById('grade-filters-container');
         if (!container) return;
@@ -1166,7 +1167,9 @@ const firebaseConfig = {
             const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
             const rawFac = window.getSafeVal(l, ['Grade/Department', 'Grade', 'Department']);
             const phone = window.getSafeVal(l, ['Mobile', 'Phone', 'Contact']) || 'N/A';
-            const fac = GRADES.find(g => rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac;
+            
+            // 💡 FIX: Sort grades by length descending to match "Grade 12" before "Grade 1"
+            const fac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac;
 
             if (id && name) {
                 if (!groupedLecturers[fac]) groupedLecturers[fac] = [];
@@ -1211,15 +1214,17 @@ const firebaseConfig = {
 
         localDB.lecturers.forEach(l => {
             const rawFac = window.getSafeVal(l, ['Grade/Department', 'Grade', 'Department']);
-            const fac = GRADES.find(g => rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac; 
+            // 💡 FIX: Exact Matching via sorted length
+            const fac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac; 
             
-            if (viewFilter === 'ALL' || fac.includes(viewFilter)) {
+            // 💡 FIX: Strict Equality `===` instead of `.includes()`
+            if (viewFilter === 'ALL' || fac === viewFilter) {
                 const safeId = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
                 const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
                 const cat = window.getSafeVal(l, ['Category', 'Focus']);
                 const target = window.getDefaultTarget(l);
                 
-                const canEdit = (activeRole === 'ALL' || fac.includes(activeRole));
+                const canEdit = (activeRole === 'ALL' || fac === activeRole);
                 const disableAttr = canEdit ? '' : 'disabled';
                 
                 let targetOpts = '';
@@ -1276,7 +1281,12 @@ const firebaseConfig = {
 
         let lectOptionsMap = '<option value="">-- Assign --</option>';
         GRADES.forEach(g => {
-            const facLecturers = localDB.lecturers.filter(l => window.getSafeVal(l, ['Grade/Department', 'Grade']).includes(g));
+            const facLecturers = localDB.lecturers.filter(l => {
+                const rawFac = window.getSafeVal(l, ['Grade/Department', 'Grade']);
+                // 💡 FIX: Exact Matching via sorted length
+                const lFac = GRADES.slice().sort((a, b) => b.length - a.length).find(gr => rawFac.toUpperCase().includes(gr.toUpperCase())) || rawFac;
+                return lFac === g;
+            });
             if (facLecturers.length > 0) {
                 lectOptionsMap += `<optgroup label="${g}">`;
                 facLecturers.forEach(l => {
@@ -1292,7 +1302,9 @@ const firebaseConfig = {
         let finalHTML = ''; 
 
         localDB.modules.forEach(m => {
-            const mFac = window.getSafeVal(m, ['Grade']);
+            const rawMFac = window.getSafeVal(m, ['Grade']);
+            // 💡 FIX: Exact Matching via sorted length
+            const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
             const mClass = window.getSafeVal(m, ['Class', 'Batch']);
             const mStream = window.getSafeVal(m, ['Stream', 'Category']);
             const mName = window.getSafeVal(m, ['ModuleName', 'Subject']);
@@ -1306,7 +1318,8 @@ const firebaseConfig = {
 
             const matchesStreamFilter = activeStreamFilter === 'ALL' || mStream.toUpperCase().includes(activeStreamFilter.toUpperCase());
 
-            if ((viewFilter === 'ALL' || mFac.includes(viewFilter)) && matchesSearch && matchesStreamFilter) {
+            // 💡 FIX: Strict Equality `===` instead of `.includes()`
+            if ((viewFilter === 'ALL' || mFac === viewFilter) && matchesSearch && matchesStreamFilter) {
                 
                 let safeMCode = window.makeSafeId(mCode + mClass + mFac); 
                 let autoMode = 'Individual';
@@ -1320,7 +1333,7 @@ const firebaseConfig = {
                     ? `<span class="bg-green-100 text-green-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm">Assigned</span>` 
                     : `<span class="bg-red-100 text-red-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm animate-pulse">Unassigned</span>`;
 
-                const canEdit = (activeRole === 'ALL' || mFac.includes(activeRole));
+                const canEdit = (activeRole === 'ALL' || mFac === activeRole);
                 const disableAttr = canEdit ? '' : 'disabled';
                 const selectStyle = canEdit ? '' : 'disabled';
                 const lockIcon = canEdit ? '' : '🔒 ';
@@ -1439,14 +1452,16 @@ const firebaseConfig = {
         
         let unassignedCount = 0; let workloadData = {}; 
         let facStats = {}; let focusStats = { "Teaching": 0, "Research": 0, "Part-Time": 0 };
-        let streamDetailedStats = {}; let gradeSummary = {}; // NEW: Grade Summary Stats
+        let streamDetailedStats = {}; let gradeSummary = {};
         
         GRADES.forEach(g => { facStats[g] = { pt: 0, ft: 0 }; gradeSummary[g] = { total: 0, assigned: 0, unassigned: 0 }; });
         STREAMS.forEach(s => { streamDetailedStats[s] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0 }; });
+        streamDetailedStats['ALL'] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0 };
 
         localDB.lecturers.forEach(l => {
             const rawFac = window.getSafeVal(l, ['Grade/Department', 'Grade']);
-            const fac = GRADES.find(g => rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac; 
+            // 💡 FIX: Exact Matching via sorted length
+            const fac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac; 
             const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
             const typeStr = String(window.getSafeVal(l, ['Type']) || '').toLowerCase();
             
@@ -1458,7 +1473,9 @@ const firebaseConfig = {
         });
 
         localDB.modules.forEach(m => {
-            const mFac = window.getSafeVal(m, ['Grade']);
+            const rawMFac = window.getSafeVal(m, ['Grade']);
+            // 💡 FIX: Exact Matching via sorted length
+            const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
             const mClass = window.getSafeVal(m, ['Class']);
             const mStream = window.getSafeVal(m, ['Stream', 'Category']) || 'General';
             const mCode = window.getSafeVal(m, ['ModuleCode']);
@@ -1468,7 +1485,7 @@ const firebaseConfig = {
             if (isNaN(wch)) wch = 0;
 
             if (streamDetailedStats[mStream]) streamDetailedStats[mStream].offered++;
-            if (gradeSummary[mFac]) gradeSummary[mFac].total += wch; // Record for Grade Report
+            if (gradeSummary[mFac]) gradeSummary[mFac].total += wch;
 
             const assignment = localDB.assignments[safeMCode] || { id: '', mode: 'Individual' };
             
@@ -1481,11 +1498,13 @@ const firebaseConfig = {
                 if (workloadData[assignment.id]) workloadData[assignment.id].wch += wch;
                 if (gradeSummary[mFac]) gradeSummary[mFac].assigned += wch;
                 
-                // Track Cross-Grade Assignments for Stream Chart
                 const assignedLect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
                 if(assignedLect && streamDetailedStats[mStream]) {
-                    const lGrade = window.getSafeVal(assignedLect, ['Grade/Department', 'Grade']);
-                    const isSameGrade = lGrade.includes(mFac);
+                    const lGradeRaw = window.getSafeVal(assignedLect, ['Grade/Department', 'Grade']);
+                    const lGrade = GRADES.slice().sort((a, b) => b.length - a.length).find(g => lGradeRaw.toUpperCase().includes(g.toUpperCase())) || lGradeRaw;
+                    
+                    // 💡 FIX: Strict Equality `===` instead of `.includes()`
+                    const isSameGrade = (lGrade === mFac);
                     const lType = String(window.getSafeVal(assignedLect, ['Type'])).toLowerCase();
                     if(isSameGrade) {
                         if(lType.includes('part')) streamDetailedStats[mStream].ptSame++;
@@ -1579,12 +1598,11 @@ const firebaseConfig = {
         document.getElementById('list-pt-met').innerHTML = htmlPtMet || '<p class="text-gray-400 p-2 text-[10px] italic">No PT staff met target.</p>';
         document.getElementById('list-pt-under').innerHTML = htmlPtUnder || '<p class="text-gray-400 p-2 text-[10px] italic">No underloaded PT staff.</p>';
 
-        // 💡 RE-INITIALIZE CHARTS WITH CORRECT LABELS
         if (charts.faculty) charts.faculty.destroy();
         charts.faculty = new Chart(document.getElementById('facultyChart'), {
             type: 'bar',
             data: {
-                labels: GRADES, // Fixed: Using GRADES instead of FACULTIES
+                labels: GRADES,
                 datasets: [
                     { label: 'Part-Time (Periods)', backgroundColor: '#d4af37', data: GRADES.map(g => facStats[g].pt) },
                     { label: 'Full-Time (Periods)', backgroundColor: '#004d40', data: GRADES.map(g => facStats[g].ft) }
@@ -1610,7 +1628,7 @@ const firebaseConfig = {
         charts.assignmentDetails = new Chart(document.getElementById('assignmentDetailsChart'), {
             type: 'bar',
             data: {
-                labels: STREAMS, // Fixed: Using STREAMS instead of FACULTIES
+                labels: STREAMS,
                 datasets: [
                     { label: 'FT Teacher (Same Grade)', backgroundColor: '#0d47a1', data: STREAMS.map(s => streamDetailedStats[s].ftSame) },
                     { label: 'PT Teacher (Same Grade)', backgroundColor: '#4a148c', data: STREAMS.map(s => streamDetailedStats[s].ptSame) },
@@ -1633,7 +1651,8 @@ const firebaseConfig = {
         if(!lect) return;
         
         const mods = localDB.modules.filter(m => {
-            const mFac = window.getSafeVal(m, ['Grade']);
+            const rawMFac = window.getSafeVal(m, ['Grade']);
+            const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
             const mClass = window.getSafeVal(m, ['Class']);
             const mCode = window.getSafeVal(m, ['ModuleCode']);
             let safeMCode = window.makeSafeId(mCode + mClass + mFac);
@@ -1641,7 +1660,8 @@ const firebaseConfig = {
         });
 
         const lName = window.getSafeVal(lect, ['LecturerName', 'FullName']);
-        const lFac = window.getSafeVal(lect, ['Grade/Department', 'Grade']);
+        const lFacRaw = window.getSafeVal(lect, ['Grade/Department', 'Grade']);
+        const lFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => lFacRaw.toUpperCase().includes(g.toUpperCase())) || lFacRaw;
         const lType = window.getSafeVal(lect, ['Type']);
         const lFocus = window.getSafeVal(lect, ['Category', 'Focus']);
 
@@ -1659,7 +1679,8 @@ const firebaseConfig = {
         let totalHours = 0; let hrRows = ''; let pdfRows = '';
         
         mods.forEach(m => {
-            const mFac = window.getSafeVal(m, ['Grade']);
+            const mFacRaw = window.getSafeVal(m, ['Grade']);
+            const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => mFacRaw.toUpperCase().includes(g.toUpperCase())) || mFacRaw;
             const mClass = window.getSafeVal(m, ['Class']);
             const mStream = window.getSafeVal(m, ['Stream', 'Category']);
             const mName = window.getSafeVal(m, ['ModuleName', 'Subject']);
@@ -1732,9 +1753,11 @@ const firebaseConfig = {
     
     window.exportLocalCSV = () => {
         let exportModules = [...localDB.modules];
-        if (activeRole !== 'ALL') { exportModules = exportModules.filter(m => window.getSafeVal(m, ['Grade']).includes(activeRole)); }
+        if (activeRole !== 'ALL') { exportModules = exportModules.filter(m => window.getSafeVal(m, ['Grade']) === activeRole); }
         const exportData = exportModules.map(m => {
-            const safeCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']) + window.getSafeVal(m, ['Class']) + window.getSafeVal(m, ['Grade']));
+            const rawMFac = window.getSafeVal(m, ['Grade']);
+            const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
+            const safeCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']) + window.getSafeVal(m, ['Class']) + mFac);
             const assignment = localDB.assignments[safeCode] || {};
             const lecturer = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
             return {
@@ -1760,10 +1783,12 @@ const firebaseConfig = {
             let c_assignments = {};
             assSnap.docs.forEach(d => c_assignments[d.id] = d.data());
             
-            if (activeRole !== 'ALL') { c_modules = c_modules.filter(m => window.getSafeVal(m, ['Grade']).includes(activeRole)); }
+            if (activeRole !== 'ALL') { c_modules = c_modules.filter(m => window.getSafeVal(m, ['Grade']) === activeRole); }
             
             const exportData = c_modules.map(m => {
-                const safeCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']) + window.getSafeVal(m, ['Class']) + window.getSafeVal(m, ['Grade']));
+                const rawMFac = window.getSafeVal(m, ['Grade']);
+                const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
+                const safeCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']) + window.getSafeVal(m, ['Class']) + mFac);
                 const assignment = c_assignments[safeCode] || {};
                 const lecturer = c_lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
                 return {
@@ -1799,10 +1824,19 @@ const firebaseConfig = {
                     }
 
                     let moduleCount = 0; let assignmentCount = 0;
-                    let existingMap = new Map(localDB.modules.map(x => [window.makeSafeId(window.getSafeVal(x, ['ModuleCode', 'Code'])+window.getSafeVal(x, ['Class'])+window.getSafeVal(x, ['Grade'])), x]));
+                    
+                    let existingMap = new Map();
+                    localDB.modules.forEach(x => {
+                        const rawMFac = window.getSafeVal(x, ['Grade']);
+                        const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
+                        const safeId = window.makeSafeId(window.getSafeVal(x, ['ModuleCode', 'Code'])+window.getSafeVal(x, ['Class'])+mFac);
+                        existingMap.set(safeId, x);
+                    });
 
                     data.forEach(row => {
-                        let safeId = window.makeSafeId(window.getSafeVal(row, ['ModuleCode', 'Code'])+window.getSafeVal(row, ['Class'])+window.getSafeVal(row, ['Grade']));
+                        const rawMFac = window.getSafeVal(row, ['Grade']);
+                        const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
+                        let safeId = window.makeSafeId(window.getSafeVal(row, ['ModuleCode', 'Code'])+window.getSafeVal(row, ['Class'])+mFac);
                         if(safeId && String(safeId).trim() !== '') {
                             let moduleData = { ...row };
                             delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID; delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME; delete moduleData.SYSTEM_SYNC_MODE;
@@ -1824,7 +1858,9 @@ const firebaseConfig = {
                         let hasWrites = false;
 
                         chunk.forEach(row => {
-                            let safeId = window.makeSafeId(window.getSafeVal(row, ['ModuleCode', 'Code'])+window.getSafeVal(row, ['Class'])+window.getSafeVal(row, ['Grade']));
+                            const rawMFac = window.getSafeVal(row, ['Grade']);
+                            const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
+                            let safeId = window.makeSafeId(window.getSafeVal(row, ['ModuleCode', 'Code'])+window.getSafeVal(row, ['Class'])+mFac);
                             if(safeId && String(safeId).trim() !== '') {
                                 let moduleData = { ...row };
                                 delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID; delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME; delete moduleData.SYSTEM_SYNC_MODE;
@@ -1865,7 +1901,9 @@ const firebaseConfig = {
                 const batch = writeBatch(dbCloud);
                 let deleteCount = 0;
                 localDB.modules.forEach(m => {
-                    let id = window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])+window.getSafeVal(m, ['Class'])+window.getSafeVal(m, ['Grade']));
+                    const rawMFac = window.getSafeVal(m, ['Grade']);
+                    const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
+                    let id = window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])+window.getSafeVal(m, ['Class'])+mFac);
                     if(id) { batch.delete(doc(dbCloud, 'modules', id)); deleteCount++; }
                 });
                 localDB.lecturers.forEach(l => {
