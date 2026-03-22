@@ -1646,28 +1646,7 @@ const firebaseConfig = {
             facDetailedStats[f] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0 };
         });
 
-        localDB.lecturers.forEach(l => {
-            const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
-            const fac = FACULTIES.find(f => rawFac.toUpperCase().includes(f)) || rawFac; 
-
-            const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
-            
-            const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
-            const focusStr = String(window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category']) || '').toLowerCase();
-            
-            let isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
-            let isResearch = focusStr.includes('research') || focusStr === 'res';
-            
-            workloadData[id] = { 
-                name: window.getSafeVal(l, ['LecturerName', 'FullName']), 
-                wch: 0, 
-                target: window.getDefaultTarget(l), 
-                isPartTime: isPartTime, 
-                isResearch: isResearch,
-                fac: fac 
-            };
-        });
-
+        // 1. މޮޑިއުލްތައް އެނަލައިޒްކޮށް ގަޑިތައް ފެކަލްޓީއަށް އެލޮކޭޓްކުރުން
         let seenCombinedCodes = new Set();
         localDB.modules.forEach(m => {
             const rawMCode = window.getSafeVal(m, ['ModuleCode']);
@@ -1689,10 +1668,16 @@ const firebaseConfig = {
             if (!assignment.id || assignment.id === '') {
                 unassignedCount++;
                 if (facDetailedStats[mFac]) facDetailedStats[mFac].unassigned++;
-                if (facStats[mFac]) facStats[mFac].unassigned += wch;
+                if (facStats[mFac]) facStats[mFac].unassigned += wch; // ގަޑިތައް ފެކަލްޓީއަށް އެއްކުރުން
             } else {
                 if (facDetailedStats[mFac]) facDetailedStats[mFac].assigned++;
                 
+                let actualWch = wch;
+                if (assignment.mode === 'Combined') {
+                    if (seenCombinedCodes.has(mCode)) actualWch = 0;
+                    else seenCombinedCodes.add(mCode);
+                }
+
                 const assignedLect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
                 if (assignedLect && facDetailedStats[mFac]) {
                     const lFacName = window.getSafeVal(assignedLect, ['Kulliyyah', 'Faculty']);
@@ -1700,6 +1685,11 @@ const firebaseConfig = {
                     const typeStr = String(window.getSafeVal(assignedLect, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
                     const isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
                     
+                    if (facStats[mFac]) {
+                        if (isPartTime) facStats[mFac].pt += actualWch; // ޕާޓްޓައިމް ގަޑިތައް
+                        else facStats[mFac].ft += actualWch; // ފުލްޓައިމް ގަޑިތައް
+                    }
+
                     if (lFac === mFac) {
                         if (isPartTime) facDetailedStats[mFac].ptSame++;
                         else facDetailedStats[mFac].ftSame++;
@@ -1707,7 +1697,39 @@ const firebaseConfig = {
                         facDetailedStats[mFac].otherFac++;
                     }
                 }
+            }
+        });
 
+        // 2. ލެކްޗަރަރ ތަކުގެ ޑޭޓާ އެނަލައިޒްކުރުން
+        localDB.lecturers.forEach(l => {
+            const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
+            const fac = FACULTIES.find(f => rawFac.toUpperCase().includes(f)) || rawFac; 
+            const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
+            const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
+            const focusStr = String(window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category']) || '').toLowerCase();
+            
+            let isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
+            let isResearch = focusStr.includes('research') || focusStr === 'res';
+            
+            workloadData[id] = { 
+                name: window.getSafeVal(l, ['LecturerName', 'FullName']), 
+                wch: 0, 
+                target: window.getDefaultTarget(l), 
+                isPartTime: isPartTime, 
+                isResearch: isResearch,
+                fac: fac 
+            };
+        });
+
+        // ލެކްޗަރަރ އަށް ގަޑިތައް އެލޮކޭޓްކުރުން (ލިސްޓަށް)
+        seenCombinedCodes.clear();
+        localDB.modules.forEach(m => {
+            const rawMCode = window.getSafeVal(m, ['ModuleCode']);
+            const mCode = window.makeSafeId(rawMCode);
+            let wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours'])) || 0;
+            const assignment = localDB.assignments[mCode] || { id: '', mode: 'Individual' };
+
+            if (assignment.id && assignment.id !== '') {
                 let actualWch = wch;
                 if (assignment.mode === 'Combined') {
                     if (seenCombinedCodes.has(mCode)) actualWch = 0;
@@ -1723,11 +1745,6 @@ const firebaseConfig = {
         let ftMetCount = 0, ptMetCount = 0, ptUnderCount = 0;
 
         Object.values(workloadData).forEach(data => {
-            if (facStats[data.fac]) {
-                if (data.isPartTime) facStats[data.fac].pt += data.wch;
-                else facStats[data.fac].ft += data.wch;
-            }
-
             if (data.isPartTime) {
                 focusStats["Part-Time"] += data.wch;
             } else {
@@ -1737,7 +1754,6 @@ const firebaseConfig = {
 
             const isIdle = data.wch === 0;
             const typeBadge = `<span class="px-1.5 py-0.5 rounded text-[7px] font-bold text-white ${data.wch > data.target ? 'bg-purple-600' : (isIdle ? 'bg-orange-500' : 'bg-blue-500')}">${data.isPartTime ? 'PT' : 'FT'}</span>`;
-            
             const rwTag = `<span class="font-black text-[9px] bg-gray-200 px-1 rounded ml-1 text-gray-700">(RW: ${data.wch.toFixed(1)})</span>`;
             
             const listItem = `
@@ -1776,17 +1792,28 @@ const firebaseConfig = {
         if (charts.faculty) charts.faculty.destroy();
         if (charts.focus) charts.focus.destroy();
         
+        // ފޮޓޯގައިވާ ފަދައިން ބާ ޗާޓު ކުލަތަކާއެކު
         charts.faculty = new Chart(document.getElementById('facultyChart'), {
             type: 'bar',
             data: {
                 labels: FACULTIES,
                 datasets: [
-                    { label: 'Unassigned Hrs', backgroundColor: '#e11d48', data: FACULTIES.map(f => facStats[f].unassigned) },
-                    { label: 'Assigned Part-Time Hrs', backgroundColor: '#d4af37', data: FACULTIES.map(f => facStats[f].pt) },
-                    { label: 'Assigned Full-Time Hrs', backgroundColor: '#004d40', data: FACULTIES.map(f => facStats[f].ft) }
+                    { label: 'Unassigned (Periods)', backgroundColor: '#dc2626', data: FACULTIES.map(f => facStats[f].unassigned) },
+                    { label: 'Part-Time (Periods)', backgroundColor: '#d4af37', data: FACULTIES.map(f => facStats[f].pt) },
+                    { label: 'Full-Time (Periods)', backgroundColor: '#004d40', data: FACULTIES.map(f => facStats[f].ft) }
                 ]
             },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                scales: { 
+                    x: { stacked: true }, 
+                    y: { stacked: true, beginAtZero: true } 
+                },
+                plugins: {
+                    legend: { position: 'top' }
+                }
+            }
         });
 
         charts.focus = new Chart(document.getElementById('focusChart'), {
@@ -1828,7 +1855,6 @@ const firebaseConfig = {
         const cardsContainer = document.getElementById('faculty-cards-container');
         if(cardsContainer) cardsContainer.innerHTML = cardsHtml || '<p class="text-[10px] text-gray-500 italic col-span-full">No module data available to generate cards.</p>';
 
-        // --- NEW SUMMARY TABLE (AS REQUESTED) ---
         let facSummaryHtml = `
         <div class="card p-4 mt-6">
             <h3 class="text-xs font-black uppercase text-royal-green mb-4">FACULTY WORKLOAD SUMMARY (WCH)</h3>
@@ -1903,7 +1929,6 @@ const firebaseConfig = {
         `;
         const summaryContainer = document.getElementById('summary-table-container');
         if (summaryContainer) summaryContainer.innerHTML = facSummaryHtml;
-        // ----------------------------------------------
 
         if (charts.assignmentDetails) charts.assignmentDetails.destroy();
         charts.assignmentDetails = new Chart(document.getElementById('assignmentDetailsChart'), {
