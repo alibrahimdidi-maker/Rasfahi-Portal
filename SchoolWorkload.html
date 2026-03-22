@@ -33,7 +33,7 @@
         /* Import Royal Fonts */
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;600;800&display=swap');
         
-        /* CSS Variables for University/School Theme */
+        /* CSS Variables for School Theme */
         :root { 
             --royal-green: #004d40; 
             --gold: #d4af37; 
@@ -61,6 +61,15 @@
             -moz-user-select: auto; 
             -ms-user-select: auto; 
             user-select: auto;
+        }
+
+        /* Scrollbar Hider for Grade Filters */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
 
         /* 💡 LECTURER NAME CLICKABLE EFFECTS */
@@ -344,7 +353,7 @@
                 </div>
             </div>
 
-            <div id="admin-controls" class="hidden card p-4 mb-6 bg-red-50 border-t-4 border-red-600 flex-col lg:flex-row justify-between items-center gap-4">
+            <div id="admin-controls" class="hidden card p-4 mb-4 bg-red-50 border-t-4 border-red-600 flex-col lg:flex-row justify-between items-center gap-4">
                 <div>
                     <h3 class="font-black text-red-800 uppercase text-xs">School Admin (Principal/Global)</h3>
                     <p class="text-[9px] text-red-600 font-bold">Full authorization enabled. Manage master imports or reset system.</p>
@@ -359,6 +368,9 @@
                 </div>
             </div>
 
+            <div id="grade-filters-container" class="flex overflow-x-auto gap-2 mb-6 pb-2 scrollbar-hide">
+                </div>
+
             <div class="flex justify-center border-b mb-4 md:mb-6 gap-2 md:gap-8 overflow-x-auto px-2">
                 <div class="tab-btn active text-[10px] md:text-sm" onclick="window.switchTab('matrix')">📋 Assignment Matrix</div>
                 <div class="tab-btn text-[10px] md:text-sm" onclick="window.switchTab('staff')">👨‍🏫 Staff Targets & Setup</div>
@@ -368,7 +380,7 @@
             <div id="tab-matrix" class="tab-content active">
                 <div class="card overflow-hidden">
                     <div class="p-3 bg-gray-50 border-b flex flex-col lg:flex-row justify-between items-center gap-3">
-                        <select id="facView" onchange="window.renderMatrix(); window.renderStaffTargets(); window.updateAnalytics();" class="w-full lg:w-auto p-2 border rounded-lg text-xs font-bold text-royal-green outline-none focus:border-gold"></select>
+                        <select id="facView" onchange="window.renderMatrix(); window.renderStaffTargets(); window.updateAnalytics(); window.updateGradeFilterHighlight(this.value);" class="w-full lg:w-auto p-2 border rounded-lg text-xs font-bold text-royal-green outline-none focus:border-gold"></select>
                         <div class="flex flex-col md:flex-row gap-2 w-full lg:w-auto">
                             <select id="hrSelect" class="flex-1 min-w-[250px]">
                                 <option value="">-- Check Teacher Workload --</option>
@@ -421,6 +433,26 @@
             </div>
 
             <div id="tab-analytics" class="tab-content">
+                
+                <div class="mb-6">
+                    <h3 class="text-xs font-black uppercase text-royal-blue mb-3 border-b-2 border-gray-200 pb-1">Grade Workload Summary (Periods)</h3>
+                    <div class="card overflow-x-auto p-4">
+                        <table class="w-full text-left text-[10px] md:text-xs">
+                            <thead class="bg-gray-100 text-gray-600 uppercase">
+                                <tr>
+                                    <th class="p-2">Grade</th>
+                                    <th class="p-2 text-center">Total Periods</th>
+                                    <th class="p-2 text-center text-green-600">Assigned</th>
+                                    <th class="p-2 text-center text-red-600">Unassigned</th>
+                                    <th class="p-2 text-center">% Assigned</th>
+                                </tr>
+                            </thead>
+                            <tbody id="grade-summary-body" class="divide-y">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                     <div class="card p-4">
                         <h3 class="text-xs font-black uppercase text-royal-green mb-2">School Wide Workload (Periods)</h3>
@@ -562,7 +594,7 @@
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// UPDATED FIREBASE CONFIGURATION
+// FIREBASE CONFIGURATION
 const firebaseConfig = {
   apiKey: "AIzaSyBFloCTSUgYq4PB6SD8s-ZF7ttjCrrQ-ug",
   authDomain: "schoolworkload-7bf62.firebaseapp.com",
@@ -580,10 +612,9 @@ const firebaseConfig = {
     let activeRole = 'ALL';
     let activeStreamFilter = 'ALL'; 
 
-    // School Constants
+    // Constants
     const GRADES = ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
     const STREAMS = ["General", "Science", "Business", "Arts", "BTEC"];
-    const CAMPUSES = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
     const CATEGORIES = ["Leading Teacher", "Class Teacher", "Relief Teacher", "Part-Time", "Special Ed", "Other"];
 
     let idleTimeout;
@@ -673,9 +704,7 @@ const firebaseConfig = {
             if (m) localDB.modules = JSON.parse(m);
             if (l) localDB.lecturers = JSON.parse(l);
             if (a) localDB.assignments = JSON.parse(a);
-        } catch(e) { 
-            console.error("Cache read error", e); 
-        }
+        } catch(e) { console.error("Cache read error", e); }
     };
 
     const buildDropdowns = () => {
@@ -689,6 +718,46 @@ const firebaseConfig = {
         document.getElementById('facView').innerHTML = viewOptions;
     };
     buildDropdowns();
+
+    // 💡 NEW: POPULATE GRADE FILTERS HORIZONTAL BAR
+    window.populateGradeFilters = () => {
+        const container = document.getElementById('grade-filters-container');
+        if (!container) return;
+
+        if (activeRole !== 'ALL') {
+            container.style.display = 'none';
+            return;
+        }
+        container.style.display = 'flex';
+
+        let html = `<button id="btn-grade-ALL" onclick="window.triggerGradeFilter('ALL')" class="px-4 py-2 bg-gray-800 text-white font-bold text-[10px] rounded-lg hover:bg-gray-700 transition shadow-sm whitespace-nowrap">VIEW ALL</button>`;
+        GRADES.forEach(g => {
+            const shortName = g.replace('Grade ', 'G');
+            html += `<button id="btn-grade-${g.replace(/\s+/g, '')}" onclick="window.triggerGradeFilter('${g}')" class="px-4 py-2 bg-[#0d47a1] text-white font-bold text-[10px] rounded-lg hover:bg-blue-800 transition shadow-sm whitespace-nowrap opacity-70 hover:opacity-100">${shortName}</button>`;
+        });
+        container.innerHTML = html;
+        window.updateGradeFilterHighlight('ALL');
+    };
+
+    window.triggerGradeFilter = (val) => {
+        document.getElementById('facView').value = val;
+        window.renderMatrix(); window.renderStaffTargets(); window.updateAnalytics();
+        window.updateGradeFilterHighlight(val);
+    };
+
+    window.updateGradeFilterHighlight = (val) => {
+        const container = document.getElementById('grade-filters-container');
+        if(!container) return;
+        const buttons = container.querySelectorAll('button');
+        buttons.forEach(btn => {
+            btn.classList.remove('opacity-100', 'border-2', 'border-gold');
+            btn.classList.add('opacity-70');
+            if (btn.id === `btn-grade-${val.replace(/\s+/g, '')}`) {
+                btn.classList.add('opacity-100', 'border-2', 'border-gold');
+                btn.classList.remove('opacity-70');
+            }
+        });
+    };
 
     try {
         app = initializeApp(firebaseConfig); 
@@ -741,6 +810,7 @@ const firebaseConfig = {
                     document.getElementById('main-dashboard-controls').style.display = 'none';
                     document.getElementById('header-stats').style.display = 'none';
                     document.getElementById('lecturer-dashboard').style.display = 'block';
+                    document.getElementById('grade-filters-container').style.display = 'none';
                 } else {
                     document.getElementById('main-dashboard-controls').style.display = 'block';
                     document.getElementById('header-stats').style.display = 'flex';
@@ -751,6 +821,7 @@ const firebaseConfig = {
                     }
                 }
                 
+                window.populateGradeFilters();
                 loadCloudData(); 
                 resetIdleTimer();
             } else {
@@ -869,13 +940,11 @@ const firebaseConfig = {
 
     window.getDefaultTarget = (l) => {
         if (l.custom_target) return parseInt(l.custom_target); 
-        
         const typeStr = String(window.getSafeVal(l, ['TeacherType', 'LecturerType', 'Type', 'Status']) || '').toLowerCase();
         const focusStr = String(window.getSafeVal(l, ['TeacherCategory', 'Category', 'Focus']) || '').toLowerCase();
         
         if (focusStr.includes('leading')) return 10; 
         if (typeStr.includes('part') || typeStr === 'pt' || focusStr.includes('part')) return 15;
-        
         return 30; 
     };
 
@@ -889,21 +958,19 @@ const firebaseConfig = {
         }
     };
 
-    // 💡 NEW FUNCTION: Update Department UI to DB
     window.updateStaffDepartment = (safeId, val) => {
         let lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === safeId);
         if(lect) {
             lect['Grade/Department'] = val;
-            lect['Grade'] = val; // Ensures matching
+            lect['Grade'] = val; 
             window.saveLocal(true);
             window.updateAnalytics();
             window.populateLecturerDropdown();
-            window.renderMatrix(); // Refresh matrix drop-downs
+            window.renderMatrix(); 
             window.showToast(`Staff department updated to ${val}.`, "success");
         }
     };
 
-    // 💡 NEW FUNCTION: Update Category UI to DB
     window.updateStaffCategory = (safeId, val) => {
         let lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === safeId);
         if(lect) {
@@ -916,7 +983,6 @@ const firebaseConfig = {
 
     window.generateDummies = (type) => {
         let rows = [];
-        
         if (type === 'lect') {
             const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Fathimath", "Aminath", "Aishath", "Mariyam", "Hawwa"];
             const lastNames = ["Zahir", "Nazeer", "Moosa", "Ibrahim", "Saeed", "Muna", "Sama", "Rashid", "Latheef", "Naseem"];
@@ -927,7 +993,6 @@ const firebaseConfig = {
                     const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
                     const fakeID = "T" + Math.floor(100000 + Math.random() * 900000);
                     const fakePhone = (Math.random() > 0.5 ? "7" : "9") + Math.floor(100000 + Math.random() * 900000);
-                    
                     rows.push({
                         "Grade/Department": grade,
                         "Lecturer ID": fakeID,
@@ -937,15 +1002,12 @@ const firebaseConfig = {
                         "Mobile Number": fakePhone
                     });
                 };
-
                 addFakePerson("Leading Teacher", "Full-time");
                 for(let i=0; i<15; i++) addFakePerson("Class Teacher", "Full-time");
                 for(let i=0; i<5; i++) addFakePerson("Relief Teacher", "Part-time");
             });
-
             downloadCSV(rows, "School_Teachers_Master_Data.csv");
             window.showToast("Dummy Teachers Generated for Grades.", "success");
-
         } else {
             const subjects = {
                 "Science": ["Physics", "Chemistry", "Biology", "Mathematics"],
@@ -953,17 +1015,15 @@ const firebaseConfig = {
                 "Arts": ["History", "Geography", "Literature"],
                 "General": ["Dhivehi", "Islam", "English"]
             };
-            
             for(let i=1; i<=300; i++) {
                 const grade = GRADES[Math.floor(Math.random() * GRADES.length)];
                 const stream = STREAMS[Math.floor(Math.random() * STREAMS.length)];
                 const subjs = subjects[stream] || subjects["General"];
                 const subj = subjs[Math.floor(Math.random() * subjs.length)];
                 
-                const classLetter = String.fromCharCode(65 + Math.floor(Math.random() * 6)); // A to F
+                const classLetter = String.fromCharCode(65 + Math.floor(Math.random() * 6)); 
                 const fakeModuleName = `${grade} ${subj}`;
                 const fakeModuleCode = stream.substring(0,3).toUpperCase() + Math.floor(100 + Math.random() * 900);
-                
                 const wch = [4, 5, 6][Math.floor(Math.random() * 3)]; 
 
                 rows.push({
@@ -1025,11 +1085,9 @@ const firebaseConfig = {
                 let id = window.makeSafeId(window.getSafeVal(x, docIdKey));
                 if(id) {
                     let existing = existingMap.get(id);
-                    
                     if(type === 'lecturers' && existing && existing.custom_target) {
                         x.custom_target = existing.custom_target;
                     }
-
                     if (activeRole !== 'ALL') {
                         if (type === 'modules') {
                              x['Grade'] = activeRole; 
@@ -1037,13 +1095,11 @@ const firebaseConfig = {
                              x['Grade/Department'] = activeRole;
                         }
                     }
-
                     existingMap.set(id, x); 
                 }
             });
 
             localDB[type] = Array.from(existingMap.values());
-            
             window.saveLocal(true);
             window.populateLecturerDropdown(); 
             window.renderMatrix(); 
@@ -1054,10 +1110,7 @@ const firebaseConfig = {
             event.target.value = ''; 
             window.showToast(`${type} merged securely to Local Browser successfully.`, "success");
 
-            if (!dbCloud || !navigator.onLine) {
-                setSyncStatus('offline'); return; 
-            }
-
+            if (!dbCloud || !navigator.onLine) { setSyncStatus('offline'); return; }
             window.runBackgroundCloudSync(type, tempData, docIdKey);
 
         } catch (err) {
@@ -1068,7 +1121,6 @@ const firebaseConfig = {
 
     window.runBackgroundCloudSync = async (type, tempData, docIdKey) => {
         setSyncStatus('syncing');
-        
         try {
             const CHUNK_SIZE = 100;
             let totalCount = 0;
@@ -1087,10 +1139,7 @@ const firebaseConfig = {
                     }
                 });
                 
-                if (hasWrites) {
-                    await batch.commit();
-                    await new Promise(r => setTimeout(r, 50)); 
-                }
+                if (hasWrites) { await batch.commit(); await new Promise(r => setTimeout(r, 50)); }
             }
             setSyncStatus('success');
             console.log(`✅ Background Sync Complete: ${totalCount} records.`);
@@ -1117,7 +1166,6 @@ const firebaseConfig = {
             const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
             const rawFac = window.getSafeVal(l, ['Grade/Department', 'Grade', 'Department']);
             const phone = window.getSafeVal(l, ['Mobile', 'Phone', 'Contact']) || 'N/A';
-            
             const fac = GRADES.find(g => rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac;
 
             if (id && name) {
@@ -1179,17 +1227,11 @@ const firebaseConfig = {
                     targetOpts += `<option value="${i}" ${target === i ? 'selected' : ''}>${i} Periods</option>`;
                 }
 
-                // Department Options
                 let deptOpts = `<option value="">-- Select Grade --</option>`;
-                GRADES.forEach(g => {
-                    deptOpts += `<option value="${g}" ${fac === g ? 'selected' : ''}>${g}</option>`;
-                });
+                GRADES.forEach(g => { deptOpts += `<option value="${g}" ${fac === g ? 'selected' : ''}>${g}</option>`; });
 
-                // Category Options
                 let catOpts = `<option value="">-- Select Cat --</option>`;
-                CATEGORIES.forEach(c => {
-                    catOpts += `<option value="${c}" ${cat === c ? 'selected' : ''}>${c}</option>`;
-                });
+                CATEGORIES.forEach(c => { catOpts += `<option value="${c}" ${cat === c ? 'selected' : ''}>${c}</option>`; });
                 
                 html += `
                 <tr class="border-b hover:bg-gray-50 transition">
@@ -1224,9 +1266,7 @@ const firebaseConfig = {
         const searchQ = document.getElementById('mSearch').value.toLowerCase();
         const viewFilter = document.getElementById('facView').value;
         
-        if (window.tsMatrix && window.tsMatrix.length > 0) {
-            window.tsMatrix.forEach(ts => ts.destroy());
-        }
+        if (window.tsMatrix && window.tsMatrix.length > 0) { window.tsMatrix.forEach(ts => ts.destroy()); }
         window.tsMatrix = [];
 
         if (localDB.modules.length === 0) {
@@ -1320,14 +1360,8 @@ const firebaseConfig = {
         tbody.innerHTML = finalHTML; 
 
         document.querySelectorAll('.tom-select-assign').forEach(el => {
-            const ts = new TomSelect(el, {
-                create: false,
-                placeholder: "🔍 Assign Teacher...",
-                dropdownParent: 'body'
-            });
-            ts.on('change', function(value) {
-                if (value !== undefined) window.assignLecturer(el.dataset.mcode, value);
-            });
+            const ts = new TomSelect(el, { create: false, placeholder: "🔍 Assign Teacher...", dropdownParent: 'body' });
+            ts.on('change', function(value) { if (value !== undefined) window.assignLecturer(el.dataset.mcode, value); });
             window.tsMatrix.push(ts);
         });
     };
@@ -1335,7 +1369,6 @@ const firebaseConfig = {
     window.assignLecturer = (mCode, lectId) => {
         if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { mode: 'Individual' };
         localDB.assignments[mCode].id = lectId;
-        
         window.saveLocal(true);
         window.showToast("Teacher assigned. Local state auto-saved.", "info");
         
@@ -1344,18 +1377,11 @@ const firebaseConfig = {
             const isAssigned = lectId && lectId !== '';
             const badgeTd = row.querySelector('.status-cell');
             if(badgeTd) {
-                badgeTd.innerHTML = isAssigned 
-                    ? `<span class="bg-green-100 text-green-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm">Assigned</span>` 
-                    : `<span class="bg-red-100 text-red-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm animate-pulse">Unassigned</span>`;
+                badgeTd.innerHTML = isAssigned ? `<span class="bg-green-100 text-green-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm">Assigned</span>` : `<span class="bg-red-100 text-red-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm animate-pulse">Unassigned</span>`;
             }
-            if(isAssigned) row.classList.remove('bg-red-50/10');
-            else row.classList.add('bg-red-50/10');
-            
+            if(isAssigned) row.classList.remove('bg-red-50/10'); else row.classList.add('bg-red-50/10');
             const btnCheck = row.querySelector('.btn-check-workload');
-            if(btnCheck) {
-                if(isAssigned) btnCheck.classList.remove('opacity-50', 'cursor-not-allowed');
-                else btnCheck.classList.add('opacity-50', 'cursor-not-allowed');
-            }
+            if(btnCheck) { if(isAssigned) btnCheck.classList.remove('opacity-50', 'cursor-not-allowed'); else btnCheck.classList.add('opacity-50', 'cursor-not-allowed'); }
         }
         window.updateAnalytics();
     };
@@ -1363,26 +1389,19 @@ const firebaseConfig = {
     window.updateAssignmentMode = (mCode, mode) => {
         if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { id: '' };
         localDB.assignments[mCode].mode = mode;
-        window.saveLocal(true);
-        window.showToast(`Sync mode updated to ${mode}. Auto-saved.`, "info");
-        window.updateAnalytics();
+        window.saveLocal(true); window.showToast(`Sync mode updated to ${mode}. Auto-saved.`, "info"); window.updateAnalytics();
     };
     
-    // Updated saveToServer to include custom edited fields for lecturers
     window.saveToServer = async (isAuto = false) => {
         if (!navigator.onLine) { if(!isAuto) window.showToast("Offline. Cannot push to Cloud.", "warning"); return; }
         if(!isAuto) setSyncStatus('syncing');
         try {
             let validAssignments = [];
-            Object.keys(localDB.assignments).forEach(mCode => {
-                validAssignments.push({ code: mCode, data: localDB.assignments[mCode] });
-            });
+            Object.keys(localDB.assignments).forEach(mCode => { validAssignments.push({ code: mCode, data: localDB.assignments[mCode] }); });
             const CHUNK_SIZE = 100;
             for (let i = 0; i < validAssignments.length; i += CHUNK_SIZE) {
                 const batch = writeBatch(dbCloud);
-                validAssignments.slice(i, i + CHUNK_SIZE).forEach(item => {
-                    batch.set(doc(dbCloud, "assignments", item.code), item.data, { merge: true });
-                });
+                validAssignments.slice(i, i + CHUNK_SIZE).forEach(item => { batch.set(doc(dbCloud, "assignments", item.code), item.data, { merge: true }); });
                 await batch.commit(); 
             }
             const lectBatch = writeBatch(dbCloud);
@@ -1393,10 +1412,7 @@ const firebaseConfig = {
                 if (l['Grade/Department']) updateData['Grade/Department'] = l['Grade/Department'];
                 if (l['Grade']) updateData['Grade'] = l['Grade'];
                 if (l['Category']) updateData['Category'] = l['Category'];
-                
-                if (Object.keys(updateData).length > 0) {
-                    lectBatch.set(doc(dbCloud, "lecturers", safeId), updateData, { merge: true });
-                }
+                if (Object.keys(updateData).length > 0) { lectBatch.set(doc(dbCloud, "lecturers", safeId), updateData, { merge: true }); }
             });
             await lectBatch.commit();
             setSyncStatus('success');
@@ -1407,34 +1423,26 @@ const firebaseConfig = {
     window.deleteModuleRow = async (mCode) => {
         if (activeRole !== 'ALL') return alert("Unauthorized Action.");
         if (confirm(`Are you sure you want to permanently delete module [${mCode}]?`)) {
-            delete localDB.assignments[mCode];
-            window.saveLocal(true);
-            window.renderMatrix(); window.updateAnalytics();
+            delete localDB.assignments[mCode]; window.saveLocal(true); window.renderMatrix(); window.updateAnalytics();
             window.showToast("Module assignment deleted successfully.", "success");
         }
     };
 
     window.checkAssignedWorkload = (mCode) => {
         const assignment = localDB.assignments[mCode];
-        if (assignment && assignment.id) {
-            window.openHRView(assignment.id);
-        } else {
-            window.showToast("No teacher assigned to this module yet.", "warning");
-        }
+        if (assignment && assignment.id) { window.openHRView(assignment.id); } else { window.showToast("No teacher assigned to this module yet.", "warning"); }
     }
 
+    // 💡 UPDATED ANALYTICS WITH CORRECT CHARTS & GRADE REPORT
     window.updateAnalytics = () => {
         if (localDB.modules.length === 0 && localDB.lecturers.length === 0) return;
         
-        let unassignedCount = 0;
-        let workloadData = {}; 
-        let facStats = {}; 
-        let focusStats = { "Teaching": 0, "Research": 0, "Part-Time": 0 };
-        let streamDetailedStats = {};
+        let unassignedCount = 0; let workloadData = {}; 
+        let facStats = {}; let focusStats = { "Teaching": 0, "Research": 0, "Part-Time": 0 };
+        let streamDetailedStats = {}; let gradeSummary = {}; // NEW: Grade Summary Stats
         
-        GRADES.forEach(g => { facStats[g] = { pt: 0, ft: 0 }; });
+        GRADES.forEach(g => { facStats[g] = { pt: 0, ft: 0 }; gradeSummary[g] = { total: 0, assigned: 0, unassigned: 0 }; });
         STREAMS.forEach(s => { streamDetailedStats[s] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0 }; });
-        streamDetailedStats['ALL'] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0 };
 
         localDB.lecturers.forEach(l => {
             const rawFac = window.getSafeVal(l, ['Grade/Department', 'Grade']);
@@ -1443,12 +1451,9 @@ const firebaseConfig = {
             const typeStr = String(window.getSafeVal(l, ['Type']) || '').toLowerCase();
             
             workloadData[id] = { 
-                name: window.getSafeVal(l, ['LecturerName', 'FullName']), 
-                wch: 0, 
-                target: window.getDefaultTarget(l), 
-                isPartTime: typeStr.includes('part'), 
-                isResearch: false,
-                fac: fac 
+                name: window.getSafeVal(l, ['LecturerName', 'FullName']), wch: 0, 
+                target: window.getDefaultTarget(l), isPartTime: typeStr.includes('part'), 
+                isResearch: false, fac: fac 
             };
         });
 
@@ -1457,24 +1462,58 @@ const firebaseConfig = {
             const mClass = window.getSafeVal(m, ['Class']);
             const mStream = window.getSafeVal(m, ['Stream', 'Category']) || 'General';
             const mCode = window.getSafeVal(m, ['ModuleCode']);
-            
             let safeMCode = window.makeSafeId(mCode + mClass + mFac);
-            
-            if (streamDetailedStats[mStream]) streamDetailedStats[mStream].offered++;
             
             let wch = parseFloat(window.getSafeVal(m, ['Periods', 'WCH']));
             if (isNaN(wch)) wch = 0;
+
+            if (streamDetailedStats[mStream]) streamDetailedStats[mStream].offered++;
+            if (gradeSummary[mFac]) gradeSummary[mFac].total += wch; // Record for Grade Report
 
             const assignment = localDB.assignments[safeMCode] || { id: '', mode: 'Individual' };
             
             if (!assignment.id || assignment.id === '') {
                 unassignedCount++;
                 if (streamDetailedStats[mStream]) streamDetailedStats[mStream].unassigned++;
+                if (gradeSummary[mFac]) gradeSummary[mFac].unassigned += wch;
             } else {
                 if (streamDetailedStats[mStream]) streamDetailedStats[mStream].assigned++;
                 if (workloadData[assignment.id]) workloadData[assignment.id].wch += wch;
+                if (gradeSummary[mFac]) gradeSummary[mFac].assigned += wch;
+                
+                // Track Cross-Grade Assignments for Stream Chart
+                const assignedLect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
+                if(assignedLect && streamDetailedStats[mStream]) {
+                    const lGrade = window.getSafeVal(assignedLect, ['Grade/Department', 'Grade']);
+                    const isSameGrade = lGrade.includes(mFac);
+                    const lType = String(window.getSafeVal(assignedLect, ['Type'])).toLowerCase();
+                    if(isSameGrade) {
+                        if(lType.includes('part')) streamDetailedStats[mStream].ptSame++;
+                        else streamDetailedStats[mStream].ftSame++;
+                    } else {
+                        streamDetailedStats[mStream].otherFac++;
+                    }
+                }
             }
         });
+
+        // 💡 RENDER GRADE WORKLOAD SUMMARY TABLE
+        let gradeHtml = '';
+        GRADES.forEach(g => {
+            let stats = gradeSummary[g];
+            if (stats.total > 0) {
+                let perc = ((stats.assigned / stats.total) * 100).toFixed(0);
+                gradeHtml += `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-2 font-bold">${g}</td>
+                    <td class="p-2 text-center font-bold">${stats.total}</td>
+                    <td class="p-2 text-center font-black text-green-600">${stats.assigned}</td>
+                    <td class="p-2 text-center font-black text-red-600">${stats.unassigned}</td>
+                    <td class="p-2 text-center text-gray-500 font-bold">${perc}%</td>
+                </tr>`;
+            }
+        });
+        document.getElementById('grade-summary-body').innerHTML = gradeHtml || '<tr><td colspan="5" class="p-4 text-center italic text-gray-400">No active classes to summarize.</td></tr>';
 
         let cardsHtml = `
             <div onclick="window.filterByStream('ALL')" class="stream-card bg-[#004d40] text-white p-3 rounded-xl shadow-lg border-2 border-white/20 relative ${activeStreamFilter === 'ALL' ? 'active-filter' : ''}">
@@ -1498,11 +1537,17 @@ const firebaseConfig = {
         });
         document.getElementById('stream-cards-container').innerHTML = cardsHtml;
         
-        let htmlIdle = '', htmlFtUnder = '', htmlFtOver = '';
-        let htmlFtMet = '', htmlPtMet = '', htmlPtUnder = '';
+        let htmlIdle = '', htmlFtUnder = '', htmlFtOver = '', htmlFtMet = '', htmlPtMet = '', htmlPtUnder = '';
         let idleCount = 0, ftOverCount = 0;
 
         Object.values(workloadData).forEach(data => {
+            if (facStats[data.fac]) {
+                if (data.isPartTime) facStats[data.fac].pt += data.wch;
+                else facStats[data.fac].ft += data.wch;
+            }
+            if (data.isPartTime) { focusStats["Part-Time"] += data.wch; } 
+            else { focusStats["Teaching"] += data.wch; }
+
             const isIdle = data.wch === 0;
             const listItem = `
                 <div class="flex justify-between items-center py-1.5 border-b border-gray-200 hover:bg-gray-50 transition">
@@ -1527,14 +1572,57 @@ const firebaseConfig = {
         document.getElementById('hdr-unassigned').innerText = unassignedCount;
         document.getElementById('hdr-idle').innerText = idleCount;
         document.getElementById('hdr-overload').innerText = ftOverCount;
-        
         document.getElementById('list-idle').innerHTML = htmlIdle || '<p class="text-gray-400 p-2 text-[10px] italic">No idle teachers.</p>';
         document.getElementById('list-ft-under').innerHTML = htmlFtUnder || '<p class="text-gray-400 p-2 text-[10px] italic">No underloaded FT staff.</p>';
         document.getElementById('list-ft-over').innerHTML = htmlFtOver || '<p class="text-gray-400 p-2 text-[10px] italic">No overloaded FT staff.</p>';
-        
         document.getElementById('list-ft-met').innerHTML = htmlFtMet || '<p class="text-gray-400 p-2 text-[10px] italic">No FT staff met target.</p>';
         document.getElementById('list-pt-met').innerHTML = htmlPtMet || '<p class="text-gray-400 p-2 text-[10px] italic">No PT staff met target.</p>';
         document.getElementById('list-pt-under').innerHTML = htmlPtUnder || '<p class="text-gray-400 p-2 text-[10px] italic">No underloaded PT staff.</p>';
+
+        // 💡 RE-INITIALIZE CHARTS WITH CORRECT LABELS
+        if (charts.faculty) charts.faculty.destroy();
+        charts.faculty = new Chart(document.getElementById('facultyChart'), {
+            type: 'bar',
+            data: {
+                labels: GRADES, // Fixed: Using GRADES instead of FACULTIES
+                datasets: [
+                    { label: 'Part-Time (Periods)', backgroundColor: '#d4af37', data: GRADES.map(g => facStats[g].pt) },
+                    { label: 'Full-Time (Periods)', backgroundColor: '#004d40', data: GRADES.map(g => facStats[g].ft) }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+        });
+
+        if (charts.focus) charts.focus.destroy();
+        charts.focus = new Chart(document.getElementById('focusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Full-Time', 'Part-Time'],
+                datasets: [{
+                    data: [focusStats["Teaching"], focusStats["Part-Time"]],
+                    backgroundColor: ['#0d47a1', '#d4af37']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+        
+        if (charts.assignmentDetails) charts.assignmentDetails.destroy();
+        charts.assignmentDetails = new Chart(document.getElementById('assignmentDetailsChart'), {
+            type: 'bar',
+            data: {
+                labels: STREAMS, // Fixed: Using STREAMS instead of FACULTIES
+                datasets: [
+                    { label: 'FT Teacher (Same Grade)', backgroundColor: '#0d47a1', data: STREAMS.map(s => streamDetailedStats[s].ftSame) },
+                    { label: 'PT Teacher (Same Grade)', backgroundColor: '#4a148c', data: STREAMS.map(s => streamDetailedStats[s].ptSame) },
+                    { label: 'Cross-Grade Assignment', backgroundColor: '#004d40', data: STREAMS.map(s => streamDetailedStats[s].otherFac) }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { x: { stacked: true }, y: { stacked: true } },
+                plugins: { tooltip: { mode: 'index', intersect: false } }
+            }
+        });
     };
 
     window.openHRView = (id) => {
@@ -1642,7 +1730,6 @@ const firebaseConfig = {
         }, 500); 
     };
     
-    // EXPORT FUNCTIONS
     window.exportLocalCSV = () => {
         let exportModules = [...localDB.modules];
         if (activeRole !== 'ALL') { exportModules = exportModules.filter(m => window.getSafeVal(m, ['Grade']).includes(activeRole)); }
@@ -1695,7 +1782,6 @@ const firebaseConfig = {
         if (activeRole !== 'ALL') return alert("Unauthorized Action.");
         const file = event.target.files[0];
         if (!file) return;
-
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
         loader.style.display = 'flex'; loaderText.innerText = "Restoring Master Backup...";
@@ -1719,24 +1805,18 @@ const firebaseConfig = {
                         let safeId = window.makeSafeId(window.getSafeVal(row, ['ModuleCode', 'Code'])+window.getSafeVal(row, ['Class'])+window.getSafeVal(row, ['Grade']));
                         if(safeId && String(safeId).trim() !== '') {
                             let moduleData = { ...row };
-                            delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID;
-                            delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME;
-                            delete moduleData.SYSTEM_SYNC_MODE;
+                            delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID; delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME; delete moduleData.SYSTEM_SYNC_MODE;
                             existingMap.set(safeId, moduleData); 
-                            
                             let lectId = row['SYSTEM_ASSIGNED_LECTURER_ID'];
                             let mode = row['SYSTEM_SYNC_MODE'] || 'Individual';
-                            if(lectId && lectId !== "UNASSIGNED") {
-                                localDB.assignments[safeId] = { id: lectId, mode: mode };
-                            }
+                            if(lectId && lectId !== "UNASSIGNED") { localDB.assignments[safeId] = { id: lectId, mode: mode }; }
                         }
                     });
                     
                     localDB.modules = Array.from(existingMap.values());
                     window.saveLocal(true);
                     window.populateLecturerDropdown(); window.renderMatrix(); window.updateAnalytics();
-                    loader.style.display = 'none'; 
-                    setSyncStatus('syncing');
+                    loader.style.display = 'none'; setSyncStatus('syncing');
 
                     for (let i = 0; i < data.length; i += CHUNK_SIZE) {
                         const chunk = data.slice(i, i + CHUNK_SIZE);
@@ -1747,9 +1827,7 @@ const firebaseConfig = {
                             let safeId = window.makeSafeId(window.getSafeVal(row, ['ModuleCode', 'Code'])+window.getSafeVal(row, ['Class'])+window.getSafeVal(row, ['Grade']));
                             if(safeId && String(safeId).trim() !== '') {
                                 let moduleData = { ...row };
-                                delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID;
-                                delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME;
-                                delete moduleData.SYSTEM_SYNC_MODE;
+                                delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID; delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME; delete moduleData.SYSTEM_SYNC_MODE;
                                 batch.set(doc(dbCloud, 'modules', safeId), moduleData, {merge: true});
                                 moduleCount++; hasWrites = true;
 
