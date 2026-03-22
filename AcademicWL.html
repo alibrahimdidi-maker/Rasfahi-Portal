@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Executive Workload Portal</title>
+    <title>Presidential Executive Workload Portal</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -386,13 +386,13 @@
             <div id="tab-analytics" class="tab-content">
                 
                 <div class="card p-4 mb-6">
-                    <h3 class="text-xs font-black uppercase text-royal-green mb-2 tracking-wide">UNIVERSITY WIDE WORKLOAD (PERIODS)</h3>
+                    <h3 class="text-xs font-black uppercase text-royal-green mb-2 tracking-wide">FACULTY WIDE WORKLOAD (PERIODS)</h3>
                     <div class="h-64 md:h-80"><canvas id="facultyChart"></canvas></div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                     <div class="card p-4">
-                        <h3 class="text-xs font-black uppercase text-royal-blue mb-2">University Wide Academic Focus</h3>
+                        <h3 class="text-xs font-black uppercase text-royal-blue mb-2">Faculty Wide Academic Focus</h3>
                         <div class="h-48 md:h-56"><canvas id="focusChart"></canvas></div>
                     </div>
                     <div class="card p-4">
@@ -533,13 +533,14 @@
     import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBdKlegzaCR8fFykukBOInscuuhxWPpodU",
-  authDomain: "academicwl.firebaseapp.com",
-  projectId: "academicwl",
-  storageBucket: "academicwl.firebasestorage.app",
-  messagingSenderId: "994825173497",
-  appId: "1:994825173497:web:0606a5eb681a7e451ea528",
-  measurementId: "G-CD9TG8Q00N"
+  apiKey: "AIzaSyBpbegNLw1PZbE0BEx9CtKMC9cawyL6Ik4",
+  authDomain: "workload-portal.firebaseapp.com",
+  databaseURL: "https://workload-portal-default-rtdb.firebaseio.com",
+  projectId: "workload-portal",
+  storageBucket: "workload-portal.firebasestorage.app",
+  messagingSenderId: "76088077154",
+  appId: "1:76088077154:web:fe2b5e4e86c3b554e21a3b",
+  measurementId: "G-EG5NDPEZL4"
 };
 
     let app, auth, dbCloud;
@@ -548,9 +549,9 @@ const firebaseConfig = {
     let currentLecturerId = null;
     let activeRole = 'ALL';
 
+    // ފެކަލްޓީގެ ނަންތައް މެނުއަލްކޮށް ބަދަލުކުރައްވަން ބޭނުންފުޅުވާނަމަ މި އެރޭ ބަދަލުކޮށްލައްވާ
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
 
-    // GLOBAL OPTIONS FOR TOMSELECT API (Prevents V8 String Limit Crash)
     window.globalLecturerOptions = [];
     window.globalLecturerOptgroups = [];
 
@@ -847,6 +848,15 @@ const firebaseConfig = {
         }
         return '';
     };
+
+    // 100% Robust Faculty Matching Engine
+    window.getFaculty = (row) => {
+        if (!row || typeof row !== 'object') return 'UNKNOWN';
+        const raw = window.getSafeVal(row, ['Kulliyyah', 'ParentKulliyya', 'Faculty', 'Centre']);
+        if (!raw || raw.trim() === '') return 'UNKNOWN';
+        const matched = FACULTIES.find(f => String(raw).toUpperCase().includes(String(f).toUpperCase()));
+        return matched || String(raw).trim();
+    };
     
     window.getSafeCampus = (row) => {
         const keys = Object.keys(row);
@@ -1078,8 +1088,7 @@ const firebaseConfig = {
         let dynamicFaculties = new Set(FACULTIES);
         
         localDB.lecturers.forEach(l => {
-            const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty', 'Centre']);
-            const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || String(rawFac).toUpperCase();
+            const fac = window.getFaculty(l);
             if (fac && !dynamicFaculties.has(fac)) {
                 dynamicFaculties.add(fac);
             }
@@ -1093,11 +1102,10 @@ const firebaseConfig = {
             const rawId = window.getSafeVal(l, ['LecturerID', 'NationalID']);
             const id = window.makeSafeId(rawId);
             const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
-            const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty', 'Centre']);
             const phone = window.getSafeVal(l, ['Mobile', 'Phone', 'Contact']) || 'N/A';
             const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
             const empType = (typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting')) ? 'PT' : 'FT';
-            const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || String(rawFac).toUpperCase();
+            const fac = window.getFaculty(l);
 
             if (id && name) {
                 window.globalLecturerOptions.push({
@@ -1150,8 +1158,7 @@ const firebaseConfig = {
         }
 
         localDB.lecturers.forEach(l => {
-            const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
-            const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || rawFac; 
+            const fac = window.getFaculty(l); 
             
             if (viewFilter === 'ALL' || String(fac).includes(viewFilter)) {
                 const safeId = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
@@ -1206,8 +1213,7 @@ const firebaseConfig = {
         let finalHTML = ''; 
 
         localDB.modules.forEach(m => {
-            const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
-            const mFac = FACULTIES.find(f => String(mFacName).toUpperCase().includes(f)) || mFacName;
+            const mFac = window.getFaculty(m);
             const mName = window.getSafeVal(m, ['ModuleName', 'ModuleTitle']);
             const mCode = window.getSafeVal(m, ['ModuleCode']);
             const combinedData = window.getSafeVal(m, ['CombinedBatch']);
@@ -1299,7 +1305,7 @@ const firebaseConfig = {
             });
             
             if (assignedId && assignedId !== '') {
-                ts.setValue(assignedId, true); // true = silent, don't trigger onChange yet
+                ts.setValue(assignedId, true); 
             }
 
             ts.on('change', function(value) {
@@ -1311,8 +1317,7 @@ const firebaseConfig = {
 
     window.assignLecturer = (mCode, lectId) => {
         const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
-        const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
-        const mFac = FACULTIES.find(f => String(mFacName).toUpperCase().includes(f)) || mFacName;
+        const mFac = window.getFaculty(m);
         
         if (activeRole !== 'ALL' && !String(mFac).includes(activeRole)) {
             alert("🔒 Unauthorized Action: You can only modify assignments for your own Faculty.");
@@ -1348,7 +1353,7 @@ const firebaseConfig = {
 
     window.updateAssignmentMode = (mCode, mode) => {
         const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
-        const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+        const mFac = window.getFaculty(m);
         if (activeRole !== 'ALL' && !String(mFac).includes(activeRole)) return;
 
         if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { id: '' };
@@ -1371,7 +1376,7 @@ const firebaseConfig = {
             Object.keys(localDB.assignments).forEach(mCode => {
                 const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
                 if (m) {
-                    const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+                    const mFac = window.getFaculty(m);
                     if (activeRole === 'ALL' || String(mFac).includes(activeRole)) {
                         validAssignments.push({ code: mCode, data: localDB.assignments[mCode] });
                     }
@@ -1433,7 +1438,7 @@ const firebaseConfig = {
     window.exportLocalCSV = () => {
         let exportModules = [...localDB.modules];
         if (activeRole !== 'ALL') {
-            exportModules = exportModules.filter(m => String(window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty'])).includes(activeRole));
+            exportModules = exportModules.filter(m => String(window.getFaculty(m)).includes(activeRole));
         }
 
         const exportData = exportModules.map(m => {
@@ -1467,7 +1472,7 @@ const firebaseConfig = {
             assSnap.docs.forEach(d => c_assignments[d.id] = d.data());
             
             if (activeRole !== 'ALL') {
-                c_modules = c_modules.filter(m => String(window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty'])).includes(activeRole));
+                c_modules = c_modules.filter(m => String(window.getFaculty(m)).includes(activeRole));
             }
             
             const exportData = c_modules.map(m => {
@@ -1657,29 +1662,42 @@ const firebaseConfig = {
     window.updateAnalytics = () => {
         if (localDB.modules.length === 0 && localDB.lecturers.length === 0) return;
         
+        const viewFilter = document.getElementById('facView').value;
+        let displayFaculties = FACULTIES;
+        if (viewFilter !== 'ALL') {
+            displayFaculties = FACULTIES.filter(f => String(f).includes(viewFilter));
+        }
+
         let unassignedCount = 0;
         let workloadData = {}; 
         let facStats = {}; 
         let focusStats = { "Teaching": 0, "Research": 0, "Part-Time": 0 };
-        
         let facDetailedStats = {};
         
         FACULTIES.forEach(f => {
             facStats[f] = { pt: 0, ft: 0, unassigned: 0 };
-            facDetailedStats[f] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0 };
+            facDetailedStats[f] = { 
+                offered: 0, assigned: 0, unassigned: 0, 
+                ftSame: 0, ptSame: 0, otherFac: 0,
+                ftSameWch: 0, ptSameWch: 0, otherFacWch: 0 
+            };
         });
 
         let seenCombinedCodes = new Set();
+        
         localDB.modules.forEach(m => {
             const rawMCode = window.getSafeVal(m, ['ModuleCode']);
             const mCode = window.makeSafeId(rawMCode);
+            const mFac = window.getFaculty(m);
             
-            const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
-            const mFac = FACULTIES.find(f => String(mFacName).toUpperCase().includes(f)) || mFacName;
-            
-            if (facDetailedStats[mFac]) {
-                facDetailedStats[mFac].offered++;
+            if (!facDetailedStats[mFac]) {
+                facDetailedStats[mFac] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0, ftSameWch: 0, ptSameWch: 0, otherFacWch: 0 };
             }
+            if (!facStats[mFac]) {
+                facStats[mFac] = { pt: 0, ft: 0, unassigned: 0 };
+            }
+
+            facDetailedStats[mFac].offered++;
             
             let rawWch = window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours']);
             let wch = parseFloat(rawWch);
@@ -1688,11 +1706,14 @@ const firebaseConfig = {
             const assignment = localDB.assignments[mCode] || { id: '', mode: (window.getSafeVal(m, ['CombinedBatch']) ? 'Combined' : 'Individual') };
             
             if (!assignment.id || assignment.id === '') {
-                unassignedCount++;
-                if (facDetailedStats[mFac]) facDetailedStats[mFac].unassigned++;
-                if (facStats[mFac]) facStats[mFac].unassigned += wch; 
+                if (viewFilter === 'ALL' || String(mFac).includes(viewFilter)) {
+                    unassignedCount++;
+                }
+
+                facDetailedStats[mFac].unassigned++;
+                facStats[mFac].unassigned += wch; 
             } else {
-                if (facDetailedStats[mFac]) facDetailedStats[mFac].assigned++;
+                facDetailedStats[mFac].assigned++;
                 
                 let actualWch = wch;
                 if (assignment.mode === 'Combined') {
@@ -1701,30 +1722,35 @@ const firebaseConfig = {
                 }
 
                 const assignedLect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
-                if (assignedLect && facDetailedStats[mFac]) {
-                    const lFacName = window.getSafeVal(assignedLect, ['Kulliyyah', 'Faculty']);
-                    const lFac = FACULTIES.find(f => String(lFacName).toUpperCase().includes(f)) || lFacName;
+                if (assignedLect) {
+                    const lFac = window.getFaculty(assignedLect);
                     const typeStr = String(window.getSafeVal(assignedLect, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
                     const isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
                     
-                    if (facStats[mFac]) {
-                        if (isPartTime) facStats[mFac].pt += actualWch; 
-                        else facStats[mFac].ft += actualWch; 
-                    }
+                    if (isPartTime) facStats[mFac].pt += actualWch; 
+                    else facStats[mFac].ft += actualWch; 
 
-                    if (lFac === mFac) {
-                        if (isPartTime) facDetailedStats[mFac].ptSame++;
-                        else facDetailedStats[mFac].ftSame++;
+                    if (String(lFac).toUpperCase() === String(mFac).toUpperCase()) {
+                        if (isPartTime) {
+                            facDetailedStats[mFac].ptSame++;
+                            facDetailedStats[mFac].ptSameWch += actualWch;
+                        } else {
+                            facDetailedStats[mFac].ftSame++;
+                            facDetailedStats[mFac].ftSameWch += actualWch;
+                        }
                     } else {
                         facDetailedStats[mFac].otherFac++;
+                        facDetailedStats[mFac].otherFacWch += actualWch;
                     }
+                } else {
+                    facStats[mFac].unassigned += actualWch;
+                    facDetailedStats[mFac].unassigned++; 
                 }
             }
         });
 
         localDB.lecturers.forEach(l => {
-            const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
-            const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || rawFac; 
+            const fac = window.getFaculty(l);
             const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
             const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
             const focusStr = String(window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category']) || '').toLowerCase();
@@ -1765,6 +1791,8 @@ const firebaseConfig = {
         let ftMetCount = 0, ptMetCount = 0, ptUnderCount = 0;
 
         Object.values(workloadData).forEach(data => {
+            if (viewFilter !== 'ALL' && !String(data.fac).includes(viewFilter)) return;
+
             if (data.isPartTime) {
                 focusStats["Part-Time"] += data.wch;
             } else {
@@ -1815,11 +1843,11 @@ const firebaseConfig = {
         charts.faculty = new Chart(document.getElementById('facultyChart'), {
             type: 'bar',
             data: {
-                labels: FACULTIES,
+                labels: displayFaculties,
                 datasets: [
-                    { label: 'Unassigned (Periods)', backgroundColor: '#dc2626', data: FACULTIES.map(f => facStats[f].unassigned) },
-                    { label: 'Part-Time (Periods)', backgroundColor: '#d4af37', data: FACULTIES.map(f => facStats[f].pt) },
-                    { label: 'Full-Time (Periods)', backgroundColor: '#004d40', data: FACULTIES.map(f => facStats[f].ft) }
+                    { label: 'Unassigned (Periods)', backgroundColor: '#dc2626', data: displayFaculties.map(f => facStats[f] ? facStats[f].unassigned : 0) },
+                    { label: 'Part-Time (Periods)', backgroundColor: '#d4af37', data: displayFaculties.map(f => facStats[f] ? facStats[f].pt : 0) },
+                    { label: 'Full-Time (Periods)', backgroundColor: '#004d40', data: displayFaculties.map(f => facStats[f] ? facStats[f].ft : 0) }
                 ]
             },
             options: { 
@@ -1854,7 +1882,8 @@ const firebaseConfig = {
         ];
 
         let cardsHtml = '';
-        FACULTIES.forEach((f, idx) => {
+        displayFaculties.forEach((f, idx) => {
+            if (!facDetailedStats[f]) return;
             const stats = facDetailedStats[f];
             if(stats.offered > 0) {
                 const colorClass = royalColors[idx % royalColors.length];
@@ -1894,7 +1923,8 @@ const firebaseConfig = {
         `;
         let grandTotal = 0, grandAssigned = 0, grandUnassigned = 0;
 
-        FACULTIES.forEach(f => {
+        displayFaculties.forEach(f => {
+            if (!facStats[f]) return;
             let fTotalWCH = facStats[f].unassigned + facStats[f].pt + facStats[f].ft;
             let fAssignedWCH = facStats[f].pt + facStats[f].ft;
             let fUnassignedWCH = facStats[f].unassigned;
@@ -1940,11 +1970,11 @@ const firebaseConfig = {
         charts.assignmentDetails = new Chart(document.getElementById('assignmentDetailsChart'), {
             type: 'bar',
             data: {
-                labels: FACULTIES,
+                labels: displayFaculties,
                 datasets: [
-                    { label: 'Full-Time (Same Faculty)', backgroundColor: '#0d47a1', data: FACULTIES.map(f => facDetailedStats[f].ftSame) },
-                    { label: 'Part-Time (Same Faculty)', backgroundColor: '#4a148c', data: FACULTIES.map(f => facDetailedStats[f].ptSame) },
-                    { label: 'Other Faculties (Cross-Assigned)', backgroundColor: '#004d40', data: FACULTIES.map(f => facDetailedStats[f].otherFac) }
+                    { label: 'Full-Time (Same Faculty) Periods', backgroundColor: '#0d47a1', data: displayFaculties.map(f => facDetailedStats[f] ? facDetailedStats[f].ftSameWch : 0) },
+                    { label: 'Part-Time (Same Faculty) Periods', backgroundColor: '#4a148c', data: displayFaculties.map(f => facDetailedStats[f] ? facDetailedStats[f].ptSameWch : 0) },
+                    { label: 'Other Faculties (Cross-Assigned) Periods', backgroundColor: '#004d40', data: displayFaculties.map(f => facDetailedStats[f] ? facDetailedStats[f].otherFacWch : 0) }
                 ]
             },
             options: {
