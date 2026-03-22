@@ -580,7 +580,17 @@
                         <div class="h-48 md:h-56"><canvas id="focusChart"></canvas></div>
                     </div>
                 </div>
-                
+
+                <div class="mb-6 mt-6">
+                    <h3 class="text-xs font-black uppercase text-royal-blue mb-3 border-b-2 border-gray-200 pb-1">Faculty Module Assignment Analytics</h3>
+                    
+                    <div id="faculty-cards-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6"></div>
+                    
+                    <div class="card p-4">
+                        <h3 class="text-xs font-black uppercase text-royal-purple mb-2">Lecturer Deployment Source by Faculty</h3>
+                        <div class="h-64 md:h-80"><canvas id="assignmentDetailsChart"></canvas></div>
+                    </div>
+                </div>
                 <p class="text-[9px] text-gray-500 mb-2 font-bold px-2">Hint: Click on any staff name below to instantly view and print their workload slip.</p>
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -704,21 +714,21 @@
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Firebase Configuration
-    const fbConfig = {
-        apiKey: "AIzaSyBpbegNLw1PZbE0BEx9CtKMC9cawyL6Ik4",
-        authDomain: "workload-portal.firebaseapp.com",
-        projectId: "workload-portal",
-        storageBucket: "workload-portal.firebasestorage.app",
-        messagingSenderId: "76088077154",
-        appId: "1:76088077154:web:fe2b5e4e86c3b554e21a3b",
-        measurementId: "G-EG5NDPEZL4"
-    };
+ // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBdKlegzaCR8fFykukBOInscuuhxWPpodU",
+  authDomain: "academicwl.firebaseapp.com",
+  projectId: "academicwl",
+  storageBucket: "academicwl.firebasestorage.app",
+  messagingSenderId: "994825173497",
+  appId: "1:994825173497:web:0606a5eb681a7e451ea528",
+  measurementId: "G-CD9TG8Q00N"
+};
 
     // Global Application State Variables
     let app, auth, dbCloud;
     let localDB = { lecturers: [], modules: [], assignments: {} };
-    let charts = { faculty: null, focus: null };
+    let charts = { faculty: null, focus: null, assignmentDetails: null }; // Added assignmentDetails
     let currentLecturerId = null;
     let activeRole = 'ALL';
 
@@ -842,9 +852,9 @@
     };
     buildDropdowns();
 
-    // Firebase Initialization block
+   // Firebase Initialization block
     try {
-        app = initializeApp(fbConfig);
+        app = initializeApp(firebaseConfig); // މިތަނުގައި ކުރިން އިނީ fbConfig
         auth = getAuth(app);
         dbCloud = getFirestore(app);
     } catch (e) {
@@ -853,7 +863,6 @@
         document.getElementById('cloud-pulse').style.animation = "none";
         document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
     }
-
     window.detectFacultyFromEmail = () => {
         const email = document.getElementById('login-email').value;
         document.getElementById('login-role').value = getRoleFromEmail(email);
@@ -1053,98 +1062,61 @@
 
     window.generateDummies = (type) => {
         let rows = [];
-        const faculties = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "CPS", "CCE"];
-        const firstNames = ["Ali", "Fathimath", "Ibrahim", "Aminath", "Mohamed", "Aishath", "Ahmed", "Mariyam", "Hassan", "Hawwa", "Abdulla", "Niuma", "Hussain", "Visama", "Nasrulla", "Samaa"];
-        const lastNames = ["Muna", "Ali", "Saeed", "Hassan", "Sodiq", "Shifau", "Zahir", "Ahmed", "Moosa", "Waheed", "Ibrahim", "Majeed"];
-        
-        if (type === 'lect') {
-            const samples = [
-                {"Kulliyyah / Centre":"CPS","Lecturer ID":"A023102","Lecturer Name":"Dr. Fathimath Muna","Lecturer Category":"Dean","Lecturer Type":"Full-time","Mobile Number":"7774970"},
-                {"Kulliyyah / Centre":"KED","Lecturer ID":"A035929","Lecturer Name":"Ibrahim Ali","Lecturer Category":"Teaching Focused","Lecturer Type":"Full-time","Mobile Number":"7597016"},
-                {"Kulliyyah / Centre":"KED","Lecturer ID":"A076601","Lecturer Name":"Agisa Ali","Lecturer Category":"Teaching Focused","Lecturer Type":"Full-time","Mobile Number":"7998986"},
-                {"Kulliyyah / Centre":"KIRK","Lecturer ID":"A090972","Lecturer Name":"Aroosha Mahir","Lecturer Category":"Research Focused","Lecturer Type":"Full-time","Mobile Number":"9791559"},
-                {"Kulliyyah / Centre":"KED","Lecturer ID":"A005577","Lecturer Name":"Dr. Khaulath Saeed","Lecturer Category":"Research Focused","Lecturer Type":"Full-time","Mobile Number":"7943172"},
-                {"Kulliyyah / Centre":"KED","Lecturer ID":"A052564","Lecturer Name":"Visama Hassan","Lecturer Category":"Research Focused","Lecturer Type":"Full-time","Mobile Number":"7948030"},
-                {"Kulliyyah / Centre":"KIRK","Lecturer ID":"A070793","Lecturer Name":"Ahmed Nizar Sodiq","Lecturer Category":"Teaching Focused","Lecturer Type":"Full-time","Mobile Number":"7890655"},
-                {"Kulliyyah / Centre":"KED","Lecturer ID":"A077701","Lecturer Name":"Ibrahim Shifau","Lecturer Category":"Teaching Focused","Lecturer Type":"Full-time","Mobile Number":"7458380"},
-                {"Kulliyyah / Centre":"KQS","Lecturer ID":"A115739","Lecturer Name":"Abdul Wahid Abdulla","Lecturer Category":"Teaching Focused","Lecturer Type":"Full-time","Mobile Number":"7772347"},
-                {"Kulliyyah / Centre":"CCE","Lecturer ID":"A073976","Lecturer Name":"Mohamed Zahir","Lecturer Category":"Teaching Focused","Lecturer Type":"Full-time","Mobile Number":"7794074"},
-                {"Kulliyyah / Centre":"CCE","Lecturer ID":"A082176","Lecturer Name":"Nasrulla Ahmed","Lecturer Category":"Research Focused","Lecturer Type":"Full-time","Mobile Number":"7587470"},
-                {"Kulliyyah / Centre":"KQS","Lecturer ID":"A047145","Lecturer Name":"Mohamed Moosa","Lecturer Category":"Part-time (Max 15 periods)","Lecturer Type":"Part-time","Mobile Number":"9991425"},
-                {"Kulliyyah / Centre":"KQS","Lecturer ID":"A074851","Lecturer Name":"Abdulla waheed","Lecturer Category":"Part-time (Max 15 periods)","Lecturer Type":"Part-time","Mobile Number":"7774880"},
-                {"Kulliyyah / Centre":"KQS","Lecturer ID":"A281762","Lecturer Name":"Ali Safwan Ibrahim","Lecturer Category":"Part-time (Max 15 periods)","Lecturer Type":"Part-time","Mobile Number":"7910008"},
-                {"Kulliyyah / Centre":"KQS","Lecturer ID":"A354886","Lecturer Name":"khidr Bin Imad","Lecturer Category":"Part-time (Max 15 periods)","Lecturer Type":"Part-time","Mobile Number":"9819229"},
-                {"Kulliyyah / Centre":"KIRK","Lecturer ID":"A096684","Lecturer Name":"Samaa","Lecturer Category":"Part-time (Max 15 periods)","Lecturer Type":"Part-time","Mobile Number":"7974881"},
-                {"Kulliyyah / Centre":"KQS","Lecturer ID":"A044299","Lecturer Name":"Abdul Majeed Mohamed","Lecturer Category":"Part-time (Max 15 periods)","Lecturer Type":"Part-time","Mobile Number":"7748722"},
-                {"Kulliyyah / Centre":"KQS","Lecturer ID":"A304415","Lecturer Name":"hashm nazim","Lecturer Category":"Part-time (Max 15 periods)","Lecturer Type":"Part-time","Mobile Number":"9195791"},
-                {"Kulliyyah / Centre":"KQS","Lecturer ID":"A131077","Lecturer Name":"Aboobakuru ibrahim","Lecturer Category":"Part-time (Max 15 periods)","Lecturer Type":"Part-time","Mobile Number":"9939493"},
-                {"Kulliyyah / Centre":"KQS","Lecturer ID":"A142633","Lecturer Name":"Aminath Shuzee","Lecturer Category":"Part-time (Max 15 periods)","Lecturer Type":"Part-time","Mobile Number":"7989800"}
-            ];
-            rows = [...samples];
-            
-            for(let i=1; i<=800; i++) {
-                const fac = faculties[Math.floor(Math.random() * faculties.length)];
-                const isPt = Math.random() > 0.6;
-                const cat = isPt ? "Part-time (Max 15 periods)" : (Math.random() > 0.5 ? "Teaching Focused" : "Research Focused");
-                const typeStr = isPt ? "Part-time" : "Full-time";
-                const fName = firstNames[Math.floor(Math.random() * firstNames.length)];
-                const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
-                const prefix = (!isPt && Math.random() > 0.8) ? "Dr. " : "";
-                
-                rows.push({
-                    "Kulliyyah / Centre": fac,
-                    "Lecturer ID": "A" + String(Math.floor(Math.random()*900000) + 100000),
-                    "Lecturer Name": prefix + fName + " " + lName,
-                    "Lecturer Category": cat,
-                    "Lecturer Type": typeStr,
-                    "Mobile Number": (Math.random() > 0.5 ? "7" : "9") + String(Math.floor(Math.random()*900000) + 100000)
-                });
-            }
-            downloadCSV(rows, "Lecturer_Workload_Master_Data.csv");
-            window.showToast("Sample Lecturer CSV Generated.", "info");
-        } else {
-            const samples = [
-                {"Session":"Morning","Program Name":"Bachelor of Studies","Offered Batch":"Batch 2","Lecturer Category":"","Parent Kulliyya":"KAL","Parent Faculty":"KSL","Medium of Instruction":"English","Combined Batch":"","Offered Status":"Existing","New / Revision":"New","MALE":"Hulhumale","Module Name":"Arabic Language Level 1 (MNQF Level 5-7)","Modality":"Face to Face","Kulliyyah/Centre":"KSL","Module Code":"ARB0001","Full-time Helper":"","Phone Number":"","No of Students":"18","Weekly Contact Hours":"2","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"Jan-26","SYSTEM_ASSIGNED_LECTURER_ID":"NID1100","SYSTEM_ASSIGNED_LECTURER_NAME":"Dr. Academic 100","SYSTEM_SYNC_MODE":"Individual"},
-                {"Session":"Morning","Program Name":"Bachelor of Studies","Offered Batch":"Batch 3","Lecturer Category":"","Parent Kulliyya":"KAL","Parent Faculty":"KEMS","Medium of Instruction":"English","Combined Batch":"","Offered Status":"Existing","New / Revision":"New","MALE":"Addu City","Module Name":"Arabic Language Level 2 (MNQF Level 5-7)","Modality":"Face to Face","Kulliyyah/Centre":"KEMS","Module Code":"ARB0002","Full-time Helper":"","Phone Number":"","No of Students":"17","Weekly Contact Hours":"2","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"Jan-26","SYSTEM_ASSIGNED_LECTURER_ID":"NID1020","SYSTEM_ASSIGNED_LECTURER_NAME":"Dr. Academic 20","SYSTEM_SYNC_MODE":"Individual"},
-                {"Session":"Morning","Program Name":"Bachelor of Studies","Offered Batch":"Batch 4","Lecturer Category":"","Parent Kulliyya":"KAL","Parent Faculty":"KIRK","Medium of Instruction":"English","Combined Batch":"","Offered Status":"Existing","New / Revision":"New","MALE":"Fuvahmulah","Module Name":"Arabic Language Level 3 (MNQF Level 5-7)","Modality":"Online","Kulliyyah/Centre":"KIRK","Module Code":"ARB0003","Full-time Helper":"","Phone Number":"","No of Students":"24","Weekly Contact Hours":"2","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"Jan-26","SYSTEM_ASSIGNED_LECTURER_ID":"NID1080","SYSTEM_ASSIGNED_LECTURER_NAME":"Dr. Academic 80","SYSTEM_SYNC_MODE":"Individual"},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KED","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Scholarly Writing","Modality":"","Kulliyyah/Centre":"KED","Module Code":"RES0918","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KED","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Capstone Project","Modality":"","Kulliyyah/Centre":"KED","Module Code":"RES0919","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KED","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Mixed Methods Research","Modality":"","Kulliyyah/Centre":"KED","Module Code":"RES0920","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KED","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Technology- Enabled Teaching and Learning","Modality":"","Kulliyyah/Centre":"KED","Module Code":"EDU0922","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KED","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Curriculum Design and Development in Higher Education","Modality":"","Kulliyyah/Centre":"KED","Module Code":"EDU0924","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KED","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Teaching Practicum","Modality":"","Kulliyyah/Centre":"KED","Module Code":"EDU0925","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"0","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KIRK","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Islamic Faith 1","Modality":"","Kulliyyah/Centre":"KIRK","Module Code":"USU0706","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KIRK","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Fiqh of Worship 1","Modality":"","Kulliyyah/Centre":"KIRK","Module Code":"SHA0737","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KIRK","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Islamic Faith 2","Modality":"","Kulliyyah/Centre":"KIRK","Module Code":"USU0707","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KIRK","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Fiqh of Worship 2","Modality":"","Kulliyyah/Centre":"KIRK","Module Code":"SHA0738","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KED","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Active Learning Pedagogies","Modality":"","Kulliyyah/Centre":"KED","Module Code":"EDU0927","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KIRK","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Science of Hadith","Modality":"","Kulliyyah/Centre":"KIRK","Module Code":"SUN0711","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KIRK","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Punishment and Crimes","Modality":"","Kulliyyah/Centre":"KIRK","Module Code":"SHA0740","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KIRK","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Fiqh of Transactions","Modality":"","Kulliyyah/Centre":"KIRK","Module Code":"SHA0739","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KIRK","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Principles of Islamic Jurisprudence","Modality":"","Kulliyyah/Centre":"KIRK","Module Code":"SHA0742","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""},
-                {"Session":"","Program Name":"","Offered Batch":"","Lecturer Category":"","Parent Kulliyya":"KIRK","Parent Faculty":"","Medium of Instruction":"","Combined Batch":"","Offered Status":"","New / Revision":"","MALE":"","Module Name":"Selections from the Prophetic Traditions","Modality":"","Kulliyyah/Centre":"KIRK","Module Code":"SUN0709","Full-time Helper":"","Phone Number":"","No of Students":"","Weekly Contact Hours":"3","Lecturer Assigned":""," Lecturer Type (FT, PT)":"","Lecturer National ID":"","Lecturer Name":"","Intake":"","SYSTEM_ASSIGNED_LECTURER_ID":"","SYSTEM_ASSIGNED_LECTURER_NAME":"","SYSTEM_SYNC_MODE":""}
-            ];
-            rows = [...samples];
-            
-            const modulesList = [
-                {n: "Arabic Language Level 1", c: "ARB0001"}, {n: "Scholarly Writing", c: "RES0918"},
-                {n: "Capstone Project", c: "RES0919"}, {n: "Mixed Methods Research", c: "RES0920"},
-                {n: "Islamic Faith 1", c: "USU0706"}, {n: "Fiqh of Worship 1", c: "SHA0737"},
-                {n: "Teaching Practicum", c: "EDU0925"}, {n: "Active Learning Pedagogies", c: "EDU0927"},
-                {n: "Science of Hadith", c: "SUN0711"}, {n: "Punishment and Crimes", c: "SHA0740"},
-                {n: "Fiqh of Transactions", c: "SHA0739"}, {n: "Principles of Islamic Jurisprudence", c: "SHA0742"}
-            ];
-            const campuses = ["Male'", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo"];
+        const faculties = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
 
+        if (type === 'lect') {
+            const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Fathimath", "Aminath", "Aishath", "Mariyam", "Hawwa", "Zuleykha", "Ibrahim", "Adam", "Moosa", "Niuma", "Asma"];
+            const lastNames = ["Zahir", "Nazeer", "Moosa", "Ibrahim", "Saeed", "Muna", "Sama", "Rashid", "Latheef", "Naseem", "Shareef", "Waheed", "Majeed", "Riza"];
+
+            faculties.forEach(fac => {
+                const addFakePerson = (cat, typeStr) => {
+                    const fName = firstNames[Math.floor(Math.random() * firstNames.length)];
+                    const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
+                    const prefix = (typeStr === "Full-time" && Math.random() > 0.7) ? "Dr. " : "";
+                    const fakeID = "A" + Math.floor(100000 + Math.random() * 900000);
+                    const fakePhone = (Math.random() > 0.5 ? "7" : "9") + Math.floor(100000 + Math.random() * 900000);
+                    
+                    rows.push({
+                        "Kulliyyah / Centre": fac,
+                        "Lecturer ID": fakeID,
+                        "Lecturer Name": prefix + fName + " " + lName,
+                        "Lecturer Category": cat,
+                        "Lecturer Type": typeStr,
+                        "Mobile Number": fakePhone
+                    });
+                };
+
+                // ކޮންމެ ފެކަލްޓީއަކަށް: 1 ޑީން، 100 ޓީޗިންގ، 10 ރިސަރޗް، 89 ޕާޓް-ޓައިމް (ޖުމްލަ 200)
+                addFakePerson("Dean", "Full-time");
+                for(let i=0; i<100; i++) addFakePerson("Teaching Focused", "Full-time");
+                for(let i=0; i<10; i++) addFakePerson("Research Focused", "Full-time");
+                for(let i=0; i<89; i++) addFakePerson("Part-time (Max 15 periods)", "Part-time");
+            });
+
+            downloadCSV(rows, "Lecturer_Workload_Master_Data.csv");
+            window.showToast("4000 Fake Lecturers Generated (200 per Faculty).", "success");
+
+        } else {
+            const campuses = ["Male'", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo"];
+            const genericSubjects = ["Mathematics", "Science", "History", "Literature", "Programming", "Economics", "Law", "Management", "Nursing", "Architecture"];
+            const levels = ["Introduction to", "Advanced", "Principles of", "Fundamentals of", "Applied"];
+            
             for(let i=1; i<=1000; i++) {
                 const fac = faculties[Math.floor(Math.random() * faculties.length)];
-                const mod = modulesList[Math.floor(Math.random() * modulesList.length)];
                 const isCombined = Math.random() > 0.8;
                 const combStr = isCombined ? ("Batch " + Math.floor(Math.random()*5+1) + ", Batch " + Math.floor(Math.random()*5+5)) : "";
                 
+                const subj = genericSubjects[Math.floor(Math.random() * genericSubjects.length)];
+                const lvl = levels[Math.floor(Math.random() * levels.length)];
+                const fakeModuleName = `${lvl} ${subj} (MNQF Level ${Math.floor(Math.random() * 3 + 5)})`;
+                const fakeModuleCode = subj.substring(0,3).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+                
+                // ކޮންޓެކްޓް ގަޑި 2, 3, ނުވަތަ 4 އަށް
+                const wch = [2, 3, 4][Math.floor(Math.random() * 3)];
+
                 rows.push({
                     "Session": Math.random() > 0.5 ? "Morning" : "Evening",
-                    "Program Name": Math.random() > 0.5 ? "Bachelor of Studies" : "Master of Islamic Studies",
+                    "Program Name": "Generic Dummy Program",
                     "Offered Batch": "Batch " + Math.floor(Math.random()*10 + 1),
                     "Lecturer Category": "",
                     "Parent Kulliyya": fac,
@@ -1154,14 +1126,14 @@
                     "Offered Status": Math.random() > 0.8 ? "New" : "Existing",
                     "New / Revision": "New",
                     "MALE": campuses[Math.floor(Math.random() * campuses.length)],
-                    "Module Name": mod.n + " (MNQF Level 5-7)",
+                    "Module Name": fakeModuleName,
                     "Modality": Math.random() > 0.7 ? "Online" : "Face to Face",
                     "Kulliyyah/Centre": fac,
-                    "Module Code": mod.c + "-00" + i,
+                    "Module Code": fakeModuleCode,
                     "Full-time Helper ": "",
                     "Phone Number": "",
                     "No of Students": Math.floor(Math.random()*40 + 10),
-                    "Weekly Contact Hours": mod.c === "EDU0925" ? "0" : (Math.random() > 0.5 ? "3" : "2"),
+                    "Weekly Contact Hours": String(wch),
                     "Lecturer Assigned": "",
                     " Lecturer Type (FT, PT)": "",
                     "Lecturer National ID": "",
@@ -1173,10 +1145,9 @@
                 });
             }
             downloadCSV(rows, "Academic_Affairs_Master_Workload.csv");
-            window.showToast("Sample Module CSV Generated.", "info");
+            window.showToast("1000 Fake Modules Generated.", "success");
         }
     };
-
     function downloadCSV(data, filename) {
         const csv = Papa.unparse(data);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1867,7 +1838,13 @@
         let facStats = {}; 
         let focusStats = { "Teaching": 0, "Research": 0, "Part-Time": 0 };
         
-        FACULTIES.forEach(f => facStats[f] = { pt: 0, ft: 0 });
+        // NEW STATS TRACKER FOR ROYAL CARDS & 3-COLOR CHART
+        let facDetailedStats = {};
+        
+        FACULTIES.forEach(f => {
+            facStats[f] = { pt: 0, ft: 0 };
+            facDetailedStats[f] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0 };
+        });
 
         localDB.lecturers.forEach(l => {
             const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
@@ -1896,6 +1873,14 @@
             const rawMCode = window.getSafeVal(m, ['ModuleCode']);
             const mCode = window.makeSafeId(rawMCode);
             
+            // Collect Faculty Module Information for New Features
+            const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+            const mFac = FACULTIES.find(f => mFacName.toUpperCase().includes(f)) || mFacName;
+            
+            if (facDetailedStats[mFac]) {
+                facDetailedStats[mFac].offered++;
+            }
+            
             let rawWch = window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours']);
             let wch = parseFloat(rawWch);
             if (isNaN(wch)) wch = 0;
@@ -1904,7 +1889,26 @@
             
             if (!assignment.id || assignment.id === '') {
                 unassignedCount++;
+                if (facDetailedStats[mFac]) facDetailedStats[mFac].unassigned++;
             } else {
+                if (facDetailedStats[mFac]) facDetailedStats[mFac].assigned++;
+                
+                // Track Assignment deployment source (FT/PT/Other)
+                const assignedLect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
+                if (assignedLect && facDetailedStats[mFac]) {
+                    const lFacName = window.getSafeVal(assignedLect, ['Kulliyyah', 'Faculty']);
+                    const lFac = FACULTIES.find(f => lFacName.toUpperCase().includes(f)) || lFacName;
+                    const typeStr = String(window.getSafeVal(assignedLect, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
+                    const isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
+                    
+                    if (lFac === mFac) {
+                        if (isPartTime) facDetailedStats[mFac].ptSame++;
+                        else facDetailedStats[mFac].ftSame++;
+                    } else {
+                        facDetailedStats[mFac].otherFac++;
+                    }
+                }
+
                 let actualWch = wch;
                 if (assignment.mode === 'Combined') {
                     if (seenCombinedCodes.has(mCode)) actualWch = 0;
@@ -1997,6 +2001,58 @@
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false }
+        });
+        
+        // --- NEW FEATURES RENDER: ROYAL CARDS & 3-COLOR CHART ---
+        const royalColors = [
+            'bg-[#004d40]', 'bg-[#0d47a1]', 'bg-[#4a148c]', 'bg-[#881337]',
+            'bg-[#1e3a8a]', 'bg-[#115e59]', 'bg-[#312e81]', 'bg-[#4c1d95]',
+            'bg-[#831843]', 'bg-[#14532d]'
+        ]; // No Yellow Included per user request
+
+        let cardsHtml = '';
+        FACULTIES.forEach((f, idx) => {
+            const stats = facDetailedStats[f];
+            if(stats.offered > 0) {
+                const colorClass = royalColors[idx % royalColors.length];
+                cardsHtml += `
+                    <div class="${colorClass} text-white p-3 md:p-4 rounded-xl shadow-lg border-2 border-white/20 relative overflow-hidden transform transition hover:scale-105">
+                        <div class="absolute -right-4 -top-4 opacity-10 text-6xl">🏛️</div>
+                        <h4 class="text-[11px] md:text-xs font-black mb-2 border-b border-white/30 pb-1 tracking-widest uppercase">${f}</h4>
+                        <div class="grid grid-cols-1 gap-1.5 text-[10px] md:text-[11px] font-bold">
+                            <div class="flex justify-between items-center"><span class="opacity-80">Offered Modules:</span> <span class="bg-white/20 px-1.5 rounded">${stats.offered}</span></div>
+                            <div class="flex justify-between items-center text-green-300"><span class="opacity-80">Assigned:</span> <span class="bg-black/20 px-1.5 rounded">${stats.assigned}</span></div>
+                            <div class="flex justify-between items-center text-red-300"><span class="opacity-80">Unassigned:</span> <span class="bg-black/20 px-1.5 rounded">${stats.unassigned}</span></div>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        const cardsContainer = document.getElementById('faculty-cards-container');
+        if(cardsContainer) cardsContainer.innerHTML = cardsHtml || '<p class="text-[10px] text-gray-500 italic col-span-full">No module data available to generate cards.</p>';
+
+        if (charts.assignmentDetails) charts.assignmentDetails.destroy();
+        charts.assignmentDetails = new Chart(document.getElementById('assignmentDetailsChart'), {
+            type: 'bar',
+            data: {
+                labels: FACULTIES,
+                datasets: [
+                    { label: 'Full-Time (Same Faculty)', backgroundColor: '#0d47a1', data: FACULTIES.map(f => facDetailedStats[f].ftSame) },
+                    { label: 'Part-Time (Same Faculty)', backgroundColor: '#4a148c', data: FACULTIES.map(f => facDetailedStats[f].ptSame) },
+                    { label: 'Other Faculties (Cross-Assigned)', backgroundColor: '#004d40', data: FACULTIES.map(f => facDetailedStats[f].otherFac) }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true }
+                },
+                plugins: {
+                    tooltip: { mode: 'index', intersect: false }
+                }
+            }
         });
     };
 
