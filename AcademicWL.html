@@ -1588,7 +1588,7 @@ const firebaseConfig = {
     window.masterReset = async () => {
         if (activeRole !== 'ALL') return alert("Unauthorized Action.");
         
-        const confirm1 = confirm("🚨 WARNING 🚨\nThis action will WIPE ALL UNIVERSITY DATA (Modules, Lecturers, and Assignments) from the cloud database.\n\nAre you sure you want to proceed?");
+        const confirm1 = confirm("🚨 WARNING 🚨\nThis action will WIPE ALL DATA (Modules, Lecturers, and Assignments) from the cloud database.\n\nAre you sure you want to proceed?");
         if(!confirm1) return;
 
         const confirmCode = prompt("To execute MASTER RESET, please type 'CONFIRM RESET' below:");
@@ -1599,43 +1599,43 @@ const firebaseConfig = {
 
         const loader = document.getElementById('loader');
         loader.style.display = 'flex';
-        document.getElementById('loader-text').innerText = "WIPING ENTIRE DATABASE...";
+        document.getElementById('loader-text').innerText = "WIPING CLOUD DATABASE (Please wait)...";
 
         try {
             localStorage.clear(); 
             
             if(dbCloud) {
-                const batch = writeBatch(dbCloud);
-                let deleteCount = 0;
+                const collectionsToClear = ["modules", "lecturers", "assignments"];
+                let totalDeleted = 0;
 
-                localDB.modules.forEach(m => {
-                    let id = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
-                    if(id) { batch.delete(doc(dbCloud, 'modules', id)); deleteCount++; }
-                });
-
-                localDB.lecturers.forEach(l => {
-                    let id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
-                    if(id) { batch.delete(doc(dbCloud, 'lecturers', id)); deleteCount++; }
-                });
-
-                Object.keys(localDB.assignments).forEach(id => {
-                    batch.delete(doc(dbCloud, 'assignments', id)); deleteCount++;
-                });
-
-                if(deleteCount > 0) {
-                    await batch.commit();
+                for (const collName of collectionsToClear) {
+                    const snapshot = await getDocs(collection(dbCloud, collName));
+                    const docs = snapshot.docs;
+                    
+                    for (let i = 0; i < docs.length; i += 500) {
+                        const chunk = docs.slice(i, i + 500);
+                        const batch = writeBatch(dbCloud);
+                        
+                        chunk.forEach(d => {
+                            batch.delete(doc(dbCloud, collName, d.id));
+                            totalDeleted++;
+                        });
+                        
+                        await batch.commit();
+                        await new Promise(r => setTimeout(r, 100));
+                    }
                 }
+                console.log(`Master Reset: Deleted ${totalDeleted} documents from cloud.`);
             }
 
             localDB = { lecturers: [], modules: [], assignments: {} };
             
             window.renderMatrix(); window.renderStaffTargets(); window.updateAnalytics(); window.populateLecturerDropdown();
-            window.showToast("✅ SYSTEM RESET SUCCESSFUL.", "success");
+            window.showToast("✅ FULL SYSTEM RESET SUCCESSFUL.", "success");
 
         } catch(error) {
             console.error("Reset Error", error);
-            alert("⚠️ Partial Reset Completed. If data remains, please hit Reset again.");
-            location.reload();
+            alert("⚠️ Error during reset: " + error.message);
         } finally {
             loader.style.display = 'none';
         }
@@ -1808,7 +1808,6 @@ const firebaseConfig = {
         if (charts.faculty) charts.faculty.destroy();
         if (charts.focus) charts.focus.destroy();
         
-        // ފޮޓޯއާ އެއްގޮތަށް ޗާޓުގެ ކުލަތައް ބަދަލުކުރުން (Red, Gold, Dark Green)
         charts.faculty = new Chart(document.getElementById('facultyChart'), {
             type: 'bar',
             data: {
@@ -1871,7 +1870,6 @@ const firebaseConfig = {
         const cardsContainer = document.getElementById('faculty-cards-container');
         if(cardsContainer) cardsContainer.innerHTML = cardsHtml || '<p class="text-[10px] text-gray-500 italic col-span-full">No module data available to generate cards.</p>';
 
-        // ފޮޓޯއާ އެއްގޮތަށް ޑިޒައިން ކުރެވިފައިވާ ފުރިހަމަ ސަމަރީ ޓޭބަލް
         let facSummaryHtml = `
         <div class="bg-white rounded-lg shadow-md border-t-8 border-[#004d40] overflow-hidden mb-6">
             <div class="p-4 border-b border-gray-200">
@@ -1905,7 +1903,7 @@ const firebaseConfig = {
 
                 facSummaryHtml += `
                 <tr class="hover:bg-gray-50 transition">
-                    <td class="p-4 py-3 text-gray-800">Faculty of ${f}</td>
+                    <td class="p-4 py-3 text-gray-800">${f}</td>
                     <td class="p-4 py-3 text-center text-gray-800">${fTotalWCH.toFixed(1)}</td>
                     <td class="p-4 py-3 text-center text-green-600">${fAssignedWCH.toFixed(1)}</td>
                     <td class="p-4 py-3 text-center text-red-600">${fUnassignedWCH.toFixed(1)}</td>
