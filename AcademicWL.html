@@ -382,7 +382,7 @@
             <div id="tab-analytics" class="tab-content">
                 
                 <div class="card p-4 mb-6">
-                    <h3 class="text-xs font-black uppercase text-royal-green mb-2">UNIVERSITY WIDE WORKLOAD (WCH)</h3>
+                    <h3 class="text-xs font-black uppercase text-royal-green mb-2 tracking-wide">UNIVERSITY WIDE WORKLOAD (PERIODS)</h3>
                     <div class="h-64 md:h-80"><canvas id="facultyChart"></canvas></div>
                 </div>
 
@@ -545,6 +545,10 @@ const firebaseConfig = {
     let activeRole = 'ALL';
 
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
+
+    // GLOBAL OPTIONS FOR TOMSELECT API (Prevents V8 String Limit Crash)
+    window.globalLecturerOptions = [];
+    window.globalLecturerOptgroups = [];
 
     let idleTimeout;
     const IDLE_TIME_MS = 30 * 60 * 1000; 
@@ -997,10 +1001,16 @@ const firebaseConfig = {
             localDB[type] = Array.from(existingMap.values());
             
             window.saveLocal(true);
-            window.populateLecturerDropdown(); 
-            window.renderMatrix(); 
-            window.renderStaffTargets();
-            window.updateAnalytics();
+            
+            try {
+                window.populateLecturerDropdown(); 
+                window.renderMatrix(); 
+                window.renderStaffTargets();
+                window.updateAnalytics();
+            } catch (err) {
+                console.error("UI Render Crash during Import:", err);
+                alert("Upload Note (UI Crash): " + err.message);
+            }
 
             loader.style.display = 'none';
             event.target.value = ''; 
@@ -1050,6 +1060,7 @@ const firebaseConfig = {
         }
     };
 
+    // API OPTIMIZATION: Build TomSelect Options Once, prevent millions of HTML nodes.
     window.populateLecturerDropdown = () => {
         const select1 = document.getElementById('hrSelect');
         const select2 = document.getElementById('lecturerSelectStandalone');
@@ -1057,9 +1068,23 @@ const firebaseConfig = {
         if (window.tsHr) { window.tsHr.destroy(); window.tsHr = null; }
         if (window.tsLect) { window.tsLect.destroy(); window.tsLect = null; }
 
-        let groupedLecturers = {};
-        FACULTIES.forEach(f => groupedLecturers[f] = []);
+        window.globalLecturerOptions = [];
+        window.globalLecturerOptgroups = [];
+
+        let dynamicFaculties = new Set(FACULTIES);
         
+        localDB.lecturers.forEach(l => {
+            const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty', 'Centre']);
+            const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || String(rawFac).toUpperCase();
+            if (fac && !dynamicFaculties.has(fac)) {
+                dynamicFaculties.add(fac);
+            }
+        });
+        
+        dynamicFaculties.forEach(f => {
+            window.globalLecturerOptgroups.push({ value: f, label: `Faculty of ${f}` });
+        });
+
         localDB.lecturers.forEach(l => {
             const rawId = window.getSafeVal(l, ['LecturerID', 'NationalID']);
             const id = window.makeSafeId(rawId);
@@ -1068,35 +1093,43 @@ const firebaseConfig = {
             const phone = window.getSafeVal(l, ['Mobile', 'Phone', 'Contact']) || 'N/A';
             const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
             const empType = (typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting')) ? 'PT' : 'FT';
-            
-            const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || rawFac;
+            const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || String(rawFac).toUpperCase();
 
             if (id && name) {
-                if (!groupedLecturers[fac]) groupedLecturers[fac] = [];
-                groupedLecturers[fac].push({ id, name, rawId, phone, empType });
-            }
-        });
-
-        let optgroupsHTML = '';
-        Object.keys(groupedLecturers).forEach(fac => {
-            if (groupedLecturers[fac].length > 0) {
-                optgroupsHTML += `<optgroup label="Faculty of ${fac}">`;
-                groupedLecturers[fac].forEach(l => { 
-                    optgroupsHTML += `<option value="${l.id}">[${l.empType}] ${l.name} [ID: ${l.rawId} | 📞 ${l.phone}]</option>`; 
+                window.globalLecturerOptions.push({
+                    value: id,
+                    text: `[${empType}] ${name} [ID: ${rawId} | 📞 ${phone}]`,
+                    optgroup: fac
                 });
-                optgroupsHTML += `</optgroup>`;
             }
         });
 
-        if (select1) select1.innerHTML = '<option value="">-- Check Lecturer Workload --</option>' + optgroupsHTML;
-        if (select2) select2.innerHTML = '<option value="">-- Search & Select Your Name --</option>' + optgroupsHTML;
-        
-        if (select1 && select1.options.length > 1) {
-            window.tsHr = new TomSelect(select1, { create: false, placeholder: "🔍 Search Name, ID, Phone..." });
+        const defaultTomSelectConfig = {
+            create: false,
+            placeholder: "🔍 Search Name, ID, Phone...",
+            options: window.globalLecturerOptions,
+            optgroups: window.globalLecturerOptgroups,
+            optgroupField: 'optgroup',
+            valueField: 'value',
+            labelField: 'text',
+            searchField: ['text'],
+            maxOptions: 50,
+            render: {
+                optgroup_header: function(data, escape) {
+                    return '<div class="font-bold text-royal-green px-2 py-1 bg-gray-100">' + escape(data.label) + '</div>';
+                }
+            }
+        };
+
+        if (select1) {
+            select1.innerHTML = '<option value="">-- Check Lecturer Workload --</option>';
+            window.tsHr = new TomSelect(select1, defaultTomSelectConfig);
             window.tsHr.on('change', val => window.openHRView(val));
         }
-        if (select2 && select2.options.length > 1) {
-            window.tsLect = new TomSelect(select2, { create: false, placeholder: "🔍 Search Name, ID, Phone..." });
+        
+        if (select2) {
+            select2.innerHTML = '<option value="">-- Search & Select Your Name --</option>';
+            window.tsLect = new TomSelect(select2, defaultTomSelectConfig);
             window.tsLect.on('change', val => window.openHRView(val));
         }
     };
@@ -1166,27 +1199,11 @@ const firebaseConfig = {
             return;
         }
 
-        let lectOptionsMap = '<option value="">-- Assign --</option>';
-        FACULTIES.forEach(fac => {
-            const facLecturers = localDB.lecturers.filter(l => String(window.getSafeVal(l, ['Kulliyyah', 'Faculty'])).includes(fac));
-            if (facLecturers.length > 0) {
-                lectOptionsMap += `<optgroup label="Faculty of ${fac}">`;
-                facLecturers.forEach(l => {
-                    const safeLId = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
-                    const phone = window.getSafeVal(l, ['Mobile', 'Phone', 'Contact']) || 'N/A';
-                    const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
-                    const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
-                    const empType = (typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting')) ? 'PT' : 'FT';
-                    lectOptionsMap += `<option value="${safeLId}">[${empType}] ${name} [ID: ${window.getSafeVal(l, ['LecturerID', 'NationalID'])} | 📞 ${phone}]</option>`;
-                });
-                lectOptionsMap += `</optgroup>`;
-            }
-        });
-
         let finalHTML = ''; 
 
         localDB.modules.forEach(m => {
-            const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+            const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+            const mFac = FACULTIES.find(f => String(mFacName).toUpperCase().includes(f)) || mFacName;
             const mName = window.getSafeVal(m, ['ModuleName', 'ModuleTitle']);
             const mCode = window.getSafeVal(m, ['ModuleCode']);
             const combinedData = window.getSafeVal(m, ['CombinedBatch']);
@@ -1207,7 +1224,7 @@ const firebaseConfig = {
                 const campus = window.getSafeCampus(m);
                 const program = window.getSafeVal(m, ['ProgramName']);
                 
-                let wch = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit']));
+                let wch = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']));
                 if (isNaN(wch)) wch = 0;
 
                 let batch = window.getSafeVal(m, ['OfferedBatch']);
@@ -1223,10 +1240,10 @@ const firebaseConfig = {
                 const lockIcon = canEdit ? '' : '🔒 ';
                 const adminAction = activeRole === 'ALL' ? `<td class="p-2 align-middle text-center"><button onclick="window.deleteModuleRow('${safeMCode}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Module">🗑️</button></td>` : '';
                 
-                const currentLectOptions = lectOptionsMap.replace(`value="${assignment.id}"`, `value="${assignment.id}" selected`);
                 const isModeCombined = assignment.mode === 'Combined' ? 'selected' : '';
                 const isModeIndiv = assignment.mode === 'Individual' ? 'selected' : '';
 
+                // Highly Optimized DOM Setup: Empty select tags to let TomSelect handle it via Data API
                 finalHTML += `
                 <tr id="row-${safeMCode}" class="hover:bg-blue-50 border-b border-gray-100 transition ${!isAssigned ? 'bg-red-50/10' : ''}">
                     <td class="p-2 align-middle status-cell">${statusBadge}</td>
@@ -1236,8 +1253,7 @@ const firebaseConfig = {
                     <td class="p-2 align-middle text-[8px] md:text-[9px] font-bold text-gray-600">${mFac}</td>
                     <td class="p-2 align-middle">
                         <div class="flex items-center gap-1 relative w-[250px]">
-                            <select data-mcode="${safeMCode}" ${disableAttr} class="w-full tom-select-assign ${selectStyle}" title="${canEdit ? 'Assign Lecturer' : 'Locked'}">
-                                ${currentLectOptions}
+                            <select data-mcode="${safeMCode}" data-assigned="${assignment.id}" ${disableAttr} class="w-full tom-select-assign ${selectStyle}" title="${canEdit ? 'Assign Lecturer' : 'Locked'}">
                             </select>
                             ${!canEdit ? `<span class="absolute right-8 text-[10px] pointer-events-none">${lockIcon}</span>` : ''}
                             <button onclick="window.checkAssignedWorkload('${safeMCode}')" title="View Workload Slip" class="btn-check-workload ml-1 p-1.5 bg-gray-100 hover:bg-blue-100 rounded text-blue-600 ${!isAssigned ? 'opacity-50 cursor-not-allowed' : ''}">🔍</button>
@@ -1257,13 +1273,33 @@ const firebaseConfig = {
         tbody.innerHTML = finalHTML; 
 
         document.querySelectorAll('.tom-select-assign').forEach(el => {
+            const mCode = el.dataset.mcode;
+            const assignedId = el.dataset.assigned;
+            
             const ts = new TomSelect(el, {
                 create: false,
                 placeholder: "🔍 Assign Lecturer...",
-                dropdownParent: 'body'
+                dropdownParent: 'body',
+                options: window.globalLecturerOptions,
+                optgroups: window.globalLecturerOptgroups,
+                optgroupField: 'optgroup',
+                valueField: 'value',
+                labelField: 'text',
+                searchField: ['text'],
+                maxOptions: 50,
+                render: {
+                    optgroup_header: function(data, escape) {
+                        return '<div class="font-bold text-royal-green px-2 py-1 bg-gray-100">' + escape(data.label) + '</div>';
+                    }
+                }
             });
+            
+            if (assignedId && assignedId !== '') {
+                ts.setValue(assignedId, true); // true = silent, don't trigger onChange yet
+            }
+
             ts.on('change', function(value) {
-                if (value !== undefined) window.assignLecturer(el.dataset.mcode, value);
+                if (value !== undefined) window.assignLecturer(mCode, value);
             });
             window.tsMatrix.push(ts);
         });
@@ -1271,7 +1307,9 @@ const firebaseConfig = {
 
     window.assignLecturer = (mCode, lectId) => {
         const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
-        const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+        const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+        const mFac = FACULTIES.find(f => String(mFacName).toUpperCase().includes(f)) || mFacName;
+        
         if (activeRole !== 'ALL' && !String(mFac).includes(activeRole)) {
             alert("🔒 Unauthorized Action: You can only modify assignments for your own Faculty.");
             return;
@@ -1770,6 +1808,7 @@ const firebaseConfig = {
         if (charts.faculty) charts.faculty.destroy();
         if (charts.focus) charts.focus.destroy();
         
+        // ފޮޓޯއާ އެއްގޮތަށް ޗާޓުގެ ކުލަތައް ބަދަލުކުރުން (Red, Gold, Dark Green)
         charts.faculty = new Chart(document.getElementById('facultyChart'), {
             type: 'bar',
             data: {
@@ -1832,21 +1871,24 @@ const firebaseConfig = {
         const cardsContainer = document.getElementById('faculty-cards-container');
         if(cardsContainer) cardsContainer.innerHTML = cardsHtml || '<p class="text-[10px] text-gray-500 italic col-span-full">No module data available to generate cards.</p>';
 
+        // ފޮޓޯއާ އެއްގޮތަށް ޑިޒައިން ކުރެވިފައިވާ ފުރިހަމަ ސަމަރީ ޓޭބަލް
         let facSummaryHtml = `
-        <div class="card p-4 mt-6">
-            <h3 class="text-xs font-black uppercase text-royal-green mb-4">UNIVERSITY WIDE SUMMARY (WCH)</h3>
+        <div class="bg-white rounded-lg shadow-md border-t-8 border-[#004d40] overflow-hidden mb-6">
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-sm font-black uppercase text-gray-800 tracking-wide">FACULTY WORKLOAD SUMMARY (PERIODS)</h3>
+            </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-[10px] md:text-xs min-w-[600px]">
-                    <thead class="bg-gray-100 text-gray-700 uppercase font-black border-b-4 border-royal-green">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-[#f8fafc] text-gray-600 uppercase font-black text-[10px]">
                         <tr>
-                            <th class="p-3">FACULTY</th>
-                            <th class="p-3 text-center">TOTAL WCH</th>
-                            <th class="p-3 text-center text-green-600">ASSIGNED</th>
-                            <th class="p-3 text-center text-red-600">UNASSIGNED</th>
-                            <th class="p-3 text-center">% ASSIGNED</th>
+                            <th class="p-4 py-3 border-b">FACULTY</th>
+                            <th class="p-4 py-3 border-b text-center">TOTAL PERIODS</th>
+                            <th class="p-4 py-3 border-b text-center text-green-600">ASSIGNED</th>
+                            <th class="p-4 py-3 border-b text-center text-red-600">UNASSIGNED</th>
+                            <th class="p-4 py-3 border-b text-center">% ASSIGNED</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y bg-white font-bold">
+                    <tbody class="divide-y border-b font-bold text-gray-700">
         `;
         let grandTotal = 0, grandAssigned = 0, grandUnassigned = 0;
 
@@ -1862,12 +1904,12 @@ const firebaseConfig = {
                 grandUnassigned += fUnassignedWCH;
 
                 facSummaryHtml += `
-                <tr class="hover:bg-gray-50">
-                    <td class="p-3 text-gray-800 border-l-4 border-transparent hover:border-royal-green">Faculty of ${f}</td>
-                    <td class="p-3 text-center text-gray-800">${fTotalWCH.toFixed(1)}</td>
-                    <td class="p-3 text-center text-green-600">${fAssignedWCH.toFixed(1)}</td>
-                    <td class="p-3 text-center text-red-600">${fUnassignedWCH.toFixed(1)}</td>
-                    <td class="p-3 text-center text-gray-600">${pct}%</td>
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="p-4 py-3 text-gray-800">Faculty of ${f}</td>
+                    <td class="p-4 py-3 text-center text-gray-800">${fTotalWCH.toFixed(1)}</td>
+                    <td class="p-4 py-3 text-center text-green-600">${fAssignedWCH.toFixed(1)}</td>
+                    <td class="p-4 py-3 text-center text-red-600">${fUnassignedWCH.toFixed(1)}</td>
+                    <td class="p-4 py-3 text-center text-gray-600">${pct}%</td>
                 </tr>
                 `;
             }
@@ -1876,13 +1918,13 @@ const firebaseConfig = {
         let grandPct = grandTotal > 0 ? Math.round((grandAssigned/grandTotal)*100) : 0;
         facSummaryHtml += `
                     </tbody>
-                    <tfoot class="bg-gray-50 border-t-2 border-gray-300 font-black text-xs">
+                    <tfoot class="bg-[#f8fafc] font-black text-xs text-gray-800">
                         <tr>
-                            <td class="p-3">UNIVERSITY TOTAL</td>
-                            <td class="p-3 text-center">${grandTotal.toFixed(1)}</td>
-                            <td class="p-3 text-center text-green-700">${grandAssigned.toFixed(1)}</td>
-                            <td class="p-3 text-center text-red-700">${grandUnassigned.toFixed(1)}</td>
-                            <td class="p-3 text-center">${grandPct}%</td>
+                            <td class="p-4 py-3">UNIVERSITY TOTAL</td>
+                            <td class="p-4 py-3 text-center">${grandTotal.toFixed(1)}</td>
+                            <td class="p-4 py-3 text-center text-green-700">${grandAssigned.toFixed(1)}</td>
+                            <td class="p-4 py-3 text-center text-red-700">${grandUnassigned.toFixed(1)}</td>
+                            <td class="p-4 py-3 text-center">${grandPct}%</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -1957,7 +1999,7 @@ const firebaseConfig = {
             let autoMode = (combinedData && String(combinedData).trim() !== '') ? 'Combined' : 'Individual';
             const config = localDB.assignments[mCode] || { mode: autoMode };
             
-            let h = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit']));
+            let h = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']));
             if(isNaN(h)) h = 0;
 
             let status = config.mode;
