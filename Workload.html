@@ -386,7 +386,7 @@
             <div id="tab-analytics" class="tab-content">
                 
                 <div class="card p-4 mb-6">
-                    <h3 class="text-xs font-black uppercase text-royal-green mb-2 tracking-wide">FACULTY WIDE WORKLOAD (WCH)</h3>
+                    <h3 class="text-xs font-black uppercase text-royal-green mb-2 tracking-wide">FACULTY WIDE WORKLOAD (PERIODS)</h3>
                     <div class="h-64 md:h-80"><canvas id="facultyChart"></canvas></div>
                 </div>
 
@@ -1669,12 +1669,15 @@ const firebaseConfig = {
         
         FACULTIES.forEach(f => {
             facStats[f] = { pt: 0, ft: 0, unassigned: 0 };
-            facDetailedStats[f] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0 };
+            facDetailedStats[f] = { 
+                offered: 0, assigned: 0, unassigned: 0, 
+                ftSame: 0, ptSame: 0, otherFac: 0,
+                ftSameWch: 0, ptSameWch: 0, otherFacWch: 0 
+            };
         });
 
         let seenCombinedCodes = new Set();
         
-        // 1. މޮޑިއުލްތައް އެނަލައިޒްކޮށް ގަޑިތައް ފެކަލްޓީއަށް އެލޮކޭޓްކުރުން
         localDB.modules.forEach(m => {
             const rawMCode = window.getSafeVal(m, ['ModuleCode']);
             const mCode = window.makeSafeId(rawMCode);
@@ -1693,7 +1696,6 @@ const firebaseConfig = {
             const assignment = localDB.assignments[mCode] || { id: '', mode: (window.getSafeVal(m, ['CombinedBatch']) ? 'Combined' : 'Individual') };
             
             if (!assignment.id || assignment.id === '') {
-                // ފިލްޓަރަށް ބަލައިގެން މައިގަނޑު ހެޑަރގައިވާ ރަތް ކާޑަށް ގަޑިތައް އިތުރުކުރުން
                 if (viewFilter === 'ALL' || String(mFac).includes(viewFilter)) {
                     unassignedCount++;
                 }
@@ -1723,20 +1725,25 @@ const firebaseConfig = {
 
                     if (facDetailedStats[mFac]) {
                         if (lFac === mFac) {
-                            if (isPartTime) facDetailedStats[mFac].ptSame++;
-                            else facDetailedStats[mFac].ftSame++;
+                            if (isPartTime) {
+                                facDetailedStats[mFac].ptSame++;
+                                facDetailedStats[mFac].ptSameWch += actualWch;
+                            } else {
+                                facDetailedStats[mFac].ftSame++;
+                                facDetailedStats[mFac].ftSameWch += actualWch;
+                            }
                         } else {
                             facDetailedStats[mFac].otherFac++;
+                            facDetailedStats[mFac].otherFacWch += actualWch;
                         }
                     }
                 } else {
                     if (facStats[mFac]) facStats[mFac].unassigned += actualWch;
-                    if (facDetailedStats[mFac]) facDetailedStats[mFac].unassigned++;
+                    if (facDetailedStats[mFac]) facDetailedStats[mFac].unassigned++; 
                 }
             }
         });
 
-        // 2. ލެކްޗަރަރ ތަކުގެ ޑޭޓާ އެނަލައިޒްކުރުން
         localDB.lecturers.forEach(l => {
             const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
             const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || rawFac; 
@@ -1829,7 +1836,6 @@ const firebaseConfig = {
         if (charts.faculty) charts.faculty.destroy();
         if (charts.focus) charts.focus.destroy();
         
-        // ފޮޓޯއާ އެއްގޮތަށް ޗާޓުގެ ކުލަތައް ބަދަލުކުރުން (Red, Gold, Dark Green)
         charts.faculty = new Chart(document.getElementById('facultyChart'), {
             type: 'bar',
             data: {
@@ -1960,9 +1966,9 @@ const firebaseConfig = {
             data: {
                 labels: displayFaculties,
                 datasets: [
-                    { label: 'Full-Time (Same Faculty)', backgroundColor: '#0d47a1', data: displayFaculties.map(f => facDetailedStats[f].ftSame) },
-                    { label: 'Part-Time (Same Faculty)', backgroundColor: '#4a148c', data: displayFaculties.map(f => facDetailedStats[f].ptSame) },
-                    { label: 'Other Faculties (Cross-Assigned)', backgroundColor: '#004d40', data: displayFaculties.map(f => facDetailedStats[f].otherFac) }
+                    { label: 'Full-Time (Same Faculty) Periods', backgroundColor: '#0d47a1', data: displayFaculties.map(f => facDetailedStats[f].ftSameWch) },
+                    { label: 'Part-Time (Same Faculty) Periods', backgroundColor: '#4a148c', data: displayFaculties.map(f => facDetailedStats[f].ptSameWch) },
+                    { label: 'Other Faculties (Cross-Assigned) Periods', backgroundColor: '#004d40', data: displayFaculties.map(f => facDetailedStats[f].otherFacWch) }
                 ]
             },
             options: {
