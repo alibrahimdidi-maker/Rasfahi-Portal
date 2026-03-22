@@ -167,6 +167,7 @@
         .toast.success { border-left: 5px solid #4ade80; }
         .toast.warning { border-left: 5px solid #f97316; }
         .toast.info { border-left: 5px solid #3b82f6; }
+        .toast.error { border-left: 5px solid #ef4444; }
         
         @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes fadeOut { to { opacity: 0; transform: translateX(120%); } }
@@ -379,14 +380,20 @@
             </div>
 
             <div id="tab-analytics" class="tab-content">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                    <div class="card p-4">
-                        <h3 class="text-xs font-black uppercase text-royal-green mb-2">University Wide Faculty Workload (WCH)</h3>
-                        <div class="h-48 md:h-56"><canvas id="facultyChart"></canvas></div>
-                    </div>
+                
+                <div class="card p-4 mb-6">
+                    <h3 class="text-xs font-black uppercase text-royal-green mb-2">UNIVERSITY WIDE WORKLOAD (WCH)</h3>
+                    <div class="h-64 md:h-80"><canvas id="facultyChart"></canvas></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                     <div class="card p-4">
                         <h3 class="text-xs font-black uppercase text-royal-blue mb-2">University Wide Academic Focus</h3>
                         <div class="h-48 md:h-56"><canvas id="focusChart"></canvas></div>
+                    </div>
+                    <div class="card p-4">
+                        <h3 class="text-xs font-black uppercase text-royal-purple mb-2">Lecturer Deployment Source by Faculty</h3>
+                        <div class="h-48 md:h-56"><canvas id="assignmentDetailsChart"></canvas></div>
                     </div>
                 </div>
 
@@ -397,10 +404,6 @@
                     
                     <div id="summary-table-container" class="mb-6"></div>
 
-                    <div class="card p-4">
-                        <h3 class="text-xs font-black uppercase text-royal-purple mb-2">Lecturer Deployment Source by Faculty</h3>
-                        <div class="h-64 md:h-80"><canvas id="assignmentDetailsChart"></canvas></div>
-                    </div>
                 </div>
                 <p class="text-[9px] text-gray-500 mb-2 font-bold px-2">Hint: Click on any staff name below to instantly view and print their workload slip.</p>
                 
@@ -542,7 +545,6 @@ const firebaseConfig = {
     let activeRole = 'ALL';
 
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
-    const ISLANDS = ["Male' City", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo", "Dhidhdhoo"];
 
     let idleTimeout;
     const IDLE_TIME_MS = 30 * 60 * 1000; 
@@ -567,7 +569,7 @@ const firebaseConfig = {
         if(!container) return;
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : 'ℹ️');
+        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : (type === 'error' ? '❌' : 'ℹ️'));
         toast.innerHTML = `<span>${icon}</span> <span>${msg}</span>`;
         container.appendChild(toast);
         setTimeout(() => {
@@ -662,6 +664,7 @@ const firebaseConfig = {
         document.getElementById('cloud-pulse').style.animation = "none";
         document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
     }
+
     window.detectFacultyFromEmail = () => {
         const email = document.getElementById('login-email').value;
         document.getElementById('login-role').value = getRoleFromEmail(email);
@@ -748,13 +751,13 @@ const firebaseConfig = {
             window.showToast("Live data fetched from Cloud successfully.", "success");
             
         } catch (error) {
-            console.log("Falling back to local cache.");
+            console.log("Falling back to local cache.", error);
             loadLocalCache();
             window.showToast("Working Offline. Loaded data from Local Browser.", "warning");
             document.getElementById('cloud-pulse').style.background = "red";
             document.getElementById('cloud-pulse').style.animation = "none";
             document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
-       } finally {
+        } finally {
             try {
                 window.populateLecturerDropdown();
                 window.renderMatrix();
@@ -762,10 +765,11 @@ const firebaseConfig = {
                 window.updateAnalytics();
             } catch (err) {
                 console.error("UI Render Crash:", err);
-                alert("ޑޭޓާ ޑިސްޕްލޭ ކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެ!\n\nއެރަރ: " + err.message);
+                alert("ޑޭޓާ ޑިސްޕްލޭ ކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެ (UI Crash)!\n\nއެރަރ: " + err.message);
             }
             document.getElementById('loader').style.display = 'none';
         }
+    }
 
     window.handleLogin = async () => {
         if (!auth) return alert("Firebase Auth not initialized.");
@@ -786,7 +790,7 @@ const firebaseConfig = {
             localStorage.setItem('userRole', role);
         } catch (error) {
             document.getElementById('loader').style.display = 'none';
-            alert(`[ފަޔަރބޭސް އެރަރ]: ${error.code}\n\nސަބަބު: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި.`);
+            alert(`[ފަޔަރބޭސް އެރަރ]: ${error.code}\n\nސަބަބު: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި ނުވަތަ ކަނެކްޝަން މައްސަލައެއް.`);
         }
     };
 
@@ -826,10 +830,11 @@ const firebaseConfig = {
     };
 
     window.getSafeVal = (row, possibleKeys) => {
+        if (!row || typeof row !== 'object') return '';
         for (let key of Object.keys(row)) {
-            let cleanKey = key.toLowerCase().replace(/[\s\n\r\.\-\_]/g, '');
+            let cleanKey = String(key).toLowerCase().replace(/[\s\n\r\.\-\_]/g, '');
             for (let pk of possibleKeys) {
-                if (cleanKey.includes(pk.toLowerCase().replace(/[\s\n\r\.\-\_]/g, ''))) return row[key] || '';
+                if (cleanKey.includes(String(pk).toLowerCase().replace(/[\s\n\r\.\-\_]/g, ''))) return row[key] || '';
             }
         }
         return '';
@@ -865,13 +870,11 @@ const firebaseConfig = {
 
     window.generateDummies = (type) => {
         let rows = [];
-        const faculties = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
-
         if (type === 'lect') {
-            const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Fathimath", "Aminath", "Aishath", "Mariyam", "Hawwa", "Zuleykha", "Ibrahim", "Adam", "Moosa", "Niuma", "Asma"];
-            const lastNames = ["Zahir", "Nazeer", "Moosa", "Ibrahim", "Saeed", "Muna", "Sama", "Rashid", "Latheef", "Naseem", "Shareef", "Waheed", "Majeed", "Riza"];
+            const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Fathimath", "Aminath", "Aishath"];
+            const lastNames = ["Zahir", "Nazeer", "Moosa", "Ibrahim", "Saeed", "Muna", "Sama", "Rashid"];
 
-            faculties.forEach(fac => {
+            FACULTIES.forEach(fac => {
                 const addFakePerson = (cat, typeStr) => {
                     const fName = firstNames[Math.floor(Math.random() * firstNames.length)];
                     const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
@@ -890,63 +893,46 @@ const firebaseConfig = {
                 };
 
                 addFakePerson("Dean", "Full-time");
-                for(let i=0; i<100; i++) addFakePerson("Teaching Focused", "Full-time");
-                for(let i=0; i<10; i++) addFakePerson("Research Focused", "Full-time");
-                for(let i=0; i<89; i++) addFakePerson("Part-time (Max 15 periods)", "Part-time");
+                for(let i=0; i<30; i++) addFakePerson("Teaching Focused", "Full-time");
+                for(let i=0; i<5; i++) addFakePerson("Research Focused", "Full-time");
+                for(let i=0; i<15; i++) addFakePerson("Part-time", "Part-time");
             });
 
             downloadCSV(rows, "Lecturer_Workload_Master_Data.csv");
-            window.showToast("4000 Fake Lecturers Generated (200 per Faculty).", "success");
+            window.showToast("Dummy Lecturers Generated.", "success");
 
         } else {
-            const campuses = ["Male'", "Hulhumale", "Addu City", "Fuvahmulah", "Kulhudhuffushi", "Thinadhoo"];
-            const genericSubjects = ["Mathematics", "Science", "History", "Literature", "Programming", "Economics", "Law", "Management", "Nursing", "Architecture"];
-            const levels = ["Introduction to", "Advanced", "Principles of", "Fundamentals of", "Applied"];
+            const campuses = ["Male'", "Hulhumale", "Addu City"];
+            const genericSubjects = ["Mathematics", "Science", "History", "Literature", "Programming"];
             
             for(let i=1; i<=1000; i++) {
-                const fac = faculties[Math.floor(Math.random() * faculties.length)];
+                const fac = FACULTIES[Math.floor(Math.random() * FACULTIES.length)];
                 const isCombined = Math.random() > 0.8;
                 const combStr = isCombined ? ("Batch " + Math.floor(Math.random()*5+1) + ", Batch " + Math.floor(Math.random()*5+5)) : "";
                 
                 const subj = genericSubjects[Math.floor(Math.random() * genericSubjects.length)];
-                const lvl = levels[Math.floor(Math.random() * levels.length)];
-                const fakeModuleName = `${lvl} ${subj} (MNQF Level ${Math.floor(Math.random() * 3 + 5)})`;
+                const fakeModuleName = `${subj} (MNQF L${Math.floor(Math.random() * 3 + 5)})`;
                 const fakeModuleCode = subj.substring(0,3).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
-                
                 const wch = [2, 3, 4][Math.floor(Math.random() * 3)];
 
                 rows.push({
                     "Session": Math.random() > 0.5 ? "Morning" : "Evening",
                     "Program Name": "Generic Dummy Program",
                     "Offered Batch": "Batch " + Math.floor(Math.random()*10 + 1),
-                    "Lecturer Category": "",
                     "Parent Kulliyya": fac,
-                    "Parent Faculty": fac,
-                    "Medium of Instruction": Math.random() > 0.8 ? "Arabic" : "English",
+                    "Medium of Instruction": "English",
                     "Combined Batch": combStr,
-                    "Offered Status": Math.random() > 0.8 ? "New" : "Existing",
-                    "New / Revision": "New",
+                    "Offered Status": "New",
                     "MALE": campuses[Math.floor(Math.random() * campuses.length)],
                     "Module Name": fakeModuleName,
                     "Modality": Math.random() > 0.7 ? "Online" : "Face to Face",
-                    "Kulliyyah/Centre": fac,
                     "Module Code": fakeModuleCode,
-                    "Full-time Helper ": "",
-                    "Phone Number": "",
                     "No of Students": Math.floor(Math.random()*40 + 10),
-                    "Weekly Contact Hours": String(wch),
-                    "Lecturer Assigned": "",
-                    " Lecturer Type (FT, PT)": "",
-                    "Lecturer National ID": "",
-                    "Lecturer Name": "",
-                    "Intake": "Jan-26",
-                    "SYSTEM_ASSIGNED_LECTURER_ID": "",
-                    "SYSTEM_ASSIGNED_LECTURER_NAME": "",
-                    "SYSTEM_SYNC_MODE": ""
+                    "Weekly Contact Hours": String(wch)
                 });
             }
             downloadCSV(rows, "Academic_Affairs_Master_Workload.csv");
-            window.showToast("1000 Fake Modules Generated.", "success");
+            window.showToast("Dummy Modules Generated.", "success");
         }
     };
     
@@ -993,11 +979,9 @@ const firebaseConfig = {
                 let id = window.makeSafeId(window.getSafeVal(x, docIdKey));
                 if(id) {
                     let existing = existingMap.get(id);
-                    
                     if(type === 'lecturers' && existing && existing.custom_target) {
                         x.custom_target = existing.custom_target;
                     }
-
                     if (activeRole !== 'ALL') {
                         if (type === 'modules') {
                              x['Parent Faculty'] = activeRole; 
@@ -1006,7 +990,6 @@ const firebaseConfig = {
                              x['Kulliyyah / Centre'] = activeRole;
                         }
                     }
-
                     existingMap.set(id, x); 
                 }
             });
@@ -1037,11 +1020,9 @@ const firebaseConfig = {
 
     window.runBackgroundCloudSync = async (type, tempData, docIdKey) => {
         setSyncStatus('syncing');
-        
         try {
             const CHUNK_SIZE = 100;
             let totalCount = 0;
-            
             for (let i = 0; i < tempData.length; i += CHUNK_SIZE) {
                 const chunk = tempData.slice(i, i + CHUNK_SIZE);
                 const batch = writeBatch(dbCloud);
@@ -1062,7 +1043,6 @@ const firebaseConfig = {
                 }
             }
             setSyncStatus('success');
-            console.log(`✅ Background Sync Complete: ${totalCount} records.`);
         } catch(error) {
             console.error("Background sync failed", error);
             setSyncStatus('offline');
@@ -1089,7 +1069,7 @@ const firebaseConfig = {
             const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
             const empType = (typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting')) ? 'PT' : 'FT';
             
-            const fac = FACULTIES.find(f => rawFac.toUpperCase().includes(f)) || rawFac;
+            const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || rawFac;
 
             if (id && name) {
                 if (!groupedLecturers[fac]) groupedLecturers[fac] = [];
@@ -1134,16 +1114,16 @@ const firebaseConfig = {
 
         localDB.lecturers.forEach(l => {
             const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
-            const fac = FACULTIES.find(f => rawFac.toUpperCase().includes(f)) || rawFac; 
+            const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || rawFac; 
             
-            if (viewFilter === 'ALL' || fac.includes(viewFilter)) {
+            if (viewFilter === 'ALL' || String(fac).includes(viewFilter)) {
                 const safeId = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
                 const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
                 const cat = window.getSafeVal(l, ['LecturerCategory', 'Category']);
                 const type = window.getSafeVal(l, ['LecturerType', 'Type']);
                 const target = window.getDefaultTarget(l);
                 
-                const canEdit = (activeRole === 'ALL' || fac.includes(activeRole));
+                const canEdit = (activeRole === 'ALL' || String(fac).includes(activeRole));
                 const disableAttr = canEdit ? '' : 'disabled';
                 
                 let opts = '';
@@ -1188,7 +1168,7 @@ const firebaseConfig = {
 
         let lectOptionsMap = '<option value="">-- Assign --</option>';
         FACULTIES.forEach(fac => {
-            const facLecturers = localDB.lecturers.filter(l => window.getSafeVal(l, ['Kulliyyah', 'Faculty']).includes(fac));
+            const facLecturers = localDB.lecturers.filter(l => String(window.getSafeVal(l, ['Kulliyyah', 'Faculty'])).includes(fac));
             if (facLecturers.length > 0) {
                 lectOptionsMap += `<optgroup label="Faculty of ${fac}">`;
                 facLecturers.forEach(l => {
@@ -1212,33 +1192,32 @@ const firebaseConfig = {
             const combinedData = window.getSafeVal(m, ['CombinedBatch']);
             
             const matchesSearch = (
-                mName.toLowerCase().includes(searchQ) || 
-                mCode.toLowerCase().includes(searchQ) || 
-                mFac.toLowerCase().includes(searchQ)
+                String(mName).toLowerCase().includes(searchQ) || 
+                String(mCode).toLowerCase().includes(searchQ) || 
+                String(mFac).toLowerCase().includes(searchQ)
             );
 
-            if ((viewFilter === 'ALL' || mFac.includes(viewFilter)) && matchesSearch) {
+            if ((viewFilter === 'ALL' || String(mFac).includes(viewFilter)) && matchesSearch) {
                 
                 let safeMCode = window.makeSafeId(mCode);
-                let autoMode = (combinedData && combinedData.trim() !== '') ? 'Combined' : 'Individual';
+                let autoMode = (combinedData && String(combinedData).trim() !== '') ? 'Combined' : 'Individual';
                 const assignment = localDB.assignments[safeMCode] || { id: '', mode: autoMode };
                 const isAssigned = assignment.id && assignment.id !== '';
                 
                 const campus = window.getSafeCampus(m);
                 const program = window.getSafeVal(m, ['ProgramName']);
                 
-                let wch = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH']));
+                let wch = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit']));
                 if (isNaN(wch)) wch = 0;
 
                 let batch = window.getSafeVal(m, ['OfferedBatch']);
-                
                 if (combinedData) batch += ` <br><span class="text-[8px] text-purple-600 font-bold">(+ ${combinedData})</span>`;
 
                 const statusBadge = isAssigned 
                     ? `<span class="bg-green-100 text-green-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm">Assigned</span>` 
                     : `<span class="bg-red-100 text-red-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm animate-pulse">Unassigned</span>`;
 
-                const canEdit = (activeRole === 'ALL' || mFac.includes(activeRole));
+                const canEdit = (activeRole === 'ALL' || String(mFac).includes(activeRole));
                 const disableAttr = canEdit ? '' : 'disabled';
                 const selectStyle = canEdit ? '' : 'disabled';
                 const lockIcon = canEdit ? '' : '🔒 ';
@@ -1293,7 +1272,7 @@ const firebaseConfig = {
     window.assignLecturer = (mCode, lectId) => {
         const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
         const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
-        if (activeRole !== 'ALL' && !mFac.includes(activeRole)) {
+        if (activeRole !== 'ALL' && !String(mFac).includes(activeRole)) {
             alert("🔒 Unauthorized Action: You can only modify assignments for your own Faculty.");
             return;
         }
@@ -1328,7 +1307,7 @@ const firebaseConfig = {
     window.updateAssignmentMode = (mCode, mode) => {
         const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
         const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
-        if (activeRole !== 'ALL' && !mFac.includes(activeRole)) return;
+        if (activeRole !== 'ALL' && !String(mFac).includes(activeRole)) return;
 
         if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { id: '' };
         localDB.assignments[mCode].mode = mode;
@@ -1351,7 +1330,7 @@ const firebaseConfig = {
                 const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
                 if (m) {
                     const mFac = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
-                    if (activeRole === 'ALL' || mFac.includes(activeRole)) {
+                    if (activeRole === 'ALL' || String(mFac).includes(activeRole)) {
                         validAssignments.push({ code: mCode, data: localDB.assignments[mCode] });
                     }
                 }
@@ -1372,7 +1351,6 @@ const firebaseConfig = {
                     batch.set(doc(dbCloud, "assignments", item.code), item.data, { merge: true });
                     totalSaved++;
                 });
-                
                 await batch.commit(); 
                 await new Promise(r => setTimeout(r, 50));
             }
@@ -1412,9 +1390,8 @@ const firebaseConfig = {
 
     window.exportLocalCSV = () => {
         let exportModules = [...localDB.modules];
-        
         if (activeRole !== 'ALL') {
-            exportModules = exportModules.filter(m => window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']).includes(activeRole));
+            exportModules = exportModules.filter(m => String(window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty'])).includes(activeRole));
         }
 
         const exportData = exportModules.map(m => {
@@ -1448,7 +1425,7 @@ const firebaseConfig = {
             assSnap.docs.forEach(d => c_assignments[d.id] = d.data());
             
             if (activeRole !== 'ALL') {
-                c_modules = c_modules.filter(m => window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']).includes(activeRole));
+                c_modules = c_modules.filter(m => String(window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty'])).includes(activeRole));
             }
             
             const exportData = c_modules.map(m => {
@@ -1650,14 +1627,13 @@ const firebaseConfig = {
             facDetailedStats[f] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0 };
         });
 
-        // 1. މޮޑިއުލްތައް އެނަލައިޒްކޮށް ގަޑިތައް ފެކަލްޓީއަށް އެލޮކޭޓްކުރުން
         let seenCombinedCodes = new Set();
         localDB.modules.forEach(m => {
             const rawMCode = window.getSafeVal(m, ['ModuleCode']);
             const mCode = window.makeSafeId(rawMCode);
             
             const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
-            const mFac = FACULTIES.find(f => mFacName.toUpperCase().includes(f)) || mFacName;
+            const mFac = FACULTIES.find(f => String(mFacName).toUpperCase().includes(f)) || mFacName;
             
             if (facDetailedStats[mFac]) {
                 facDetailedStats[mFac].offered++;
@@ -1672,7 +1648,7 @@ const firebaseConfig = {
             if (!assignment.id || assignment.id === '') {
                 unassignedCount++;
                 if (facDetailedStats[mFac]) facDetailedStats[mFac].unassigned++;
-                if (facStats[mFac]) facStats[mFac].unassigned += wch; // ގަޑިތައް ފެކަލްޓީއަށް އެއްކުރުން
+                if (facStats[mFac]) facStats[mFac].unassigned += wch; 
             } else {
                 if (facDetailedStats[mFac]) facDetailedStats[mFac].assigned++;
                 
@@ -1685,13 +1661,13 @@ const firebaseConfig = {
                 const assignedLect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
                 if (assignedLect && facDetailedStats[mFac]) {
                     const lFacName = window.getSafeVal(assignedLect, ['Kulliyyah', 'Faculty']);
-                    const lFac = FACULTIES.find(f => lFacName.toUpperCase().includes(f)) || lFacName;
+                    const lFac = FACULTIES.find(f => String(lFacName).toUpperCase().includes(f)) || lFacName;
                     const typeStr = String(window.getSafeVal(assignedLect, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
                     const isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
                     
                     if (facStats[mFac]) {
-                        if (isPartTime) facStats[mFac].pt += actualWch; // ޕާޓްޓައިމް ގަޑިތައް
-                        else facStats[mFac].ft += actualWch; // ފުލްޓައިމް ގަޑިތައް
+                        if (isPartTime) facStats[mFac].pt += actualWch; 
+                        else facStats[mFac].ft += actualWch; 
                     }
 
                     if (lFac === mFac) {
@@ -1704,10 +1680,9 @@ const firebaseConfig = {
             }
         });
 
-        // 2. ލެކްޗަރަރ ތަކުގެ ޑޭޓާ އެނަލައިޒްކުރުން
         localDB.lecturers.forEach(l => {
             const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
-            const fac = FACULTIES.find(f => rawFac.toUpperCase().includes(f)) || rawFac; 
+            const fac = FACULTIES.find(f => String(rawFac).toUpperCase().includes(f)) || rawFac; 
             const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
             const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
             const focusStr = String(window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category']) || '').toLowerCase();
@@ -1725,7 +1700,6 @@ const firebaseConfig = {
             };
         });
 
-        // ލެކްޗަރަރ އަށް ގަޑިތައް އެލޮކޭޓްކުރުން (ލިސްޓަށް)
         seenCombinedCodes.clear();
         localDB.modules.forEach(m => {
             const rawMCode = window.getSafeVal(m, ['ModuleCode']);
@@ -1796,7 +1770,6 @@ const firebaseConfig = {
         if (charts.faculty) charts.faculty.destroy();
         if (charts.focus) charts.focus.destroy();
         
-        // ފޮޓޯގައިވާ ފަދައިން ބާ ޗާޓު ކުލަތަކާއެކު
         charts.faculty = new Chart(document.getElementById('facultyChart'), {
             type: 'bar',
             data: {
@@ -1861,7 +1834,7 @@ const firebaseConfig = {
 
         let facSummaryHtml = `
         <div class="card p-4 mt-6">
-            <h3 class="text-xs font-black uppercase text-royal-green mb-4">FACULTY WORKLOAD SUMMARY (WCH)</h3>
+            <h3 class="text-xs font-black uppercase text-royal-green mb-4">UNIVERSITY WIDE SUMMARY (WCH)</h3>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-[10px] md:text-xs min-w-[600px]">
                     <thead class="bg-gray-100 text-gray-700 uppercase font-black border-b-4 border-royal-green">
@@ -1878,26 +1851,11 @@ const firebaseConfig = {
         let grandTotal = 0, grandAssigned = 0, grandUnassigned = 0;
 
         FACULTIES.forEach(f => {
-            let fTotalWCH = 0;
-            let fAssignedWCH = 0;
-
-            localDB.modules.forEach(m => {
-                const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
-                const mFac = FACULTIES.find(fac => mFacName.toUpperCase().includes(fac)) || mFacName;
-                if (mFac === f) {
-                    let wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours'])) || 0;
-                    const mCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
-                    const assignment = localDB.assignments[mCode] || { id: '' };
-
-                    fTotalWCH += wch;
-                    if (assignment.id && assignment.id !== '') {
-                        fAssignedWCH += wch;
-                    }
-                }
-            });
+            let fTotalWCH = facStats[f].unassigned + facStats[f].pt + facStats[f].ft;
+            let fAssignedWCH = facStats[f].pt + facStats[f].ft;
+            let fUnassignedWCH = facStats[f].unassigned;
 
             if(fTotalWCH > 0) { 
-                let fUnassignedWCH = fTotalWCH - fAssignedWCH;
                 let pct = Math.round((fAssignedWCH / fTotalWCH) * 100);
                 grandTotal += fTotalWCH;
                 grandAssigned += fAssignedWCH;
@@ -1996,10 +1954,10 @@ const firebaseConfig = {
             const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
             const combinedData = window.getSafeVal(m, ['CombinedBatch']);
             
-            let autoMode = (combinedData && combinedData.trim() !== '') ? 'Combined' : 'Individual';
+            let autoMode = (combinedData && String(combinedData).trim() !== '') ? 'Combined' : 'Individual';
             const config = localDB.assignments[mCode] || { mode: autoMode };
             
-            let h = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH']));
+            let h = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit']));
             if(isNaN(h)) h = 0;
 
             let status = config.mode;
