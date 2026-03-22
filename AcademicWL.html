@@ -580,7 +580,17 @@
                         <div class="h-48 md:h-56"><canvas id="focusChart"></canvas></div>
                     </div>
                 </div>
-                
+
+                <div class="mb-6 mt-6">
+                    <h3 class="text-xs font-black uppercase text-royal-blue mb-3 border-b-2 border-gray-200 pb-1">Faculty Module Assignment Analytics</h3>
+                    
+                    <div id="faculty-cards-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6"></div>
+                    
+                    <div class="card p-4">
+                        <h3 class="text-xs font-black uppercase text-royal-purple mb-2">Lecturer Deployment Source by Faculty</h3>
+                        <div class="h-64 md:h-80"><canvas id="assignmentDetailsChart"></canvas></div>
+                    </div>
+                </div>
                 <p class="text-[9px] text-gray-500 mb-2 font-bold px-2">Hint: Click on any staff name below to instantly view and print their workload slip.</p>
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -718,7 +728,7 @@ const firebaseConfig = {
     // Global Application State Variables
     let app, auth, dbCloud;
     let localDB = { lecturers: [], modules: [], assignments: {} };
-    let charts = { faculty: null, focus: null };
+    let charts = { faculty: null, focus: null, assignmentDetails: null }; // Added assignmentDetails
     let currentLecturerId = null;
     let activeRole = 'ALL';
 
@@ -1828,7 +1838,13 @@ const firebaseConfig = {
         let facStats = {}; 
         let focusStats = { "Teaching": 0, "Research": 0, "Part-Time": 0 };
         
-        FACULTIES.forEach(f => facStats[f] = { pt: 0, ft: 0 });
+        // NEW STATS TRACKER FOR ROYAL CARDS & 3-COLOR CHART
+        let facDetailedStats = {};
+        
+        FACULTIES.forEach(f => {
+            facStats[f] = { pt: 0, ft: 0 };
+            facDetailedStats[f] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0 };
+        });
 
         localDB.lecturers.forEach(l => {
             const rawFac = window.getSafeVal(l, ['Kulliyyah', 'Faculty']);
@@ -1857,6 +1873,14 @@ const firebaseConfig = {
             const rawMCode = window.getSafeVal(m, ['ModuleCode']);
             const mCode = window.makeSafeId(rawMCode);
             
+            // Collect Faculty Module Information for New Features
+            const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+            const mFac = FACULTIES.find(f => mFacName.toUpperCase().includes(f)) || mFacName;
+            
+            if (facDetailedStats[mFac]) {
+                facDetailedStats[mFac].offered++;
+            }
+            
             let rawWch = window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours']);
             let wch = parseFloat(rawWch);
             if (isNaN(wch)) wch = 0;
@@ -1865,7 +1889,26 @@ const firebaseConfig = {
             
             if (!assignment.id || assignment.id === '') {
                 unassignedCount++;
+                if (facDetailedStats[mFac]) facDetailedStats[mFac].unassigned++;
             } else {
+                if (facDetailedStats[mFac]) facDetailedStats[mFac].assigned++;
+                
+                // Track Assignment deployment source (FT/PT/Other)
+                const assignedLect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
+                if (assignedLect && facDetailedStats[mFac]) {
+                    const lFacName = window.getSafeVal(assignedLect, ['Kulliyyah', 'Faculty']);
+                    const lFac = FACULTIES.find(f => lFacName.toUpperCase().includes(f)) || lFacName;
+                    const typeStr = String(window.getSafeVal(assignedLect, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
+                    const isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
+                    
+                    if (lFac === mFac) {
+                        if (isPartTime) facDetailedStats[mFac].ptSame++;
+                        else facDetailedStats[mFac].ftSame++;
+                    } else {
+                        facDetailedStats[mFac].otherFac++;
+                    }
+                }
+
                 let actualWch = wch;
                 if (assignment.mode === 'Combined') {
                     if (seenCombinedCodes.has(mCode)) actualWch = 0;
@@ -1958,6 +2001,58 @@ const firebaseConfig = {
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false }
+        });
+        
+        // --- NEW FEATURES RENDER: ROYAL CARDS & 3-COLOR CHART ---
+        const royalColors = [
+            'bg-[#004d40]', 'bg-[#0d47a1]', 'bg-[#4a148c]', 'bg-[#881337]',
+            'bg-[#1e3a8a]', 'bg-[#115e59]', 'bg-[#312e81]', 'bg-[#4c1d95]',
+            'bg-[#831843]', 'bg-[#14532d]'
+        ]; // No Yellow Included per user request
+
+        let cardsHtml = '';
+        FACULTIES.forEach((f, idx) => {
+            const stats = facDetailedStats[f];
+            if(stats.offered > 0) {
+                const colorClass = royalColors[idx % royalColors.length];
+                cardsHtml += `
+                    <div class="${colorClass} text-white p-3 md:p-4 rounded-xl shadow-lg border-2 border-white/20 relative overflow-hidden transform transition hover:scale-105">
+                        <div class="absolute -right-4 -top-4 opacity-10 text-6xl">🏛️</div>
+                        <h4 class="text-[11px] md:text-xs font-black mb-2 border-b border-white/30 pb-1 tracking-widest uppercase">${f}</h4>
+                        <div class="grid grid-cols-1 gap-1.5 text-[10px] md:text-[11px] font-bold">
+                            <div class="flex justify-between items-center"><span class="opacity-80">Offered Modules:</span> <span class="bg-white/20 px-1.5 rounded">${stats.offered}</span></div>
+                            <div class="flex justify-between items-center text-green-300"><span class="opacity-80">Assigned:</span> <span class="bg-black/20 px-1.5 rounded">${stats.assigned}</span></div>
+                            <div class="flex justify-between items-center text-red-300"><span class="opacity-80">Unassigned:</span> <span class="bg-black/20 px-1.5 rounded">${stats.unassigned}</span></div>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        const cardsContainer = document.getElementById('faculty-cards-container');
+        if(cardsContainer) cardsContainer.innerHTML = cardsHtml || '<p class="text-[10px] text-gray-500 italic col-span-full">No module data available to generate cards.</p>';
+
+        if (charts.assignmentDetails) charts.assignmentDetails.destroy();
+        charts.assignmentDetails = new Chart(document.getElementById('assignmentDetailsChart'), {
+            type: 'bar',
+            data: {
+                labels: FACULTIES,
+                datasets: [
+                    { label: 'Full-Time (Same Faculty)', backgroundColor: '#0d47a1', data: FACULTIES.map(f => facDetailedStats[f].ftSame) },
+                    { label: 'Part-Time (Same Faculty)', backgroundColor: '#4a148c', data: FACULTIES.map(f => facDetailedStats[f].ptSame) },
+                    { label: 'Other Faculties (Cross-Assigned)', backgroundColor: '#004d40', data: FACULTIES.map(f => facDetailedStats[f].otherFac) }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true }
+                },
+                plugins: {
+                    tooltip: { mode: 'index', intersect: false }
+                }
+            }
         });
     };
 
