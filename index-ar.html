@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rasfahi Quran System - Royal Multi-Judge Edition v21</title>
+    <title>Rasfahi Quran System - Royal Multi-Judge Edition v22</title>
     
     <style>
         /* =========================================================
@@ -397,6 +397,8 @@
                         <option value="3" selected>3 ސުވާލު</option>
                         <option value="4">4 ސުވާލު</option>
                         <option value="5">5 ސުވާލު</option>
+                        <option value="6">6 ސުވާލު</option>
+                        <option value="7">7 ސުވާލު</option>
                     </select>
                 </div>
 
@@ -407,7 +409,7 @@
 
             <div class="student-display-controls">
                 <div style="flex:1;">
-                    <h4 style="margin:0 0 5px 0; color:var(--royal-blue); font-size:15px;">ދަރިވަރުގެ ސްކްރީން ކޮންޓްރޯލް (Student Display):</h4>
+                    <h4 style="margin:0 0 5px 0; color:var(--royal-blue); font-size:15px;">ދަރިވަރުގެ ސްކްރީން ކޮންޓްރޯލް (Student Display Control):</h4>
                     <span style="font-size:12px; color:#666;">މި ބަޓަންތަކުން ދަރިވަރުގެ ސްކްރީނަށް ޤުރްއާން ފޮރުވައި ނުވަތަ ދެއްކޭނެއެވެ. ޖަޖުންގެ ސްކްރީނަށް އަބަދުވެސް ފެންނާނެއެވެ.</span>
                 </div>
                 <button onclick="window.toggleStudentView('visible')" style="background:var(--royal-blue); color:var(--royal-gold); padding:12px 20px; border:2px solid var(--royal-gold); border-radius:8px; font-weight:bold; font-size:15px; cursor:pointer; min-width:180px;">
@@ -552,13 +554,13 @@
     
     let clickTimer = null;
     
-    // Grid State
+    // Grid State tracking variables
     let hifzGridData = [];
     let pickedGridCount = 0;
     let maxGridPicks = 3;
     
     // Shared session document in Firestore
-    const SESSION_DOC = "live_exam_session_v3";
+    const SESSION_DOC = "live_exam_session_v4";
 
     // --- 4. AUTHENTICATION LOGIC ---
     window.loginApp = async () => {
@@ -569,6 +571,7 @@
         
         if(!username || !pwd) { err.innerText = "Please enter username and password."; return; }
         
+        // Auto-append domain for Firebase Auth
         const email = username.includes('@') ? username : `${username}@rasfahi.com`;
         err.innerText = "Connecting to Cloud... ⏳";
         
@@ -592,11 +595,13 @@
             activeRole = localStorage.getItem('rasfahi_role') || 'student';
             activeUserEmail = user.email;
             
+            // UI Updates for Header
             document.getElementById('lblRole').innerText = activeRole;
             document.getElementById('lblEmail').innerText = user.email.split('@')[0];
             document.getElementById('p_date').innerText = new Date().toLocaleDateString('dv-MV', { year: 'numeric', month: 'long', day: 'numeric' });
             document.getElementById('p_judgeName').innerText = user.email.split('@')[0];
             
+            // Show correct view based on role
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
             document.getElementById(`${activeRole}-view`).style.display = 'flex';
 
@@ -605,6 +610,7 @@
             if(activeRole === 'admin') setupAdmin();
             if(activeRole === 'judge') setupJudge();
             
+            // Connect to real-time database
             startCloudListener();
 
         } else {
@@ -728,8 +734,11 @@
         // mode = 'visible' or 'hidden'
         window.adminUpdateSession({ studentDisplayMode: mode });
         
-        if(mode === 'hidden') alert('ދަރިވަރުގެ ސްކްރީނަށް މިހާރު އަރާނީ "ނުބަލާ ކިޔަވާގޮފީގެ ކިޔެވުން". (Hifz Mode)');
-        else alert('ދަރިވަރުގެ ސްކްރީނަށް މިހާރު ޤުރްއާން އާޔަތްތައް ފެންނާނެ. (Tilawah Mode)');
+        if(mode === 'hidden') {
+            alert('ދަރިވަރުގެ ސްކްރީނަށް މިހާރު އަރާނީ "ނުބަލާ ކިޔަވާގޮފީގެ ކިޔެވުން". (Hifz Mode)');
+        } else {
+            alert('ދަރިވަރުގެ ސްކްރީނަށް މިހާރު ޤުރްއާން އާޔަތްތައް ފެންނާނެ. (Tilawah Mode)');
+        }
     };
 
     window.generateGrid = async () => {
@@ -738,9 +747,9 @@
         const end = parseInt(document.getElementById('a_end').value);
         const lines = parseInt(document.getElementById('a_lines').value);
         
-        // Setup Grid Constraints
+        // Setup Grid Constraints Logic
         pickedGridCount = 0;
-        maxGridPicks = parseInt(document.getElementById('a_qCount').value);
+        maxGridPicks = parseInt(document.getElementById('a_qCount').value); // Get value from the dropdown
         
         const wordsNeeded = lines * 13; 
         
@@ -801,6 +810,7 @@
         const box = document.getElementById(`gb-${boxId}`);
         if(box.classList.contains('opened')) return;
 
+        // Check if the pick limit is reached
         if(pickedGridCount >= maxGridPicks) {
             alert(`ތިޔަ ޚިޔާރުކުރެއްވީ ހަމަޖެހިފައިވާ ${maxGridPicks} ސުވާލު. އިތުރަކަށް ނުނެގޭނެ! އަލުން ގްރިޑް ހައްދަވާ.`);
             return;
