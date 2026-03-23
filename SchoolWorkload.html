@@ -756,7 +756,7 @@
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // FIREBASE CONFIGURATION (Use your actual config if deploying)
+    // FIREBASE CONFIGURATION
     const firebaseConfig = {
         apiKey: "AIzaSyBFloCTSUgYq4PB6SD8s-ZF7ttjCrrQ-ug",
         authDomain: "schoolworkload-7bf62.firebaseapp.com",
@@ -774,12 +774,12 @@
     let activeRole = 'ALL';
     let activeStreamFilter = 'ALL'; 
 
-    // DATA CONSTANTS (Expanded as requested)
+    // DATA CONSTANTS (Expanded & Pre-sorted for Safe Execution)
     const GRADES = ["Kulliyyah of Education", "Kulliyyah of Shari'ah & Law", "Kulliyyah of Arabic Language", "Kulliyyah of Quranic Studies", "Kulliyyah of Islamic Revealed Knowledge", "Centre for Postgraduate Studies", "Centre for Foundation Studies"];
+    const SORTED_GRADES = [...GRADES].sort((a, b) => b.length - a.length); // SAFE CONSTANT
+    
     const STREAMS = ["Degree", "Masters", "Diploma", "Certificate", "Foundation"];
     const CATEGORIES = ["Professor", "Senior Lecturer", "Lecturer", "Associate Lecturer", "Guest Lecturer"];
-    
-    // NEW FILTERS ARRAYS
     const CAMPUSES = ["Male' Campus", "Kulhudhuffushi Campus", "Fuvahmulah Campus", "Addu Campus", "Online Campus"];
     const MEDIUMS = ["English", "Dhivehi", "Arabic"];
     const MODALITIES = ["Face-to-Face", "Online", "Hybrid"];
@@ -823,12 +823,14 @@
         return String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
     };
 
-    // Advanced Value Extractor for diverse CSV imports
+    // Advanced Value Extractor for diverse CSV imports - SAFELY REWRITTEN
     window.getSafeVal = (row, possibleKeys) => {
+        if (!row || typeof row !== 'object') return ''; // Prevent Object.keys error
         for (let key of Object.keys(row)) {
-            let cleanKey = key.toLowerCase().replace(/[\s\n\r\.\-\_]/g, '');
+            let cleanKey = String(key).toLowerCase().replace(/[\s\n\r\.\-\_]/g, '');
             for (let pk of possibleKeys) {
-                if (cleanKey.includes(pk.toLowerCase().replace(/[\s\n\r\.\-\_]/g, ''))) return row[key] || '';
+                let cleanPk = String(pk).toLowerCase().replace(/[\s\n\r\.\-\_]/g, '');
+                if (cleanKey.includes(cleanPk)) return row[key] || '';
             }
         }
         return '';
@@ -850,11 +852,11 @@
         return 30; // Standard FT
     };
 
-    // Role Logic
+    // Role Logic (Safe Regex)
     const validateRoleEmail = (role, email) => {
         const prefix = getNormalizedPrefix(email);
         if (role === 'ALL') {
-            for (const g of GRADES) {
+            for (const g of SORTED_GRADES) {
                 if (new RegExp(`\\b${g.toLowerCase().replace(/[^a-z0-9]/g, '')}\\b`).test(prefix.replace(/[^a-z0-9]/g, ''))) return false; 
             }
             if (prefix.includes('lecturer')) return false;
@@ -870,7 +872,7 @@
         if (!email || !email.includes('@')) return 'ALL';
         const prefix = getNormalizedPrefix(email);
         if (prefix.includes('lecturer') || prefix.includes('teacher')) return 'TEACHER';
-        for (let g of GRADES.slice().sort((a, b) => b.length - a.length)) {
+        for (let g of SORTED_GRADES) {
             if (new RegExp(`\\b${g.toLowerCase().replace(/[^a-z0-9]/g, '')}\\b`).test(prefix.replace(/[^a-z0-9]/g, ''))) return g;
         }
         return 'ALL';
@@ -901,36 +903,29 @@
 
     // Populate Dynamic Dropdowns & Filters across the App
     const buildDropdowns = () => {
-        // Login
         let options = `<option value="ALL">Principal / Global Admin</option>`;
         options += `<option value="TEACHER">Lecturer Portal Access</option>`;
         GRADES.forEach(g => options += `<option value="${g}">Dean / HoD (${g})</option>`);
         document.getElementById('login-role').innerHTML = options;
         
-        // Main View Filter
         let viewOptions = `<option value="ALL">View All Kulliyyahs</option>`;
         GRADES.forEach(g => viewOptions += `<option value="${g}">View ${g}</option>`);
         document.getElementById('facView').innerHTML = viewOptions;
 
-        // Form Generators
         const genOptions = (arr, defaultText) => `<option value="">${defaultText}</option>` + arr.map(i => `<option value="${i}">${i}</option>`).join('');
         
-        // Forms (Lecturer)
         document.getElementById('frm-lect-kulliyyah').innerHTML = genOptions(GRADES, "-- Select Kulliyyah --");
         document.getElementById('frm-lect-campus').innerHTML = genOptions(CAMPUSES, "-- Select Campus --");
         document.getElementById('frm-lect-modality').innerHTML = genOptions(MODALITIES, "-- Select Modality --");
         
-        // Forms (Module)
         document.getElementById('frm-mod-kulliyyah').innerHTML = genOptions(GRADES, "-- Select Kulliyyah --");
         document.getElementById('frm-mod-program').innerHTML = genOptions(STREAMS, "-- Select Program --");
         document.getElementById('frm-mod-medium').innerHTML = genOptions(MEDIUMS, "-- Select Medium --");
 
-        // Database Tab Filters (Lecturers)
         document.getElementById('flt-lect-kulliyyah').innerHTML = genOptions(GRADES, "All Kulliyyahs");
         document.getElementById('flt-lect-campus').innerHTML = genOptions(CAMPUSES, "All Campuses");
         document.getElementById('flt-lect-modality').innerHTML = genOptions(MODALITIES, "All Modalities");
 
-        // Database Tab Filters (Modules)
         document.getElementById('flt-mod-kulliyyah').innerHTML = genOptions(GRADES, "All Kulliyyahs");
         document.getElementById('flt-mod-program').innerHTML = genOptions(STREAMS, "All Programs");
         document.getElementById('flt-mod-medium').innerHTML = genOptions(MEDIUMS, "All Mediums");
@@ -1050,6 +1045,7 @@
         });
     }
 
+    // SAFELY FETCH DATA AND RENDER
     async function loadCloudData() {
         document.getElementById('loader').style.display = 'flex';
         document.getElementById('loader-text').innerText = "Syncing from Cloud...";
@@ -1063,21 +1059,32 @@
             localDB.modules = modSnap.docs.map(doc => doc.data());
             
             const assSnap = await getDocs(collection(dbCloud, "assignments"));
+            localDB.assignments = {};
             assSnap.docs.forEach(doc => { localDB.assignments[doc.id] = doc.data(); });
             
             window.saveLocal(true); 
             window.showToast("Live data fetched from Cloud successfully.", "success");
             
         } catch (error) {
-            console.log("Falling back to local cache.");
+            console.log("Falling back to local cache.", error);
             loadLocalCache();
             window.showToast("Working Offline. Loaded data from Local Browser.", "warning");
             document.getElementById('cloud-pulse').style.background = "red";
             document.getElementById('cloud-pulse').style.animation = "none";
             document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
         } finally {
-            window.populateLecturerDropdown();
-            window.renderAllTabs();
+            try {
+                // Ensure arrays are intact before rendering
+                if (!Array.isArray(localDB.lecturers)) localDB.lecturers = [];
+                if (!Array.isArray(localDB.modules)) localDB.modules = [];
+                if (!localDB.assignments || typeof localDB.assignments !== 'object') localDB.assignments = {};
+                
+                window.populateLecturerDropdown();
+                window.renderAllTabs();
+            } catch(renderError) {
+                console.error("Critical Render Error:", renderError);
+                window.showToast("Data formatting error recovered safely.", "warning");
+            }
             document.getElementById('loader').style.display = 'none';
         }
     }
@@ -1100,8 +1107,9 @@
             await signInWithEmailAndPassword(auth, email, pass);
             localStorage.setItem('userRole', role);
         } catch (error) {
-            document.getElementById('loader').style.display = 'none';
             alert(`[ފަޔަރބޭސް އެރަރ]: ${error.code}\n\nސަބަބު: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި.`);
+        } finally {
+            document.getElementById('loader').style.display = 'none';
         }
     };
 
@@ -1157,7 +1165,10 @@
         const searchQ = document.getElementById('mSearch').value.toLowerCase();
         const viewFilter = document.getElementById('facView').value;
         
-        if (window.tsMatrix && window.tsMatrix.length > 0) { window.tsMatrix.forEach(ts => ts.destroy()); }
+        // SAFELY DESTROY TOMSELECT INSTANCES
+        if (window.tsMatrix && window.tsMatrix.length > 0) { 
+            window.tsMatrix.forEach(ts => { if(ts) ts.destroy(); }); 
+        }
         window.tsMatrix = [];
 
         if (localDB.modules.length === 0) {
@@ -1165,12 +1176,12 @@
             return;
         }
 
-        // Build assignment options grouped by Kulliyyah
+        // Build assignment options grouped by Kulliyyah SAFELY
         let lectOptionsMap = '<option value="">-- Assign --</option>';
         GRADES.forEach(g => {
             const facLecturers = localDB.lecturers.filter(l => {
-                const rawFac = window.getSafeVal(l, ['Grade/Department', 'Grade', 'Kulliyyah', 'Faculty']);
-                const lFac = GRADES.slice().sort((a, b) => b.length - a.length).find(gr => rawFac.toUpperCase().includes(gr.toUpperCase())) || rawFac;
+                const rawFac = String(window.getSafeVal(l, ['Grade/Department', 'Grade', 'Kulliyyah', 'Faculty']) || '');
+                const lFac = SORTED_GRADES.find(gr => rawFac.toUpperCase().includes(gr.toUpperCase())) || rawFac;
                 return lFac === g;
             });
             if (facLecturers.length > 0) {
@@ -1189,8 +1200,8 @@
         let finalHTML = ''; 
 
         localDB.modules.forEach(m => {
-            const rawMFac = window.getSafeVal(m, ['Grade', 'Kulliyyah', 'Faculty']);
-            const mFac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
+            const rawMFac = String(window.getSafeVal(m, ['Grade', 'Kulliyyah', 'Faculty']) || '');
+            const mFac = SORTED_GRADES.find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
             const mClass = window.getSafeVal(m, ['Class', 'Batch']);
             const mStream = window.getSafeVal(m, ['Stream', 'Program']);
             const mName = window.getSafeVal(m, ['ModuleName', 'Subject']);
@@ -1202,7 +1213,7 @@
                 mStream.toLowerCase().includes(searchQ)
             );
 
-            const matchesStreamFilter = activeStreamFilter === 'ALL' || mStream.toUpperCase().includes(activeStreamFilter.toUpperCase());
+            const matchesStreamFilter = activeStreamFilter === 'ALL' || String(mStream || '').toUpperCase().includes(activeStreamFilter.toUpperCase());
 
             if ((viewFilter === 'ALL' || mFac === viewFilter) && matchesSearch && matchesStreamFilter) {
                 
@@ -1258,6 +1269,7 @@
         tbody.innerHTML = finalHTML; 
 
         document.querySelectorAll('.tom-select-assign').forEach(el => {
+            if (el.tomselect) el.tomselect.destroy(); // Safe initialization
             const ts = new TomSelect(el, { create: false, placeholder: "🔍 Assign Lecturer...", dropdownParent: 'body' });
             ts.on('change', function(value) { if (value !== undefined) window.assignLecturer(el.dataset.mcode, value); });
             window.tsMatrix.push(ts);
@@ -1316,8 +1328,8 @@
         }
 
         localDB.lecturers.forEach(l => {
-            const rawFac = window.getSafeVal(l, ['Grade/Department', 'Grade', 'Kulliyyah', 'Faculty']);
-            const fac = GRADES.slice().sort((a, b) => b.length - a.length).find(g => rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac; 
+            const rawFac = String(window.getSafeVal(l, ['Grade/Department', 'Grade', 'Kulliyyah', 'Faculty']) || '');
+            const fac = SORTED_GRADES.find(g => rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac; 
             
             if (viewFilter === 'ALL' || fac === viewFilter) {
                 const safeId = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID', 'ID']));
@@ -1384,9 +1396,8 @@
     // --- 3. RENDER LECTURERS DB TAB (NEW) ---
     window.renderLecturersDataTab = () => {
         const tbody = document.getElementById('lecturers-data-body');
-        const viewFilter = document.getElementById('facView').value; // Main Header Filter acts as a master wall
+        const viewFilter = document.getElementById('facView').value; 
         
-        // Advanced Filters
         const fSearch = document.getElementById('flt-lect-search').value.toLowerCase();
         const fKull = document.getElementById('flt-lect-kulliyyah').value;
         const fType = document.getElementById('flt-lect-type').value;
@@ -1396,10 +1407,9 @@
 
         let html = '';
         localDB.lecturers.forEach(l => {
-            const rawFac = window.getSafeVal(l, ['Grade/Department', 'Grade', 'Kulliyyah', 'Faculty']);
-            const fac = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac;
+            const rawFac = String(window.getSafeVal(l, ['Grade/Department', 'Grade', 'Kulliyyah', 'Faculty']) || '');
+            const fac = SORTED_GRADES.find(g => rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac;
             
-            // Master Wall Check
             if(viewFilter !== 'ALL' && fac !== viewFilter) return;
 
             const id = window.getSafeVal(l, ['LecturerID', 'NationalID', 'ID']);
@@ -1412,7 +1422,6 @@
             
             const safeId = window.makeSafeId(id);
 
-            // Filter Conditions
             const matchSearch = id.toLowerCase().includes(fSearch) || name.toLowerCase().includes(fSearch) || mobile.toLowerCase().includes(fSearch);
             const matchKull = fKull === '' || fac === fKull;
             const matchType = fType === '' || type === fType;
@@ -1447,7 +1456,6 @@
         const tbody = document.getElementById('modules-data-body');
         const viewFilter = document.getElementById('facView').value;
         
-        // Advanced Filters
         const fSearch = document.getElementById('flt-mod-search').value.toLowerCase();
         const fKull = document.getElementById('flt-mod-kulliyyah').value;
         const fProg = document.getElementById('flt-mod-program').value;
@@ -1456,10 +1464,9 @@
 
         let html = '';
         localDB.modules.forEach(m => {
-            const rawMFac = window.getSafeVal(m, ['Grade', 'Kulliyyah', 'Faculty']);
-            const mFac = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
+            const rawMFac = String(window.getSafeVal(m, ['Grade', 'Kulliyyah', 'Faculty']) || '');
+            const mFac = SORTED_GRADES.find(g => rawMFac.toUpperCase().includes(g.toUpperCase())) || rawMFac;
             
-            // Master Wall Check
             if(viewFilter !== 'ALL' && mFac !== viewFilter) return;
 
             const code = window.getSafeVal(m, ['ModuleCode', 'Code']);
@@ -1473,7 +1480,6 @@
             
             const safeId = window.makeSafeId(code + batch + mFac);
 
-            // Filter Conditions
             const matchSearch = code.toLowerCase().includes(fSearch) || name.toLowerCase().includes(fSearch) || batch.toLowerCase().includes(fSearch);
             const matchKull = fKull === '' || mFac === fKull;
             const matchProg = fProg === '' || stream === fProg;
@@ -1524,11 +1530,11 @@
         
         document.getElementById('lect-form-title').innerText = "Edit Staff Record";
         document.getElementById('frm-lect-id').value = window.getSafeVal(l, ['LecturerID', 'NationalID', 'ID']); 
-        document.getElementById('frm-lect-id').disabled = true; // Block editing ID to preserve relations
+        document.getElementById('frm-lect-id').disabled = true; 
         document.getElementById('frm-lect-name').value = window.getSafeVal(l, ['LecturerName', 'FullName', 'Name']);
         
-        const rawFac = window.getSafeVal(l, ['Grade/Department', 'Grade', 'Kulliyyah', 'Faculty']); 
-        document.getElementById('frm-lect-kulliyyah').value = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac;
+        const rawFac = String(window.getSafeVal(l, ['Grade/Department', 'Grade', 'Kulliyyah', 'Faculty']) || ''); 
+        document.getElementById('frm-lect-kulliyyah').value = SORTED_GRADES.find(g=>rawFac.toUpperCase().includes(g.toUpperCase())) || rawFac;
         
         document.getElementById('frm-lect-type').value = window.getSafeVal(l, ['Type', 'Employment']); 
         document.getElementById('frm-lect-cat').value = window.getSafeVal(l, ['Category']);
@@ -1560,7 +1566,6 @@
         };
         
         if(existingIdx >= 0) { 
-            // Preserve other existing keys (like custom target)
             localDB.lecturers[existingIdx] = {...localDB.lecturers[existingIdx], ...newData}; 
         } else { 
             localDB.lecturers.push(newData); 
@@ -1579,7 +1584,6 @@
     window.deleteLecturer = (safeId) => {
         if(!confirm("Are you sure you want to permanently delete this staff member from the database?")) return;
         localDB.lecturers = localDB.lecturers.filter(x => window.makeSafeId(window.getSafeVal(x, ['LecturerID', 'NationalID', 'ID'])) !== safeId);
-        // Clean up assignments
         Object.keys(localDB.assignments).forEach(k => {
             if(localDB.assignments[k].id === safeId) localDB.assignments[k].id = '';
         });
@@ -1606,8 +1610,8 @@
 
     window.editModule = (safeId) => {
         const m = localDB.modules.find(x => { 
-            const rawF = window.getSafeVal(x, ['Grade', 'Kulliyyah', 'Faculty']); 
-            const f = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
+            const rawF = String(window.getSafeVal(x, ['Grade', 'Kulliyyah', 'Faculty']) || ''); 
+            const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
             return window.makeSafeId(window.getSafeVal(x, ['ModuleCode', 'Code'])+window.getSafeVal(x, ['Class', 'Batch'])+f) === safeId; 
         });
         if(!m) return;
@@ -1618,8 +1622,8 @@
         document.getElementById('frm-mod-code').value = window.getSafeVal(m, ['ModuleCode', 'Code']); 
         document.getElementById('frm-mod-name').value = window.getSafeVal(m, ['ModuleName', 'Subject', 'Name']);
         
-        const rawF = window.getSafeVal(m, ['Grade', 'Kulliyyah', 'Faculty']); 
-        document.getElementById('frm-mod-kulliyyah').value = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF;
+        const rawF = String(window.getSafeVal(m, ['Grade', 'Kulliyyah', 'Faculty']) || ''); 
+        document.getElementById('frm-mod-kulliyyah').value = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF;
         
         document.getElementById('frm-mod-batch').value = window.getSafeVal(m, ['Class', 'Batch']); 
         document.getElementById('frm-mod-program').value = window.getSafeVal(m, ['Stream', 'Program']);
@@ -1653,13 +1657,12 @@
         
         if(oldId) {
             let existingIdx = localDB.modules.findIndex(x => { 
-                const rawF = window.getSafeVal(x, ['Grade', 'Kulliyyah']); 
-                const f = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
+                const rawF = String(window.getSafeVal(x, ['Grade', 'Kulliyyah']) || ''); 
+                const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
                 return window.makeSafeId(window.getSafeVal(x, ['ModuleCode', 'Code'])+window.getSafeVal(x, ['Class', 'Batch'])+f) === oldId; 
             });
             if(existingIdx >= 0) { localDB.modules[existingIdx] = {...localDB.modules[existingIdx], ...newData}; }
             
-            // Transfer assignment if ID changed
             if(oldId !== safeId && localDB.assignments[oldId]) { 
                 localDB.assignments[safeId] = localDB.assignments[oldId]; 
                 delete localDB.assignments[oldId]; 
@@ -1678,8 +1681,8 @@
     window.deleteModuleRecord = (safeId) => {
         if(!confirm("Are you sure you want to permanently delete this subject from the database?")) return;
         localDB.modules = localDB.modules.filter(x => {
-            const rawF = window.getSafeVal(x, ['Grade', 'Kulliyyah']); 
-            const f = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
+            const rawF = String(window.getSafeVal(x, ['Grade', 'Kulliyyah']) || ''); 
+            const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
             return window.makeSafeId(window.getSafeVal(x, ['ModuleCode', 'Code'])+window.getSafeVal(x, ['Class', 'Batch'])+f) !== safeId;
         });
         delete localDB.assignments[safeId];
@@ -1790,7 +1793,8 @@
         streamStats['ALL']={o:0, a:0, u:0, f:0, p:0, c:0};
 
         localDB.lecturers.forEach(l => { 
-            const f = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>window.getSafeVal(l, ['Grade/Department', 'Grade', 'Kulliyyah']).toUpperCase().includes(g.toUpperCase())) || window.getSafeVal(l, ['Grade']); 
+            const rawF = String(window.getSafeVal(l, ['Grade/Department', 'Grade', 'Kulliyyah']) || '');
+            const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
             wData[window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID', 'ID']))] = { 
                 n:window.getSafeVal(l, ['LecturerName', 'Name']), 
                 w:0, t:window.getDefaultTarget(l), 
@@ -1800,7 +1804,8 @@
         });
 
         localDB.modules.forEach(m => {
-            const f = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>window.getSafeVal(m, ['Grade', 'Kulliyyah']).toUpperCase().includes(g.toUpperCase())) || window.getSafeVal(m, ['Grade']);
+            const rawF = String(window.getSafeVal(m, ['Grade', 'Kulliyyah']) || '');
+            const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF;
             const s = window.getSafeVal(m, ['Stream', 'Program'])||'General'; 
             const code = window.makeSafeId(window.getSafeVal(m, ['ModuleCode', 'Code'])+window.getSafeVal(m, ['Class', 'Batch'])+f);
             
@@ -1834,7 +1839,7 @@
             if(fStats[d.f]) { if(d.pt) fStats[d.f].pt+=d.w; else fStats[d.f].ft+=d.w; }
             const isIdle = d.w === 0; 
             const item = `<div class="flex justify-between items-center py-1.5 border-b text-[9px]">
-                <div class="pr-2"><span class="font-bold text-gray-800 break-words">${d.n}</span><br><span class="text-[8px] text-gray-500">${d.f.replace('Kulliyyah of ','K.')} | Target: ${d.t}h</span></div>
+                <div class="pr-2"><span class="font-bold text-gray-800 break-words">${d.n}</span><br><span class="text-[8px] text-gray-500">${String(d.f).replace('Kulliyyah of ','K.')} | Target: ${d.t}h</span></div>
                 <span class="font-black text-sm">${d.w}</span>
             </div>`;
             
@@ -1919,7 +1924,8 @@
         if(!l) return;
         
         const mods = localDB.modules.filter(m=>{ 
-            const f = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>window.getSafeVal(m, ['Grade', 'Kulliyyah']).toUpperCase().includes(g.toUpperCase())) || window.getSafeVal(m, ['Grade']); 
+            const rawF = String(window.getSafeVal(m, ['Grade', 'Kulliyyah']) || '');
+            const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
             return localDB.assignments[window.makeSafeId(window.getSafeVal(m, ['ModuleCode', 'Code'])+window.getSafeVal(m, ['Class', 'Batch'])+f)]?.id===id; 
         });
         
@@ -1938,7 +1944,7 @@
         let tot=0, r='', pr=''; 
         mods.forEach(m => { 
             const h = parseFloat(window.getSafeVal(m, ['Periods', 'WCH', 'Hours']))||0; tot+=h; 
-            const c = window.getSafeVal(m, ['ModuleCode', 'Code']), n = window.getSafeVal(m, ['ModuleName', 'Name']), f = window.getSafeVal(m, ['Grade', 'Kulliyyah']), cl = window.getSafeVal(m, ['Class', 'Batch']); 
+            const c = window.getSafeVal(m, ['ModuleCode', 'Code']), n = window.getSafeVal(m, ['ModuleName', 'Name']), f = String(window.getSafeVal(m, ['Grade', 'Kulliyyah']) || ''), cl = window.getSafeVal(m, ['Class', 'Batch']); 
             const stream = window.getSafeVal(m, ['Stream', 'Program']);
             
             r += `<tr>
@@ -1976,21 +1982,28 @@
         document.getElementById('loader').style.display='flex'; 
         const frame = document.getElementById('report-frame'); 
         frame.style.display='block'; 
-        setTimeout(async()=>{ 
-            const canvas = await html2canvas(frame, {scale:2}); 
-            const pdf = new jspdf.jsPDF('p','mm','a4'); 
-            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297); 
-            pdf.save("Workload_Statement.pdf"); 
-            frame.style.display='none'; 
-            document.getElementById('loader').style.display='none'; 
-            document.getElementById('hr-modal').style.display='flex'; 
-        },500); 
+        
+        setTimeout(async () => { 
+            try {
+                const canvas = await html2canvas(frame, {scale:2}); 
+                const pdf = new jspdf.jsPDF('p','mm','a4'); 
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297); 
+                pdf.save("Workload_Statement.pdf"); 
+            } catch(e) {
+                alert("PDF Generation Failed. Please try printing instead.");
+            } finally {
+                frame.style.display='none'; 
+                document.getElementById('loader').style.display='none'; 
+                document.getElementById('hr-modal').style.display='flex'; 
+            }
+        }, 500); 
     };
 
     // --- IMPORT, EXPORT, AND DUMMIES ---
     window.exportLocalCSV = () => { 
         let d = localDB.modules.map(m=>{ 
-            const f = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>window.getSafeVal(m, ['Grade', 'Kulliyyah']).toUpperCase().includes(g.toUpperCase())) || window.getSafeVal(m, ['Grade']); 
+            const rawF = String(window.getSafeVal(m, ['Grade', 'Kulliyyah']) || '');
+            const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
             const a = localDB.assignments[window.makeSafeId(window.getSafeVal(m, ['ModuleCode', 'Code'])+window.getSafeVal(m, ['Class', 'Batch'])+f)]||{}; 
             const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID', 'ID'])) === a.id);
             return {...m, ASSIGNED_LECT_ID: a.id||"None", ASSIGNED_LECT_NAME: l ? window.getSafeVal(l, ['LecturerName', 'Name']) : "None"}; 
@@ -2053,7 +2066,9 @@
 
     window.importData = async (type, event) => {
         const files = event.target.files; if (files.length === 0) return;
-        const loader = document.getElementById('loader'); loader.style.display = 'flex'; document.getElementById('loader-text').innerText = "Reading Local File..."; 
+        const loader = document.getElementById('loader'); 
+        loader.style.display = 'flex'; 
+        document.getElementById('loader-text').innerText = "Reading Local File..."; 
         await new Promise(r => setTimeout(r, 50)); 
         
         try {
@@ -2068,10 +2083,10 @@
             let existingMap = new Map(localDB[type].map(x => [window.makeSafeId(window.getSafeVal(x, docIdKey)), x]));
             
             tempData.forEach(x => { 
-                // Build composite ID for modules if needed
                 let id = '';
                 if(type === 'modules') {
-                    const f = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>window.getSafeVal(x, ['Grade', 'Kulliyyah']).toUpperCase().includes(g.toUpperCase())) || window.getSafeVal(x, ['Grade']); 
+                    const rawF = String(window.getSafeVal(x, ['Grade', 'Kulliyyah']) || '');
+                    const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
                     id = window.makeSafeId(window.getSafeVal(x, docIdKey) + window.getSafeVal(x, ['Class', 'Batch']) + f);
                 } else {
                     id = window.makeSafeId(window.getSafeVal(x, docIdKey));
@@ -2091,17 +2106,16 @@
             window.populateLecturerDropdown(); 
             window.renderAllTabs(); 
             
-            loader.style.display = 'none'; event.target.value = ''; 
             window.showToast(`${type} merged successfully.`, "success");
             
             if (dbCloud && navigator.onLine) { 
                 setSyncStatus('syncing'); 
                 const batch = writeBatch(dbCloud); 
-                // Push chunk to prevent size limit
                 tempData.slice(0, 400).forEach(i => { 
                     let sid = '';
                     if(type === 'modules') {
-                        const f = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>window.getSafeVal(i, ['Grade', 'Kulliyyah']).toUpperCase().includes(g.toUpperCase())) || window.getSafeVal(i, ['Grade']); 
+                        const rawF = String(window.getSafeVal(i, ['Grade', 'Kulliyyah']) || '');
+                        const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
                         sid = window.makeSafeId(window.getSafeVal(i, docIdKey) + window.getSafeVal(i, ['Class', 'Batch']) + f);
                     } else {
                         sid = window.makeSafeId(window.getSafeVal(i, docIdKey));
@@ -2111,7 +2125,10 @@
                 await batch.commit(); setSyncStatus('success'); 
             }
         } catch (err) { 
-            loader.style.display = 'none'; event.target.value = ''; alert("Error processing CSV: " + err.message); 
+            alert("Error processing CSV: " + err.message); 
+        } finally {
+            loader.style.display = 'none'; 
+            event.target.value = ''; 
         }
     };
 
@@ -2123,11 +2140,11 @@
         try {
             const batch = writeBatch(dbCloud);
             
-            // Limit to max 400 operations per batch roughly for safety
             Object.keys(localDB.assignments).slice(0, 100).forEach(k => { batch.set(doc(dbCloud, "assignments", k), localDB.assignments[k], { merge: true }); });
             localDB.lecturers.slice(0, 100).forEach(l => { let id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID', 'ID'])); if(id) batch.set(doc(dbCloud, "lecturers", id), l, { merge: true }); });
             localDB.modules.slice(0, 100).forEach(m => { 
-                const f = GRADES.slice().sort((a,b)=>b.length-a.length).find(g=>window.getSafeVal(m, ['Grade', 'Kulliyyah']).toUpperCase().includes(g.toUpperCase())) || window.getSafeVal(m, ['Grade']);
+                const rawF = String(window.getSafeVal(m, ['Grade', 'Kulliyyah']) || '');
+                const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF;
                 let id = window.makeSafeId(window.getSafeVal(m, ['ModuleCode', 'Code'])+window.getSafeVal(m, ['Class', 'Batch'])+f); 
                 if(id) batch.set(doc(dbCloud, "modules", id), m, { merge: true }); 
             });
