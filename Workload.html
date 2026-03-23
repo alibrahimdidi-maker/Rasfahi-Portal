@@ -575,7 +575,7 @@
 <div id="add-lecturer-modal" class="modal-overlay">
     <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl transform transition-all border-t-8 border-royal-blue">
         <div class="flex justify-between items-center mb-4 border-b pb-2">
-            <h2 class="text-lg font-black text-[#004d40] uppercase">Add New Lecturer</h2>
+            <h2 id="lecturer-modal-title" class="text-lg font-black text-[#004d40] uppercase">Add New Lecturer</h2>
             <button onclick="window.closeAddLecturerModal()" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none">&times;</button>
         </div>
         <div class="space-y-3">
@@ -623,7 +623,7 @@
 <div id="add-module-modal" class="modal-overlay">
     <div class="bg-white p-6 rounded-2xl w-full max-w-3xl shadow-2xl transform transition-all border-t-8 border-royal-green">
         <div class="flex justify-between items-center mb-4 border-b pb-2">
-            <h2 class="text-lg font-black text-[#004d40] uppercase">Add New Module</h2>
+            <h2 id="module-modal-title" class="text-lg font-black text-[#004d40] uppercase">Add New Module</h2>
             <button onclick="window.closeAddModuleModal()" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none">&times;</button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -823,6 +823,10 @@ const firebaseConfig = {
     let charts = { faculty: null, focus: null, assignmentDetails: null }; 
     let currentLecturerId = null;
     let activeRole = 'ALL';
+    
+    // CRUD State 
+    window.currentEditLecturerId = null;
+    window.currentEditModuleId = null;
 
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
 
@@ -931,7 +935,15 @@ const firebaseConfig = {
         let viewOptions = `<option value="ALL">View All Faculties (Global View)</option>`;
         FACULTIES.forEach(f => viewOptions += `<option value="${f}">View Faculty of ${f}</option>`);
         document.getElementById('facView').innerHTML = viewOptions;
+
+        // Form Modal Dropdowns Setup
+        let modalFacOpts = '<option value="">-- Select Faculty --</option>';
+        FACULTIES.forEach(f => modalFacOpts += `<option value="${f}">${f}</option>`);
+        document.getElementById('add-lect-fac').innerHTML = modalFacOpts;
+        document.getElementById('add-mod-fac').innerHTML = modalFacOpts;
     };
+    
+    // Initialize standard dropdowns immediately
     buildDropdowns();
 
     try {
@@ -978,7 +990,6 @@ const firebaseConfig = {
         container.innerHTML = html;
     };
 
-    // --- NEW: Dynamic Filters Population ---
     window.populateDynamicFilters = () => {
         const uniqueValues = (arr, keys) => {
             const set = new Set();
@@ -1001,13 +1012,11 @@ const firebaseConfig = {
             if(optionsArr.includes(currentVal)) el.value = currentVal;
         };
 
-        // Lecturers Filters
         const lFacs = activeRole === 'ALL' ? FACULTIES : [activeRole];
         populateSelect('lect-filter-fac', lFacs, "All Faculties");
         populateSelect('lect-filter-cat', uniqueValues(localDB.lecturers, ['LecturerCategory', 'Category']), "All Categories");
         populateSelect('lect-filter-type', uniqueValues(localDB.lecturers, ['LecturerType', 'Type']), "All Types");
 
-        // Modules Filters
         populateSelect('mod-filter-fac', lFacs, "All Faculties");
         populateSelect('mod-filter-campus', uniqueValues(localDB.modules, ['MALE', 'Campus']), "All Campuses");
         populateSelect('mod-filter-modality', uniqueValues(localDB.modules, ['Modality']), "All Modalities");
@@ -1180,6 +1189,9 @@ const firebaseConfig = {
     };
     
     window.getSafeCampus = (row) => {
+        const campusSpecific = window.getSafeVal(row, ['Campus', 'MALE', 'Male']);
+        if(campusSpecific) return campusSpecific;
+
         const keys = Object.keys(row);
         return keys.length > 2 ? (row[keys[2]] || 'MALE') : 'MALE';
     };
@@ -1262,7 +1274,7 @@ const firebaseConfig = {
                     "Medium of Instruction": "English",
                     "Combined Batch": combStr,
                     "Offered Status": "New",
-                    "MALE": campuses[Math.floor(Math.random() * campuses.length)],
+                    "Campus": campuses[Math.floor(Math.random() * campuses.length)],
                     "Module Name": fakeModuleName,
                     "Modality": Math.random() > 0.7 ? "Online" : "Face to Face",
                     "Module Code": fakeModuleCode,
@@ -1323,8 +1335,7 @@ const firebaseConfig = {
                     }
                     if (activeRole !== 'ALL') {
                         if (type === 'modules') {
-                             x['Parent Faculty'] = activeRole; 
-                             x['Kulliyyah/Centre'] = activeRole;
+                             x['Parent Kulliyya'] = activeRole;
                         } else if (type === 'lecturers') {
                              x['Kulliyyah / Centre'] = activeRole;
                         }
@@ -1566,6 +1577,7 @@ const firebaseConfig = {
                 const disableAttr = canEdit ? '' : 'disabled';
                 const selectStyle = canEdit ? '' : 'disabled';
                 const lockIcon = canEdit ? '' : '🔒 ';
+                
                 const adminAction = activeRole === 'ALL' ? `<td class="p-2 align-middle text-center"><button onclick="window.deleteModuleRow('${safeMCode}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Module">🗑️</button></td>` : '';
                 
                 const isModeCombined = assignment.mode === 'Combined' ? 'selected' : '';
@@ -1768,7 +1780,201 @@ const firebaseConfig = {
         }
     };
 
-    // --- NEW: Helper Functions for Filtering ---
+    // --- CRUD FUNCTIONS FOR LECTURERS ---
+    window.openAddLecturerModal = () => {
+        window.currentEditLecturerId = null;
+        document.getElementById('lecturer-modal-title').innerText = "Add New Lecturer";
+        
+        document.getElementById('add-lect-fac').value = '';
+        document.getElementById('add-lect-id').value = '';
+        document.getElementById('add-lect-name').value = '';
+        document.getElementById('add-lect-cat').value = 'Teaching Focused';
+        document.getElementById('add-lect-type').value = 'Full-time';
+        document.getElementById('add-lect-mobile').value = '';
+        
+        document.getElementById('add-lecturer-modal').style.display = 'flex';
+    };
+
+    window.openEditLecturerModal = (safeId) => {
+        const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === safeId);
+        if(!lect) return;
+        
+        window.currentEditLecturerId = safeId;
+        document.getElementById('lecturer-modal-title').innerText = "Edit Lecturer";
+        
+        document.getElementById('add-lect-fac').value = window.getFaculty(lect);
+        document.getElementById('add-lect-id').value = window.getSafeVal(lect, ['LecturerID', 'NationalID']);
+        document.getElementById('add-lect-name').value = window.getSafeVal(lect, ['LecturerName', 'FullName']);
+        document.getElementById('add-lect-cat').value = window.getSafeVal(lect, ['LecturerCategory', 'Category']) || 'Teaching Focused';
+        document.getElementById('add-lect-type').value = window.getSafeVal(lect, ['LecturerType', 'Type']) || 'Full-time';
+        document.getElementById('add-lect-mobile').value = window.getSafeVal(lect, ['MobileNumber', 'Mobile', 'Phone']) || '';
+
+        document.getElementById('add-lecturer-modal').style.display = 'flex';
+    };
+
+    window.closeAddLecturerModal = () => {
+        document.getElementById('add-lecturer-modal').style.display = 'none';
+        window.currentEditLecturerId = null;
+    };
+
+    window.saveNewLecturer = async () => {
+        const fac = document.getElementById('add-lect-fac').value;
+        const id = document.getElementById('add-lect-id').value.trim();
+        const name = document.getElementById('add-lect-name').value.trim();
+        const cat = document.getElementById('add-lect-cat').value;
+        const type = document.getElementById('add-lect-type').value;
+        const mobile = document.getElementById('add-lect-mobile').value.trim();
+
+        if(!fac || !id || !name) return alert("Faculty, Lecturer ID, and Name are required!");
+
+        const safeId = window.makeSafeId(id);
+        const newData = {
+            "Kulliyyah / Centre": fac,
+            "Lecturer ID": id,
+            "Lecturer Name": name,
+            "Lecturer Category": cat,
+            "Lecturer Type": type,
+            "Mobile Number": mobile
+        };
+
+        if (window.currentEditLecturerId) {
+            // Updating existing
+            const index = localDB.lecturers.findIndex(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === window.currentEditLecturerId);
+            if (index > -1) {
+                if(localDB.lecturers[index].custom_target) newData.custom_target = localDB.lecturers[index].custom_target;
+                localDB.lecturers[index] = { ...localDB.lecturers[index], ...newData };
+            }
+        } else {
+            // Adding new
+            if (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === safeId)) {
+                return alert("A lecturer with this ID already exists!");
+            }
+            localDB.lecturers.push(newData);
+        }
+
+        window.saveLocal(true);
+        if(dbCloud && navigator.onLine) {
+            try {
+                await setDoc(doc(dbCloud, "lecturers", safeId), newData, { merge: true });
+            } catch(e) { console.error("Cloud save failed", e); }
+        }
+
+        window.closeAddLecturerModal();
+        window.populateLecturerDropdown();
+        window.triggerAllRenders();
+        window.showToast(window.currentEditLecturerId ? "Lecturer Updated Successfully" : "Lecturer Added Successfully", "success");
+    };
+
+    // --- CRUD FUNCTIONS FOR MODULES ---
+    window.openAddModuleModal = () => {
+        window.currentEditModuleId = null;
+        document.getElementById('module-modal-title').innerText = "Add New Module";
+        
+        document.getElementById('add-mod-code').value = '';
+        document.getElementById('add-mod-name').value = '';
+        document.getElementById('add-mod-fac').value = '';
+        document.getElementById('add-mod-prog').value = '';
+        document.getElementById('add-mod-session').value = 'Morning';
+        document.getElementById('add-mod-batch').value = '';
+        document.getElementById('add-mod-comb').value = '';
+        document.getElementById('add-mod-campus').value = "Male'";
+        document.getElementById('add-mod-modality').value = 'Face to Face';
+        document.getElementById('add-mod-medium').value = 'English';
+        document.getElementById('add-mod-students').value = '';
+        document.getElementById('add-mod-wch').value = '';
+        document.getElementById('add-mod-status').value = 'New';
+        
+        document.getElementById('add-module-modal').style.display = 'flex';
+    };
+
+    window.openEditModuleModal = (safeCode) => {
+        const mod = localDB.modules.find(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])) === safeCode);
+        if(!mod) return;
+        
+        window.currentEditModuleId = safeCode;
+        document.getElementById('module-modal-title').innerText = "Edit Module";
+        
+        document.getElementById('add-mod-code').value = window.getSafeVal(mod, ['ModuleCode']);
+        document.getElementById('add-mod-name').value = window.getSafeVal(mod, ['ModuleName', 'ModuleTitle']);
+        document.getElementById('add-mod-fac').value = window.getFaculty(mod);
+        document.getElementById('add-mod-prog').value = window.getSafeVal(mod, ['ProgramName']);
+        document.getElementById('add-mod-session').value = window.getSafeVal(mod, ['Session']) || 'Morning';
+        document.getElementById('add-mod-batch').value = window.getSafeVal(mod, ['OfferedBatch']);
+        document.getElementById('add-mod-comb').value = window.getSafeVal(mod, ['CombinedBatch']);
+        document.getElementById('add-mod-campus').value = window.getSafeCampus(mod);
+        document.getElementById('add-mod-modality').value = window.getSafeVal(mod, ['Modality']) || 'Face to Face';
+        document.getElementById('add-mod-medium').value = window.getSafeVal(mod, ['MediumofInstruction', 'Medium']) || 'English';
+        document.getElementById('add-mod-students').value = window.getSafeVal(mod, ['NoofStudents']);
+        document.getElementById('add-mod-wch').value = window.getSafeVal(mod, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']);
+        document.getElementById('add-mod-status').value = window.getSafeVal(mod, ['OfferedStatus']) || 'New';
+        
+        document.getElementById('add-module-modal').style.display = 'flex';
+    };
+
+    window.closeAddModuleModal = () => {
+        document.getElementById('add-module-modal').style.display = 'none';
+        window.currentEditModuleId = null;
+    };
+
+    window.saveNewModule = async () => {
+        const code = document.getElementById('add-mod-code').value.trim();
+        const name = document.getElementById('add-mod-name').value.trim();
+        const fac = document.getElementById('add-mod-fac').value;
+        const prog = document.getElementById('add-mod-prog').value.trim();
+        const session = document.getElementById('add-mod-session').value;
+        const batch = document.getElementById('add-mod-batch').value.trim();
+        const comb = document.getElementById('add-mod-comb').value.trim();
+        const campus = document.getElementById('add-mod-campus').value;
+        const modality = document.getElementById('add-mod-modality').value;
+        const medium = document.getElementById('add-mod-medium').value;
+        const students = document.getElementById('add-mod-students').value;
+        const wch = document.getElementById('add-mod-wch').value;
+        const status = document.getElementById('add-mod-status').value;
+
+        if(!code || !name || !fac) return alert("Module Code, Name, and Faculty are required!");
+
+        const safeCode = window.makeSafeId(code);
+        const newData = {
+            "Module Code": code,
+            "Module Name": name,
+            "Parent Kulliyya": fac,
+            "Program Name": prog,
+            "Session": session,
+            "Offered Batch": batch,
+            "Combined Batch": comb,
+            "Campus": campus,
+            "Modality": modality,
+            "Medium of Instruction": medium,
+            "No of Students": students,
+            "Weekly Contact Hours": wch,
+            "Offered Status": status
+        };
+
+        if (window.currentEditModuleId) {
+            const index = localDB.modules.findIndex(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])) === window.currentEditModuleId);
+            if (index > -1) {
+                localDB.modules[index] = { ...localDB.modules[index], ...newData };
+            }
+        } else {
+            if (localDB.modules.find(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])) === safeCode)) {
+                return alert("A module with this code already exists!");
+            }
+            localDB.modules.push(newData);
+        }
+
+        window.saveLocal(true);
+        if(dbCloud && navigator.onLine) {
+            try {
+                await setDoc(doc(dbCloud, "modules", safeCode), newData, { merge: true });
+            } catch(e) { console.error("Cloud save failed", e); }
+        }
+
+        window.closeAddModuleModal();
+        window.triggerAllRenders();
+        window.showToast(window.currentEditModuleId ? "Module Updated Successfully" : "Module Added Successfully", "success");
+    };
+
+
     window.getFilteredLecturers = () => {
         const globalFac = document.getElementById('facView').value;
         const searchQ = (document.getElementById('lectSearch')?.value || '').toLowerCase();
@@ -1784,14 +1990,11 @@ const firebaseConfig = {
             const type = window.getSafeVal(l, ['LecturerType', 'Type']);
             const mobile = window.getSafeVal(l, ['MobileNumber', 'Mobile', 'Phone']);
 
-            // Global tab filter
             if (globalFac !== 'ALL' && !String(fac).includes(globalFac)) return false;
-            // Specific filters
             if (facFilter && fac !== facFilter) return false;
             if (catFilter && cat !== catFilter) return false;
             if (typeFilter && type !== typeFilter) return false;
             
-            // Search filter
             if (searchQ) {
                 const combinedText = `${fac} ${id} ${name} ${cat} ${type} ${mobile}`.toLowerCase();
                 if (!combinedText.includes(searchQ)) return false;
@@ -1824,10 +2027,8 @@ const firebaseConfig = {
             const campus = window.getSafeCampus(m);
             const modality = window.getSafeVal(m, ['Modality']);
 
-            // Global tab filter
             if (globalFac !== 'ALL' && !String(fac).includes(globalFac)) return false;
             
-            // Specific filters
             if (facFilter && fac !== facFilter) return false;
             if (campusFilter && campus !== campusFilter) return false;
             if (modalityFilter && modality !== modalityFilter) return false;
@@ -1837,7 +2038,6 @@ const firebaseConfig = {
             if (progFilter && prog !== progFilter) return false;
             if (batchFilter && batch !== batchFilter) return false;
 
-            // Search filter
             if (searchQ) {
                 const combinedText = `${fac} ${mCode} ${mName} ${session} ${prog} ${batch} ${med} ${status} ${campus} ${modality}`.toLowerCase();
                 if (!combinedText.includes(searchQ)) return false;
@@ -1906,7 +2106,6 @@ const firebaseConfig = {
         }
     };
 
-    // --- NEW: Master Printing Function (Royal Layout) ---
     window.printMasterReport = (type) => {
         const frame = document.getElementById('master-print-frame');
         const thead = document.getElementById('print-table-head');
@@ -1984,7 +2183,6 @@ const firebaseConfig = {
         filterInfo.innerHTML = badgesHtml;
         tbody.innerHTML = rowsHtml || '<tr><td colspan="10" class="text-center py-4">No records found for the applied filters.</td></tr>';
 
-        // Trigger native print
         document.title = `Official_Report_${type.toUpperCase()}_${new Date().getTime()}`;
         document.body.classList.add('is-printing-master');
         
@@ -2511,7 +2709,12 @@ const firebaseConfig = {
             const type = window.getSafeVal(l, ['LecturerType', 'Type']);
             const mobile = window.getSafeVal(l, ['MobileNumber', 'Mobile', 'Phone']) || 'N/A';
             
-            const adminAction = activeRole === 'ALL' ? `<button onclick="window.deleteLecturerRow('${safeId}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Lecturer">🗑️</button>` : '';
+            const adminAction = activeRole === 'ALL' ? `
+                <div class="flex gap-2 justify-center">
+                    <button onclick="window.openEditLecturerModal('${safeId}')" class="text-blue-500 hover:text-blue-700 font-bold text-lg" title="Edit Lecturer">✏️</button>
+                    <button onclick="window.deleteLecturerRow('${safeId}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Lecturer">🗑️</button>
+                </div>
+            ` : '';
 
             html += `
             <tr class="border-b hover:bg-gray-50 transition">
@@ -2557,7 +2760,12 @@ const firebaseConfig = {
             let wch = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']));
             if(isNaN(wch)) wch = 0;
             
-            const adminAction = activeRole === 'ALL' ? `<button onclick="window.deleteModuleRow('${safeCode}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Module">🗑️</button>` : '';
+            const adminAction = activeRole === 'ALL' ? `
+                <div class="flex gap-2 justify-center">
+                    <button onclick="window.openEditModuleModal('${safeCode}')" class="text-blue-500 hover:text-blue-700 font-bold text-lg" title="Edit Module">✏️</button>
+                    <button onclick="window.deleteModuleRow('${safeCode}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Module">🗑️</button>
+                </div>
+            ` : '';
 
             html += `
             <tr class="border-b hover:bg-gray-50 transition">
