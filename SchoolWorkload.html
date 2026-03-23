@@ -256,10 +256,10 @@
                     <button onclick="window.generateDummies('mod')" class="btn-gold px-3 py-1.5 rounded shadow text-[9px] md:text-[10px]">2. Get Sample Subjects</button>
                     
                     <label class="ml-2 text-[9px] md:text-[10px] font-bold bg-white border-2 border-dashed border-blue-400 text-blue-800 px-3 py-1.5 rounded cursor-pointer hover:bg-blue-50 transition">
-                        ☁️ UPLOAD TEACHERS <input type="file" accept=".csv" onchange="window.importData('lecturers', event)" class="hidden">
+                        ☁️ UPLOAD TEACHERS <input type="file" accept=".csv, text/csv, text/plain" onchange="window.importData('lecturers', event)" class="hidden">
                     </label>
                     <label class="text-[9px] md:text-[10px] font-bold bg-white border-2 border-dashed border-purple-400 text-purple-800 px-3 py-1.5 rounded cursor-pointer hover:bg-purple-50 transition">
-                        ☁️ UPLOAD SUBJECTS <input type="file" multiple accept=".csv" onchange="window.importData('modules', event)" class="hidden">
+                        ☁️ UPLOAD SUBJECTS <input type="file" multiple accept=".csv, text/csv, text/plain" onchange="window.importData('modules', event)" class="hidden">
                     </label>
                 </div>
 
@@ -290,7 +290,7 @@
                 </div>
                 <div class="flex gap-2 flex-wrap justify-center items-center">
                     <label class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2 rounded shadow text-[9px] cursor-pointer transition uppercase">
-                        📤 Import Master Backup <input type="file" accept=".csv" onchange="window.importMasterCSV(event)" class="hidden">
+                        📤 Import Master Backup <input type="file" accept=".csv, text/csv, text/plain" onchange="window.importMasterCSV(event)" class="hidden">
                     </label>
                     <button onclick="window.masterReset()" class="bg-red-700 hover:bg-red-800 text-white font-bold px-4 py-2 rounded shadow text-[9px] transition uppercase ml-2">
                         🚨 Master Reset System
@@ -1975,7 +1975,7 @@
             const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF; 
             const a = localDB.assignments[window.makeSafeId(window.getSafeVal(m, ['ModuleCode', 'Code'])+window.getSafeVal(m, ['Class', 'Batch'])+f)]||{}; 
             const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID', 'ID'])) === a.id);
-            return {...m, ASSIGNED_LECT_ID: a.id||"None", ASSIGNED_LECT_NAME: l ? window.getSafeVal(l, ['LecturerName', 'Name']) : "None"}; 
+            return {...m, ASSIGNED_TEACHER_ID: a.id||"None", ASSIGNED_TEACHER_NAME: l ? window.getSafeVal(l, ['LecturerName', 'Name']) : "None"}; 
         }); 
         downloadCSV(d, "Local_Matrix_Export.csv"); 
     };
@@ -2031,8 +2031,19 @@
         const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); 
     }
 
+    // ROBUST FILE READER IMPLEMENTATION
     window.importData = async (type, event) => {
-        const files = event.target.files; if (files.length === 0) return;
+        const files = event.target.files; 
+        if (files.length === 0) return;
+        
+        // Basic validation
+        const file = files[0];
+        if (file.name && !file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv' && file.type !== 'application/vnd.ms-excel') {
+            alert("ކަމުދާ ފައިލް ފޯމެޓެއް ނޫން! އަތްމަތިކުރައްވާފައިވަނީ ސީއެސްވީ (.csv) ފައިލެއްތޯ ޔަގީންކުރައްވާ.");
+            event.target.value = '';
+            return;
+        }
+
         const loader = document.getElementById('loader'); 
         loader.style.display = 'flex'; 
         document.getElementById('loader-text').innerText = "Reading Local File..."; 
@@ -2042,13 +2053,32 @@
             let tempData = []; 
             let docIdKey = type === 'lecturers' ? ['LecturerID', 'NationalID', 'ID'] : ['ModuleCode', 'Code'];
             
-            for (let file of files) { 
-                const data = await new Promise((res, rej) => Papa.parse(file, { header: true, skipEmptyLines: true, complete: (r) => res(r.data) })); 
+            for (let f of files) { 
+                const text = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = e => reject(new Error("File read failed"));
+                    reader.readAsText(f);
+                });
+                
+                const data = await new Promise((res, rej) => {
+                    Papa.parse(text, { 
+                        header: true, 
+                        skipEmptyLines: true, 
+                        complete: (r) => res(r.data),
+                        error: (e) => rej(e)
+                    });
+                }); 
                 tempData = tempData.concat(data.filter(x => Object.keys(x).length > 0 && x[Object.keys(x)[0]])); 
             }
             
+            if (tempData.length === 0) {
+                throw new Error("No readable data found in the CSV. Make sure it has headers.");
+            }
+
             let existingMap = new Map(localDB[type].map(x => [window.makeSafeId(window.getSafeVal(x, docIdKey)), x]));
-            
+            let addedCount = 0;
+
             tempData.forEach(x => { 
                 let id = '';
                 if(type === 'modules') {
@@ -2059,21 +2089,26 @@
                     id = window.makeSafeId(window.getSafeVal(x, docIdKey));
                 }
 
-                if(id) { 
+                if(id && id !== 'UNKNOWN-NaN' && id !== 'UNKNOWN-') { 
                     if (activeRole !== 'ALL') { 
                         if (type === 'modules') x['Grade'] = activeRole; 
                         else if (type === 'lecturers') x['Grade/Department'] = activeRole; 
                     } 
                     existingMap.set(id, x); 
+                    addedCount++;
                 } 
             });
             
+            if (addedCount === 0) {
+                throw new Error("Could not find matching ID columns in the CSV (Needs 'Lecturer ID' or 'Module Code').");
+            }
+
             localDB[type] = Array.from(existingMap.values()); 
             window.saveLocal(true); 
             window.populateLecturerDropdown(); 
             window.renderAllTabs(); 
             
-            window.showToast(`${type} merged successfully.`, "success");
+            window.showToast(`${type} merged successfully (${addedCount} records).`, "success");
             
             if (dbCloud && navigator.onLine) { 
                 setSyncStatus('syncing'); 
@@ -2087,7 +2122,7 @@
                     } else {
                         sid = window.makeSafeId(window.getSafeVal(i, docIdKey));
                     }
-                    if(sid) batch.set(doc(dbCloud, type, sid), i, { merge: true }); 
+                    if(sid && sid !== 'UNKNOWN-NaN' && sid !== 'UNKNOWN-') batch.set(doc(dbCloud, type, sid), i, { merge: true }); 
                 }); 
                 await batch.commit(); setSyncStatus('success'); 
             }
@@ -2108,12 +2143,12 @@
             const batch = writeBatch(dbCloud);
             
             Object.keys(localDB.assignments).slice(0, 100).forEach(k => { batch.set(doc(dbCloud, "assignments", k), localDB.assignments[k], { merge: true }); });
-            localDB.lecturers.slice(0, 100).forEach(l => { let id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID', 'ID'])); if(id) batch.set(doc(dbCloud, "lecturers", id), l, { merge: true }); });
+            localDB.lecturers.slice(0, 100).forEach(l => { let id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID', 'ID'])); if(id && id !== 'UNKNOWN-NaN') batch.set(doc(dbCloud, "lecturers", id), l, { merge: true }); });
             localDB.modules.slice(0, 100).forEach(m => { 
                 const rawF = String(window.getSafeVal(m, ['Grade', 'Kulliyyah']) || '');
                 const f = SORTED_GRADES.find(g=>rawF.toUpperCase().includes(g.toUpperCase())) || rawF;
                 let id = window.makeSafeId(window.getSafeVal(m, ['ModuleCode', 'Code'])+window.getSafeVal(m, ['Class', 'Batch'])+f); 
-                if(id) batch.set(doc(dbCloud, "modules", id), m, { merge: true }); 
+                if(id && id !== 'UNKNOWN-NaN') batch.set(doc(dbCloud, "modules", id), m, { merge: true }); 
             });
             
             await batch.commit(); 
