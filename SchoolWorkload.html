@@ -256,10 +256,10 @@
                     <button onclick="window.generateDummies('mod')" class="btn-gold px-3 py-1.5 rounded shadow text-[9px] md:text-[10px]">2. Get Sample Subjects</button>
                     
                     <label class="ml-2 text-[9px] md:text-[10px] font-bold bg-white border-2 border-dashed border-blue-400 text-blue-800 px-3 py-1.5 rounded cursor-pointer hover:bg-blue-50 transition">
-                        ☁️ UPLOAD TEACHERS <input type="file" accept=".csv" onchange="window.importData('lecturers', event)" class="hidden">
+                        ☁️ UPLOAD TEACHERS <input type="file" accept=".csv, text/csv, text/plain" onchange="window.importData('lecturers', event)" class="hidden">
                     </label>
                     <label class="text-[9px] md:text-[10px] font-bold bg-white border-2 border-dashed border-purple-400 text-purple-800 px-3 py-1.5 rounded cursor-pointer hover:bg-purple-50 transition">
-                        ☁️ UPLOAD SUBJECTS <input type="file" multiple accept=".csv" onchange="window.importData('modules', event)" class="hidden">
+                        ☁️ UPLOAD SUBJECTS <input type="file" multiple accept=".csv, text/csv, text/plain" onchange="window.importData('modules', event)" class="hidden">
                     </label>
                 </div>
 
@@ -290,7 +290,7 @@
                 </div>
                 <div class="flex gap-2 flex-wrap justify-center items-center">
                     <label class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2 rounded shadow text-[9px] cursor-pointer transition uppercase">
-                        📤 Import Master Backup <input type="file" accept=".csv" onchange="window.importMasterCSV(event)" class="hidden">
+                        📤 Import Master Backup <input type="file" accept=".csv, text/csv, text/plain" onchange="window.importMasterCSV(event)" class="hidden">
                     </label>
                     <button onclick="window.masterReset()" class="bg-red-700 hover:bg-red-800 text-white font-bold px-4 py-2 rounded shadow text-[9px] transition uppercase ml-2">
                         🚨 Master Reset System
@@ -764,7 +764,7 @@
 
     // DATA CONSTANTS (School Specific)
     const GRADES = ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
-    const SORTED_GRADES = [...GRADES].sort((a, b) => b.length - a.length); // SAFE CONSTANT
+    const SORTED_GRADES = [...GRADES].sort((a, b) => b.length - a.length); 
     
     const STREAMS = ["General", "Science", "Business", "Arts", "BTEC", "Quran"];
     const CATEGORIES = ["Leading Teacher", "Class Teacher", "Relief Teacher", "Part-Time", "Special Ed", "Other"];
@@ -808,9 +808,9 @@
         return String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
     };
 
-    // Advanced Value Extractor for diverse CSV imports - SAFELY REWRITTEN
+    // Advanced Value Extractor for diverse CSV imports
     window.getSafeVal = (row, possibleKeys) => {
-        if (!row || typeof row !== 'object') return ''; // Prevent Object.keys error
+        if (!row || typeof row !== 'object') return ''; 
         for (let key of Object.keys(row)) {
             let cleanKey = String(key).toLowerCase().replace(/[\s\n\r\.\-\_]/g, '');
             for (let pk of possibleKeys) {
@@ -819,6 +819,18 @@
             }
         }
         return '';
+    };
+
+    // ** CROSS-BROWSER DOWNLOAD FIX **
+    window.downloadCSV = (data, filename) => { 
+        const csv = Papa.unparse(data); 
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); 
+        const a = document.createElement("a"); 
+        a.href = URL.createObjectURL(blob); 
+        a.download = filename; 
+        document.body.appendChild(a); // Appending is required for Firefox & Safari
+        a.click(); 
+        document.body.removeChild(a); // Cleanup after click
     };
 
     const getNormalizedPrefix = (email) => {
@@ -837,7 +849,7 @@
         return 30; // Standard FT
     };
 
-    // Role Logic (Safe Regex)
+    // Role Logic
     const validateRoleEmail = (role, email) => {
         const prefix = getNormalizedPrefix(email);
         if (role === 'ALL') {
@@ -886,7 +898,7 @@
         } catch(e) { console.error("Cache read error", e); }
     };
 
-    // Populate Dynamic Dropdowns & Filters across the App
+    // Populate Dynamic Dropdowns & Filters
     const buildDropdowns = () => {
         let options = `<option value="ALL">Principal / School Admin</option>`;
         options += `<option value="TEACHER">Teacher Portal Access</option>`;
@@ -899,19 +911,15 @@
 
         const genOptions = (arr, defaultText) => `<option value="">${defaultText}</option>` + arr.map(i => `<option value="${i}">${i}</option>`).join('');
         
-        // Forms (Lecturer)
         document.getElementById('frm-lect-grade').innerHTML = genOptions(GRADES, "-- Select Grade --");
         document.getElementById('frm-lect-cat').innerHTML = genOptions(CATEGORIES, "-- Select Category --");
         
-        // Forms (Module)
         document.getElementById('frm-mod-grade').innerHTML = genOptions(GRADES, "-- Select Grade --");
         document.getElementById('frm-mod-stream').innerHTML = genOptions(STREAMS, "-- Select Stream --");
 
-        // Database Tab Filters (Lecturers)
         document.getElementById('flt-lect-grade').innerHTML = genOptions(GRADES, "All Grades");
         document.getElementById('flt-lect-cat').innerHTML = genOptions(CATEGORIES, "All Categories");
 
-        // Database Tab Filters (Modules)
         document.getElementById('flt-mod-grade').innerHTML = genOptions(GRADES, "All Grades");
         document.getElementById('flt-mod-stream').innerHTML = genOptions(STREAMS, "All Streams");
     };
@@ -1059,7 +1067,6 @@
             document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
         } finally {
             try {
-                // Ensure arrays are intact before rendering
                 if (!Array.isArray(localDB.lecturers)) localDB.lecturers = [];
                 if (!Array.isArray(localDB.modules)) localDB.modules = [];
                 if (!localDB.assignments || typeof localDB.assignments !== 'object') localDB.assignments = {};
@@ -1150,7 +1157,6 @@
         const searchQ = document.getElementById('mSearch').value.toLowerCase();
         const viewFilter = document.getElementById('facView').value;
         
-        // SAFELY DESTROY TOMSELECT INSTANCES
         if (window.tsMatrix && window.tsMatrix.length > 0) { 
             window.tsMatrix.forEach(ts => { if(ts) ts.destroy(); }); 
         }
@@ -1161,7 +1167,6 @@
             return;
         }
 
-        // Build assignment options grouped by Grade SAFELY
         let lectOptionsMap = '<option value="">-- Assign --</option>';
         GRADES.forEach(g => {
             const facLecturers = localDB.lecturers.filter(l => {
@@ -1254,7 +1259,7 @@
         tbody.innerHTML = finalHTML; 
 
         document.querySelectorAll('.tom-select-assign').forEach(el => {
-            if (el.tomselect) el.tomselect.destroy(); // Safe initialization
+            if (el.tomselect) el.tomselect.destroy(); 
             const ts = new TomSelect(el, { create: false, placeholder: "🔍 Assign Teacher...", dropdownParent: 'body' });
             ts.on('change', function(value) { if (value !== undefined) window.assignLecturer(el.dataset.mcode, value); });
             window.tsMatrix.push(ts);
@@ -1694,12 +1699,9 @@
         }
         
         if(rows.length === 0) return window.showToast("No data to export based on current filters.", "warning");
-        const csv = Papa.unparse(rows); 
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const a = document.createElement("a"); 
-        a.href = URL.createObjectURL(blob); 
-        a.download = filename; 
-        a.click();
+        
+        // Use the newly robust downloadCSV function
+        window.downloadCSV(rows, filename);
     };
 
     window.printDataList = (type) => {
@@ -1975,7 +1977,6 @@
         
         const file = files[0];
         
-        // ފައިލް ފޯމެޓް ޗެކްކުރާބައި ހަރުކަށިކަން ކުޑަކޮށްފައި
         if (file.name && !file.name.toLowerCase().endsWith('.csv')) {
             alert("ކަމުދާ ފައިލް ފޯމެޓެއް ނޫން! ފައިލްގެ ނަމުގެ ފަހަތުގައި އިންނަންވާނީ '.csv' އެވެ.");
             event.target.value = '';
@@ -1989,7 +1990,6 @@
         
         try {
             let tempData = []; 
-            // School Specific Keys
             let docIdKey = type === 'lecturers' ? ['TeacherID', 'LecturerID', 'NationalID', 'ID'] : ['SubjectCode', 'ModuleCode', 'Code'];
             
             for (let f of files) { 
