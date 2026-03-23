@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise HR & Task Management System</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        /* Gradient Backgrounds */
+        .bg-gradient-bureau { background: linear-gradient(135deg, #1e293b, #0f172a); }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        
+        /* Task Ribbon Styles */
+        .progress-container { width: 100%; background-color: #e2e8f0; border-radius: 999px; height: 12px; overflow: hidden; }
+        .progress-bar { height: 100%; transition: width 0.5s ease-in-out, background-color 0.5s ease; }
+        .progress-red { background-color: #ef4444; animation: pulse-red 2s infinite; }
+        .progress-yellow { background-color: #eab308; }
+        .progress-green { background-color: #22c55e; }
+        
+        @keyframes pulse-red {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 50; align-items: center; justify-content: center; }
+        .modal.active { display: flex; animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+        .star-active { color: #eab308; }
+        .star-inactive { color: #cbd5e1; }
+    </style>
+</head>
+<body>
+
+<div id="loginScreen" class="min-h-screen bg-gradient-bureau flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center">
+        <div class="text-4xl text-blue-900 mb-4"><i class="fa-solid fa-building-user"></i></div>
+        <h1 class="text-2xl font-black text-gray-800 mb-2">HR & Task Portal</h1>
+        <p class="text-xs text-gray-500 mb-6 uppercase tracking-wider">Enterprise Authorization</p>
+        
+        <div class="space-y-4 text-left">
+            <div>
+                <label class="text-xs font-bold text-gray-600">Select Role to Login</label>
+                <select id="loginRole" class="w-full p-3 border rounded-lg text-sm outline-none focus:border-blue-500 bg-gray-50">
+                    <option value="BUREAU">Head of Bureau (Top Level)</option>
+                    <option value="TMT_HEAD">TMT Head</option>
+                    <option value="DEPT_HEAD">Department Head (IT Dept)</option>
+                    <option value="STAFF">Staff Member</option>
+                </select>
+            </div>
+            <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition">Secure Login</button>
+        </div>
+    </div>
+</div>
+
+<div id="appScreen" style="display: none;" class="flex h-screen overflow-hidden">
+    
+    <aside class="w-64 bg-white shadow-xl flex flex-col h-full z-20">
+        <div class="p-6 bg-gradient-bureau text-white">
+            <h2 class="text-lg font-black tracking-tight"><i class="fa-solid fa-shield-halved mr-2"></i>HR PORTAL</h2>
+            <p id="userRoleBadge" class="text-xs text-blue-200 mt-1 uppercase tracking-widest font-semibold"></p>
+        </div>
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+            <button onclick="switchTab('analytics')" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"><i class="fa-solid fa-chart-pie w-6"></i> Analytics & Dashboard</button>
+            <button onclick="switchTab('departments')" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition auth-admin"><i class="fa-solid fa-sitemap w-6"></i> Departments & Sections</button>
+            <button onclick="switchTab('staffDirectory')" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition auth-admin"><i class="fa-solid fa-users w-6"></i> Staff Directory</button>
+            <button onclick="switchTab('myTasks')" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition auth-staff"><i class="fa-solid fa-list-check w-6"></i> My Tasks</button>
+            <button onclick="switchTab('nominations')" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"><i class="fa-solid fa-trophy w-6 text-yellow-500"></i> Nominations & Awards</button>
+        </nav>
+        <div class="p-4 border-t">
+            <button onclick="logout()" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50 transition"><i class="fa-solid fa-arrow-right-from-bracket w-6"></i> Logout</button>
+        </div>
+    </aside>
+
+    <main class="flex-1 h-full overflow-y-auto p-8">
+        
+        <div id="tab-analytics" class="tab-content">
+            <h2 class="text-2xl font-black text-gray-800 mb-6">Organization Overview</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="card p-6 border-l-4 border-blue-500">
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Total Staff</p>
+                    <h3 class="text-3xl font-black text-gray-800" id="stat-staff">0</h3>
+                </div>
+                <div class="card p-6 border-l-4 border-yellow-500">
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Pending Tasks</p>
+                    <h3 class="text-3xl font-black text-gray-800" id="stat-pending">0</h3>
+                </div>
+                <div class="card p-6 border-l-4 border-green-500">
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Endorsed (Completed)</p>
+                    <h3 class="text-3xl font-black text-gray-800" id="stat-completed">0</h3>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="card p-6">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase mb-4">Task Status Distribution</h3>
+                    <div class="h-64"><canvas id="taskPieChart"></canvas></div>
+                </div>
+                <div class="card p-6">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase mb-4">Department Performance</h3>
+                    <div class="h-64"><canvas id="deptBarChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-departments" class="tab-content hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-black text-gray-800">Departments & Sections</h2>
+                <button class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow hover:bg-blue-700" id="btnCreateDept"><i class="fa-solid fa-plus mr-1"></i> Create Dept</button>
+            </div>
+            <div class="card p-6 text-center text-gray-500 text-sm">
+                <p><i class="fa-solid fa-sitemap text-4xl mb-3 text-blue-200"></i></p>
+                <p>Bureau and TMT Heads can manage the organizational structure here.</p>
+                <div id="deptList" class="mt-6 text-left space-y-4"></div>
+            </div>
+        </div>
+
+        <div id="tab-staffDirectory" class="tab-content hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-black text-gray-800">Staff Directory</h2>
+                <div class="flex gap-2">
+                    <input type="text" id="searchStaff" placeholder="Search name or ID..." class="px-4 py-2 border rounded-lg text-sm" onkeyup="renderStaffTable()">
+                    <button class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow hover:bg-blue-700" id="btnAssignStaff"><i class="fa-solid fa-user-plus mr-1"></i> Assign Staff</button>
+                </div>
+            </div>
+            <div class="card overflow-hidden">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-100 text-gray-600 uppercase font-bold text-xs">
+                        <tr>
+                            <th class="p-4">Staff Details</th>
+                            <th class="p-4">Department & Section</th>
+                            <th class="p-4">Role</th>
+                            <th class="p-4 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffTableBody" class="divide-y">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-myTasks" class="tab-content hidden">
+            <h2 class="text-2xl font-black text-gray-800 mb-6">My Assigned Tasks</h2>
+            <div id="myTasksList" class="space-y-4">
+                </div>
+        </div>
+
+        <div id="tab-nominations" class="tab-content hidden">
+            <h2 class="text-2xl font-black text-gray-800 mb-6">Hall of Fame & Nominations</h2>
+            <div class="card p-6 bg-gradient-to-br from-yellow-50 to-white border-t-4 border-yellow-400">
+                <div class="flex items-center gap-4 mb-6">
+                    <i class="fa-solid fa-award text-5xl text-yellow-500"></i>
+                    <div>
+                        <h3 class="text-lg font-black text-gray-800">Top Performers</h3>
+                        <p class="text-xs text-gray-500">Staff members eligible for organizational certificates based on fully completed tasks.</p>
+                    </div>
+                </div>
+                <div id="nominationsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div id="staffModal" class="modal">
+    <div class="bg-white rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="p-6 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
+            <div>
+                <h2 class="text-xl font-black text-gray-800" id="modalStaffName">Staff Name</h2>
+                <p class="text-xs text-gray-500 font-bold" id="modalStaffMeta">ID: --- | Dept: ---</p>
+            </div>
+            <button onclick="closeModal('staffModal')" class="text-gray-400 hover:text-red-500 text-2xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1 space-y-6">
+            
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider"><i class="fa-solid fa-list-check mr-1"></i> Task Timeline</h3>
+                <button onclick="openAddTaskModal()" class="bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold shadow hover:bg-green-700 auth-dept-head"><i class="fa-solid fa-plus"></i> Add Task</button>
+            </div>
+            
+            <div id="modalTaskList" class="space-y-4">
+                </div>
+
+        </div>
+    </div>
+</div>
+
+<div id="addTaskModal" class="modal">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
+        <h2 class="text-lg font-black text-gray-800 mb-4">Assign New Task</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="text-xs font-bold text-gray-600">Task Title</label>
+                <input type="text" id="taskTitle" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-bold text-gray-600">Due Date</label>
+                    <input type="date" id="taskDueDate" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600">Urgency/Priority</label>
+                    <select id="taskPriority" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm">
+                        <option value="Normal">Normal</option>
+                        <option value="High">High Urgent</option>
+                    </select>
+                </div>
+            </div>
+            <div class="pt-4 flex justify-end gap-2">
+                <button onclick="closeModal('addTaskModal')" class="px-4 py-2 text-gray-500 font-bold text-sm hover:bg-gray-100 rounded">Cancel</button>
+                <button onclick="saveTask()" class="bg-blue-600 text-white px-4 py-2 font-bold text-sm rounded hover:bg-blue-700">Save Task</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- STATE MANAGEMENT ---
+    let currentUser = null;
+    let selectedStaffForTask = null;
+    let charts = { pie: null, bar: null };
+
+    // Mock Database
+    const db = {
+        staff: [
+            { id: "S001", name: "Ahmed Ali", nic: "A123456", mobile: "7771122", dept: "IT Department", section: "Network", role: "Network Engineer", trophies: 2 },
+            { id: "S002", name: "Fathimath Suha", nic: "A654321", mobile: "7773344", dept: "HR Department", section: "Recruitment", role: "HR Executive", trophies: 5 },
+            { id: "S003", name: "Mohamed Zaid", nic: "A112233", mobile: "7775566", dept: "IT Department", section: "Development", role: "Software Dev", trophies: 0 }
+        ],
+        tasks: [
+            { id: 1, staffId: "S001", title: "Setup Core Switch", assigned: "2023-10-01", due: "2023-10-15", priority: "High", status: "Endorsed", progress: 100 },
+            { id: 2, staffId: "S001", title: "Monitor Firewall Logs", assigned: "2023-10-10", due: "2023-10-25", priority: "Normal", status: "In Progress", progress: 40 },
+            { id: 3, staffId: "S002", title: "Process Monthly Payroll", assigned: "2023-10-20", due: "2023-10-28", priority: "High", status: "Pending Endorsement", progress: 100 },
+            { id: 4, staffId: "S003", title: "Update HR Portal UI", assigned: "2023-10-05", due: "2023-10-10", priority: "Normal", status: "In Progress", progress: 10 } // Late task
+        ]
+    };
+
+    // --- AUTHENTICATION ---
+    function login() {
+        const role = document.getElementById('loginRole').value;
+        currentUser = { role: role, id: role === 'STAFF' ? 'S001' : 'ADMIN' };
+        
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appScreen').style.display = 'flex';
+        
+        document.getElementById('userRoleBadge').innerText = "Logged in as: " + role;
+
+        // UI Auth Guards
+        document.querySelectorAll('.auth-admin').forEach(el => el.style.display = ['BUREAU', 'TMT_HEAD', 'DEPT_HEAD'].includes(role) ? 'block' : 'none');
+        document.querySelectorAll('.auth-dept-head').forEach(el => el.style.display = ['BUREAU', 'DEPT_HEAD'].includes(role) ? 'block' : 'none');
+        document.querySelectorAll('.auth-staff').forEach(el => el.style.display = role === 'STAFF' ? 'block' : 'none');
+
+        switchTab(role === 'STAFF' ? 'myTasks' : 'analytics');
+    }
+
+    function logout() {
+        currentUser = null;
+        document.getElementById('appScreen').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'flex';
+    }
+
+    // --- NAVIGATION ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.getElementById('tab-' + tabId).classList.remove('hidden');
+
+        if (tabId === 'analytics') renderAnalytics();
+        if (tabId === 'staffDirectory') renderStaffTable();
+        if (tabId === 'myTasks') renderMyTasks();
+        if (tabId === 'nominations') renderNominations();
+    }
+
+    // --- ANALYTICS ---
+    function renderAnalytics() {
+        document.getElementById('stat-staff').innerText = db.staff.length;
+        document.getElementById('stat-pending').innerText = db.tasks.filter(t => t.progress < 100).length;
+        document.getElementById('stat-completed').innerText = db.tasks.filter(t => t.status === 'Endorsed').length;
+
+        // Prepare Chart Data
+        const statusCounts = { "Pending": 0, "In Progress": 0, "Wait Endorse": 0, "Endorsed": 0 };
+        db.tasks.forEach(t => {
+            if(t.progress === 0) statusCounts["Pending"]++;
+            else if(t.progress < 100) statusCounts["In Progress"]++;
+            else if(t.status === 'Pending Endorsement') statusCounts["Wait Endorse"]++;
+            else if(t.status === 'Endorsed') statusCounts["Endorsed"]++;
+        });
+
+        if(charts.pie) charts.pie.destroy();
+        charts.pie = new Chart(document.getElementById('taskPieChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#94a3b8', '#3b82f6', '#eab308', '#22c55e'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        if(charts.bar) charts.bar.destroy();
+        charts.bar = new Chart(document.getElementById('deptBarChart'), {
+            type: 'bar',
+            data: {
+                labels: ['IT Department', 'HR Department'],
+                datasets: [{ label: 'Completed Tasks', data: [1, 0], backgroundColor: '#22c55e' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // --- STAFF DIRECTORY ---
+    function renderStaffTable() {
+        const query = document.getElementById('searchStaff').value.toLowerCase();
+        const tbody = document.getElementById('staffTableBody');
+        tbody.innerHTML = '';
+
+        db.staff.filter(s => s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query)).forEach(s => {
+            tbody.innerHTML += `
+                <tr class="hover:bg-gray-50 transition cursor-pointer" onclick="openStaffModal('${s.id}')">
+                    <td class="p-4">
+                        <div class="font-bold text-gray-800">${s.name} <span class="text-xs text-blue-500 bg-blue-50 px-2 py-0.5 rounded ml-2">${s.id}</span></div>
+                        <div class="text-xs text-gray-500 mt-1">NIC: ${s.nic} | Mob: ${s.mobile}</div>
+                    </td>
+                    <td class="p-4 text-sm font-semibold text-gray-700">${s.dept}<br><span class="text-xs font-normal text-gray-500">${s.section}</span></td>
+                    <td class="p-4 text-sm">${s.role}</td>
+                    <td class="p-4 text-center">
+                        <button class="text-blue-600 hover:text-blue-800 font-bold text-xs"><i class="fa-solid fa-eye"></i> View Tasks</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // --- MODALS & TASK MANAGEMENT ---
+    function openStaffModal(staffId) {
+        selectedStaffForTask = staffId;
+        const staff = db.staff.find(s => s.id === staffId);
+        document.getElementById('modalStaffName').innerText = staff.name;
+        document.getElementById('modalStaffMeta').innerText = `ID: ${staff.id} | NIC: ${staff.nic} | Dept: ${staff.dept}`;
+        
+        renderStaffTasks(staffId);
+        document.getElementById('staffModal').classList.add('active');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('active');
+    }
+
+    function renderStaffTasks(staffId) {
+        const container = document.getElementById('modalTaskList');
+        container.innerHTML = '';
+        const tasks = db.tasks.filter(t => t.staffId === staffId);
+
+        if(tasks.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-400 text-sm italic py-4">No tasks assigned.</p>';
+            return;
+        }
+
+        tasks.forEach(t => {
+            const today = new Date().toISOString().split('T')[0];
+            const isLate = t.progress < 100 && t.due < today;
+            const barClass = t.progress === 100 ? 'progress-green' : (isLate ? 'progress-red' : 'progress-yellow');
+            
+            // Calculate Stars (1 star per 20%)
+            const stars = Math.floor(t.progress / 20);
+            let starHtml = '';
+            for(let i=0; i<5; i++) starHtml += `<i class="fa-solid fa-star text-xs ${i < stars ? 'star-active' : 'star-inactive'}"></i>`;
+
+            let actionBtn = '';
+            if (t.progress === 100 && t.status !== 'Endorsed' && ['BUREAU', 'DEPT_HEAD'].includes(currentUser.role)) {
+                actionBtn = `<button onclick="endorseTask(${t.id})" class="bg-green-600 text-white px-3 py-1 rounded text-xs font-bold shadow hover:bg-green-700 animate-pulse"><i class="fa-solid fa-check-double"></i> Endorse Task</button>`;
+            } else if (t.status === 'Endorsed') {
+                actionBtn = `<span class="text-yellow-500 text-xl" title="Endorsed & Trophy Awarded!"><i class="fa-solid fa-trophy"></i></span>`;
+            }
+
+            container.innerHTML += `
+                <div class="border rounded-xl p-4 bg-white shadow-sm relative overflow-hidden">
+                    ${t.priority === 'High' ? '<div class="absolute top-0 left-0 w-1 h-full bg-red-500"></div>' : ''}
+                    <div class="flex justify-between items-start mb-2 pl-2">
+                        <div>
+                            <h4 class="font-bold text-gray-800">${t.title} ${t.priority === 'High' ? '<span class="text-[9px] bg-red-100 text-red-700 px-1 rounded ml-1">URGENT</span>' : ''}</h4>
+                            <p class="text-[10px] text-gray-500 font-mono mt-1">Assigned: ${t.assigned} | Due: <span class="${isLate?'text-red-500 font-bold':''}">${t.due}</span></p>
+                        </div>
+                        <div class="text-right">
+                            <div class="mb-1">${starHtml}</div>
+                            <span class="text-xs font-black text-gray-600">${t.progress}%</span>
+                        </div>
+                    </div>
+                    <div class="pl-2 mt-3">
+                        <div class="progress-container mb-3">
+                            <div class="progress-bar ${barClass}" style="width: ${t.progress}%"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-gray-500 font-semibold bg-gray-100 px-2 py-1 rounded">Status: ${t.status}</span>
+                            ${actionBtn}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function openAddTaskModal() {
+        document.getElementById('taskTitle').value = '';
+        document.getElementById('taskDueDate').value = '';
+        document.getElementById('addTaskModal').classList.add('active');
+    }
+
+    function saveTask() {
+        const title = document.getElementById('taskTitle').value;
+        const due = document.getElementById('taskDueDate').value;
+        const prio = document.getElementById('taskPriority').value;
+        
+        if(!title || !due) return alert("Please fill all fields.");
+
+        db.tasks.push({
+            id: Date.now(),
+            staffId: selectedStaffForTask,
+            title: title,
+            assigned: new Date().toISOString().split('T')[0],
+            due: due,
+            priority: prio,
+            status: "Pending",
+            progress: 0
+        });
+
+        closeModal('addTaskModal');
+        renderStaffTasks(selectedStaffForTask);
+    }
+
+    function endorseTask(taskId) {
+        const task = db.tasks.find(t => t.id === taskId);
+        task.status = 'Endorsed';
+        
+        // Award Trophy
+        const staff = db.staff.find(s => s.id === task.staffId);
+        staff.trophies += 1;
+        
+        renderStaffTasks(selectedStaffForTask);
+        alert("Task Endorsed! The staff member has been awarded a Trophy.");
+    }
+
+    // --- STAFF VIEW (MY TASKS) ---
+    function renderMyTasks() {
+        const container = document.getElementById('myTasksList');
+        container.innerHTML = '';
+        const tasks = db.tasks.filter(t => t.staffId === currentUser.id);
+
+        tasks.forEach(t => {
+            const isDone = t.progress === 100;
+            container.innerHTML += `
+                <div class="card p-5 border-l-4 ${t.priority === 'High' ? 'border-red-500' : 'border-blue-500'}">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-gray-800 text-lg">${t.title}</h3>
+                        <span class="text-xs bg-gray-100 font-bold px-2 py-1 rounded">Status: ${t.status}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-4"><i class="fa-regular fa-calendar mr-1"></i> Due: ${t.due}</p>
+                    
+                    ${!isDone ? `
+                        <div class="flex items-center gap-3 bg-blue-50 p-3 rounded-lg">
+                            <label class="text-xs font-bold">Update Progress:</label>
+                            <input type="range" min="0" max="100" value="${t.progress}" class="flex-1 cursor-pointer" onchange="updateTask(${t.id}, this.value)">
+                            <span class="text-sm font-black w-10 text-right">${t.progress}%</span>
+                            <button onclick="completeTask(${t.id})" class="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-blue-700">Mark Done</button>
+                        </div>
+                    ` : `
+                        <div class="bg-green-50 p-3 rounded-lg text-green-700 text-sm font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-circle-check"></i> Task completed and pending Head endorsement.
+                        </div>
+                    `}
+                </div>
+            `;
+        });
+    }
+
+    function updateTask(taskId, val) {
+        const task = db.tasks.find(t => t.id === taskId);
+        task.progress = parseInt(val);
+        task.status = "In Progress";
+        renderMyTasks();
+    }
+
+    function completeTask(taskId) {
+        const task = db.tasks.find(t => t.id === taskId);
+        task.progress = 100;
+        task.status = "Pending Endorsement";
+        renderMyTasks();
+        alert("Task marked as Done. Awaiting Head endorsement.");
+    }
+
+    // --- GAMIFICATION / NOMINATIONS ---
+    function renderNominations() {
+        const container = document.getElementById('nominationsList');
+        container.innerHTML = '';
+        
+        // Sort staff by trophies
+        const topStaff = [...db.staff].sort((a,b) => b.trophies - a.trophies).filter(s => s.trophies > 0);
+        
+        if(topStaff.length === 0) {
+            container.innerHTML = '<p class="col-span-full text-gray-500 text-sm">No nominations yet.</p>';
+            return;
+        }
+
+        topStaff.forEach((s, idx) => {
+            const rankColor = idx === 0 ? 'text-yellow-500' : (idx === 1 ? 'text-gray-400' : 'text-amber-700');
+            container.innerHTML += `
+                <div class="bg-white p-4 rounded-xl border border-yellow-200 shadow-sm flex items-center gap-4">
+                    <div class="text-4xl ${rankColor}"><i class="fa-solid fa-trophy"></i></div>
+                    <div>
+                        <h4 class="font-black text-gray-800">${s.name}</h4>
+                        <p class="text-xs text-gray-500">${s.dept}</p>
+                        <p class="text-sm font-bold text-yellow-600 mt-1">${s.trophies} Fully Endorsed Tasks</p>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+</script>
+</body>
+</html>
