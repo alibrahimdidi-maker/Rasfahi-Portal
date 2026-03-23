@@ -443,7 +443,8 @@
                     
                     <div class="bg-gray-50 p-3 rounded-lg border mb-4 flex flex-wrap gap-2 items-center shadow-inner">
                         <span class="text-[10px] font-black text-gray-600 uppercase mr-2">Filters:</span>
-                        <input type="text" id="flt-mod-search" placeholder="Search Code, Name, Class..." class="p-2 border rounded outline-none focus:border-royal-blue text-[10px] flex-1 min-w-[150px]" onkeyup="window.renderModulesDataTab()">
+                        <input type="text" id="flt-mod-search" placeholder="Search Code, Name..." class="p-2 border rounded outline-none focus:border-royal-blue text-[10px] flex-1 min-w-[150px]" onkeyup="window.renderModulesDataTab()">
+                        <input type="text" id="flt-mod-class" placeholder="Class (e.g. 10A)" class="p-2 border rounded outline-none focus:border-royal-blue text-[10px]" onkeyup="window.renderModulesDataTab()">
                         
                         <select id="flt-mod-grade" class="p-2 border rounded outline-none text-[10px] min-w-[120px]" onchange="window.renderModulesDataTab()">
                             <option value="">Parent Grade</option>
@@ -1433,12 +1434,13 @@
     };
 
 
-    // --- 4. RENDER MODULES DB TAB (NEW) ---
+    // --- 4. RENDER MODULES DB TAB (UPDATED WITH CLASS FILTER) ---
     window.renderModulesDataTab = () => {
         const tbody = document.getElementById('modules-data-body');
         const viewFilter = document.getElementById('facView').value;
         
         const fSearch = document.getElementById('flt-mod-search').value.toLowerCase();
+        const fClass = document.getElementById('flt-mod-class')?.value.toLowerCase() || ''; // New Class Filter
         const fGrade = document.getElementById('flt-mod-grade').value;
         const fStream = document.getElementById('flt-mod-stream').value;
         const fMedium = document.getElementById('flt-mod-medium').value;
@@ -1462,13 +1464,14 @@
             
             const safeId = window.makeSafeId(code + batch + mFac);
 
-            const matchSearch = code.toLowerCase().includes(fSearch) || name.toLowerCase().includes(fSearch) || batch.toLowerCase().includes(fSearch);
+            const matchSearch = code.toLowerCase().includes(fSearch) || name.toLowerCase().includes(fSearch);
+            const matchClass = fClass === '' || batch.toLowerCase().includes(fClass);
             const matchGrade = fGrade === '' || mFac === fGrade;
             const matchStream = fStream === '' || stream === fStream;
             const matchMedium = fMedium === '' || medium === fMedium;
             const matchSession = fSession === '' || session === fSession;
 
-            if(matchSearch && matchGrade && matchStream && matchMedium && matchSession && (activeRole === 'ALL' || mFac === activeRole)) {
+            if(matchSearch && matchClass && matchGrade && matchStream && matchMedium && matchSession && (activeRole === 'ALL' || mFac === activeRole)) {
                 html += `
                 <tr class="border-b hover:bg-gray-50 transition">
                     <td class="p-2 font-mono font-bold text-gray-700 bg-gray-100 rounded px-1">${code}</td>
@@ -1667,7 +1670,7 @@
     };
 
 
-    // --- EXPORT AND PRINT LOGIC FOR DATABASE TABS ---
+    // --- EXPORT AND PRINT LOGIC FOR DATABASE TABS (UPDATED COMPREHENSIVE LAYOUT) ---
     window.exportDataListCSV = (type) => {
         let rows = [], filename = "";
         if(type === 'lecturers') {
@@ -1699,59 +1702,96 @@
         }
         
         if(rows.length === 0) return window.showToast("No data to export based on current filters.", "warning");
-        
-        // Use the newly robust downloadCSV function
         window.downloadCSV(rows, filename);
     };
 
     window.printDataList = (type) => {
         const frame = document.getElementById('generic-print-frame');
-        document.getElementById('print-list-title').innerText = type === 'lecturers' ? "School Staff Database Registry" : "School Subjects Registry";
+        const title = document.getElementById('print-list-title');
+        const thead = document.getElementById('print-list-thead');
+        const tbody = document.getElementById('print-list-tbody');
+        const filters = document.getElementById('print-list-filters');
         
         let filterText = `Filters Applied: <br>`;
+        let headerHtml = "";
+        let rowsHtml = "";
+
         if(type === 'lecturers') {
-            filterText += `Grade: ${document.getElementById('flt-lect-grade').value||'All'} | Type: ${document.getElementById('flt-lect-type').value||'All'} | Category: ${document.getElementById('flt-lect-cat').value||'All'}`;
+            title.innerText = "School Staff Comprehensive Registry";
+            filterText += `Grade/Dept: ${document.getElementById('flt-lect-grade').value||'All'} | Type: ${document.getElementById('flt-lect-type').value||'All'} | Category: ${document.getElementById('flt-lect-cat').value||'All'}`;
             
-            document.getElementById('print-list-thead').innerHTML = `<tr><th class="p-2 border">ID</th><th class="p-2 border">Name</th><th class="p-2 border">Grade</th><th class="p-2 border">Type</th><th class="p-2 border">Category</th><th class="p-2 border">Mobile</th></tr>`;
+            // All Columns for Staff
+            headerHtml = `<tr>
+                <th class="p-2 border text-left bg-[#004d40] text-white">Staff ID</th>
+                <th class="p-2 border text-left bg-[#004d40] text-white">Full Name</th>
+                <th class="p-2 border text-left bg-[#004d40] text-white">Grade / Dept</th>
+                <th class="p-2 border text-center bg-[#004d40] text-white">Employment</th>
+                <th class="p-2 border text-center bg-[#004d40] text-white">Category</th>
+                <th class="p-2 border text-center bg-[#004d40] text-white">Contact No.</th>
+            </tr>`;
             
-            let rows = ""; 
             document.querySelectorAll('#lecturers-data-body tr').forEach(tr => { 
-                if(tr.children.length > 1) {
-                    rows += `<tr>
-                        <td class="p-2 border">${tr.children[0].innerText}</td><td class="p-2 border"><b>${tr.children[1].innerText}</b></td>
-                        <td class="p-2 border">${tr.children[2].innerText}</td><td class="p-2 border">${tr.children[3].innerText}</td>
-                        <td class="p-2 border">${tr.children[4].innerText}</td><td class="p-2 border">${tr.children[5].innerText}</td>
+                if(tr.children.length > 1) { 
+                    rowsHtml += `<tr class="border-b">
+                        <td class="p-2 border font-mono">${tr.children[0].innerText}</td>
+                        <td class="p-2 border font-bold text-[#0d47a1]">${tr.children[1].innerText}</td>
+                        <td class="p-2 border">${tr.children[2].innerText}</td>
+                        <td class="p-2 border text-center">${tr.children[3].innerText}</td>
+                        <td class="p-2 border text-center">${tr.children[4].innerText}</td>
+                        <td class="p-2 border text-center font-mono">${tr.children[5].innerText}</td>
                     </tr>`; 
                 }
             });
-            document.getElementById('print-list-tbody').innerHTML = rows;
             
-        } else {
-            filterText += `Grade: ${document.getElementById('flt-mod-grade').value||'All'} | Stream: ${document.getElementById('flt-mod-stream').value||'All'} | Medium: ${document.getElementById('flt-mod-medium').value||'All'} | Session: ${document.getElementById('flt-mod-session').value||'All'}`;
+        } else if (type === 'modules') {
+            title.innerText = "Academic Subjects Master Database";
+            filterText += `Grade: ${document.getElementById('flt-mod-grade').value||'All'} | Class: ${document.getElementById('flt-mod-class')?.value||'All'} | Stream: ${document.getElementById('flt-mod-stream').value||'All'} | Medium: ${document.getElementById('flt-mod-medium').value||'All'}`;
             
-            document.getElementById('print-list-thead').innerHTML = `<tr><th class="p-2 border">Code</th><th class="p-2 border">Subject</th><th class="p-2 border">Grade</th><th class="p-2 border text-center">Class</th><th class="p-2 border text-center">Stream</th><th class="p-2 border text-center">Medium</th><th class="p-2 border text-center">Periods</th><th class="p-2 border text-center">Stud.</th></tr>`;
+            // All Columns for Subjects (Very Detailed)
+            headerHtml = `<tr>
+                <th class="p-2 border text-left bg-[#004d40] text-white">Code</th>
+                <th class="p-2 border text-left bg-[#004d40] text-white">Subject Name</th>
+                <th class="p-2 border text-center bg-[#004d40] text-white">Grade</th>
+                <th class="p-2 border text-center bg-[#004d40] text-white">Class</th>
+                <th class="p-2 border text-center bg-[#004d40] text-white">Stream</th>
+                <th class="p-2 border text-center bg-[#004d40] text-white">Medium</th>
+                <th class="p-2 border text-center bg-[#004d40] text-white">Session</th>
+                <th class="p-2 border text-center bg-[#004d40] text-white">Periods</th>
+                <th class="p-2 border text-center bg-[#004d40] text-white">Students</th>
+            </tr>`;
             
-            let rows = ""; 
             document.querySelectorAll('#modules-data-body tr').forEach(tr => { 
                 if(tr.children.length > 1) {
-                    rows += `<tr>
-                        <td class="p-2 border font-mono">${tr.children[0].innerText}</td><td class="p-2 border"><b>${tr.children[1].innerText}</b></td>
-                        <td class="p-2 border">${tr.children[2].innerText}</td><td class="p-2 border text-center">${tr.children[3].innerText}</td>
-                        <td class="p-2 border text-center">${tr.children[4].innerText}</td><td class="p-2 border text-center">${tr.children[5].innerText}</td>
-                        <td class="p-2 border text-center font-black">${tr.children[7].innerText}</td><td class="p-2 border text-center">${tr.children[8].innerText}</td>
+                    rowsHtml += `<tr class="border-b">
+                        <td class="p-2 border font-mono bg-gray-50">${tr.children[0].innerText}</td>
+                        <td class="p-2 border font-bold text-[#0d47a1]">${tr.children[1].innerText}</td>
+                        <td class="p-2 border text-center">${tr.children[2].innerText}</td>
+                        <td class="p-2 border text-center font-bold">${tr.children[3].innerText}</td>
+                        <td class="p-2 border text-center text-[8px]">${tr.children[4].innerText}</td>
+                        <td class="p-2 border text-center text-[8px]">${tr.children[5].innerText}</td>
+                        <td class="p-2 border text-center text-[8px]">${tr.children[6].innerText}</td>
+                        <td class="p-2 border text-center font-black">${tr.children[7].innerText}</td>
+                        <td class="p-2 border text-center">${tr.children[8].innerText}</td>
                     </tr>`; 
                 }
             });
-            document.getElementById('print-list-tbody').innerHTML = rows;
         }
         
-        document.getElementById('print-list-filters').innerHTML = filterText;
+        thead.innerHTML = headerHtml;
+        tbody.innerHTML = rowsHtml || `<tr><td colspan="9" class="p-4 text-center italic">No data to print based on current filters.</td></tr>`;
+        filters.innerHTML = filterText;
         
-        // Print action
+        // Enhance Print Styling dynamically just before printing
+        const style = document.createElement('style');
+        style.innerHTML = `@page { size: landscape; margin: 10mm; } body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }`;
+        document.head.appendChild(style);
+
+        // Execute Print
         document.body.classList.add('is-printing');
         setTimeout(() => { 
             window.print(); 
             document.body.classList.remove('is-printing'); 
+            document.head.removeChild(style); // Cleanup
         }, 500);
     };
 
