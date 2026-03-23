@@ -1253,107 +1253,65 @@
         }
     };
 
-    // --- 6. AUTHENTICATION MODULE ---
-    const SystemAuth = {
-        verifyCredentials: async () => {
-            const email = document.getElementById('authInputEmail').value.trim();
-            const pass = document.getElementById('authInputPass').value;
-            const btn = document.getElementById('btnSubmitAuth');
+    verifyCredentials: async () => {
+        const email = document.getElementById('authInputEmail').value.trim();
+        const pass = document.getElementById('authInputPass').value;
+        const btn = document.getElementById('btnSubmitAuth');
 
-            if(!email || !pass) return Utils.showToast("Security credentials required.", "error");
+        if(!email || !pass) return Utils.showToast("Security credentials required.", "error");
 
-            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Validating Key...`;
-            btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Validating Key...`;
+        btn.disabled = true;
 
-            try {
-                // 1. Firebase Auth މެދުވެރިކޮށް ޔޫޒަރ ވެލިޑޭޓް ކުރުން
-                const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-                const user = userCredential.user;
+        try {
+            // 1. Firebase Auth އިން ޔޫޒަރ ވެލިޑޭޓް ކުރުން (މި އީމެއިލް ފަޔަރބޭސްގައި ރަޖިސްޓަރ ކޮށްފައި އިންނަންވާނެ)
+            const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+            const user = userCredential.user;
 
-                // 2. Firestore އިން ޔޫޒަރގެ ރޯލް ހޯދުން
-                const userDocRef = doc(dbCloud, "users", user.uid);
-                const userDocSnap = await getDoc(userDocRef);
-
-                if (userDocSnap.exists()) {
-                    const userData = userDocSnap.data();
-                    const role = userData.role; // e.g., 'BUREAU', 'STAFF'
-
-                    // 3. ސެޝަން ފެށުން
-                    SystemAuth.finalizeSession(role, user.email, userData);
-                } else {
-                    Utils.showToast("User role not found in database. Contact Admin.", "error");
-                    await signOut(auth); // ރޯލް ނެތްނަމަ ލޮގްއައުޓް ކުރުން
-                }
-
-            } catch (error) {
-                console.error("Auth Error", error);
-                Utils.showToast("Access Denied: Invalid Security Key or Unregistered Identity.", "error");
-            } finally {
-                btn.innerHTML = `Authenticate Identity <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i>`;
-                btn.disabled = false;
+            // 2. އީމެއިލް އަށް ބަލައިގެން އޮޓޯއިން ރޯލް ކަނޑައެޅުން (ވަރަށް ފަސޭހަ ގޮތެއް)
+            let autoRole = 'STAFF'; // އާދައިގެ މުވައްޒަފުންނަށް ޑީފޯލްޓް ރޯލް
+            const emailLower = email.toLowerCase();
+            
+            if(emailLower.includes('executive') || emailLower.includes('admin') || emailLower.includes('bureau')) {
+                autoRole = 'BUREAU'; // އެޑްމިން ރޯލް
+            } else if(emailLower.includes('dept') || emailLower.includes('head')) {
+                autoRole = 'DEPT_HEAD'; // ޑިޕާޓްމަންޓް ހެޑް ރޯލް
+            } else if(emailLower.includes('sec')) {
+                autoRole = 'SEC_HEAD'; // ސެކްޝަން ހެޑް ރޯލް
             }
-        },
 
-        finalizeSession: (role, email, profileObj) => {
-            AppState.currentUser = { role: role, email: email, profile: profileObj };
-            
-            // UI Updates
-            document.getElementById('navUserEmail').innerText = email || (profileObj ? profileObj.name : 'Unknown');
-            
-            let badgeText = role;
-            let badgeColor = '#d4af37'; // Gold for Bureau
-            if(role === 'DEPT_HEAD') { badgeText = 'DEPARTMENT HEAD'; badgeColor = '#3a86ff'; }
-            if(role === 'SEC_HEAD') { badgeText = 'SECTION HEAD'; badgeColor = '#0a934d'; }
-            if(role === 'STAFF') { badgeText = 'STAFF MEMBER'; badgeColor = '#94a3b8'; }
-            
-            const badgeEl = document.getElementById('navUserRoleBadge');
-            badgeEl.innerText = badgeText;
-            badgeEl.style.backgroundColor = badgeColor;
-            if(role === 'STAFF') badgeEl.style.color = '#fff';
+            // 3. Firestore ގައި ޔޫޒަރ ޑޭޓާ އޮތްތޯ ބެލުން
+            const userDocRef = doc(dbCloud, "users", user.uid);
+            const userDocSnap = await getDoc(userDocRef);
 
-            // Apply Authorization Guards (CSS class toggling)
-            document.querySelectorAll('.auth-restricted').forEach(el => el.classList.add('auth-hidden'));
-            
-            if(role === 'BUREAU') document.querySelectorAll('.auth-bureau').forEach(el => el.classList.remove('auth-hidden'));
-            if(['BUREAU', 'DEPT_HEAD', 'SEC_HEAD'].includes(role)) document.querySelectorAll('.auth-head').forEach(el => el.classList.remove('auth-hidden'));
-            if(role === 'STAFF') document.querySelectorAll('.auth-staff').forEach(el => el.classList.remove('auth-hidden'));
+            let userData = {};
 
-            // Screen transition
-            document.getElementById('authScreen').style.display = 'none';
-            document.getElementById('workspacePortal').style.display = 'flex';
-
-            // Route to correct initial view
-            if(role === 'STAFF') {
-                PortalNav.navigate('myWorkspace');
+            if (userDocSnap.exists()) {
+                userData = userDocSnap.data();
+                // ޑޭޓާބޭސްގައި ކުރިން ރޯލެއް ސޭވްކޮށްފައި އިންނަމަ އެ ރޯލް ބޭނުންކުރުން
+                autoRole = userData.role || autoRole; 
             } else {
-                PortalNav.navigate('dashboard');
-                // Pre-populate dropdowns for admins
-                let deptOpts = '<option value="">All Departments</option>';
-                AppState.db.departments.forEach(d => deptOpts += `<option value="${d}">${d}</option>`);
-                document.getElementById('filterDept').innerHTML = deptOpts;
+                // ޑޭޓާބޭސްގައި ނެތްނަމަ އޮޓޯއިން އައު ޑޮކިއުމެންޓެއް ހަދައި ސޭވްކުރުން
+                userData = {
+                    email: user.email,
+                    role: autoRole,
+                    name: user.email.split('@')[0].toUpperCase() // އީމެއިލްގެ ކުރީބައި ނަމެއްގެ ގޮތުގައި ބޭނުންކުރުން
+                };
+                await setDoc(userDocRef, userData);
             }
-            
-            Utils.showToast(`Session established as ${badgeText}.`, "success");
-        },
 
-        terminateSession: async () => {
-            try {
-                await signOut(auth); // Firebase އިން ލޮގްއައުޓް ކުރުން
-                AppState.currentUser = null;
-                
-                // Clear inputs
-                document.getElementById('authInputEmail').value = '';
-                document.getElementById('authInputPass').value = '';
-                
-                document.getElementById('workspacePortal').style.display = 'none';
-                document.getElementById('authScreen').style.display = 'flex';
-                Utils.showToast("Session terminated securely.", "info");
-            } catch (error) {
-                Utils.showToast("Error terminating session.", "error");
-            }
+            // 4. ސެޝަން ފެށުން
+            SystemAuth.finalizeSession(autoRole, user.email, userData);
+
+        } catch (error) {
+            console.error("Auth Error", error);
+            // ފަޔަރބޭސްއިން އަންނަ އަސްލު އެރަރ މެސެޖު ދައްކާގޮތަށް ބަދަލުކޮށްފައި
+            Utils.showToast("Login Failed: " + error.message.replace("Firebase: ", ""), "error");
+        } finally {
+            btn.innerHTML = `Authenticate Identity <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i>`;
+            btn.disabled = false;
         }
-    };
-
+    },
     // Make functions globally available for inline HTML onclick handlers
     window.SystemAuth = SystemAuth;
     window.toggleLoginUI = () => {
