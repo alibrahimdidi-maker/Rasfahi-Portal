@@ -951,7 +951,7 @@
     // --- 1. FIREBASE INTEGRATION (V9 Modular SDK) ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, getDocs, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     // Firebase Config (Placeholder values, handles offline fallback gracefully)
     const firebaseConfig = {
@@ -1255,29 +1255,7 @@
 
     // --- 6. AUTHENTICATION MODULE ---
     const SystemAuth = {
-        /**
-         * Verifies credentials against Firebase Auth, or falls back to local simulation
-         */
         verifyCredentials: async () => {
-            const roleSelect = document.getElementById('loginRole').value;
-            
-            // Logic Branch: STAFF (Logs in by selecting name from mock list for usability in this demo)
-            if (roleSelect === 'STAFF') {
-                const inputVal = document.getElementById('staffLoginName').value;
-                if(!inputVal) return Utils.showToast("Please enter your identification.", "error");
-                
-                // Extract ID from format "Name (EID-XXXXX)"
-                const match = inputVal.match(/\((.*?)\)/);
-                const queryId = match ? match[1] : inputVal;
-                
-                const profile = AppState.db.staff.find(s => s.id === queryId || s.name.toLowerCase() === queryId.toLowerCase());
-                if(!profile) return Utils.showToast("Identity not recognized in active roster.", "error");
-
-                SystemAuth.finalizeSession('STAFF', profile.email, profile);
-                return;
-            }
-
-            // Logic Branch: ADMINS (Requires Email/Password via Firebase)
             const email = document.getElementById('authInputEmail').value.trim();
             const pass = document.getElementById('authInputPass').value;
             const btn = document.getElementById('btnSubmitAuth');
@@ -1288,22 +1266,28 @@
             btn.disabled = true;
 
             try {
-                // If Firebase is active, try real auth. 
-                // Since this is a demo without a real backend populated, we simulate auth success 
-                // based on dummy emails to ensure the UI reviewer can test it.
-                
-                // Simulated Check for Demo purposes based on requested roles:
-                let resolvedRole = 'BUREAU'; // Default fallback for demo
-                if(email.includes('dept')) resolvedRole = 'DEPT_HEAD';
-                if(email.includes('sec')) resolvedRole = 'SEC_HEAD';
+                // 1. Firebase Auth މެދުވެރިކޮށް ޔޫޒަރ ވެލިޑޭޓް ކުރުން
+                const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+                const user = userCredential.user;
 
-                await Utils.sleep(1000); // Simulate network delay
-                
-                SystemAuth.finalizeSession(resolvedRole, email, null);
+                // 2. Firestore އިން ޔޫޒަރގެ ރޯލް ހޯދުން
+                const userDocRef = doc(dbCloud, "users", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+
+                if (userDocSnap.exists()) {
+                    const userData = userDocSnap.data();
+                    const role = userData.role; // e.g., 'BUREAU', 'STAFF'
+
+                    // 3. ސެޝަން ފެށުން
+                    SystemAuth.finalizeSession(role, user.email, userData);
+                } else {
+                    Utils.showToast("User role not found in database. Contact Admin.", "error");
+                    await signOut(auth); // ރޯލް ނެތްނަމަ ލޮގްއައުޓް ކުރުން
+                }
 
             } catch (error) {
                 console.error("Auth Error", error);
-                Utils.showToast("Access Denied: Invalid Security Key.", "error");
+                Utils.showToast("Access Denied: Invalid Security Key or Unregistered Identity.", "error");
             } finally {
                 btn.innerHTML = `Authenticate Identity <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i>`;
                 btn.disabled = false;
@@ -1335,7 +1319,7 @@
             if(role === 'STAFF') document.querySelectorAll('.auth-staff').forEach(el => el.classList.remove('auth-hidden'));
 
             // Screen transition
-            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('authScreen').style.display = 'none';
             document.getElementById('workspacePortal').style.display = 'flex';
 
             // Route to correct initial view
@@ -1352,17 +1336,21 @@
             Utils.showToast(`Session established as ${badgeText}.`, "success");
         },
 
-        terminateSession: () => {
-            AppState.currentUser = null;
-            
-            // Clear inputs
-            document.getElementById('authInputEmail').value = '';
-            document.getElementById('authInputPass').value = '';
-            document.getElementById('staffLoginName').value = '';
-            
-            document.getElementById('workspacePortal').style.display = 'none';
-            document.getElementById('loginScreen').style.display = 'flex';
-            Utils.showToast("Session terminated securely.", "info");
+        terminateSession: async () => {
+            try {
+                await signOut(auth); // Firebase އިން ލޮގްއައުޓް ކުރުން
+                AppState.currentUser = null;
+                
+                // Clear inputs
+                document.getElementById('authInputEmail').value = '';
+                document.getElementById('authInputPass').value = '';
+                
+                document.getElementById('workspacePortal').style.display = 'none';
+                document.getElementById('authScreen').style.display = 'flex';
+                Utils.showToast("Session terminated securely.", "info");
+            } catch (error) {
+                Utils.showToast("Error terminating session.", "error");
+            }
         }
     };
 
@@ -2013,19 +2001,13 @@
     // Simulate a secure boot sequence before loading the UI
     setTimeout(async () => {
         // Attempt local load, if fail/empty, generate skeleton
-        window.loadLocal();
+        HybridCloud.loadFromLocal();
         if(AppState.db.staff.length === 0) {
             await DataFactory.buildSystemSkeleton();
         }
 
-        // Setup Datalist for Staff Login
-        const dl = document.getElementById('staffDatalist');
-        let html = '';
-        AppState.db.staff.slice(0, 500).forEach(s => html += `<option value="${s.name} (${s.id})">`);
-        dl.innerHTML = html;
-
         document.getElementById('sysInitLoader').style.display = 'none';
-        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('authScreen').style.display = 'flex';
     }, 2000);
 
 </script>
