@@ -3,997 +3,1029 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise HR & Executive Task Portal</title>
+    <title>Royal Bureau - Enterprise HR & Task Management</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Playfair+Display:wght@700;900&display=swap');
+        /* Royal Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
         
         :root {
-            --primary: #0f172a; /* Slate 900 */
-            --secondary: #1d4ed8; /* Blue 700 */
-            --accent: #d4af37; /* Gold */
-            --bg-color: #f8fafc;
+            /* Royal Colors Palette (Strictly No Yellow, substituting with refined Gold for borders/accents only) */
+            --royal-blue-dark: #001233;
+            --royal-blue-main: #002855;
+            --royal-blue-light: #0466c8;
+            --royal-green-dark: #003e1f;
+            --royal-green-main: #0a934d;
+            --royal-gold-accent: #d4af37; /* Used ONLY for borders/icons, not UI background */
+            --bg-canvas: #f4f6f8;
+            --text-main: #1e293b;
         }
 
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-color); margin: 0; overflow: hidden; }
-        
-        /* Custom Scrollbars */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
-        
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 4px solid var(--secondary); }
-        .tmt-card { border-top: 4px solid var(--accent); background: linear-gradient(to bottom right, #ffffff, #fdfbf7); }
-        
-        .btn-primary { background-color: var(--secondary); color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold; transition: all 0.3s; }
-        .btn-primary:hover { background-color: #1e40af; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(29, 78, 216, 0.3); }
-        
-        .btn-gold { background: linear-gradient(45deg, #bf953f, #fcf6ba, #b38728); color: black; padding: 8px 16px; border-radius: 6px; font-weight: 900; transition: all 0.3s; }
-        .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-canvas); 
+            color: var(--text-main);
+            overflow: hidden;
+            /* Anti-Theft CSS */
+            -webkit-user-select: none; 
+            -moz-user-select: none; 
+            -ms-user-select: none; 
+            user-select: none; 
+        }
 
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; }
-        .modal-content { background: white; width: 100%; max-width: 600px; border-radius: 16px; max-height: 90vh; overflow-y: auto; }
+        /* Allow selection in inputs */
+        input, textarea, select { user-select: auto; -webkit-user-select: auto; }
+
+        /* Typography */
+        h1, h2, h3, .royal-font { font-family: 'Cinzel', serif; }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-thumb { background: var(--royal-blue-main); border-radius: 4px; }
         
-        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        /* Containers */
+        .royal-card { 
+            background: white; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+            border-top: 4px solid var(--royal-blue-main);
+            transition: all 0.3s ease;
+        }
+        .royal-card:hover { box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
+        .bureau-card { border-top: 4px solid var(--royal-gold-accent); }
+
+        /* Buttons */
+        .btn-blue { background-color: var(--royal-blue-main); color: white; transition: all 0.3s; border-radius: 8px; font-weight: 600; }
+        .btn-blue:hover { background-color: var(--royal-blue-light); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(4, 102, 200, 0.3); }
+        
+        .btn-green { background-color: var(--royal-green-main); color: white; transition: all 0.3s; border-radius: 8px; font-weight: 600; }
+        .btn-green:hover { background-color: #0b7a41; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(10, 147, 77, 0.3); }
+
+        .btn-outline-gold { border: 2px solid var(--royal-gold-accent); color: var(--royal-blue-main); background: transparent; font-weight: bold; border-radius: 8px; transition: all 0.3s; }
+        .btn-outline-gold:hover { background: rgba(212, 175, 55, 0.1); }
+
+        /* Status & Feedback */
+        .pulse-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+        .pulse-online { background-color: var(--royal-green-main); box-shadow: 0 0 8px var(--royal-green-main); }
+        .pulse-offline { background-color: #94a3b8; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; } }
+
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: var(--royal-blue-dark); color: white; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; border-left: 4px solid var(--royal-gold-accent); box-shadow: 0 10px 25px rgba(0,0,0,0.3); animation: slideIn 0.3s forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        /* Modals */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 18, 51, 0.8); backdrop-filter: blur(5px); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+        .modal-content { background: white; border-radius: 16px; width: 100%; border-top: 6px solid var(--royal-gold-accent); overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        
+        .tab-content { display: none; animation: fadeIn 0.4s ease; }
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Dynamic Feedback Messages */
-        .msg-motivate { background-color: #dcfce7; color: #166534; border-left: 4px solid #16a34a; }
-        .msg-warning { background-color: #fef08a; color: #854d0e; border-left: 4px solid #ca8a04; }
-        .msg-danger { background-color: #fee2e2; color: #991b1b; border-left: 4px solid #dc2626; }
-        
-        /* Status Badges */
-        .status-active { background: #dcfce7; color: #166534; }
-        .status-leave { background: #fef08a; color: #854d0e; }
-        .status-suspended { background: #fee2e2; color: #991b1b; }
+        .auth-hidden { display: none !important; }
     </style>
-</head>
-<body class="text-slate-800">
 
-<div id="sysLoader" class="fixed inset-0 bg-white z-[999] flex flex-col items-center justify-center">
-    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-700 mb-4"></div>
-    <h2 class="text-xl font-black text-slate-800 tracking-widest uppercase">Initializing Enterprise Core</h2>
-    <p class="text-sm text-gray-500 mt-2" id="loaderText">Generating 4,000+ Organization Records...</p>
+    <script>
+        // --- ANTI-THEFT PROTECTION ---
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+            if(e.key === 'F12') e.preventDefault();
+            if(e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J')) e.preventDefault();
+            if(e.ctrlKey && (e.key === 'U' || e.key === 'S')) e.preventDefault();
+        });
+        document.addEventListener('dragstart', e => e.preventDefault());
+    </script>
+</head>
+<body class="flex flex-col h-screen">
+
+<div id="toast-container" class="toast-container"></div>
+
+<div id="sysLoader" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center">
+    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#002855] mb-4"></div>
+    <h1 class="royal-font text-3xl text-[#001233] tracking-widest uppercase">Royal Bureau</h1>
+    <p class="text-sm font-semibold text-[#0466c8] mt-2">Initializing Hybrid Architecture...</p>
 </div>
 
-<div id="loginScreen" class="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative hidden">
-    <div class="absolute inset-0 overflow-hidden opacity-20 pointer-events-none">
-        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full blur-[100px]"></div>
-        <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-yellow-500 rounded-full blur-[100px]"></div>
-    </div>
+<div id="loginScreen" class="min-h-screen flex items-center justify-center relative hidden" style="background: radial-gradient(circle at center, #002855 0%, #001233 100%);">
+    <div class="absolute inset-0 opacity-10" style="background-image: url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23d4af37\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
     
-    <div class="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md z-10 border-t-8 border-yellow-500">
+    <div class="bg-white p-8 md:p-10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md z-10 border-t-8 border-[#d4af37]">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter" style="font-family: 'Playfair Display', serif;">Bureau HR</h1>
-            <p class="text-xs text-gray-500 font-bold tracking-widest uppercase mt-1">Enterprise Workload Portal</p>
+            <h1 class="royal-font text-4xl text-[#001233] uppercase">Bureau HR</h1>
+            <p class="text-[10px] text-gray-500 font-bold tracking-widest uppercase mt-2">Enterprise Workload Portal</p>
         </div>
         
         <div class="space-y-5">
             <div>
-                <label class="text-xs font-bold text-gray-600 uppercase">Login Mode</label>
-                <select id="loginRole" onchange="toggleLoginFields()" class="w-full p-3 border-2 border-gray-200 rounded-lg text-sm font-bold outline-none focus:border-blue-600 transition">
-                    <option value="TMT">Top Management Team (Bureau)</option>
+                <label class="text-[10px] font-extrabold text-[#002855] uppercase tracking-wider">Access Level</label>
+                <select id="loginRole" onchange="toggleLoginUI()" class="w-full p-3 border-2 border-gray-200 rounded-lg text-sm font-bold outline-none focus:border-[#002855] transition text-[#001233]">
+                    <option value="BUREAU">Bureau Executive (TMT)</option>
                     <option value="DEPT_HEAD">Department Head</option>
+                    <option value="SEC_HEAD">Section Head</option>
                     <option value="STAFF">Staff Member</option>
                 </select>
             </div>
             
-            <div id="staffLoginWrapper" class="hidden">
-                <label class="text-xs font-bold text-gray-600 uppercase">Select Your Name</label>
-                <input type="text" id="staffNameInput" placeholder="Type your name or ID..." class="w-full p-3 border-2 border-gray-200 rounded-lg text-sm font-bold outline-none focus:border-blue-600 transition" list="staffDataList">
-                <datalist id="staffDataList"></datalist>
+            <div id="staffSearchWrap" class="hidden">
+                <label class="text-[10px] font-extrabold text-[#002855] uppercase tracking-wider">Employee Name / ID</label>
+                <input type="text" id="staffLoginName" placeholder="Search to login..." class="w-full p-3 border-2 border-gray-200 rounded-lg text-sm font-bold outline-none focus:border-[#002855] transition text-[#001233]" list="staffDatalist">
+                <datalist id="staffDatalist"></datalist>
             </div>
             
-            <div id="passwordWrapper">
-                <label class="text-xs font-bold text-gray-600 uppercase">Authorization Key</label>
-                <input type="password" id="loginPassword" placeholder="••••••••" class="w-full p-3 border-2 border-gray-200 rounded-lg text-sm font-bold outline-none focus:border-blue-600 transition">
+            <div id="passWrap">
+                <label class="text-[10px] font-extrabold text-[#002855] uppercase tracking-wider">Authorization Key</label>
+                <input type="password" id="loginPass" placeholder="••••••••" class="w-full p-3 border-2 border-gray-200 rounded-lg text-sm font-bold outline-none focus:border-[#002855] transition text-[#001233]">
             </div>
 
-            <button onclick="executeLogin()" class="w-full btn-gold py-4 text-sm mt-4">SECURE LOGIN</button>
+            <button onclick="executeLogin()" class="w-full btn-blue py-4 text-sm uppercase tracking-widest mt-4">Authenticate</button>
         </div>
     </div>
 </div>
 
-<div id="appScreen" class="flex h-screen w-full hidden bg-slate-50">
+<div id="appScreen" class="flex h-screen w-full hidden">
     
-    <aside class="w-64 bg-slate-900 text-white flex flex-col h-full shadow-2xl z-20 transition-all">
-        <div class="p-6 border-b border-slate-700">
-            <h2 class="text-xl font-black text-white tracking-tighter uppercase" style="font-family: 'Playfair Display', serif;">Bureau HR</h2>
-            <div class="mt-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-600">
-                <p class="text-[10px] text-gray-400 uppercase font-bold">Authorized As</p>
-                <p id="userRoleBadge" class="text-xs font-bold text-yellow-400 truncate"></p>
+    <aside class="w-20 md:w-64 bg-[#001233] text-white flex flex-col h-full shadow-2xl z-20 flex-shrink-0 transition-all duration-300">
+        <div class="p-4 md:p-6 border-b border-slate-700/50 text-center md:text-left">
+            <h2 class="royal-font text-xl md:text-2xl font-black text-[#d4af37] hidden md:block">BUREAU</h2>
+            <i class="fa-solid fa-crown text-[#d4af37] text-2xl md:hidden"></i>
+            <div class="mt-3 bg-[#002855] px-2 py-2 rounded border border-[#0466c8]/30 hidden md:block">
+                <p class="text-[9px] text-blue-200 uppercase font-bold tracking-widest">Authorized</p>
+                <p id="userRoleBadge" class="text-xs font-bold text-white truncate"></p>
             </div>
         </div>
         
-        <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-            <button onclick="switchTab('analytics')" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-blue-600 hover:text-white transition group auth-admin">
-                <i class="fa-solid fa-chart-line w-6 text-center group-hover:scale-110 transition"></i> Executive Dashboard
+        <nav class="flex-1 py-4 space-y-2 overflow-y-auto px-2 md:px-4">
+            <button onclick="switchTab('analytics')" class="w-full flex items-center justify-center md:justify-start p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#0466c8] hover:text-white transition group req-auth-head">
+                <i class="fa-solid fa-chart-pie md:mr-3 text-lg md:text-base group-hover:scale-110 transition"></i> <span class="hidden md:inline">Dashboard</span>
             </button>
-            <button onclick="switchTab('tmtConfig')" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-yellow-600 hover:text-white transition group auth-tmt hidden">
-                <i class="fa-solid fa-building-shield w-6 text-center group-hover:scale-110 transition"></i> TMT Customization
+            <button onclick="switchTab('staffDir')" class="w-full flex items-center justify-center md:justify-start p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#0466c8] hover:text-white transition group req-auth-head">
+                <i class="fa-solid fa-users md:mr-3 text-lg md:text-base group-hover:scale-110 transition"></i> <span class="hidden md:inline">Staff Directory</span>
             </button>
-            <button onclick="switchTab('staffDirectory')" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-blue-600 hover:text-white transition group auth-admin">
-                <i class="fa-solid fa-users-viewfinder w-6 text-center group-hover:scale-110 transition"></i> Staff Directory
+            <button onclick="switchTab('dataHub')" class="w-full flex items-center justify-center md:justify-start p-3 rounded-lg text-sm font-semibold text-[#d4af37] hover:bg-[#d4af37] hover:text-[#001233] transition group req-auth-bureau">
+                <i class="fa-solid fa-database md:mr-3 text-lg md:text-base group-hover:scale-110 transition"></i> <span class="hidden md:inline">Data Hub & CSV</span>
             </button>
-            
-            <button onclick="switchTab('myTasks')" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-blue-600 hover:text-white transition group auth-staff hidden">
-                <i class="fa-solid fa-list-check w-6 text-center group-hover:scale-110 transition"></i> My Workload & Tasks
-            </button>
-            <button onclick="switchTab('myLeave')" class="w-full text-left p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-blue-600 hover:text-white transition group auth-staff hidden">
-                <i class="fa-solid fa-calendar-minus w-6 text-center group-hover:scale-110 transition"></i> Leave & Attendance
+            <button onclick="switchTab('myTasks')" class="w-full flex items-center justify-center md:justify-start p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#0a934d] hover:text-white transition group req-auth-staff">
+                <i class="fa-solid fa-list-check md:mr-3 text-lg md:text-base group-hover:scale-110 transition"></i> <span class="hidden md:inline">My Tasks</span>
             </button>
         </nav>
         
-        <div class="p-4 border-t border-slate-700">
-            <button onclick="logout()" class="w-full text-left p-3 rounded-lg text-sm font-bold text-red-400 hover:bg-red-500 hover:text-white transition">
-                <i class="fa-solid fa-power-off w-6 text-center"></i> Terminate Session
+        <div class="p-4 border-t border-slate-700/50">
+            <button onclick="logout()" class="w-full flex items-center justify-center md:justify-start p-3 rounded-lg text-sm font-bold text-red-400 hover:bg-red-500/20 transition">
+                <i class="fa-solid fa-power-off md:mr-3 text-lg md:text-base"></i> <span class="hidden md:inline">Logout</span>
             </button>
         </div>
     </aside>
 
-    <main class="flex-1 h-full overflow-y-auto p-4 md:p-8 relative">
+    <main class="flex-1 flex flex-col h-full bg-[#f4f6f8] overflow-hidden relative">
         
-        <div id="tab-analytics" class="tab-content active max-w-7xl mx-auto">
-            <div class="flex justify-between items-end mb-6">
-                <div>
-                    <h2 class="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Executive Overview</h2>
-                    <p class="text-sm text-gray-500 font-medium">Real-time organizational performance metrics.</p>
-                </div>
-                <button onclick="syncToFirebase()" class="btn-primary text-xs flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i> Sync Cloud</button>
-            </div>
+        <header class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm z-10 flex-shrink-0">
+            <h2 id="pageTitle" class="royal-font text-xl md:text-2xl font-bold text-[#002855]">Enterprise Overview</h2>
             
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div class="card p-5 border-l-4 border-blue-600 bg-gradient-to-r from-blue-50 to-white">
-                    <p class="text-xs text-blue-800 font-bold uppercase tracking-wider">Total Staff Base</p>
-                    <h3 class="text-3xl font-black text-slate-800" id="stat-total-staff">0</h3>
+            <div class="flex items-center gap-4">
+                <div class="hidden md:flex items-center gap-2 bg-[#f4f6f8] px-3 py-1.5 rounded-full border border-gray-200">
+                    <span id="syncDot" class="pulse-dot pulse-offline"></span>
+                    <span id="syncStatus" class="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Local Mode</span>
                 </div>
-                <div class="card p-5 border-l-4 border-yellow-500 bg-gradient-to-r from-yellow-50 to-white">
-                    <p class="text-xs text-yellow-800 font-bold uppercase tracking-wider">Active Tasks</p>
-                    <h3 class="text-3xl font-black text-slate-800" id="stat-active-tasks">0</h3>
-                </div>
-                <div class="card p-5 border-l-4 border-green-600 bg-gradient-to-r from-green-50 to-white">
-                    <p class="text-xs text-green-800 font-bold uppercase tracking-wider">Endorsed Tasks</p>
-                    <h3 class="text-3xl font-black text-slate-800" id="stat-completed-tasks">0</h3>
-                </div>
-                <div class="card p-5 border-l-4 border-red-500 bg-gradient-to-r from-red-50 to-white">
-                    <p class="text-xs text-red-800 font-bold uppercase tracking-wider">Staff on Leave/Suspended</p>
-                    <h3 class="text-3xl font-black text-slate-800" id="stat-leave">0</h3>
-                </div>
+                <button onclick="forceCloudSync()" class="btn-outline-gold px-3 py-1.5 text-xs flex items-center gap-2" title="Force push data to cloud">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> <span class="hidden md:inline">Sync</span>
+                </button>
             </div>
+        </header>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="card p-6">
-                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-widest mb-4">Department Workload Distribution</h3>
-                    <div class="h-72"><canvas id="deptChart"></canvas></div>
-                </div>
-                <div class="card p-6">
-                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-widest mb-4">Task Completion Status</h3>
-                    <div class="h-72 flex justify-center"><canvas id="statusChart"></canvas></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="tab-tmtConfig" class="tab-content max-w-6xl mx-auto">
-            <h2 class="text-2xl md:text-3xl font-black text-slate-800 tracking-tight mb-2">TMT Customization Engine</h2>
-            <p class="text-sm text-gray-500 font-medium mb-6">Manage the structural hierarchy of the organization.</p>
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 pb-24">
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="tmt-card p-6 rounded-xl shadow-lg">
-                    <div class="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
-                        <h3 class="text-lg font-black text-slate-800"><i class="fa-solid fa-sitemap text-yellow-600 mr-2"></i>Departments</h3>
-                        <button onclick="openModal('deptModal')" class="bg-slate-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-black transition"><i class="fa-solid fa-plus"></i> Add Dept</button>
+            <div id="tab-analytics" class="tab-content active max-w-7xl mx-auto">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="royal-card p-5 bg-white border-l-4 border-l-[#0466c8]">
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Total Workforce</p>
+                        <h3 class="text-3xl font-black text-[#001233]" id="stat-staff">0</h3>
                     </div>
-                    <div id="tmtDeptList" class="space-y-2 max-h-[400px] overflow-y-auto pr-2"></div>
+                    <div class="royal-card p-5 bg-white border-l-4 border-l-[#d4af37]">
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Active Tasks</p>
+                        <h3 class="text-3xl font-black text-[#001233]" id="stat-tasks">0</h3>
+                    </div>
+                    <div class="royal-card p-5 bg-white border-l-4 border-l-[#0a934d]">
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Completed</p>
+                        <h3 class="text-3xl font-black text-[#001233]" id="stat-comp">0</h3>
+                    </div>
+                    <div class="royal-card p-5 bg-white border-l-4 border-l-red-600">
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">On Leave</p>
+                        <h3 class="text-3xl font-black text-[#001233]" id="stat-leave">0</h3>
+                    </div>
                 </div>
 
-                <div class="tmt-card p-6 rounded-xl shadow-lg">
-                    <div class="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
-                        <h3 class="text-lg font-black text-slate-800"><i class="fa-solid fa-tags text-yellow-600 mr-2"></i>Staff Categories</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="royal-card p-6">
+                        <h3 class="text-sm font-bold text-[#002855] uppercase tracking-widest mb-4">Department Strength</h3>
+                        <div class="h-64"><canvas id="chartDept"></canvas></div>
                     </div>
-                    <div class="space-y-2" id="tmtCategoryList">
-                        <div class="p-3 bg-white border border-gray-200 rounded-lg text-sm font-bold shadow-sm flex justify-between">Civil Service <span class="text-green-600 bg-green-50 px-2 rounded text-xs">Active</span></div>
-                        <div class="p-3 bg-white border border-gray-200 rounded-lg text-sm font-bold shadow-sm flex justify-between">Political Appointee <span class="text-green-600 bg-green-50 px-2 rounded text-xs">Active</span></div>
-                        <div class="p-3 bg-white border border-gray-200 rounded-lg text-sm font-bold shadow-sm flex justify-between">Consultant <span class="text-green-600 bg-green-50 px-2 rounded text-xs">Active</span></div>
-                        <div class="p-3 bg-white border border-gray-200 rounded-lg text-sm font-bold shadow-sm flex justify-between">Expert / Expat <span class="text-green-600 bg-green-50 px-2 rounded text-xs">Active</span></div>
+                    <div class="royal-card p-6">
+                        <h3 class="text-sm font-bold text-[#002855] uppercase tracking-widest mb-4">Task Efficiency</h3>
+                        <div class="h-64 flex justify-center"><canvas id="chartTask"></canvas></div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div id="tab-staffDirectory" class="tab-content max-w-7xl mx-auto">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
-                <div>
-                    <h2 class="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Master Staff Directory</h2>
-                    <p class="text-sm text-gray-500 font-medium">View, assign, and manage employee records.</p>
-                </div>
-                <div class="flex gap-2 w-full md:w-auto">
-                    <input type="text" id="globalSearch" onkeyup="renderStaffDirectory()" placeholder="🔍 Search Name or ID..." class="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm outline-none focus:border-blue-600 w-full md:w-64">
-                    <button onclick="openModal('addStaffModal')" class="btn-primary whitespace-nowrap"><i class="fa-solid fa-user-plus"></i> New Staff</button>
-                </div>
-            </div>
-
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4 flex flex-wrap gap-3">
-                <select id="filterDept" onchange="renderStaffDirectory()" class="p-2 border rounded-lg text-sm outline-none focus:border-blue-500 bg-slate-50"><option value="">All Departments</option></select>
-                <select id="filterCat" onchange="renderStaffDirectory()" class="p-2 border rounded-lg text-sm outline-none focus:border-blue-500 bg-slate-50">
-                    <option value="">All Categories</option>
-                    <option value="Civil Service">Civil Service</option>
-                    <option value="Political">Political</option>
-                    <option value="Consultant">Consultant</option>
-                    <option value="Expert">Expert</option>
-                </select>
-                <select id="filterStatus" onchange="renderStaffDirectory()" class="p-2 border rounded-lg text-sm outline-none focus:border-blue-500 bg-slate-50">
-                    <option value="">All Statuses</option>
-                    <option value="Active">Active</option>
-                    <option value="Suspended">Suspended</option>
-                    <option value="Leave">On Leave</option>
-                </select>
-            </div>
-
-            <div class="card overflow-hidden">
-                <div class="overflow-x-auto max-h-[600px] relative">
-                    <table class="w-full text-left text-sm whitespace-nowrap">
-                        <thead class="bg-slate-800 text-white sticky top-0 z-10">
-                            <tr>
-                                <th class="p-4 font-bold tracking-wider text-xs uppercase">Employee</th>
-                                <th class="p-4 font-bold tracking-wider text-xs uppercase">Placement</th>
-                                <th class="p-4 font-bold tracking-wider text-xs uppercase">Category</th>
-                                <th class="p-4 font-bold tracking-wider text-xs uppercase">Status</th>
-                                <th class="p-4 font-bold tracking-wider text-xs uppercase text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="staffTableBody" class="divide-y divide-gray-100">
-                            </tbody>
-                    </table>
-                </div>
-                <div class="p-3 bg-gray-50 border-t text-xs text-center text-gray-500" id="staffCountDisplay">Showing 0 of 0 Staff</div>
-            </div>
-        </div>
-
-        <div id="tab-myTasks" class="tab-content max-w-5xl mx-auto">
-            <h2 class="text-2xl md:text-3xl font-black text-slate-800 tracking-tight mb-6">My Workspace</h2>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 space-y-4" id="staffTaskList">
+            <div id="tab-staffDir" class="tab-content max-w-7xl mx-auto">
+                <div class="royal-card overflow-hidden flex flex-col h-[calc(100vh-180px)]">
+                    <div class="p-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row gap-3">
+                        <input type="text" id="dirSearch" onkeyup="renderDirectory()" placeholder="🔍 Search Employee Name, ID, Dept..." class="flex-1 p-2 border border-gray-300 rounded outline-none focus:border-[#0466c8] text-sm">
+                        <select id="dirStatus" onchange="renderDirectory()" class="p-2 border border-gray-300 rounded outline-none focus:border-[#0466c8] text-sm bg-white">
+                            <option value="">All Statuses</option>
+                            <option value="Active">Active</option>
+                            <option value="Suspended">Suspended</option>
+                            <option value="Annual Leave">Annual Leave</option>
+                            <option value="Sick Leave">Sick Leave</option>
+                            <option value="Maternity Leave">Maternity/Paternity</option>
+                            <option value="Salam">Salam (Casual)</option>
+                        </select>
+                        <button onclick="openModal('modalStaffActions')" class="btn-blue px-4 py-2 text-sm whitespace-nowrap req-auth-bureau"><i class="fa-solid fa-user-plus mr-1"></i> Add Staff</button>
                     </div>
-                
-                <div class="space-y-4">
-                    <div class="card p-6 bg-gradient-to-br from-slate-800 to-slate-900 text-white text-center">
-                        <div class="w-20 h-20 bg-slate-700 rounded-full mx-auto flex items-center justify-center text-3xl mb-3 border-4 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]">
-                            <i class="fa-solid fa-user-astronaut"></i>
+                    
+                    <div class="overflow-auto flex-1 bg-white">
+                        <table class="w-full text-left text-sm whitespace-nowrap">
+                            <thead class="bg-[#002855] text-white sticky top-0 z-10">
+                                <tr>
+                                    <th class="p-3 font-bold text-xs uppercase tracking-wider">Employee</th>
+                                    <th class="p-3 font-bold text-xs uppercase tracking-wider">Placement</th>
+                                    <th class="p-3 font-bold text-xs uppercase tracking-wider">Category</th>
+                                    <th class="p-3 font-bold text-xs uppercase tracking-wider">Status</th>
+                                    <th class="p-3 font-bold text-xs uppercase tracking-wider text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dirTableBody" class="divide-y divide-gray-100">
+                                </tbody>
+                        </table>
+                    </div>
+                    <div class="bg-gray-50 p-2 text-center text-[10px] text-gray-500 font-bold border-t" id="dirCount">Showing 0 Records</div>
+                </div>
+            </div>
+
+            <div id="tab-dataHub" class="tab-content max-w-5xl mx-auto">
+                <div class="bureau-card royal-card p-6 md:p-8">
+                    <h3 class="royal-font text-2xl text-[#001233] mb-2"><i class="fa-solid fa-database text-[#d4af37]"></i> Central Data Hub</h3>
+                    <p class="text-sm text-gray-500 mb-8">Generate mock data templates, import staff/tasks, and export organizational records.</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="border border-gray-200 rounded-xl p-5 bg-gray-50">
+                            <h4 class="font-bold text-[#002855] mb-4 border-b pb-2">CSV Integration</h4>
+                            <div class="space-y-3">
+                                <button onclick="generateDummyCSV()" class="w-full text-left bg-white border border-gray-300 p-3 rounded shadow-sm hover:border-[#0466c8] transition text-sm font-semibold">
+                                    <i class="fa-solid fa-file-csv text-green-600 mr-2"></i> 1. Download System Template (Dummy Data)
+                                </button>
+                                
+                                <label class="w-full block bg-white border border-gray-300 p-3 rounded shadow-sm hover:border-[#0466c8] transition text-sm font-semibold cursor-pointer">
+                                    <i class="fa-solid fa-file-import text-blue-600 mr-2"></i> 2. Upload/Import Master CSV
+                                    <input type="file" accept=".csv" class="hidden" onchange="importCSV(event)">
+                                </label>
+                            </div>
                         </div>
-                        <h3 class="font-black text-lg" id="profileName">Staff Name</h3>
-                        <p class="text-xs text-slate-400 mb-4" id="profileRole">Department | Role</p>
-                        
-                        <div class="border-t border-slate-700 pt-4 flex justify-around">
-                            <div>
-                                <p class="text-[10px] uppercase tracking-widest text-slate-400">Trophies</p>
-                                <p class="text-xl font-black text-yellow-400"><i class="fa-solid fa-trophy"></i> <span id="profileTrophies">0</span></p>
-                            </div>
-                            <div>
-                                <p class="text-[10px] uppercase tracking-widest text-slate-400">Efficiency</p>
-                                <p class="text-xl font-black text-green-400"><i class="fa-solid fa-bolt"></i> <span id="profileEfficiency">0%</span></p>
-                            </div>
+
+                        <div class="border border-red-200 rounded-xl p-5 bg-red-50">
+                            <h4 class="font-bold text-red-800 mb-4 border-b border-red-200 pb-2">System Controls</h4>
+                            <p class="text-xs text-red-600 mb-4">Warning: Actions here cannot be undone easily.</p>
+                            <button onclick="forceCloudSync(true)" class="w-full bg-[#001233] text-white p-3 rounded shadow-sm hover:bg-black transition text-sm font-bold mb-3">
+                                <i class="fa-solid fa-server mr-2"></i> Force Overwrite Cloud Database
+                            </button>
+                            <button onclick="resetSystem()" class="w-full bg-red-600 text-white p-3 rounded shadow-sm hover:bg-red-700 transition text-sm font-bold">
+                                <i class="fa-solid fa-triangle-exclamation mr-2"></i> Factory Reset Local Data
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
+            <div id="tab-myTasks" class="tab-content max-w-4xl mx-auto">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <div class="royal-card bg-[#001233] text-white p-6 md:col-span-1 h-fit">
+                        <div class="text-center pb-4 border-b border-slate-700">
+                            <div class="w-20 h-20 bg-[#0466c8] rounded-full mx-auto flex items-center justify-center text-3xl mb-3 border-4 border-[#d4af37] shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+                                <i class="fa-solid fa-user-tie"></i>
+                            </div>
+                            <h3 class="font-black text-lg" id="myProfileName">Name</h3>
+                            <p class="text-[10px] text-gray-400 font-mono" id="myProfileID">ID</p>
+                        </div>
+                        <div class="pt-4 space-y-3 text-sm">
+                            <p><span class="text-gray-400 text-xs block">Department</span> <span id="myProfileDept" class="font-bold">Dept</span></p>
+                            <p><span class="text-gray-400 text-xs block">Category</span> <span id="myProfileCat" class="font-bold">Cat</span></p>
+                            <p><span class="text-gray-400 text-xs block">Status</span> <span id="myProfileStatus" class="font-bold text-[#0a934d]">Active</span></p>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 space-y-4">
+                        <h3 class="font-bold text-xl text-[#002855] border-b pb-2">Assigned Responsibilities</h3>
+                        <div id="myTasksContainer" class="space-y-3">
+                            </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
     </main>
 </div>
 
-<div id="addStaffModal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="p-6 border-b border-gray-200 flex justify-between items-center bg-slate-50 rounded-t-2xl">
-            <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Staff Registration Record</h2>
-            <button onclick="closeModal('addStaffModal')" class="text-gray-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+<div id="modalTaskAssign" class="modal-overlay">
+    <div class="modal-content max-w-lg">
+        <div class="p-5 border-b bg-[#002855] text-white flex justify-between items-center">
+            <div>
+                <h2 class="font-black uppercase tracking-wider text-sm" id="modalTaskTitle">Task Assignment</h2>
+                <p class="text-[10px] text-blue-200 font-mono" id="modalTaskStaffName">Staff Name</p>
+            </div>
+            <button onclick="closeModal('modalTaskAssign')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
         </div>
-        <div class="p-6 space-y-4">
+        <div class="p-5 space-y-4">
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Task Description</label>
+                <textarea id="frmTaskDesc" class="w-full p-2 border rounded focus:border-[#0466c8] outline-none text-sm h-20 font-semibold text-gray-800" placeholder="Describe the task clearly..."></textarea>
+            </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="text-xs font-bold text-gray-600 uppercase">Full Name</label>
-                    <input type="text" id="frmStaffName" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Deadline</label>
+                    <input type="date" id="frmTaskDue" class="w-full p-2 border rounded focus:border-[#0466c8] outline-none text-sm font-semibold text-gray-800">
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-gray-600 uppercase">National ID</label>
-                    <input type="text" id="frmStaffID" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm">
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-600 uppercase">Department</label>
-                    <select id="frmStaffDept" onchange="populateSectionsDropdown('frmStaffSection', this.value)" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm"></select>
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-600 uppercase">Section</label>
-                    <select id="frmStaffSection" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm"></select>
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-600 uppercase">Category</label>
-                    <select id="frmStaffCat" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm">
-                        <option value="Civil Service">Civil Service</option>
-                        <option value="Political">Political Appointee</option>
-                        <option value="Consultant">Consultant</option>
-                        <option value="Expert">Expert / Expat</option>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Urgency</label>
+                    <select id="frmTaskUrgency" class="w-full p-2 border rounded focus:border-[#0466c8] outline-none text-sm font-semibold text-gray-800">
+                        <option value="Normal">Normal</option>
+                        <option value="High">High Priority</option>
                     </select>
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-600 uppercase">Mobile Number</label>
-                    <input type="text" id="frmStaffMobile" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm">
-                </div>
             </div>
+            <p class="text-[9px] text-red-600 font-bold bg-red-50 p-2 rounded"><i class="fa-solid fa-circle-info"></i> Note: Department Heads can assign, but modifications require Bureau approval once saved.</p>
         </div>
-        <div class="p-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex justify-end gap-2">
-            <button onclick="closeModal('addStaffModal')" class="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded transition">Cancel</button>
-            <button onclick="saveStaff()" class="btn-primary text-sm">Save Record</button>
+        <div class="p-4 bg-gray-50 flex justify-end gap-2 border-t">
+            <button onclick="closeModal('modalTaskAssign')" class="px-4 py-2 text-sm font-bold text-gray-500 hover:bg-gray-200 rounded transition">Cancel</button>
+            <button onclick="saveTaskAssignment()" class="btn-blue px-6 py-2 text-sm">Save & Assign</button>
         </div>
     </div>
 </div>
 
-<div id="staffManageModal" class="modal-overlay">
-    <div class="modal-content max-w-4xl">
-        <div class="p-6 border-b border-gray-200 flex justify-between items-center bg-slate-900 text-white rounded-t-2xl">
-            <div>
-                <h2 class="text-lg font-black tracking-tight" id="manStaffName">Name</h2>
-                <p class="text-xs text-gray-400 font-mono" id="manStaffMeta">ID | Dept</p>
-            </div>
-            <button onclick="closeModal('staffManageModal')" class="text-gray-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+<div id="modalTaskUpdate" class="modal-overlay">
+    <div class="modal-content max-w-md">
+        <div class="p-5 border-b bg-[#001233] text-white flex justify-between items-center">
+            <h2 class="font-black uppercase tracking-wider text-sm">Update Progress</h2>
+            <button onclick="closeModal('modalTaskUpdate')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
         </div>
-        <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="md:col-span-1 space-y-4">
-                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                    <h3 class="text-xs font-black uppercase text-gray-500 mb-3">HR Actions</h3>
-                    
-                    <label class="text-[10px] font-bold uppercase text-gray-600 block mb-1">Update Status</label>
-                    <select id="manStatusSelect" class="w-full p-2 mb-3 border rounded outline-none text-sm">
+        <div class="p-5 space-y-4">
+            <h3 class="font-bold text-[#002855]" id="updTaskTitle">Task Title</h3>
+            
+            <div id="updMsgBox" class="p-3 rounded text-[11px] font-bold hidden"></div>
+
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase flex justify-between">Completion Status <span id="updProgText" class="text-[#0466c8]">0%</span></label>
+                <input type="range" id="updSlider" min="0" max="100" class="w-full mt-2 accent-[#0466c8]" oninput="handleSliderChange(this.value)">
+            </div>
+
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Impediments / Feedback</label>
+                <textarea id="updFeedback" class="w-full p-2 border rounded focus:border-[#0466c8] outline-none text-xs h-20 text-gray-700 bg-gray-50" placeholder="If unable to complete, please state reasons here..."></textarea>
+            </div>
+        </div>
+        <div class="p-4 bg-gray-50 border-t">
+            <button onclick="saveTaskProgress()" class="w-full btn-green py-3 text-sm">Submit Update</button>
+        </div>
+    </div>
+</div>
+
+<div id="modalStaffActions" class="modal-overlay">
+    <div class="modal-content max-w-lg">
+        <div class="p-5 border-b bg-white border-t-4 border-t-[#d4af37] flex justify-between items-center">
+            <h2 class="font-black uppercase tracking-wider text-sm text-[#002855]" id="saModalTitle">Staff Record</h2>
+            <button onclick="closeModal('modalStaffActions')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="p-5 space-y-4 bg-gray-50">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Full Name</label>
+                    <input type="text" id="saName" class="w-full p-2 border rounded outline-none text-sm font-bold text-slate-800">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">ID Number</label>
+                    <input type="text" id="saId" class="w-full p-2 border rounded outline-none text-sm font-bold text-slate-800" placeholder="EID-XXXXX">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Mobile</label>
+                    <input type="text" id="saMobile" class="w-full p-2 border rounded outline-none text-sm font-bold text-slate-800">
+                </div>
+                <div class="col-span-2">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Department</label>
+                    <select id="saDept" class="w-full p-2 border rounded outline-none text-sm font-bold text-slate-800"></select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Category</label>
+                    <select id="saCat" class="w-full p-2 border rounded outline-none text-sm font-bold text-slate-800">
+                        <option value="Civil Service">Civil Service</option>
+                        <option value="Political">Political Appointee</option>
+                        <option value="Consultant">Consultant</option>
+                        <option value="Expert">Expert/Expat</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">HR Status</label>
+                    <select id="saStatus" class="w-full p-2 border rounded outline-none text-sm font-bold text-slate-800">
                         <option value="Active">Active</option>
                         <option value="Suspended">Suspended</option>
                         <option value="Annual Leave">Annual Leave</option>
                         <option value="Sick Leave">Sick Leave</option>
-                        <option value="Maternity Leave">Maternity/Paternity Leave</option>
-                        <option value="Salam">Casual Leave (Salam)</option>
-                    </select>
-                    <button onclick="updateStaffStatus()" class="w-full bg-slate-800 text-white py-2 rounded text-xs font-bold hover:bg-black transition">Apply Status Update</button>
-                </div>
-                
-                <button onclick="openModal('assignTaskModal')" class="w-full btn-primary py-3 flex justify-center items-center gap-2"><i class="fa-solid fa-list-check"></i> Assign New Task</button>
-            </div>
-            
-            <div class="md:col-span-2">
-                <h3 class="text-sm font-black uppercase text-slate-800 mb-4 border-b pb-2">Assigned Tasks & Progress</h3>
-                <div id="manTaskList" class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                    </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="assignTaskModal" class="modal-overlay z-[110]">
-    <div class="modal-content max-w-md">
-        <div class="p-5 border-b bg-blue-50 rounded-t-2xl">
-            <h2 class="text-md font-black text-blue-900 uppercase">Delegate Task</h2>
-        </div>
-        <div class="p-5 space-y-3">
-            <div>
-                <label class="text-xs font-bold text-gray-600 uppercase">Task Description</label>
-                <textarea id="frmTaskDesc" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm h-20"></textarea>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="text-xs font-bold text-gray-600 uppercase">Deadline</label>
-                    <input type="date" id="frmTaskDue" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm">
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-600 uppercase">Priority</label>
-                    <select id="frmTaskPrio" class="w-full p-2 border rounded outline-none focus:border-blue-500 text-sm">
-                        <option value="Normal">Normal</option>
-                        <option value="High">High / Urgent</option>
+                        <option value="Maternity Leave">Maternity/Paternity</option>
+                        <option value="Salam">Salam</option>
                     </select>
                 </div>
             </div>
         </div>
-        <div class="p-4 border-t flex justify-end gap-2">
-            <button onclick="closeModal('assignTaskModal')" class="px-4 py-2 text-sm font-bold text-gray-600">Cancel</button>
-            <button onclick="saveTask()" class="btn-primary text-sm">Assign Task</button>
+        <div class="p-4 bg-white border-t flex justify-end gap-2">
+            <button onclick="closeModal('modalStaffActions')" class="px-4 py-2 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded transition">Cancel</button>
+            <button onclick="saveStaffRecord()" class="btn-blue px-6 py-2 text-sm">Save Record</button>
         </div>
     </div>
 </div>
-
-<div id="taskActionModal" class="modal-overlay z-[110]">
-    <div class="modal-content max-w-lg">
-        <div class="p-5 border-b bg-slate-900 text-white rounded-t-2xl flex justify-between items-center">
-            <h2 class="text-md font-black uppercase">Update Task Progress</h2>
-            <button onclick="closeModal('taskActionModal')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="p-5 space-y-4">
-            <div>
-                <h3 class="text-lg font-bold text-gray-800" id="taTitle">Task Title</h3>
-                <p class="text-xs text-gray-500" id="taMeta">Due: --- | Priority: ---</p>
-            </div>
-            
-            <div id="taMessageBlock" class="p-3 rounded-lg text-sm font-semibold hidden"></div>
-
-            <div class="bg-gray-50 p-4 rounded-xl border">
-                <label class="text-xs font-bold text-gray-600 uppercase flex justify-between">Progress <span id="taProgVal" class="text-blue-600">0%</span></label>
-                <input type="range" id="taSlider" min="0" max="100" class="w-full mt-2 cursor-pointer accent-blue-600" oninput="document.getElementById('taProgVal').innerText = this.value + '%'">
-            </div>
-            
-            <div>
-                <label class="text-xs font-bold text-gray-600 uppercase">Report Constraints / Feedback</label>
-                <p class="text-[10px] text-gray-400 mb-1">If you are facing difficulties completing this task, please explain with reasons.</p>
-                <textarea id="taFeedback" class="w-full p-3 border rounded-lg outline-none focus:border-blue-500 text-sm h-24 bg-red-50 focus:bg-white transition" placeholder="State reasons for delay or request assistance here..."></textarea>
-            </div>
-        </div>
-        <div class="p-4 border-t flex justify-end gap-2 bg-gray-50 rounded-b-2xl">
-            <button onclick="saveTaskProgress()" class="btn-primary text-sm w-full py-3">Submit Update</button>
-        </div>
-    </div>
-</div>
-
 
 <script type="module">
-    // --- 1. FIREBASE CONFIGURATION (MOCK/SIMULATION FOR DEMO PURPOSES) ---
-    // User requested Firebase setup. We wrap standard v9 syntaxes in a mock layer 
-    // so it functions perfectly in this standalone HTML without breaking if credentials are empty.
+    // --- 1. FIREBASE CONFIGURATION (MOCK SDK WRAPPER FOR STANDALONE) ---
+    // Uses standard Firebase v9 imports if module environment allows, 
+    // else falls back to LocalStorage strictly for robust standalone functionality.
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
     const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "bureau-hr.firebaseapp.com",
-        projectId: "bureau-hr",
-        storageBucket: "bureau-hr.appspot.com",
-        messagingSenderId: "123456789",
-        appId: "1:123456789:web:abcdef"
+      apiKey: "AIzaSyAz7kLgHUvY5YO7PsQN-vuorLY0Xo7q7B4",
+      authDomain: "hrworkload.firebaseapp.com",
+      projectId: "hrworkload",
+      storageBucket: "hrworkload.firebasestorage.app",
+      messagingSenderId: "692169023061",
+      appId: "1:692169023061:web:ca93ecf8eda7b91b2afedc",
+      measurementId: "G-PHDTDH9184"
     };
 
-    // --- 2. ENTERPRISE DATA GENERATOR ---
-    // Generates the massive 4000+ staff dataset as requested (20 Depts * 10 Sections * 20 Staff)
+    let app, dbCloud;
+    let isCloudConnected = false;
+
+    try {
+        app = initializeApp(firebaseConfig);
+        dbCloud = getFirestore(app);
+        isCloudConnected = navigator.onLine;
+    } catch(e) {
+        console.warn("Firebase Init Warning. Falling back to local offline mode.", e);
+        isCloudConnected = false;
+    }
+
+    // --- 2. LOCAL STATE MANAGEMENT (HYBRID CORE) ---
     window.db = {
-        departments: [],
-        sections: {},
         staff: [],
-        tasks: []
+        tasks: [],
+        departments: []
+    };
+    
+    window.currentUser = null;
+    let charts = { dept: null, task: null };
+    let syncInterval;
+
+    // Toast Notification System
+    window.showToast = (msg, type = 'info') => {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        let icon = type === 'success' ? '<i class="fa-solid fa-check-circle text-[#0a934d] mr-2"></i>' : 
+                   type === 'error' ? '<i class="fa-solid fa-circle-exclamation text-red-500 mr-2"></i>' : 
+                   '<i class="fa-solid fa-info-circle text-[#0466c8] mr-2"></i>';
+        toast.innerHTML = `${icon} ${msg}`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
     };
 
-    const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Ibrahim", "Fathimath", "Aminath", "Aishath", "Mariyam", "Khadheeja", "Hawwa"];
-    const lastNames = ["Zahir", "Nazeer", "Moosa", "Saeed", "Rashid", "Muna", "Sama", "Niyaz", "Shareef", "Haleem"];
-    const categories = ["Civil Service", "Civil Service", "Civil Service", "Civil Service", "Political", "Consultant", "Expert"]; // Weighted
-    
-    function generateEnterpriseData() {
-        console.log("Generating Enterprise Data...");
-        let staffCount = 1;
+    // Auto-Save & Sync Logic (30 mins or immediate)
+    window.saveLocal = () => {
+        try {
+            localStorage.setItem('rb_staff', JSON.stringify(window.db.staff));
+            localStorage.setItem('rb_tasks', JSON.stringify(window.db.tasks));
+            localStorage.setItem('rb_depts', JSON.stringify(window.db.departments));
+            updateSyncUI('local');
+        } catch(e) { console.error("Local save failed", e); }
+    };
+
+    window.loadLocal = () => {
+        const s = localStorage.getItem('rb_staff');
+        const t = localStorage.getItem('rb_tasks');
+        const d = localStorage.getItem('rb_depts');
+        if(s) window.db.staff = JSON.parse(s);
+        if(t) window.db.tasks = JSON.parse(t);
+        if(d) window.db.departments = JSON.parse(d);
+    };
+
+    window.updateSyncUI = (status) => {
+        const dot = document.getElementById('syncDot');
+        const txt = document.getElementById('syncStatus');
+        if(!dot || !txt) return;
+
+        dot.className = 'pulse-dot';
+        if(status === 'syncing') {
+            dot.classList.add('pulse-offline'); dot.style.backgroundColor = '#d4af37';
+            txt.innerText = 'Syncing...';
+        } else if (status === 'cloud' && isCloudConnected) {
+            dot.classList.add('pulse-online');
+            txt.innerText = 'Cloud Synced';
+        } else {
+            dot.classList.add('pulse-offline');
+            txt.innerText = 'Local Saved';
+        }
+    };
+
+    window.forceCloudSync = async (forceOverwrite = false) => {
+        if(!isCloudConnected || !dbCloud) {
+            window.showToast("Cannot connect to cloud database.", "error");
+            return;
+        }
         
-        for (let d = 1; d <= 20; d++) {
-            const deptName = `Department of Operations ${d}`;
-            window.db.departments.push(deptName);
-            window.db.sections[deptName] = [];
-            
-            for (let s = 1; s <= 10; s++) {
-                const secName = `Section ${d}.${s} (Unit)`;
-                window.db.sections[deptName].push(secName);
-                
-                for (let st = 1; st <= 20; st++) {
-                    const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
-                    const ln = lastNames[Math.floor(Math.random() * lastNames.length)];
-                    const cat = categories[Math.floor(Math.random() * categories.length)];
-                    
-                    const newStaff = {
-                        id: `EID-${String(staffCount).padStart(5, '0')}`,
-                        name: `${fn} ${ln}`,
-                        dept: deptName,
-                        section: secName,
-                        category: cat,
-                        mobile: `7${Math.floor(1000000 + Math.random() * 8999999)}`,
-                        status: Math.random() > 0.95 ? "Annual Leave" : "Active", // 5% on leave
-                        trophies: Math.floor(Math.random() * 3)
-                    };
-                    window.db.staff.push(newStaff);
-                    
-                    // Generate 1-2 random tasks for 30% of staff
-                    if (Math.random() > 0.7) {
-                        generateRandomTask(newStaff.id);
-                    }
-                    staffCount++;
+        updateSyncUI('syncing');
+        try {
+            // Push Staff
+            const staffBatch = writeBatch(dbCloud);
+            window.db.staff.forEach(s => {
+                staffBatch.set(doc(dbCloud, "staff", s.id), s, { merge: !forceOverwrite });
+            });
+            await staffBatch.commit();
+
+            // Push Tasks
+            const taskBatch = writeBatch(dbCloud);
+            window.db.tasks.forEach(t => {
+                taskBatch.set(doc(dbCloud, "tasks", t.id), t, { merge: !forceOverwrite });
+            });
+            await taskBatch.commit();
+
+            updateSyncUI('cloud');
+            window.showToast("Successfully synchronized with Cloud Database.", "success");
+        } catch(e) {
+            console.error(e);
+            updateSyncUI('local');
+            window.showToast("Cloud sync failed. Data safe locally.", "error");
+        }
+    };
+
+    // Auto-sync every 30 minutes
+    setInterval(() => {
+        if(window.db.staff.length > 0 && navigator.onLine) window.forceCloudSync();
+    }, 30 * 60 * 1000);
+
+    // --- 3. DUMMY DATA GENERATOR (For 4000+ Records) ---
+    window.generateSystemData = () => {
+        if(window.db.staff.length > 0) return; // Don't regenerate if data exists
+        
+        const depts = [];
+        for(let i=1; i<=20; i++) depts.push(`Department ${i}`);
+        window.db.departments = depts;
+
+        const fNames = ["Ali", "Ahmed", "Mohamed", "Hassan", "Fathimath", "Aminath", "Aishath", "Mariyam"];
+        const lNames = ["Zahir", "Niyaz", "Moosa", "Saeed", "Muna", "Sama"];
+        const cats = ["Civil Service", "Civil Service", "Political", "Consultant"];
+        const statuses = ["Active", "Active", "Active", "Active", "Active", "Annual Leave", "Sick Leave", "Salam"];
+
+        let sCount = 1;
+        depts.forEach(d => {
+            for(let s=1; s<=10; s++) { // 10 Sections per dept
+                const sec = `Section ${s}`;
+                for(let st=1; st<=20; st++) { // 20 Staff per section
+                    const n = `${fNames[Math.floor(Math.random()*fNames.length)]} ${lNames[Math.floor(Math.random()*lNames.length)]}`;
+                    window.db.staff.push({
+                        id: `EID-${String(sCount).padStart(5, '0')}`,
+                        name: n,
+                        dept: d,
+                        section: sec,
+                        category: cats[Math.floor(Math.random()*cats.length)],
+                        status: statuses[Math.floor(Math.random()*statuses.length)],
+                        mobile: `7${Math.floor(1000000 + Math.random()*8999999)}`
+                    });
+                    sCount++;
                 }
             }
-        }
-        console.log(`Generated ${window.db.departments.length} Depts, ${window.db.staff.length} Staff, ${window.db.tasks.length} Tasks.`);
-    }
-
-    function generateRandomTask(staffId) {
-        const statuses = ["Pending", "In Progress", "Wait Endorse", "Endorsed"];
-        const progressArr = [0, 25, 50, 75, 100];
-        let p = progressArr[Math.floor(Math.random() * progressArr.length)];
-        let stat = p === 100 ? (Math.random() > 0.5 ? "Wait Endorse" : "Endorsed") : (p === 0 ? "Pending" : "In Progress");
-        
-        // Date logic
-        let today = new Date();
-        let assigned = new Date(today); assigned.setDate(today.getDate() - Math.floor(Math.random() * 10));
-        let due = new Date(today); due.setDate(today.getDate() + (Math.floor(Math.random() * 20) - 5)); // some overdue
-
-        window.db.tasks.push({
-            id: `TSK-${Date.now()}-${Math.floor(Math.random()*1000)}`,
-            staffId: staffId,
-            title: `Enterprise Task Implementation ${Math.floor(Math.random()*100)}`,
-            assigned: assigned.toISOString().split('T')[0],
-            due: due.toISOString().split('T')[0],
-            priority: Math.random() > 0.8 ? "High" : "Normal",
-            progress: p,
-            status: stat,
-            feedback: ""
         });
-    }
+        window.saveLocal();
+    };
 
-    // --- 3. SYSTEM INITIALIZATION ---
+    // --- 4. INITIALIZATION & LOGIN LOGIC ---
     window.onload = () => {
-        // Simulating App Load & Database Generation
-        setTimeout(() => {
-            generateEnterpriseData();
-            
-            // Populate Datalist for Staff Login
-            const dl = document.getElementById('staffDataList');
-            let dlHtml = '';
-            // Only load first 500 into datalist to prevent DOM lag, search handles rest.
-            for(let i=0; i<500; i++) {
-                dlHtml += `<option value="${window.db.staff[i].name} (${window.db.staff[i].id})">`;
-            }
-            dl.innerHTML = dlHtml;
+        window.loadLocal();
+        if(window.db.staff.length === 0) window.generateSystemData();
 
+        // Populate Datalist for Staff Login
+        const dl = document.getElementById('staffDatalist');
+        let html = '';
+        // Load limited sample to avoid DOM lag
+        window.db.staff.slice(0, 500).forEach(s => html += `<option value="${s.name} (${s.id})">`);
+        dl.innerHTML = html;
+
+        setTimeout(() => {
             document.getElementById('sysLoader').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
         }, 1500);
     };
 
-    // --- 4. AUTHENTICATION & NAVIGATION ---
-    window.currentUserRole = null;
-    window.currentStaffProfile = null;
-
-    window.toggleLoginFields = () => {
+    window.toggleLoginUI = () => {
         const role = document.getElementById('loginRole').value;
-        const staffWrap = document.getElementById('staffLoginWrapper');
-        const passWrap = document.getElementById('passwordWrapper');
-        
-        if (role === 'STAFF') {
-            staffWrap.classList.remove('hidden');
-            passWrap.classList.add('hidden'); // Staff logs in by name in this demo as requested
-        } else {
-            staffWrap.classList.add('hidden');
-            passWrap.classList.remove('hidden');
-        }
+        document.getElementById('staffSearchWrap').style.display = role === 'STAFF' ? 'block' : 'none';
+        document.getElementById('passWrap').style.display = role === 'STAFF' ? 'none' : 'block';
     };
 
     window.executeLogin = () => {
         const role = document.getElementById('loginRole').value;
-        window.currentUserRole = role;
-
+        
         if (role === 'STAFF') {
-            const inputVal = document.getElementById('staffNameInput').value;
-            if(!inputVal) return alert("Please enter your name to login.");
+            const val = document.getElementById('staffLoginName').value;
+            if(!val) return window.showToast("Please enter name/ID to authenticate.", "error");
             
-            // Extract ID from string like "Ahmed Ali (EID-00001)"
-            const match = inputVal.match(/\((.*?)\)/);
-            let searchId = match ? match[1] : inputVal;
+            const match = val.match(/\((.*?)\)/);
+            const searchId = match ? match[1] : val;
             
-            // Find staff
-            const staff = window.db.staff.find(s => s.id === searchId || s.name.toLowerCase() === searchId.toLowerCase());
-            if(!staff) return alert("Staff record not found. Please try again.");
+            const staffRec = window.db.staff.find(s => s.id === searchId || s.name.toLowerCase() === searchId.toLowerCase());
+            if(!staffRec) return window.showToast("Staff record not found.", "error");
             
-            window.currentStaffProfile = staff;
-            document.getElementById('userRoleBadge').innerText = `${staff.name} (STAFF)`;
+            window.currentUser = { role: 'STAFF', profile: staffRec };
+            document.getElementById('userRoleBadge').innerText = `${staffRec.name} (STAFF)`;
         } else {
-            // Admin Login
-            document.getElementById('userRoleBadge').innerText = role === 'TMT' ? "BUREAU EXECUTIVE" : "DEPARTMENT HEAD";
+            const pwd = document.getElementById('loginPass').value;
+            if(!pwd) return window.showToast("Authorization key required.", "error");
+            
+            window.currentUser = { role: role, profile: null };
+            document.getElementById('userRoleBadge').innerText = role.replace('_', ' ');
         }
 
-        // Apply Auth Guards
-        document.querySelectorAll('.auth-admin').forEach(el => el.style.display = ['TMT', 'DEPT_HEAD'].includes(role) ? 'block' : 'none');
-        document.querySelectorAll('.auth-tmt').forEach(el => el.style.display = role === 'TMT' ? 'block' : 'none');
-        document.querySelectorAll('.auth-staff').forEach(el => el.style.display = role === 'STAFF' ? 'block' : 'none');
+        // Apply Auth Guards to UI
+        document.querySelectorAll('.req-auth-bureau').forEach(el => el.classList.toggle('auth-hidden', role !== 'BUREAU'));
+        document.querySelectorAll('.req-auth-head').forEach(el => el.classList.toggle('auth-hidden', !['BUREAU', 'DEPT_HEAD'].includes(role)));
+        document.querySelectorAll('.req-auth-staff').forEach(el => el.classList.toggle('auth-hidden', role !== 'STAFF'));
 
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('appScreen').style.display = 'flex';
-
-        // Initialize Data specific to role
+        
         if(role === 'STAFF') {
             switchTab('myTasks');
-            populateStaffDashboard();
+            populateStaffWorkspace();
         } else {
             switchTab('analytics');
-            populateFilters();
         }
     };
 
     window.logout = () => {
-        window.currentUserRole = null;
-        window.currentStaffProfile = null;
+        window.currentUser = null;
         document.getElementById('appScreen').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('loginPassword').value = '';
-        document.getElementById('staffNameInput').value = '';
+        document.getElementById('loginPass').value = '';
+        document.getElementById('staffLoginName').value = '';
     };
 
     window.switchTab = (tabId) => {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        const target = document.getElementById('tab-' + tabId);
-        if(target) target.classList.add('active');
-
-        if (tabId === 'analytics') renderAnalytics();
-        if (tabId === 'staffDirectory') renderStaffDirectory();
-        if (tabId === 'tmtConfig') renderTMTConfig();
-        if (tabId === 'myTasks') renderMyTasks();
-    };
-
-    // --- 5. TMT & DEPT HEAD FUNCTIONS ---
-
-    window.populateFilters = () => {
-        let html = '<option value="">All Departments</option>';
-        window.db.departments.forEach(d => html += `<option value="${d}">${d}</option>`);
-        document.getElementById('filterDept').innerHTML = html;
-        document.getElementById('frmStaffDept').innerHTML = html;
-    };
-
-    window.populateSectionsDropdown = (targetId, deptName) => {
-        const secList = window.db.sections[deptName] || [];
-        let html = '';
-        secList.forEach(s => html += `<option value="${s}">${s}</option>`);
-        document.getElementById(targetId).innerHTML = html;
-    };
-
-    let dirPageSize = 100; // Virtual scroll limit to prevent DOM lag with 4000 rows
-    window.renderStaffDirectory = () => {
-        const q = document.getElementById('globalSearch').value.toLowerCase();
-        const fDept = document.getElementById('filterDept').value;
-        const fCat = document.getElementById('filterCat').value;
-        const fStat = document.getElementById('filterStatus').value;
-
-        const filtered = window.db.staff.filter(s => {
-            if(q && !s.name.toLowerCase().includes(q) && !s.id.toLowerCase().includes(q)) return false;
-            if(fDept && s.dept !== fDept) return false;
-            if(fCat && s.category !== fCat) return false;
-            
-            if(fStat === 'Active' && s.status !== 'Active') return false;
-            if(fStat === 'Suspended' && s.status !== 'Suspended') return false;
-            if(fStat === 'Leave' && s.status !== 'Active' && s.status !== 'Suspended') return false; // Any leave
-            
-            return true;
-        });
-
-        const tbody = document.getElementById('staffTableBody');
-        let html = '';
-        const limit = Math.min(filtered.length, dirPageSize);
-
-        for (let i = 0; i < limit; i++) {
-            const s = filtered[i];
-            
-            let statBadge = '';
-            if(s.status === 'Active') statBadge = `<span class="status-active px-2 py-1 rounded text-[10px] font-bold uppercase">Active</span>`;
-            else if(s.status === 'Suspended') statBadge = `<span class="status-suspended px-2 py-1 rounded text-[10px] font-bold uppercase animate-pulse">Suspended</span>`;
-            else statBadge = `<span class="status-leave px-2 py-1 rounded text-[10px] font-bold uppercase"><i class="fa-solid fa-plane-departure"></i> ${s.status}</span>`;
-
-            html += `
-            <tr class="hover:bg-blue-50 transition cursor-pointer" onclick="openStaffManage('${s.id}')">
-                <td class="p-4">
-                    <p class="font-black text-slate-800">${s.name}</p>
-                    <p class="text-xs text-gray-500 font-mono"><i class="fa-solid fa-id-badge text-gray-400"></i> ${s.id} | <i class="fa-solid fa-phone text-gray-400"></i> ${s.mobile}</p>
-                </td>
-                <td class="p-4">
-                    <p class="text-sm font-bold text-slate-700">${s.dept}</p>
-                    <p class="text-xs text-gray-500">${s.section}</p>
-                </td>
-                <td class="p-4 text-sm font-semibold text-blue-800">${s.category}</td>
-                <td class="p-4">${statBadge}</td>
-                <td class="p-4 text-center">
-                    <button class="bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 w-8 h-8 rounded-full transition shadow-sm"><i class="fa-solid fa-chevron-right"></i></button>
-                </td>
-            </tr>`;
-        }
-
-        tbody.innerHTML = html;
-        document.getElementById('staffCountDisplay').innerText = `Showing ${limit} of ${filtered.length} matched records. (Total Organization: ${window.db.staff.length})`;
-    };
-
-    let activeManageStaffId = null;
-    window.openStaffManage = (id) => {
-        activeManageStaffId = id;
-        const s = window.db.staff.find(x => x.id === id);
+        document.getElementById('tab-' + tabId).classList.add('active');
         
-        document.getElementById('manStaffName').innerText = s.name;
-        document.getElementById('manStaffMeta').innerText = `${s.id} | ${s.dept} - ${s.section} | ${s.category}`;
-        document.getElementById('manStatusSelect').value = s.status;
+        const titles = {
+            'analytics': 'Enterprise Overview',
+            'staffDir': 'Staff Directory & Management',
+            'dataHub': 'Central Data Hub',
+            'myTasks': 'My Workspace'
+        };
+        document.getElementById('pageTitle').innerText = titles[tabId] || 'Portal';
 
-        renderManageTasks(id);
-        openModal('staffManageModal');
+        if(tabId === 'analytics') renderAnalytics();
+        if(tabId === 'staffDir') renderDirectory();
+        if(tabId === 'myTasks') renderMyTasks();
     };
 
-    window.updateStaffStatus = () => {
-        const newStat = document.getElementById('manStatusSelect').value;
-        const s = window.db.staff.find(x => x.id === activeManageStaffId);
-        s.status = newStat;
-        renderStaffDirectory();
-        alert(`Status updated to ${newStat} successfully.`);
-    };
+    // --- 5. UI RENDERING LOGIC ---
 
-    window.renderManageTasks = (staffId) => {
-        const tasks = window.db.tasks.filter(t => t.staffId === staffId);
-        const container = document.getElementById('manTaskList');
-        
-        if (tasks.length === 0) {
-            container.innerHTML = '<div class="p-6 text-center text-gray-400 border-2 border-dashed rounded-xl"><p>No active tasks assigned.</p></div>';
-            return;
-        }
-
-        let html = '';
-        tasks.forEach(t => {
-            const isDone = t.progress === 100;
-            const w = t.progress + '%';
-            
-            let btn = '';
-            if (isDone && t.status === 'Wait Endorse') {
-                btn = `<button onclick="endorseTask('${t.id}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-[10px] font-bold shadow-md uppercase animate-pulse"><i class="fa-solid fa-signature"></i> Endorse & Award</button>`;
-            } else if (t.status === 'Endorsed') {
-                btn = `<span class="text-yellow-600 text-xl" title="Endorsed & Trophy Awarded!"><i class="fa-solid fa-trophy"></i></span>`;
-            }
-
-            let fbHtml = t.feedback ? `<div class="mt-2 bg-red-50 p-2 rounded border border-red-100 text-xs text-red-800"><i class="fa-solid fa-circle-exclamation text-red-500 mr-1"></i> <b>Staff Report:</b> ${t.feedback}</div>` : '';
-
-            html += `
-            <div class="border rounded-xl p-4 bg-white shadow-sm hover:border-blue-300 transition">
-                <div class="flex justify-between items-start mb-2">
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-sm">${t.title} ${t.priority === 'High' ? '<span class="text-[8px] bg-red-600 text-white px-1 rounded ml-1 uppercase">Urgent</span>' : ''}</h4>
-                        <p class="text-[10px] text-gray-500 font-mono mt-1"><i class="fa-regular fa-calendar"></i> Due: <span class="${new Date(t.due) < new Date() && !isDone ? 'text-red-600 font-bold' : ''}">${t.due}</span></p>
-                    </div>
-                    <span class="text-xs font-black bg-blue-50 text-blue-700 px-2 py-1 rounded">${w}</span>
-                </div>
-                <div class="w-full bg-slate-200 rounded-full h-1.5 mb-2 overflow-hidden">
-                    <div class="bg-blue-600 h-1.5 rounded-full transition-all" style="width: ${w}"></div>
-                </div>
-                ${fbHtml}
-                <div class="flex justify-between items-center mt-3 border-t pt-2">
-                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">${t.status}</span>
-                    ${btn}
-                </div>
-            </div>`;
-        });
-        container.innerHTML = html;
-    };
-
-    window.saveTask = () => {
-        const desc = document.getElementById('frmTaskDesc').value;
-        const due = document.getElementById('frmTaskDue').value;
-        const prio = document.getElementById('frmTaskPrio').value;
-        
-        if(!desc || !due) return alert("Task Description and Due Date required.");
-
-        window.db.tasks.push({
-            id: `TSK-${Date.now()}`,
-            staffId: activeManageStaffId,
-            title: desc,
-            assigned: new Date().toISOString().split('T')[0],
-            due: due,
-            priority: prio,
-            progress: 0,
-            status: "Pending",
-            feedback: ""
-        });
-
-        closeModal('assignTaskModal');
-        renderManageTasks(activeManageStaffId);
-    };
-
-    window.endorseTask = (taskId) => {
-        const t = window.db.tasks.find(x => x.id === taskId);
-        t.status = "Endorsed";
-        
-        const s = window.db.staff.find(x => x.id === t.staffId);
-        s.trophies += 1; // Gamification Award
-
-        renderManageTasks(t.staffId);
-        renderAnalytics();
-    };
-
-    // --- 6. STAFF WORKSPACE ---
-
-    window.populateStaffDashboard = () => {
-        const s = window.currentStaffProfile;
-        document.getElementById('profileName').innerText = s.name;
-        document.getElementById('profileRole').innerText = `${s.dept} | ${s.category}`;
-        document.getElementById('profileTrophies').innerText = s.trophies;
-        
-        // Calc Efficiency (Completed / Total)
-        const myTasks = window.db.tasks.filter(t => t.staffId === s.id);
-        const comp = myTasks.filter(t => t.progress === 100).length;
-        const eff = myTasks.length > 0 ? Math.round((comp / myTasks.length) * 100) : 100;
-        document.getElementById('profileEfficiency').innerText = eff + "%";
-    };
-
-    window.renderMyTasks = () => {
-        const container = document.getElementById('staffTaskList');
-        const tasks = window.db.tasks.filter(t => t.staffId === window.currentStaffProfile.id);
-        
-        if(tasks.length === 0) {
-            container.innerHTML = '<div class="card p-10 text-center"><i class="fa-solid fa-mug-hot text-4xl text-gray-300 mb-4"></i><h3 class="text-lg font-black text-gray-500">No active tasks assigned.</h3><p class="text-sm text-gray-400">Enjoy your free time!</p></div>';
-            return;
-        }
-
-        let html = '';
-        const todayStr = new Date().toISOString().split('T')[0];
-
-        tasks.forEach(t => {
-            const isDone = t.progress === 100;
-            const isLate = !isDone && t.due < todayStr;
-            
-            // Generate Stars dynamically based on progress
-            const starsCount = Math.floor(t.progress / 20);
-            let starsHtml = '';
-            for(let i=0; i<5; i++) {
-                starsHtml += `<i class="fa-solid fa-star text-sm ${i < starsCount ? 'text-yellow-400 drop-shadow-[0_0_2px_rgba(250,204,21,0.8)]' : 'text-gray-200'}"></i> `;
-            }
-
-            // Dynamic Ribbon Colors
-            let ribbonColor = 'bg-blue-600';
-            if(isDone) ribbonColor = 'bg-green-500';
-            else if(isLate) ribbonColor = 'bg-red-600 animate-pulse';
-            else if(t.progress > 0) ribbonColor = 'bg-yellow-500';
-
-            let actionBtn = isDone ? 
-                `<span class="bg-green-50 text-green-700 px-4 py-2 rounded-lg text-xs font-bold w-full text-center block"><i class="fa-solid fa-check-double"></i> Awaiting Endorsement</span>` : 
-                `<button onclick="openTaskUpdate('${t.id}')" class="btn-primary w-full text-xs py-3"><i class="fa-solid fa-sliders"></i> Update Progress</button>`;
-
-            html += `
-            <div class="card p-5 border-l-4 ${t.priority === 'High' ? 'border-red-500' : 'border-blue-500'} relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-1 bg-gray-100">
-                    <div class="h-1 ${ribbonColor} transition-all duration-1000" style="width: ${t.progress}%"></div>
-                </div>
-                
-                <div class="flex justify-between items-start mt-2 mb-4">
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-lg">${t.title}</h3>
-                        <p class="text-[10px] text-gray-500 font-mono mt-1"><i class="fa-regular fa-calendar"></i> Due: <span class="${isLate?'text-red-600 font-black':'text-slate-700'}">${t.due}</span></p>
-                    </div>
-                    <div class="text-right">
-                        <div class="mb-1">${starsHtml}</div>
-                        <span class="text-xs font-black ${isDone?'text-green-600':'text-blue-600'}">${t.progress}%</span>
-                    </div>
-                </div>
-                
-                <div class="flex items-center justify-between gap-4 mt-4 border-t border-gray-100 pt-4">
-                    <div class="w-full">${actionBtn}</div>
-                </div>
-            </div>`;
-        });
-        container.innerHTML = html;
-        populateStaffDashboard(); // Refresh metrics
-    };
-
-    let activeUpdateTaskId = null;
-    window.openTaskUpdate = (tid) => {
-        activeUpdateTaskId = tid;
-        const t = window.db.tasks.find(x => x.id === tid);
-        
-        document.getElementById('taTitle').innerText = t.title;
-        document.getElementById('taMeta').innerText = `Due: ${t.due} | Priority: ${t.priority}`;
-        document.getElementById('taSlider').value = t.progress;
-        document.getElementById('taProgVal').innerText = t.progress + '%';
-        document.getElementById('taFeedback').value = t.feedback || "";
-        
-        updateTaskMessageLogic(t);
-
-        openModal('taskActionModal');
-    };
-
-    window.updateTaskMessageLogic = (t) => {
-        const msgBox = document.getElementById('taMessageBlock');
-        const todayStr = new Date().toISOString().split('T')[0];
-        msgBox.classList.remove('hidden', 'msg-motivate', 'msg-warning', 'msg-danger');
-
-        if (t.progress > 80) {
-            msgBox.innerHTML = `<b><i class="fa-solid fa-hands-clapping"></i> Excellent!</b> You are almost done. Keep pushing!`;
-            msgBox.classList.add('msg-motivate');
-        } else if (t.due < todayStr && t.progress < 100) {
-            msgBox.innerHTML = `<b><i class="fa-solid fa-triangle-exclamation"></i> Warning:</b> This task is overdue! Please update progress or explain constraints below.`;
-            msgBox.classList.add('msg-danger');
-        } else if (t.progress === 0) {
-            msgBox.innerHTML = `<b><i class="fa-regular fa-lightbulb"></i> Reminder:</b> You haven't started this task. Plan your work to avoid last-minute stress.`;
-            msgBox.classList.add('msg-warning');
-        } else {
-            msgBox.innerHTML = `<b><i class="fa-solid fa-person-digging"></i> Good Job!</b> Steady progress is the key to success.`;
-            msgBox.classList.add('msg-motivate');
-        }
-    };
-
-    document.getElementById('taSlider').addEventListener('change', (e) => {
-        // Live update the message block when slider moves
-        const tempTask = { ...window.db.tasks.find(x => x.id === activeUpdateTaskId) };
-        tempTask.progress = parseInt(e.target.value);
-        updateTaskMessageLogic(tempTask);
-    });
-
-    window.saveTaskProgress = () => {
-        const prog = parseInt(document.getElementById('taSlider').value);
-        const fb = document.getElementById('taFeedback').value.trim();
-        const t = window.db.tasks.find(x => x.id === activeUpdateTaskId);
-        
-        t.progress = prog;
-        t.feedback = fb;
-        if(prog === 100) t.status = "Wait Endorse";
-        else if (prog > 0) t.status = "In Progress";
-        else t.status = "Pending";
-
-        closeModal('taskActionModal');
-        renderMyTasks();
-    };
-
-    // --- 7. ANALYTICS & DASHBOARD (Admins) ---
-    let charts = { dept: null, status: null };
-    
+    // Analytics Tab
     window.renderAnalytics = () => {
-        document.getElementById('stat-total-staff').innerText = window.db.staff.length;
-        document.getElementById('stat-active-tasks').innerText = window.db.tasks.filter(t => t.progress < 100).length;
-        document.getElementById('stat-completed-tasks').innerText = window.db.tasks.filter(t => t.status === 'Endorsed').length;
-        document.getElementById('stat-leave').innerText = window.db.staff.filter(s => s.status !== 'Active').length;
+        document.getElementById('stat-staff').innerText = window.db.staff.length;
+        document.getElementById('stat-tasks').innerText = window.db.tasks.filter(t => t.progress < 100).length;
+        document.getElementById('stat-comp').innerText = window.db.tasks.filter(t => t.progress === 100).length;
+        document.getElementById('stat-leave').innerText = window.db.staff.filter(s => s.status !== 'Active' && s.status !== 'Suspended').length;
 
-        // Calc chart data
-        let deptData = {};
-        window.db.departments.forEach(d => deptData[d] = 0);
-        window.db.tasks.forEach(t => {
-            const s = window.db.staff.find(x => x.id === t.staffId);
-            if(s && deptData[s.dept] !== undefined) deptData[s.dept]++;
+        // Chart Data processing
+        let deptCounts = {};
+        window.db.departments.slice(0, 10).forEach(d => deptCounts[d] = 0); // Limit to 10 for chart
+        window.db.staff.forEach(s => {
+            if(deptCounts[s.dept] !== undefined) deptCounts[s.dept]++;
         });
 
-        // Get Top 10 Depts by task load for visual clarity
-        const sortedDepts = Object.keys(deptData).sort((a,b) => deptData[b] - deptData[a]).slice(0, 10);
-        const deptVals = sortedDepts.map(d => deptData[d]);
-
-        let statCounts = { "Pending": 0, "In Progress": 0, "Wait Endorse": 0, "Endorsed": 0 };
-        window.db.tasks.forEach(t => {
-            if(t.status in statCounts) statCounts[t.status]++;
-        });
-
-        // Render Charts
         if(charts.dept) charts.dept.destroy();
-        charts.dept = new Chart(document.getElementById('deptChart'), {
+        charts.dept = new Chart(document.getElementById('chartDept'), {
             type: 'bar',
             data: {
-                labels: sortedDepts.map(d => d.replace('Department of ', 'Dept ')),
-                datasets: [{ label: 'Assigned Tasks', data: deptVals, backgroundColor: '#1d4ed8', borderRadius: 4 }]
+                labels: Object.keys(deptCounts).map(d => d.replace('Department ', 'D')),
+                datasets: [{ label: 'Staff Count', data: Object.values(deptCounts), backgroundColor: '#0466c8', borderRadius: 4 }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display: false} } }
         });
 
-        if(charts.status) charts.status.destroy();
-        charts.status = new Chart(document.getElementById('statusChart'), {
+        let tStats = { 'Pending': 0, 'In Progress': 0, 'Completed': 0 };
+        window.db.tasks.forEach(t => {
+            if(t.progress === 0) tStats['Pending']++;
+            else if(t.progress === 100) tStats['Completed']++;
+            else tStats['In Progress']++;
+        });
+
+        if(charts.task) charts.task.destroy();
+        charts.task = new Chart(document.getElementById('chartTask'), {
             type: 'doughnut',
             data: {
-                labels: Object.keys(statCounts),
-                datasets: [{ data: Object.values(statCounts), backgroundColor: ['#94a3b8', '#eab308', '#3b82f6', '#22c55e'], borderWidth: 0 }]
+                labels: Object.keys(tStats),
+                datasets: [{ data: Object.values(tStats), backgroundColor: ['#94a3b8', '#d4af37', '#0a934d'], borderWidth: 0 }]
             },
             options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
         });
     };
 
-    // --- 8. UTILS & MODALS ---
-    window.openModal = (id) => {
-        document.getElementById(id).style.display = 'flex';
-    };
-    window.closeModal = (id) => {
-        document.getElementById(id).style.display = 'none';
+    // Staff Directory
+    window.renderDirectory = () => {
+        const q = document.getElementById('dirSearch').value.toLowerCase();
+        const stat = document.getElementById('dirStatus').value;
+        const tbody = document.getElementById('dirTableBody');
+        
+        let filtered = window.db.staff;
+        
+        // Department Head can only see their department (Simulation logic)
+        if(window.currentUser.role === 'DEPT_HEAD') {
+            // Hardcoded restriction for demo if needed, else they see all in this view but can't edit.
+        }
+
+        if(q || stat) {
+            filtered = window.db.staff.filter(s => {
+                const matchQ = !q || s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q) || s.dept.toLowerCase().includes(q);
+                const matchStat = !stat || s.status === stat;
+                return matchQ && matchStat;
+            });
+        }
+
+        let html = '';
+        const limit = Math.min(filtered.length, 100); // Virtual DOM limit
+        
+        for(let i=0; i<limit; i++) {
+            const s = filtered[i];
+            
+            let statUi = '';
+            if(s.status === 'Active') statUi = `<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-[10px] font-bold">Active</span>`;
+            else if(s.status === 'Suspended') statUi = `<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-[10px] font-bold">Suspended</span>`;
+            else statUi = `<span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-[10px] font-bold">${s.status}</span>`;
+
+            html += `
+            <tr class="hover:bg-blue-50 transition">
+                <td class="p-3">
+                    <p class="font-bold text-[#001233]">${s.name}</p>
+                    <p class="text-[10px] font-mono text-gray-500">${s.id} | <i class="fa-solid fa-phone"></i> ${s.mobile}</p>
+                </td>
+                <td class="p-3">
+                    <p class="text-xs font-bold text-[#0466c8]">${s.dept}</p>
+                    <p class="text-[10px] text-gray-500">${s.section}</p>
+                </td>
+                <td class="p-3 text-xs font-semibold">${s.category}</td>
+                <td class="p-3">${statUi}</td>
+                <td class="p-3 text-center space-x-2">
+                    <button onclick="openTaskAssign('${s.id}')" class="text-[#0466c8] hover:text-[#001233] bg-blue-50 w-8 h-8 rounded-full" title="Assign Task"><i class="fa-solid fa-list-check"></i></button>
+                    ${window.currentUser.role === 'BUREAU' ? `<button onclick="editStaff('${s.id}')" class="text-[#d4af37] hover:text-[#001233] bg-yellow-50 w-8 h-8 rounded-full" title="Edit Staff"><i class="fa-solid fa-pen"></i></button>` : ''}
+                </td>
+            </tr>`;
+        }
+        
+        tbody.innerHTML = html;
+        document.getElementById('dirCount').innerText = `Showing ${limit} of ${filtered.length} records.`;
     };
 
-    window.syncToFirebase = () => {
-        // Simulated Cloud Sync
-        const btn = document.querySelector('.btn-primary i.fa-cloud-arrow-up').parentElement;
-        const ogText = btn.innerHTML;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Syncing...`;
+    // --- 6. MODAL & CRUD LOGIC ---
+    window.openModal = (id) => document.getElementById(id).style.display = 'flex';
+    window.closeModal = (id) => document.getElementById(id).style.display = 'none';
+
+    // Staff Management
+    let activeEditStaffId = null;
+    window.editStaff = (id) => {
+        activeEditStaffId = id;
+        const s = window.db.staff.find(x => x.id === id);
         
-        setTimeout(() => {
-            btn.innerHTML = `<i class="fa-solid fa-check"></i> Synced to Firestore`;
-            btn.classList.replace('bg-blue-700', 'bg-green-600');
-            setTimeout(() => {
-                btn.innerHTML = ogText;
-                btn.classList.replace('bg-green-600', 'bg-blue-700');
-            }, 3000);
-        }, 1500);
+        document.getElementById('saModalTitle').innerText = "Edit Staff Record";
+        document.getElementById('saName').value = s.name;
+        document.getElementById('saId').value = s.id;
+        document.getElementById('saId').disabled = true; // Cannot edit ID
+        document.getElementById('saMobile').value = s.mobile;
+        document.getElementById('saCat').value = s.category;
+        document.getElementById('saStatus').value = s.status;
+        
+        // Populate depts
+        let dHtml = ''; window.db.departments.forEach(d => dHtml += `<option value="${d}">${d}</option>`);
+        document.getElementById('saDept').innerHTML = dHtml;
+        document.getElementById('saDept').value = s.dept;
+
+        openModal('modalStaffActions');
+    };
+
+    window.saveStaffRecord = () => {
+        if(window.currentUser.role !== 'BUREAU') return window.showToast("Unauthorized. Bureau access required.", "error");
+        
+        const n = document.getElementById('saName').value;
+        const sStat = document.getElementById('saStatus').value;
+        if(!n) return window.showToast("Name is required.", "error");
+
+        if(confirm("Warning: Saving this record commits it to the Bureau database. Proceed?")) {
+            if(activeEditStaffId) {
+                const idx = window.db.staff.findIndex(x => x.id === activeEditStaffId);
+                window.db.staff[idx].name = n;
+                window.db.staff[idx].status = sStat;
+                window.db.staff[idx].category = document.getElementById('saCat').value;
+                window.db.staff[idx].dept = document.getElementById('saDept').value;
+            }
+            window.saveLocal();
+            renderDirectory();
+            closeModal('modalStaffActions');
+            window.showToast("Record saved securely.", "success");
+        }
+    };
+
+    // Task Assignment
+    let taskAssignStaffId = null;
+    window.openTaskAssign = (staffId) => {
+        taskAssignStaffId = staffId;
+        const s = window.db.staff.find(x => x.id === staffId);
+        document.getElementById('modalTaskStaffName').innerText = `${s.name} (${s.id})`;
+        document.getElementById('frmTaskDesc').value = '';
+        document.getElementById('frmTaskDue').value = '';
+        openModal('modalTaskAssign');
+    };
+
+    window.saveTaskAssignment = () => {
+        const desc = document.getElementById('frmTaskDesc').value;
+        const due = document.getElementById('frmTaskDue').value;
+        const prio = document.getElementById('frmTaskUrgency').value;
+
+        if(!desc || !due) return window.showToast("Description and Due Date required.", "error");
+
+        if(confirm("Once a task is assigned, modifications require Bureau approval. Assign task?")) {
+            window.db.tasks.push({
+                id: `TSK-${Date.now()}`,
+                staffId: taskAssignStaffId,
+                title: desc,
+                due: due,
+                priority: prio,
+                progress: 0,
+                feedback: ""
+            });
+            window.saveLocal();
+            closeModal('modalTaskAssign');
+            window.showToast("Task dispatched to staff.", "success");
+            renderAnalytics();
+        }
+    };
+
+    // --- 7. STAFF WORKSPACE LOGIC ---
+    window.populateStaffWorkspace = () => {
+        const p = window.currentUser.profile;
+        document.getElementById('myProfileName').innerText = p.name;
+        document.getElementById('myProfileID').innerText = p.id;
+        document.getElementById('myProfileDept').innerText = p.dept;
+        document.getElementById('myProfileCat').innerText = p.category;
+    };
+
+    window.renderMyTasks = () => {
+        if(window.currentUser.role !== 'STAFF') return;
+        
+        const container = document.getElementById('myTasksContainer');
+        const myTasks = window.db.tasks.filter(t => t.staffId === window.currentUser.profile.id);
+        
+        if(myTasks.length === 0) {
+            container.innerHTML = `<div class="royal-card p-10 text-center bg-white"><h3 class="text-lg font-bold text-gray-400">No active tasks.</h3></div>`;
+            return;
+        }
+
+        let html = '';
+        myTasks.forEach(t => {
+            const isDone = t.progress === 100;
+            const bgBorder = t.priority === 'High' ? 'border-red-500' : 'border-[#0466c8]';
+            const progColor = isDone ? 'bg-[#0a934d]' : 'bg-[#0466c8]';
+
+            html += `
+            <div class="royal-card p-5 border-l-4 ${bgBorder} bg-white relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gray-100">
+                    <div class="h-1 ${progColor} transition-all duration-500" style="width: ${t.progress}%"></div>
+                </div>
+                
+                <div class="flex justify-between items-start mt-2">
+                    <div>
+                        <h4 class="font-bold text-[#001233]">${t.title}</h4>
+                        <p class="text-[10px] text-gray-500 font-mono mt-1"><i class="fa-regular fa-calendar"></i> Due: <b>${t.due}</b></p>
+                    </div>
+                    <span class="text-xs font-black ${isDone ? 'text-[#0a934d]' : 'text-[#0466c8]'}">${t.progress}%</span>
+                </div>
+                
+                <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">${isDone ? 'Completed' : 'Pending'}</span>
+                    ${!isDone ? `<button onclick="openStaffTaskUpdate('${t.id}')" class="btn-outline-gold px-3 py-1 text-xs">Update Status</button>` : ''}
+                </div>
+            </div>`;
+        });
+        container.innerHTML = html;
+    };
+
+    let activeStaffUpdateTaskId = null;
+    window.openStaffTaskUpdate = (tid) => {
+        activeStaffUpdateTaskId = tid;
+        const t = window.db.tasks.find(x => x.id === tid);
+        
+        document.getElementById('updTaskTitle').innerText = t.title;
+        document.getElementById('updSlider').value = t.progress;
+        document.getElementById('updProgText').innerText = t.progress + '%';
+        document.getElementById('updFeedback').value = t.feedback || '';
+        
+        window.handleSliderChange(t.progress);
+        openModal('modalTaskUpdate');
+    };
+
+    window.handleSliderChange = (val) => {
+        document.getElementById('updProgText').innerText = val + '%';
+        const msgBox = document.getElementById('updMsgBox');
+        msgBox.classList.remove('hidden', 'msg-motivate', 'msg-warning', 'msg-danger');
+        
+        if(val == 100) {
+            msgBox.innerHTML = "Task marked for completion. Awaiting Bureau endorsement.";
+            msgBox.classList.add('msg-motivate');
+        } else if (val == 0) {
+            msgBox.innerHTML = "Remember to start your tasks early to avoid delays.";
+            msgBox.classList.add('msg-warning');
+        } else {
+            msgBox.innerHTML = "Good progress. Keep it up!";
+            msgBox.classList.add('msg-motivate');
+        }
+    };
+
+    window.saveTaskProgress = () => {
+        const p = parseInt(document.getElementById('updSlider').value);
+        const fb = document.getElementById('updFeedback').value;
+        const t = window.db.tasks.find(x => x.id === activeStaffUpdateTaskId);
+        
+        t.progress = p;
+        t.feedback = fb;
+        
+        window.saveLocal();
+        closeModal('modalTaskUpdate');
+        renderMyTasks();
+        window.showToast("Progress updated. Auto-saving to network...", "success");
+    };
+
+    // --- 8. CSV IMPORT / EXPORT (BUREAU UTILS) ---
+    window.generateDummyCSV = () => {
+        const dummyData = [
+            { "Employee Name": "Sample User 1", "Category": "Civil Service", "Department": "Department 1", "Section": "Section 1", "Mobile": "7000001" },
+            { "Employee Name": "Sample User 2", "Category": "Political", "Department": "Department 1", "Section": "Section 2", "Mobile": "7000002" }
+        ];
+        const csv = Papa.unparse(dummyData);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "HR_Bureau_Template.csv";
+        link.click();
+    };
+
+    window.importCSV = (event) => {
+        const file = event.target.files[0];
+        if(!file) return;
+        
+        Papa.parse(file, {
+            header: true,
+            complete: function(results) {
+                let imported = 0;
+                results.data.forEach(row => {
+                    if(row["Employee Name"]) {
+                        window.db.staff.push({
+                            id: `EID-IMP-${Date.now().toString().slice(-4)}${imported}`,
+                            name: row["Employee Name"],
+                            category: row["Category"] || "Civil Service",
+                            dept: row["Department"] || "Unassigned",
+                            section: row["Section"] || "Unassigned",
+                            mobile: row["Mobile"] || "0000000",
+                            status: "Active",
+                            trophies: 0
+                        });
+                        imported++;
+                    }
+                });
+                window.saveLocal();
+                window.showToast(`Imported ${imported} staff records.`, "success");
+                event.target.value = '';
+            }
+        });
+    };
+
+    window.resetSystem = () => {
+        if(confirm("CRITICAL WARNING: This will format the local database. Type 'RESET' to confirm.") === true) {
+            // Browsers limit prompt in confirm, using standard confirm for demo safety.
+            localStorage.clear();
+            window.location.reload();
+        }
     };
 
 </script>
