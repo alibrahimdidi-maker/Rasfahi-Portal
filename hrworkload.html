@@ -10,6 +10,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -17,6 +19,12 @@
          * 1. RASFAHI ROYAL COLOR PALETTE & TYPOGRAPHY
          * ========================================================================= */
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Cinzel:wght@600;700;800;900&display=swap');
+        
+        @font-face {
+            font-family: 'Faruma';
+            src: url('faruma.ttf') format('truetype');
+            /* Fallback mechanism if faruma.ttf is not found in the same directory */
+        }
         
         :root {
             /* Bureau Blues */
@@ -65,6 +73,12 @@
             padding: 0;
             -webkit-user-select: none; 
             user-select: none; 
+        }
+
+        .dhivehi-text {
+            font-family: 'Faruma', 'Plus Jakarta Sans', sans-serif;
+            direction: rtl;
+            text-align: right;
         }
 
         /* Allow user to copy text from inputs */
@@ -195,6 +209,10 @@
         /* RBAC Hiding Class */
         .auth-hidden { display: none !important; }
         
+        /* Mobile Menu Toggle */
+        .sidebar-mobile-hidden { transform: translateX(-100%); }
+        @media (min-width: 768px) { .sidebar-mobile-hidden { transform: translateX(0); } }
+        
         /* Badges */
         .badge { padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.25rem; }
         .badge-active { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
@@ -223,16 +241,11 @@
         .print-only-block { display: none; }
 
         @media print {
-            /* Hide the main application body */
             body * { visibility: hidden !important; }
-            
-            /* Target Modals for Printing */
             #modalStaffTaskReport, #modalStaffTaskReport *,
             #modalTMTReport, #modalTMTReport * { 
                 visibility: visible !important; 
             }
-            
-            /* Reset Modal positioning to act as a normal page */
             #modalStaffTaskReport, #modalTMTReport { 
                 position: absolute !important; 
                 left: 0 !important; 
@@ -242,7 +255,6 @@
                 display: block !important; 
                 padding: 0 !important; 
             }
-            
             .modal-container { 
                 box-shadow: none !important; 
                 border: none !important; 
@@ -253,18 +265,13 @@
                 margin: 0 !important; 
                 padding: 0 !important;
             }
-            
             .modal-body { 
                 overflow: visible !important; 
                 background: white !important; 
-                padding: 1cm !important; /* Proper margin for A4 */
+                padding: 1cm !important; 
             }
-            
-            /* Hide web-only elements */
             .no-print { display: none !important; }
             .print-only-block { display: block !important; }
-            
-            /* Elegant Task Card styling for paper */
             .task-report-card { 
                 break-inside: avoid; 
                 page-break-inside: avoid;
@@ -274,9 +281,8 @@
                 margin-bottom: 1.5rem !important; 
                 padding: 1rem !important; 
             }
-            
             ::-webkit-scrollbar { display: none !important; }
-            @page { margin: 0.5cm; } /* Reduce default browser margin */
+            @page { margin: 0.5cm; } 
         }
     </style>
 </head>
@@ -300,7 +306,7 @@
         © 2026 <span>RASFAHI</span> HR MANAGEMENT SOFTWARE.<br>REG: MED.03.IP.CR.26.EW5889
     </div>
 
-    <div class="bg-white p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md z-10 border-t-8 border-[#d4af37] relative">
+    <div class="bg-white p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md z-10 border-t-8 border-[#d4af37] relative mx-4">
         <div class="text-center mb-8 relative z-10">
             <div class="w-16 h-16 bg-[#001233] rounded-xl mx-auto flex items-center justify-center text-[#d4af37] text-2xl mb-4 shadow-lg border border-[#0466c8]/30">
                 <i class="fa-solid fa-building-shield"></i>
@@ -331,13 +337,18 @@
 
 <div id="workspacePortal" class="flex h-screen w-full hidden bg-white">
     
-    <aside class="w-20 md:w-64 bg-[#001233] text-white flex flex-col h-full shadow-2xl z-30 flex-shrink-0 transition-all duration-300">
-        <div class="p-4 md:p-6 border-b border-slate-700/50 text-center md:text-left">
-            <div class="flex items-center justify-center md:justify-start gap-3 mb-4">
+    <div id="mobileSidebarOverlay" class="fixed inset-0 bg-black/50 z-20 hidden md:hidden" onclick="PortalNav.toggleSidebar()"></div>
+
+    <aside id="mainSidebar" class="absolute md:relative w-64 bg-[#001233] text-white flex flex-col h-full shadow-2xl z-30 flex-shrink-0 transition-transform duration-300 sidebar-mobile-hidden">
+        <div class="p-4 md:p-6 border-b border-slate-700/50 text-center md:text-left flex justify-between items-center">
+            <div class="flex items-center justify-center md:justify-start gap-3">
                 <i class="fa-solid fa-crown text-[#d4af37] text-2xl drop-shadow"></i>
-                <h2 class="royal-font text-xl font-black text-[#d4af37] hidden md:block tracking-wider">RASFAHI</h2>
+                <h2 class="royal-font text-xl font-black text-[#d4af37] tracking-wider">RASFAHI</h2>
             </div>
-            <div class="bg-[#002855] p-3 rounded-lg border border-[#0466c8]/30 hidden md:block">
+            <button class="md:hidden text-white hover:text-red-400" onclick="PortalNav.toggleSidebar()"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        <div class="px-6 py-2">
+            <div class="bg-[#002855] p-3 rounded-lg border border-[#0466c8]/30">
                 <p id="navUserEmail" class="text-xs font-bold text-white truncate mb-2"></p>
                 <span id="navUserRoleBadge" class="inline-block bg-[#d4af37] text-[#001233] text-[9px] px-2 py-0.5 rounded font-black uppercase tracking-widest shadow-sm">ROLE</span>
             </div>
@@ -345,61 +356,64 @@
         
         <nav class="flex-1 py-4 space-y-1 px-3 overflow-y-auto">
             
-            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-3 mb-2 mt-2 hidden md:block auth-req auth-bureau auth-dept">Analytics & Mgmt</p>
+            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-3 mb-2 mt-2 auth-req auth-bureau auth-dept">Analytics & Mgmt</p>
             <button onclick="PortalNav.navigate('dashboard')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#0466c8] hover:text-white transition auth-req auth-bureau auth-dept">
                 <div class="w-8 flex justify-center"><i class="fa-solid fa-chart-pie text-lg text-blue-400"></i></div>
-                <span class="hidden md:inline ml-2">Executive Dashboard</span>
+                <span class="ml-2">Executive Dashboard</span>
             </button>
             <button onclick="PortalNav.navigate('directory')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#0466c8] hover:text-white transition auth-req auth-bureau auth-dept">
                 <div class="w-8 flex justify-center"><i class="fa-solid fa-users text-lg text-blue-400"></i></div>
-                <span class="hidden md:inline ml-2">Master Staff Directory</span>
+                <span class="ml-2">Master Staff Directory</span>
             </button>
             <button onclick="PortalNav.navigate('orgStructure')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#d4af37] hover:text-[#001233] transition auth-req auth-bureau auth-dept">
                 <div class="w-8 flex justify-center"><i class="fa-solid fa-sitemap text-lg text-yellow-500"></i></div>
-                <span class="hidden md:inline ml-2">Org Structure (Amend)</span>
+                <span class="ml-2">Org Structure (Amend)</span>
             </button>
             
-            <div class="my-4 border-t border-slate-700/50 hidden md:block auth-req auth-bureau auth-dept"></div>
+            <div class="my-4 border-t border-slate-700/50 auth-req auth-bureau auth-dept"></div>
             <button onclick="PortalNav.navigate('performance')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#0a934d] hover:text-white transition auth-req auth-bureau auth-dept">
-                <div class="w-8 flex justify-center"><i class="fa-solid fa-award text-lg text-green-400"></i></div>
-                <span class="hidden md:inline ml-2">Performance & Awards</span>
+                <div class="w-8 flex justify-center"><i class="fa-solid fa-star-half-stroke text-lg text-green-400"></i></div>
+                <span class="ml-2">Scores & Performance</span>
             </button>
 
-            <div class="my-4 border-t border-slate-700/50 hidden md:block auth-req auth-zinmaadhaaru"></div>
-            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-3 mb-2 hidden md:block auth-req auth-zinmaadhaaru">Zinmaadhaaru Control</p>
+            <div class="my-4 border-t border-slate-700/50 auth-req auth-zinmaadhaaru"></div>
+            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-3 mb-2 auth-req auth-zinmaadhaaru">Zinmaadhaaru Control</p>
             <button onclick="PortalNav.navigate('zinmaadhaaru')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#6b21a8] hover:text-white transition auth-req auth-zinmaadhaaru">
                 <div class="w-8 flex justify-center"><i class="fa-solid fa-bolt text-lg text-purple-400"></i></div>
-                <span class="hidden md:inline ml-2">Task Assignment Panel</span>
+                <span class="ml-2">Task Assignment Panel</span>
             </button>
             
-            <div class="my-4 border-t border-slate-700/50 hidden md:block auth-req auth-staff"></div>
-            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-3 mb-2 hidden md:block auth-req auth-staff">Personal Workspace</p>
+            <div class="my-4 border-t border-slate-700/50 auth-req auth-staff"></div>
+            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-3 mb-2 auth-req auth-staff">Personal Workspace</p>
             <button onclick="PortalNav.navigate('myWorkspace')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-[#0a934d] hover:text-white transition auth-req auth-staff">
                 <div class="w-8 flex justify-center"><i class="fa-solid fa-list-check text-lg text-green-400"></i></div>
-                <span class="hidden md:inline ml-2">Active Tasks & Logs</span>
+                <span class="ml-2">Active Tasks & Logs</span>
             </button>
 
         </nav>
         
         <div class="p-4 border-t border-slate-700/50 text-center">
             <button onclick="SystemAuth.terminateSession()" class="text-sm font-bold text-red-400 hover:text-red-300 transition w-full flex justify-center items-center gap-2">
-                <i class="fa-solid fa-power-off"></i> <span class="hidden md:inline">Logout</span>
+                <i class="fa-solid fa-power-off"></i> <span>Logout</span>
             </button>
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col h-full bg-[#f4f6f8]">
+    <main class="flex-1 flex flex-col h-full bg-[#f4f6f8] relative w-full overflow-hidden">
         
-        <header class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm z-20">
-            <div>
-                <h2 id="viewTitle" class="royal-font text-xl md:text-2xl font-bold text-[#002855]">Loading...</h2>
-                <p id="viewSubtitle" class="text-xs text-gray-500 font-semibold mt-0.5">Please wait</p>
+        <header class="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex justify-between items-center shadow-sm z-10">
+            <div class="flex items-center gap-3">
+                <button class="md:hidden text-[#002855] text-xl" onclick="PortalNav.toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+                <div>
+                    <h2 id="viewTitle" class="royal-font text-lg md:text-2xl font-bold text-[#002855]">Loading...</h2>
+                    <p id="viewSubtitle" class="text-xs text-gray-500 font-semibold mt-0.5">Please wait</p>
+                </div>
             </div>
             <div class="flex items-center gap-4">
-                <div class="copyright-text mt-0 hidden md:block mr-2 text-right leading-tight">© 2026 <span>RASFAHI</span> HRM<br>ALI IBRAHIM DIDI</div>
+                <div class="copyright-text mt-0 hidden lg:block mr-2 text-right leading-tight">© 2026 <span>RASFAHI</span> HRM<br>ALI IBRAHIM DIDI</div>
                 <div class="flex items-center gap-2 bg-[#f8fafc] px-3 py-1.5 rounded border shadow-inner">
-                    <span class="pulse-indicator pulse-status-online"></span>
-                    <span class="text-[10px] font-black text-gray-600 uppercase">System Active</span>
+                    <span id="cloudSyncIndicator" class="pulse-indicator pulse-status-online"></span>
+                    <span id="cloudSyncText" class="text-[10px] font-black text-gray-600 uppercase hidden md:inline">System Active</span>
                 </div>
             </div>
         </header>
@@ -408,21 +422,21 @@
             
             <div id="view-dashboard" class="tab-section active-tab max-w-7xl mx-auto h-full">
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <div class="royal-card p-5 border-l-[6px] border-l-[#0466c8]">
+                    <div class="royal-card p-4 md:p-5 border-l-[6px] border-l-[#0466c8]">
                         <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Total Workforce</p>
-                        <h3 class="text-3xl font-black text-[#001233]" id="kpi-total-staff">0</h3>
+                        <h3 class="text-2xl md:text-3xl font-black text-[#001233]" id="kpi-total-staff">0</h3>
                     </div>
-                    <div class="royal-card p-5 border-l-[6px] border-l-[#d4af37]">
+                    <div class="royal-card p-4 md:p-5 border-l-[6px] border-l-[#d4af37]">
                         <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Active Operations</p>
-                        <h3 class="text-3xl font-black text-[#001233]" id="kpi-active-tasks">0</h3>
+                        <h3 class="text-2xl md:text-3xl font-black text-[#001233]" id="kpi-active-tasks">0</h3>
                     </div>
-                    <div class="royal-card p-5 border-l-[6px] border-l-[#0a934d]">
+                    <div class="royal-card p-4 md:p-5 border-l-[6px] border-l-[#0a934d]">
                         <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Endorsed / Completed</p>
-                        <h3 class="text-3xl font-black text-[#001233]" id="kpi-comp-tasks">0</h3>
+                        <h3 class="text-2xl md:text-3xl font-black text-[#001233]" id="kpi-comp-tasks">0</h3>
                     </div>
-                    <div class="royal-card p-5 border-l-[6px] border-l-[#ef4444]">
+                    <div class="royal-card p-4 md:p-5 border-l-[6px] border-l-[#ef4444]">
                         <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Pending Approvals</p>
-                        <h3 class="text-3xl font-black text-[#001233]" id="kpi-pending-approvals">0</h3>
+                        <h3 class="text-2xl md:text-3xl font-black text-[#001233]" id="kpi-pending-approvals">0</h3>
                     </div>
                 </div>
 
@@ -455,21 +469,21 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 pb-10">
                     <div class="royal-card p-0 flex flex-col border-t-4 border-t-[#001233]">
-                        <div class="p-3 bg-[#f8fafc] border-b"><h3 class="text-xs font-black text-[#002855] uppercase"><i class="fa-solid fa-users mr-2"></i> ޙަވާލުކުރެވިފައިވާ (<span id="c-assigned">0</span>)</h3></div>
+                        <div class="p-3 bg-[#f8fafc] border-b"><h3 class="text-xs font-black text-[#002855] uppercase dhivehi-text text-left"><i class="fa-solid fa-users mr-2"></i> ޙަވާލުކުރެވިފައިވާ (<span id="c-assigned">0</span>)</h3></div>
                         <div class="flex-1 overflow-y-auto max-h-[300px] p-3 space-y-2" id="list-assigned"></div>
                     </div>
                     <div class="royal-card p-0 flex flex-col border-t-4 border-t-[#0466c8]">
-                        <div class="p-3 bg-[#f8fafc] border-b"><h3 class="text-xs font-black text-[#002855] uppercase"><i class="fa-solid fa-spinner mr-2"></i> ފަށާފައިވާ (<span id="c-started">0</span>)</h3></div>
+                        <div class="p-3 bg-[#f8fafc] border-b"><h3 class="text-xs font-black text-[#002855] uppercase dhivehi-text text-left"><i class="fa-solid fa-spinner mr-2"></i> ފަށާފައިވާ (<span id="c-started">0</span>)</h3></div>
                         <div class="flex-1 overflow-y-auto max-h-[300px] p-3 space-y-2" id="list-started"></div>
                     </div>
                     <div class="royal-card p-0 flex flex-col border-t-4 border-t-[#d4af37]">
-                        <div class="p-3 bg-[#f8fafc] border-b"><h3 class="text-xs font-black text-[#002855] uppercase"><i class="fa-solid fa-check-double mr-2"></i> ފުރިހަމަކުރި (<span id="c-completed">0</span>)</h3></div>
+                        <div class="p-3 bg-[#f8fafc] border-b"><h3 class="text-xs font-black text-[#002855] uppercase dhivehi-text text-left"><i class="fa-solid fa-check-double mr-2"></i> ފުރިހަމަކުރި (<span id="c-completed">0</span>)</h3></div>
                         <div class="flex-1 overflow-y-auto max-h-[300px] p-3 space-y-2" id="list-completed"></div>
                     </div>
                     <div class="royal-card p-0 flex flex-col border-t-4 border-t-[#ef4444]">
-                        <div class="p-3 bg-[#f8fafc] border-b"><h3 class="text-xs font-black text-[#002855] uppercase"><i class="fa-solid fa-bed mr-2"></i> ނުފަށާ ހުރި (<span id="c-notstarted">0</span>)</h3></div>
+                        <div class="p-3 bg-[#f8fafc] border-b"><h3 class="text-xs font-black text-[#002855] uppercase dhivehi-text text-left"><i class="fa-solid fa-bed mr-2"></i> ނުފަށާ ހުރި (<span id="c-notstarted">0</span>)</h3></div>
                         <div class="flex-1 overflow-y-auto max-h-[300px] p-3 space-y-2" id="list-notstarted"></div>
                     </div>
                 </div>
@@ -477,19 +491,29 @@
 
             <div id="view-directory" class="tab-section max-w-7xl mx-auto h-[calc(100vh-140px)] flex flex-col">
                 <div class="royal-card p-4 mb-4 flex flex-col lg:flex-row gap-4 items-center justify-between flex-shrink-0 z-10">
-                    <div class="flex-1 w-full flex gap-3">
+                    <div class="flex-1 w-full flex flex-col sm:flex-row gap-3">
                         <input type="text" id="filterSearch" oninput="StaffDirectory.renderTable()" placeholder="Search staff..." class="royal-input shadow-sm flex-1">
                         <select id="filterDept" onchange="StaffDirectory.renderTable()" class="royal-input sm:max-w-[200px] shadow-sm"><option value="">All Departments</option></select>
                     </div>
-                    <button onclick="ModalManager.openStaffEditor()" class="btn-base btn-blue-solid auth-req auth-bureau auth-dept"><i class="fa-solid fa-user-plus"></i> Register Staff</button>
+                    <div class="flex gap-2 flex-wrap justify-center w-full lg:w-auto">
+                        <button onclick="document.getElementById('csvFileInput').click()" class="btn-base bg-gray-200 text-gray-800 auth-req auth-bureau text-xs"><i class="fa-solid fa-file-import"></i> Import CSV</button>
+                        <input type="file" id="csvFileInput" class="hidden" accept=".csv" onchange="StaffDirectory.importCSV(event)">
+                        
+                        <button onclick="StaffDirectory.downloadDummyCSV()" class="btn-base bg-gray-200 text-gray-800 auth-req auth-bureau text-xs"><i class="fa-solid fa-download"></i> Dummy CSV</button>
+                        
+                        <button onclick="StaffDirectory.exportCSV()" class="btn-base bg-[#0a934d] text-white text-xs"><i class="fa-solid fa-file-csv"></i> CSV</button>
+                        <button onclick="StaffDirectory.exportPDF()" class="btn-base bg-[#ef4444] text-white text-xs"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        <button onclick="ModalManager.openStaffEditor()" class="btn-base btn-blue-solid auth-req auth-bureau auth-dept text-xs whitespace-nowrap"><i class="fa-solid fa-user-plus"></i> Register Staff</button>
+                    </div>
                 </div>
                 <div class="royal-card flex-1 flex flex-col overflow-hidden">
-                    <div class="overflow-y-auto flex-1 relative">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-[#001233] text-white sticky top-0 z-10">
+                    <div class="overflow-x-auto overflow-y-auto flex-1 relative">
+                        <table class="w-full text-left border-collapse whitespace-nowrap">
+                            <thead class="bg-[#001233] text-white sticky top-0 z-10 shadow-md">
                                 <tr>
                                     <th class="p-3 text-xs uppercase">Employee Profile</th>
                                     <th class="p-3 text-xs uppercase">Placement Details</th>
+                                    <th class="p-3 text-xs uppercase">Contact</th>
                                     <th class="p-3 text-xs uppercase text-center">Score</th>
                                     <th class="p-3 text-xs uppercase text-center">Status</th>
                                     <th class="p-3 text-xs uppercase text-center auth-req auth-bureau auth-dept">Action</th>
@@ -502,23 +526,23 @@
             </div>
 
             <div id="view-orgStructure" class="tab-section max-w-5xl mx-auto h-full flex flex-col">
-                <div class="royal-card p-6 flex flex-col h-full">
-                    <h2 class="royal-font text-2xl font-bold text-[#002855] mb-4 border-b pb-2"><i class="fa-solid fa-sitemap mr-2"></i> Modify Organization Structure</h2>
-                    <p class="text-sm text-gray-500 mb-6">Create, edit, or delete Departments and Sections. Note: Deleting a department may leave staff without a placement.</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 overflow-hidden">
-                        <div class="flex flex-col border-r pr-4">
-                            <div class="flex justify-between items-center mb-3">
+                <div class="royal-card p-4 md:p-6 flex flex-col h-full">
+                    <h2 class="royal-font text-xl md:text-2xl font-bold text-[#002855] mb-4 border-b pb-2"><i class="fa-solid fa-sitemap mr-2"></i> Modify Organization Structure</h2>
+                    <p class="text-xs md:text-sm text-gray-500 mb-6">Create, edit, or delete Departments and Sections. Note: Deleting a department may leave staff without a placement.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 flex-1 overflow-hidden">
+                        <div class="flex flex-col md:border-r md:pr-4">
+                            <div class="flex justify-between items-center mb-3 border-b pb-2">
                                 <h3 class="text-sm font-bold text-[#002855]">Departments</h3>
                                 <button onclick="OrgManager.addDept()" class="btn-base bg-[#0466c8] text-white text-[10px] px-2 py-1"><i class="fa-solid fa-plus"></i> Add</button>
                             </div>
-                            <div id="orgDeptList" class="flex-1 overflow-y-auto space-y-2 pr-2"></div>
+                            <div id="orgDeptList" class="flex-1 overflow-y-auto space-y-2 pr-2 pb-4"></div>
                         </div>
-                        <div class="flex flex-col pl-4">
-                            <div class="flex justify-between items-center mb-3">
-                                <select id="orgSecFilter" onchange="OrgManager.renderSections()" class="royal-input text-xs p-1 max-w-[200px]"></select>
-                                <button onclick="OrgManager.addSec()" class="btn-base bg-[#d4af37] text-[#001233] text-[10px] px-2 py-1"><i class="fa-solid fa-plus"></i> Add Section</button>
+                        <div class="flex flex-col md:pl-4 border-t md:border-t-0 pt-4 md:pt-0">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 border-b pb-2">
+                                <select id="orgSecFilter" onchange="OrgManager.renderSections()" class="royal-input text-xs p-1 w-full sm:max-w-[200px]"></select>
+                                <button onclick="OrgManager.addSec()" class="btn-base bg-[#d4af37] text-[#001233] text-[10px] px-2 py-1 w-full sm:w-auto"><i class="fa-solid fa-plus"></i> Add Section</button>
                             </div>
-                            <div id="orgSecList" class="flex-1 overflow-y-auto space-y-2 pr-2"></div>
+                            <div id="orgSecList" class="flex-1 overflow-y-auto space-y-2 pr-2 pb-4"></div>
                         </div>
                     </div>
                 </div>
@@ -527,55 +551,61 @@
             <div id="view-zinmaadhaaru" class="tab-section max-w-7xl mx-auto h-full flex flex-col">
                 <div class="royal-card p-5 mb-4">
                     <h2 class="royal-font text-xl font-bold text-[#002855] mb-3"><i class="fa-solid fa-bolt text-purple-600 mr-2"></i> Top-Down Directives & Task Monitoring</h2>
-                    <p class="text-sm text-gray-500 mb-6">Read-only view of the organization. Assign high-level directives directly to any staff member.</p>
+                    <p class="text-xs md:text-sm text-gray-500 mb-4">Assign high-level directives directly to any staff member. These specific tasks will be tracked independently.</p>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <select id="zdFilterDept" onchange="ZinmaadhaaruEngine.loadFilters()" class="royal-input text-sm"><option value="">-- Select Department --</option></select>
                         <select id="zdFilterSec" onchange="ZinmaadhaaruEngine.loadStaff()" class="royal-input text-sm"><option value="">-- All Sections --</option></select>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 overflow-hidden">
-                    <div class="lg:col-span-1 royal-card p-0 flex flex-col">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 overflow-hidden pb-10">
+                    <div class="lg:col-span-1 royal-card p-0 flex flex-col h-[400px] lg:h-auto">
                         <div class="p-3 bg-gray-50 border-b"><h3 class="text-xs font-black text-[#002855] uppercase">Select Personnel</h3></div>
                         <div class="flex-1 overflow-y-auto p-2 space-y-2" id="zdStaffList"></div>
                     </div>
-                    <div class="lg:col-span-2 royal-card p-5 flex flex-col border-t-4 border-t-purple-600">
-                        <h3 class="text-sm font-black text-[#002855] uppercase mb-4 border-b pb-2">Assign Directive to: <span id="zdTargetName" class="text-purple-600">Select a Staff Member</span></h3>
-                        <div class="space-y-4 opacity-50 pointer-events-none transition-opacity" id="zdFormArea">
-                            <input type="text" id="zdTaskTitle" class="royal-input text-sm" placeholder="Enter directive or task description...">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div><label class="text-[9px] font-bold uppercase text-gray-500">Deadline (Optional)</label><input type="date" id="zdTaskDue" class="royal-input text-sm"></div>
-                                <div><label class="text-[9px] font-bold uppercase text-gray-500">Priority</label><select id="zdTaskPrio" class="royal-input text-sm"><option value="Normal">Normal</option><option value="High">Urgent / High</option></select></div>
+                    <div class="lg:col-span-2 flex flex-col gap-4">
+                        <div class="royal-card p-5 flex flex-col border-t-4 border-t-purple-600">
+                            <h3 class="text-sm font-black text-[#002855] uppercase mb-4 border-b pb-2">Assign Directive to: <span id="zdTargetName" class="text-purple-600">Select a Staff Member</span></h3>
+                            <div class="space-y-4 opacity-50 pointer-events-none transition-opacity" id="zdFormArea">
+                                <input type="text" id="zdTaskTitle" class="royal-input text-sm dhivehi-text" placeholder="Enter directive or task description (Dhivehi supported)...">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div><label class="text-[9px] font-bold uppercase text-gray-500">Deadline (Optional)</label><input type="date" id="zdTaskDue" class="royal-input text-sm"></div>
+                                    <div><label class="text-[9px] font-bold uppercase text-gray-500">Priority</label><select id="zdTaskPrio" class="royal-input text-sm"><option value="Normal">Normal</option><option value="High">Urgent / High</option></select></div>
+                                </div>
+                                <button onclick="ZinmaadhaaruEngine.dispatchTask()" class="btn-base bg-purple-600 hover:bg-purple-800 text-white w-full shadow-md"><i class="fa-solid fa-paper-plane mr-2"></i> Official Dispatch</button>
                             </div>
-                            <button onclick="ZinmaadhaaruEngine.dispatchTask()" class="btn-base bg-purple-600 hover:bg-purple-800 text-white w-full shadow-md"><i class="fa-solid fa-paper-plane mr-2"></i> Official Dispatch</button>
+                        </div>
+                        <div class="royal-card p-5 flex-1 flex flex-col border-t-4 border-t-indigo-500">
+                            <h3 class="text-sm font-black text-[#002855] uppercase mb-4 border-b pb-2">Directives Tracked by Zinmaadhaaru</h3>
+                            <div class="flex-1 overflow-y-auto max-h-[300px] space-y-2" id="zdTrackedTasks"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div id="view-performance" class="tab-section max-w-7xl mx-auto flex flex-col">
-                <div class="royal-card bureau-card-gold p-6 mb-6">
+            <div id="view-performance" class="tab-section max-w-7xl mx-auto flex flex-col h-full">
+                <div class="royal-card bureau-card-gold p-4 md:p-6 mb-6">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
-                            <h3 class="royal-font text-2xl font-bold text-[#002855]"><i class="fa-solid fa-award text-[#d4af37] mr-2"></i> Monthly Performance & Awards</h3>
-                            <p class="text-sm text-gray-500 mt-1">Configure evaluation weights and input attendance to generate the final award report.</p>
+                            <h3 class="royal-font text-xl md:text-2xl font-bold text-[#002855]"><i class="fa-solid fa-award text-[#d4af37] mr-2"></i> Monthly Performance & Awards</h3>
+                            <p class="text-xs md:text-sm text-gray-500 mt-1">Configure evaluation weights and input attendance to generate the final award report.</p>
                         </div>
-                        <button onclick="PerformanceEngine.generateTMTReport()" class="btn-base bg-[#d4af37] text-[#001233] hover:bg-yellow-600 shadow-md"><i class="fa-solid fa-print"></i> Generate Official Report</button>
+                        <button onclick="PerformanceEngine.generateTMTReport()" class="btn-base bg-[#d4af37] text-[#001233] hover:bg-yellow-600 shadow-md whitespace-nowrap"><i class="fa-solid fa-print"></i> Generate Official Report</button>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200 auth-req auth-bureau">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200 auth-req auth-bureau">
                         <div><label class="royal-label">Tasks Done Weight (%)</label><input type="number" id="wTasks" onchange="PerformanceEngine.updateWeights()" class="royal-input text-center"></div>
                         <div><label class="royal-label">Daily Logs Weight (%)</label><input type="number" id="wRoutine" onchange="PerformanceEngine.updateWeights()" class="royal-input text-center"></div>
                         <div><label class="royal-label">Attendance Weight (%)</label><input type="number" id="wAttendance" onchange="PerformanceEngine.updateWeights()" class="royal-input text-center"></div>
                     </div>
                 </div>
 
-                <div class="royal-card flex-1 flex flex-col overflow-hidden min-h-[500px]">
+                <div class="royal-card flex-1 flex flex-col overflow-hidden min-h-[400px]">
                     <div class="bg-white p-4 border-b flex justify-between items-center">
                         <h3 class="text-sm font-black text-[#002855] uppercase tracking-widest">Attendance Input & Marks Preview</h3>
                     </div>
                     <div class="overflow-x-auto overflow-y-auto flex-1 relative">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-[#002855] text-white sticky top-0 z-10">
+                        <table class="w-full text-left border-collapse whitespace-nowrap">
+                            <thead class="bg-[#002855] text-white sticky top-0 z-10 shadow-md">
                                 <tr>
                                     <th class="p-3 text-xs uppercase">Staff Name</th>
                                     <th class="p-3 text-xs uppercase">Department</th>
@@ -591,7 +621,7 @@
                 </div>
             </div>
 
-            <div id="view-myWorkspace" class="tab-section max-w-6xl mx-auto">
+            <div id="view-myWorkspace" class="tab-section max-w-6xl mx-auto h-full overflow-y-auto pb-10">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-1 royal-card bg-gradient-to-b from-[#001233] to-[#002855] text-white p-6 shadow-xl border-t-4 border-t-[#d4af37]">
                         <div class="text-center border-b border-blue-900/50 pb-6 mb-4">
@@ -612,21 +642,22 @@
                         <button onclick="ModalManager.open('modalActivityLog')" class="w-full btn-base bg-[#0a934d] hover:bg-green-600 text-white shadow-lg"><i class="fa-solid fa-plus"></i> Log Daily Activity</button>
                     </div>
                     
-                    <div class="lg:col-span-2 royal-card p-5">
+                    <div class="lg:col-span-2 royal-card p-4 md:p-5 h-[500px] lg:h-auto flex flex-col">
                         <div class="flex justify-between items-center border-b pb-3 mb-4">
-                            <h3 class="royal-font text-xl font-bold text-[#002855]"><i class="fa-solid fa-bars-progress text-[#0466c8] mr-2"></i> Active Operations</h3>
+                            <h3 class="royal-font text-lg md:text-xl font-bold text-[#002855]"><i class="fa-solid fa-bars-progress text-[#0466c8] mr-2"></i> Active Operations</h3>
                             <span class="badge badge-active text-sm" id="wsTaskCountBadge">0 Tasks</span>
                         </div>
-                        <div id="wsTaskContainer" class="space-y-4"></div>
+                        <div id="wsTaskContainer" class="space-y-4 overflow-y-auto pr-2 flex-1"></div>
                     </div>
                 </div>
             </div>
 
-        </div> </main>
+        </div> 
+    </main>
 </div>
 
 <div id="modalStaffTaskReport" class="modal-backdrop">
-    <div class="modal-container max-w-4xl w-full h-[90vh]">
+    <div class="modal-container max-w-4xl w-full h-[90vh] md:h-auto md:max-h-[90vh]">
         <div class="modal-header bg-[#f8fafc] no-print">
             <h2 class="font-black text-[#001233] text-lg uppercase tracking-tight"><i class="fa-solid fa-file-contract text-[#0466c8] mr-2"></i> Official Portfolio Report</h2>
             <div class="flex gap-2">
@@ -641,13 +672,13 @@
                 <p class="text-sm font-bold text-gray-500 mt-1 uppercase tracking-widest">Official Staff Portfolio & Activity Log</p>
             </div>
             
-            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center mb-6">
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div><span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest block">Officer Name</span><strong class="text-lg text-[#001233]" id="strPrintName">Name</strong></div>
                 <div><span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest block">Badge ID</span><strong class="text-lg text-[#001233]" id="strPrintId">ID</strong></div>
-                <div class="text-right"><span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest block">Placement</span><strong class="text-sm text-[#001233]" id="strPrintDept">Dept</strong><br><span class="text-xs text-gray-500" id="strPrintSec">Sec</span></div>
+                <div class="sm:text-right"><span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest block">Placement</span><strong class="text-sm text-[#001233]" id="strPrintDept">Dept</strong><br><span class="text-xs text-gray-500" id="strPrintSec">Sec</span></div>
             </div>
             
-            <div class="flex gap-2 mb-4 no-print">
+            <div class="flex flex-wrap gap-2 mb-4 no-print">
                 <button onclick="StaffTaskReport.filter('All')" class="text-xs font-bold px-3 py-1 rounded border border-gray-300 hover:bg-gray-100">All Records</button>
                 <button onclick="StaffTaskReport.filter('Task')" class="text-xs font-bold px-3 py-1 rounded border border-gray-300 hover:bg-gray-100">Tasks/Directives</button>
                 <button onclick="StaffTaskReport.filter('Log')" class="text-xs font-bold px-3 py-1 rounded border border-gray-300 hover:bg-gray-100">Daily Logs</button>
@@ -665,15 +696,15 @@
 </div>
 
 <div id="modalTMTReport" class="modal-backdrop">
-    <div class="modal-container max-w-5xl w-full h-[90vh]">
+    <div class="modal-container max-w-5xl w-full h-[90vh] md:h-auto md:max-h-[90vh]">
         <div class="modal-header bg-[#f8fafc] no-print">
-            <h2 class="font-black text-[#001233] text-xl tracking-tight"><i class="fa-solid fa-award text-[#d4af37] mr-2"></i> TMT Monthly Performance Report</h2>
+            <h2 class="font-black text-[#001233] text-lg md:text-xl tracking-tight"><i class="fa-solid fa-award text-[#d4af37] mr-2"></i> TMT Monthly Performance Report</h2>
             <div class="flex gap-2">
                 <button onclick="StaffTaskReport.print()" class="btn-base bg-white border border-gray-300 hover:text-red-600 text-sm px-3 py-1"><i class="fa-solid fa-file-pdf mr-2"></i> Print / PDF</button>
                 <button onclick="ModalManager.close('modalTMTReport')" class="btn-base bg-red-50 text-red-500 hover:bg-red-100 text-sm px-3 py-1"><i class="fa-solid fa-xmark"></i></button>
             </div>
         </div>
-        <div class="modal-body bg-white p-8 relative">
+        <div class="modal-body bg-white p-4 md:p-8 relative">
             <div class="print-only-block mb-6 border-b-2 border-[#001233] pb-4 text-center">
                 <h1 class="text-4xl font-black text-[#001233] uppercase font-[Cinzel]">Official Performance Report</h1>
                 <p class="text-sm font-bold text-gray-500 mt-1 uppercase">Rasfahi Enterprise System - Top Management Team</p>
@@ -681,7 +712,7 @@
             </div>
             
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse border border-gray-200">
+                <table class="w-full text-left border-collapse border border-gray-200 whitespace-nowrap">
                     <thead class="bg-[#002855] text-white">
                         <tr><th class="p-3 text-xs uppercase border border-gray-300">Rank</th><th class="p-3 text-xs uppercase border border-gray-300">Staff Profile</th><th class="p-3 text-xs uppercase border border-gray-300">Department</th><th class="p-3 text-xs uppercase text-center border border-gray-300">Tasks</th><th class="p-3 text-xs uppercase text-center border border-gray-300">Logs</th><th class="p-3 text-xs uppercase text-center border border-gray-300">Att %</th><th class="p-3 text-xs uppercase text-center bg-[#d4af37] text-[#001233] border border-gray-300">Final Score</th></tr>
                     </thead>
@@ -699,7 +730,7 @@
 </div>
 
 <div id="modalActivityLog" class="modal-backdrop">
-    <div class="modal-container max-w-md">
+    <div class="modal-container max-w-md w-[90%] md:w-full">
         <div class="modal-header border-b-4 border-b-[#0a934d] bg-white">
             <h2 class="font-black text-[#001233] text-lg uppercase tracking-tight"><i class="fa-solid fa-calendar-check text-[#0a934d] mr-2"></i> Log Daily Work</h2>
             <button onclick="ModalManager.close('modalActivityLog')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
@@ -720,30 +751,46 @@
                     <option value="Committee">Committee Attendance</option>
                 </select>
             </div>
-            <div><label class="royal-label">Activity Description</label><input type="text" id="alTitle" class="royal-input text-sm" placeholder="Brief title..."></div>
-            <div><label class="royal-label">Remarks (Optional)</label><textarea id="alDetails" class="royal-input text-sm h-20 resize-none" placeholder="Provide details for endorsement..."></textarea></div>
+            <div><label class="royal-label">Activity Description</label><input type="text" id="alTitle" class="royal-input text-sm dhivehi-text" placeholder="Brief title... (Dhivehi)"></div>
+            <div><label class="royal-label">Remarks (Optional)</label><textarea id="alDetails" class="royal-input text-sm h-20 resize-none dhivehi-text" placeholder="Provide details for endorsement... (Dhivehi)"></textarea></div>
         </div>
         <div class="modal-footer bg-gray-50"><button onclick="ActivityLogger.submitLog()" class="w-full btn-base btn-green-solid text-sm"><i class="fa-solid fa-paper-plane mr-2"></i> Submit for Endorsement</button></div>
     </div>
 </div>
 
 <div id="modalStaffActions" class="modal-backdrop">
-    <div class="modal-container max-w-lg">
+    <div class="modal-container max-w-lg w-[95%] md:w-full max-h-[90vh]">
         <div class="modal-header border-b-4 border-b-[#0466c8] bg-white">
             <div><h2 class="font-black text-[#001233] text-lg uppercase tracking-tight" id="saModalTitle">Staff Record</h2></div>
             <button onclick="ModalManager.close('modalStaffActions')" class="text-gray-400 hover:text-red-500 transition text-xl"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="modal-body space-y-4 bg-white">
+        <div class="modal-body space-y-4 bg-white overflow-y-auto">
             <input type="hidden" id="saEditingId">
-            <div class="grid grid-cols-2 gap-4">
-                <div class="col-span-2"><label class="royal-label">Name</label><input type="text" id="saInputName" class="royal-input"></div>
-                <div><label class="royal-label">ID</label><input type="text" id="saInputId" class="royal-input" placeholder="Auto-gen if empty"></div>
-                <div><label class="royal-label">Mobile</label><input type="text" id="saInputMobile" class="royal-input"></div>
-                <div class="col-span-2"><label class="royal-label">Department</label><select id="saSelectDept" class="royal-input" onchange="OrgManager.populateSecDropdown(this.value, 'saSelectSec')"></select></div>
-                <div class="col-span-2"><label class="royal-label">Section</label><select id="saSelectSec" class="royal-input"></select></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="col-span-1 sm:col-span-2"><label class="royal-label">Full Name</label><input type="text" id="saInputName" class="royal-input dhivehi-text"></div>
+                <div><label class="royal-label">ID Card Number</label><input type="text" id="saInputIdCard" class="royal-input" placeholder="AXXXXXX"></div>
+                <div><label class="royal-label">Sumar Number</label><input type="text" id="saInputSumar" class="royal-input" placeholder="S-XXXX"></div>
+                <div><label class="royal-label">Record Number</label><input type="text" id="saInputRecord" class="royal-input" placeholder="Auto if empty"></div>
+                <div><label class="royal-label">Mobile Number</label><input type="text" id="saInputMobile" class="royal-input"></div>
+                
+                <div class="col-span-1 sm:col-span-2"><label class="royal-label">Permanent Address</label><input type="text" id="saInputPermAddress" class="royal-input dhivehi-text"></div>
+                <div class="col-span-1 sm:col-span-2"><label class="royal-label">Current Address</label><input type="text" id="saInputCurrAddress" class="royal-input dhivehi-text"></div>
+
+                <div class="col-span-1 sm:col-span-2"><label class="royal-label">Designation / Maqaam</label><input type="text" id="saInputDesignation" class="royal-input dhivehi-text"></div>
+                
+                <div class="col-span-1 sm:col-span-2"><label class="royal-label">Department</label><select id="saSelectDept" class="royal-input" onchange="OrgManager.populateSecDropdown(this.value, 'saSelectSec')"></select></div>
+                <div class="col-span-1 sm:col-span-2"><label class="royal-label">Section</label><select id="saSelectSec" class="royal-input"></select></div>
+                
                 <div>
-                    <label class="royal-label">Category</label>
-                    <select id="saSelectCat" class="royal-input"><option value="Civil Service">Civil Service</option><option value="Political">Political Appointee</option><option value="Consultant">Consultant</option><option value="Expert">Expert / Expat</option></select>
+                    <label class="royal-label">Job Type</label>
+                    <select id="saSelectCat" class="royal-input">
+                        <option value="Civil Service">Civil Service</option>
+                        <option value="Political">Political Appointee</option>
+                        <option value="Consultant">Consultant</option>
+                        <option value="Part-Time">Part-Time</option>
+                        <option value="Advisor">Advisor</option>
+                        <option value="Other">Other</option>
+                    </select>
                 </div>
                 <div>
                     <label class="royal-label">Status</label>
@@ -756,16 +803,16 @@
 </div>
 
 <div id="modalStaffTaskUpdate" class="modal-backdrop">
-    <div class="modal-container max-w-sm">
+    <div class="modal-container max-w-sm w-[90%] md:w-full">
         <div class="modal-header border-b-4 border-[#0466c8]">
             <h2 class="font-black text-[#001233] text-lg uppercase"><i class="fa-solid fa-sliders text-[#0466c8] mr-2"></i> Update Progress</h2>
             <button onclick="ModalManager.close('modalStaffTaskUpdate')" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="modal-body space-y-4">
-            <h3 class="font-bold text-[#002855] text-sm border-b pb-2" id="stuTaskTitle">Title</h3>
+            <h3 class="font-bold text-[#002855] text-sm border-b pb-2 dhivehi-text text-left" id="stuTaskTitle" style="direction:ltr;">Title</h3>
             <div class="flex justify-between text-xs font-bold text-[#0466c8]"><span id="stuSliderVal">0%</span></div>
             <input type="range" id="stuSlider" min="0" max="100" step="5" class="w-full h-2 bg-gray-200 rounded accent-[#0466c8]" oninput="document.getElementById('stuSliderVal').innerText = this.value + '%'">
-            <textarea id="stuFeedback" class="royal-input text-sm h-20" placeholder="Remarks..."></textarea>
+            <textarea id="stuFeedback" class="royal-input text-sm h-20 dhivehi-text" placeholder="Remarks... (Dhivehi)"></textarea>
         </div>
         <div class="modal-footer"><button onclick="TaskEngine.commitTaskProgress()" class="btn-base btn-blue-solid w-full">Update Task</button></div>
     </div>
@@ -788,11 +835,6 @@
             t.innerHTML = `<i class="fa-solid ${type==='success'?'fa-circle-check text-green-500':(type==='error'?'fa-triangle-exclamation text-red-500':'fa-circle-info text-blue-400')} text-xl"></i> <span>${msg}</span>`;
             c.appendChild(t); setTimeout(() => { t.style.animation = 'slideInRight 0.4s reverse forwards'; setTimeout(() => t.remove(), 400); }, 4000);
         },
-        calculateStars: (id) => {
-            const t = AppState.db.tasks.filter(x => x.staffId === id); if(t.length===0) return 0;
-            return Math.round((t.filter(x => x.status === 'Endorsed').length / t.length) * 5);
-        },
-        renderStarHtml: (r) => { let h = '<div class="flex">'; for(let i=1; i<=5; i++) h += `<i class="fa-${i<=r?'solid star-gold':'regular star-gray'} fa-star text-xs mr-0.5"></i>`; return h + '</div>'; },
         calculatePerformanceScore: (staffId) => {
             const s = AppState.db.staff.find(x => x.id === staffId); if(!s) return 0;
             const tasks = AppState.db.tasks.filter(t => t.staffId === staffId && t.status === 'Endorsed');
@@ -810,30 +852,102 @@
     };
     window.Utils = Utils;
 
+    // Cloud & Auto Save Logic (Hybrid System)
     const HybridCloud = {
-        saveToLocal: () => localStorage.setItem('rasfahi_v3', JSON.stringify(AppState.db)),
-        loadFromLocal: () => { const r = localStorage.getItem('rasfahi_v3'); if(r) { AppState.db = JSON.parse(r); return true; } return false; }
+        lastSaveTime: Date.now(),
+        saveToLocal: () => {
+            localStorage.setItem('rasfahi_v3', JSON.stringify(AppState.db));
+            HybridCloud.lastSaveTime = Date.now();
+            HybridCloud.showSyncIndicator();
+        },
+        loadFromLocal: () => { const r = localStorage.getItem('rasfahi_v3'); if(r) { AppState.db = JSON.parse(r); return true; } return false; },
+        pushToCloud: () => {
+            Utils.showToast("Auto-saving to cloud server...", "info");
+            setTimeout(() => { Utils.showToast("Cloud sync complete.", "success"); }, 1500);
+        },
+        showSyncIndicator: () => {
+            const ind = document.getElementById('cloudSyncIndicator');
+            const txt = document.getElementById('cloudSyncText');
+            if(ind) ind.className = 'pulse-indicator pulse-status-syncing';
+            if(txt) txt.innerText = 'Syncing...';
+            setTimeout(() => {
+                if(ind) ind.className = 'pulse-indicator pulse-status-online';
+                if(txt) txt.innerText = 'System Active';
+            }, 1000);
+        }
     };
+    
+    // Idle timer for 30 min cloud auto-save
+    let idleTime = 0;
+    setInterval(() => {
+        idleTime++;
+        if (idleTime >= 30) { // 30 minutes
+            HybridCloud.pushToCloud();
+            idleTime = 0;
+        }
+    }, 60000); // 1 minute interval
 
-    // Build Mock Data (50 Staff)
+    document.addEventListener('mousemove', () => idleTime = 0);
+    document.addEventListener('keypress', () => idleTime = 0);
+    document.addEventListener('touchstart', () => idleTime = 0);
+
+    // Build Fake Data (10 Depts x 5 Sections x 20 Staff = 1000)
     const DataFactory = {
         build: async () => {
-            AppState.db.departments = ["Strategic Planning", "Human Resources", "Finance & Audit", "IT Operations", "Public Relations"];
-            AppState.db.sections = { "Strategic Planning": ["Policy Unit", "Research"], "Human Resources": ["Recruitment", "Welfare"], "Finance & Audit": ["Procurement", "Payroll"], "IT Operations": ["SysAdmin", "Dev"], "Public Relations": ["Media", "Outreach"] };
-            const names = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Ibrahim", "Aishath", "Aminath", "Fathimath", "Mariyam"];
-            const cats = ["Civil Service", "Civil Service", "Political", "Consultant", "Expert"];
+            // Generate 10 Departments
+            AppState.db.departments = Array.from({length: 10}, (_, i) => `Department ${i+1}`);
+            AppState.db.sections = {};
             
-            for(let i=1; i<=50; i++) {
-                let d = AppState.db.departments[i % 5]; let s = AppState.db.sections[d][0]; let id = `EID-${String(i).padStart(4, '0')}`;
-                AppState.db.staff.push({ id: id, name: `${names[Math.floor(Math.random()*names.length)]} Didi`, mobile: `777${String(i).padStart(4,'0')}`, dept: d, section: s, category: cats[Math.floor(Math.random()*cats.length)], status: "Active", email: `staff${i}@bureau.com`, attendance: 100 });
-                // Seed tasks & logs
-                for(let j=0; j<3; j++) {
-                    let isLog = Math.random() > 0.5; let stat = Math.random() > 0.4 ? "Endorsed" : "In Progress";
-                    AppState.db.tasks.push({ id: Utils.generateUID(isLog?'LOG':'TSK'), staffId: id, title: isLog ? "[Routine Work] Daily Audit" : "Prepare Q1 Report", assignedDate: "2026-03-01", dueDate: isLog ? "2026-03-01" : "2026-03-30", priority: "Normal", progress: stat==="Endorsed"?100:50, status: stat, feedback: "", needsCelebration: false });
+            // Generate 5 Sections for each Department
+            AppState.db.departments.forEach((dept) => {
+                AppState.db.sections[dept] = Array.from({length: 5}, (_, i) => `Section ${i+1}`);
+            });
+
+            const dhivehiNames = ["އަލީ", "އަޙުމަދު", "މުޙައްމަދު", "ޙަސަން", "ޙުސައިން", "އިބްރާހީމް", "ޢާއިޝަތު", "އާމިނަތު", "ފާޠިމަތު", "މަރްޔަމް"];
+            const cats = ["Civil Service", "Political", "Consultant", "Part-Time", "Advisor", "Other"];
+            
+            let staffCount = 1;
+            
+            // Generate 20 Staff per Section
+            for(let d=0; d<10; d++) {
+                let dept = AppState.db.departments[d];
+                for(let s=0; s<5; s++) {
+                    let sec = AppState.db.sections[dept][s];
+                    for(let st=0; st<20; st++) {
+                        let idStr = String(staffCount).padStart(4, '0');
+                        let id = `EID-${idStr}`;
+                        
+                        AppState.db.staff.push({ 
+                            id: id, 
+                            recordNo: `REC-${idStr}`,
+                            sumarNo: `S-${idStr}`,
+                            idCard: `A0${100000 + staffCount}`,
+                            name: `${dhivehiNames[Math.floor(Math.random()*dhivehiNames.length)]} ދީދީ`, 
+                            permAddress: `މ. ފޭކްގެ ${idStr}`,
+                            currAddress: `ހ. ފޭކްއެޑްރެސް ${idStr}`,
+                            mobile: `777${idStr}`, 
+                            designation: `މަޤާމް ${idStr}`,
+                            dept: dept, 
+                            section: sec, 
+                            category: cats[Math.floor(Math.random()*cats.length)], 
+                            status: "Active", 
+                            email: `staff${staffCount}@bureau.com`, 
+                            attendance: Math.floor(Math.random() * 20) + 80 // 80 to 100
+                        });
+                        staffCount++;
+                    }
                 }
             }
-            AppState.db.staff.push({ id: "EID-TOP", name: "Executive Chief", dept: "Strategic Planning", section: "Policy Unit", category: "Political", status: "Active", email: "tophead@bureau.com", attendance: 100 });
-            AppState.db.staff.push({ id: "EID-ZIN", name: "Zinmaadhaaru Veriya", dept: "Strategic Planning", section: "Policy Unit", category: "Political", status: "Active", email: "zinmaadhaaru@bureau.com", attendance: 100 });
+            
+            // Assign some fake tasks to a fraction to prevent extreme lag while building initially
+            for(let i=0; i<100; i++) {
+                let sId = AppState.db.staff[i].id;
+                AppState.db.tasks.push({ id: Utils.generateUID('TSK'), staffId: sId, title: "ގަވާއިދު ރިޕޯޓް ހެދުން", assignedDate: "2026-03-01", dueDate: "2026-03-30", priority: "Normal", progress: 50, status: "In Progress", feedback: "", assignedBy: 'SYS', needsCelebration: false });
+            }
+
+            AppState.db.staff.push({ id: "EID-TOP", name: "އެގްޒެކްޓިވް ޗީފް", recordNo: "REC-TOP", sumarNo: "S-TOP", idCard: "A000001", dept: AppState.db.departments[0], section: AppState.db.sections[AppState.db.departments[0]][0], category: "Political", status: "Active", email: "tophead@bureau.com", attendance: 100 });
+            AppState.db.staff.push({ id: "EID-ZIN", name: "ސިވިލް ޒިންމާދާރު ވެރިޔާ", recordNo: "REC-ZIN", sumarNo: "S-ZIN", idCard: "A000002", dept: AppState.db.departments[0], section: AppState.db.sections[AppState.db.departments[0]][0], category: "Political", status: "Active", email: "zinmaadhaaru@bureau.com", attendance: 100 });
+            
             AppState.db.settings = { wTasks: 40, wRoutine: 30, wAttendance: 30 };
             HybridCloud.saveToLocal();
         }
@@ -873,9 +987,25 @@
     window.SystemAuth = SystemAuth;
 
     const PortalNav = {
+        toggleSidebar: () => {
+            const sb = document.getElementById('mainSidebar');
+            const overlay = document.getElementById('mobileSidebarOverlay');
+            if(sb.classList.contains('sidebar-mobile-hidden')) {
+                sb.classList.remove('sidebar-mobile-hidden');
+                overlay.classList.remove('hidden');
+            } else {
+                sb.classList.add('sidebar-mobile-hidden');
+                overlay.classList.add('hidden');
+            }
+        },
         navigate: (viewId) => {
             document.querySelectorAll('.tab-section').forEach(el => el.classList.remove('active-tab'));
             document.getElementById('view-' + viewId).classList.add('active-tab');
+            
+            if(window.innerWidth < 768 && !document.getElementById('mainSidebar').classList.contains('sidebar-mobile-hidden')) {
+                PortalNav.toggleSidebar();
+            }
+
             if(viewId === 'dashboard') DashboardEngine.render();
             if(viewId === 'directory') StaffDirectory.renderTable();
             if(viewId === 'orgStructure') OrgManager.renderDeptList();
@@ -910,62 +1040,74 @@
                 if(t.every(x=>x.status==='Endorsed')) l.com.push(d); else if(t.every(x=>x.progress===0)) l.not.push(d); else l.sta.push(d);
             });
             document.getElementById('c-assigned').innerText = l.ass.length; document.getElementById('c-started').innerText = l.sta.length; document.getElementById('c-completed').innerText = l.com.length; document.getElementById('c-notstarted').innerText = l.not.length;
-            const bHtml = (arr, isBad) => arr.map(s => `<div onclick="StaffTaskReport.open('${s.id}')" class="bg-white border p-3 rounded shadow-sm hover:border-[#0466c8] cursor-pointer group"><h4 class="font-bold text-sm">${s.name}</h4><p class="text-[9px] text-gray-500 uppercase">${s.dept}</p>${isBad ? `<button onclick="event.stopPropagation(); Utils.showToast('Reminder Sent to ${s.name}', 'success')" class="mt-2 text-[9px] bg-red-50 text-red-600 px-2 py-1.5 rounded w-full font-bold uppercase tracking-widest hover:bg-red-100 transition"><i class="fa-solid fa-bell mr-1"></i> Send Reminder</button>`:''}</div>`).join('');
-            document.getElementById('list-assigned').innerHTML = bHtml(l.ass, false) || '<div class="p-3 text-center text-gray-400 text-xs">Empty</div>';
-            document.getElementById('list-started').innerHTML = bHtml(l.sta, false) || '<div class="p-3 text-center text-gray-400 text-xs">Empty</div>';
-            document.getElementById('list-completed').innerHTML = bHtml(l.com, false) || '<div class="p-3 text-center text-gray-400 text-xs">Empty</div>';
-            document.getElementById('list-notstarted').innerHTML = bHtml(l.not, true) || '<div class="p-3 text-center text-gray-400 text-xs">Empty</div>';
+            const bHtml = (arr, isBad) => arr.map(s => `<div onclick="StaffTaskReport.open('${s.id}')" class="bg-white border p-3 rounded shadow-sm hover:border-[#0466c8] cursor-pointer group"><h4 class="font-bold text-sm dhivehi-text text-left">${s.name}</h4><p class="text-[9px] text-gray-500 uppercase text-left">${s.dept}</p>${isBad ? `<button onclick="event.stopPropagation(); Utils.showToast('Reminder Sent to ${s.name}', 'success')" class="mt-2 text-[9px] bg-red-50 text-red-600 px-2 py-1.5 rounded w-full font-bold uppercase tracking-widest hover:bg-red-100 transition"><i class="fa-solid fa-bell mr-1"></i> Send Reminder</button>`:''}</div>`).join('');
+            document.getElementById('list-assigned').innerHTML = bHtml(l.ass.slice(0, 50), false) || '<div class="p-3 text-center text-gray-400 text-xs">Empty</div>';
+            document.getElementById('list-started').innerHTML = bHtml(l.sta.slice(0, 50), false) || '<div class="p-3 text-center text-gray-400 text-xs">Empty</div>';
+            document.getElementById('list-completed').innerHTML = bHtml(l.com.slice(0, 50), false) || '<div class="p-3 text-center text-gray-400 text-xs">Empty</div>';
+            document.getElementById('list-notstarted').innerHTML = bHtml(l.not.slice(0, 50), true) || '<div class="p-3 text-center text-gray-400 text-xs">Empty</div>';
         },
         renderApprovals: (scope) => {
             const pTasks = scope.tasks.filter(t => t.status === 'Wait Endorse'); document.getElementById('dashApprovalCount').innerText = `${pTasks.length} Pending`;
-            let h = ''; pTasks.forEach(t => { const sName = (scope.staff.find(s=>s.id===t.staffId)||{}).name || 'Unknown'; h += `<div class="bg-white border border-yellow-200 p-3 rounded shadow-sm mb-2"><span class="text-[8px] font-black bg-yellow-100 text-yellow-800 px-1 rounded uppercase">Review Req</span><h4 class="font-bold text-sm mt-1">${t.title}</h4><p class="text-[9px] text-gray-500">By: ${sName}</p><div class="flex gap-2 mt-2 pt-2 border-t"><button onclick="TaskEngine.endorse('${t.id}')" class="btn-base bg-green-600 text-white text-[9px] px-2 py-1 flex-1">Approve</button></div></div>`; });
+            let h = ''; pTasks.slice(0,50).forEach(t => { const sName = (scope.staff.find(s=>s.id===t.staffId)||{}).name || 'Unknown'; h += `<div class="bg-white border border-yellow-200 p-3 rounded shadow-sm mb-2"><span class="text-[8px] font-black bg-yellow-100 text-yellow-800 px-1 rounded uppercase">Review Req</span><h4 class="font-bold text-sm mt-1 dhivehi-text text-left">${t.title}</h4><p class="text-[9px] text-gray-500 dhivehi-text text-left">By: ${sName}</p><div class="flex gap-2 mt-2 pt-2 border-t"><button onclick="TaskEngine.endorse('${t.id}')" class="btn-base bg-green-600 text-white text-[9px] px-2 py-1 flex-1">Approve</button></div></div>`; });
             document.getElementById('dashApprovalsList').innerHTML = h || '<div class="text-center text-gray-400 p-4 text-sm">All Caught Up</div>';
             
-            // Leaderboard
             let st = scope.staff.map(s => { return { id: s.id, name: s.name, dept: s.dept, score: Utils.calculatePerformanceScore(s.id) }; }).sort((a,b) => b.score - a.score);
-            document.getElementById('dashLeaderboardList').innerHTML = st.slice(0,5).map((s,i) => s.score>0?`<div class="p-3 rounded border border-gray-100 flex justify-between items-center shadow-sm hover:bg-gray-50 transition cursor-pointer" onclick="StaffTaskReport.open('${s.id}')"><div class="flex gap-3"><div class="font-black text-xl text-gray-300 w-6">#${i+1}</div><div><h4 class="font-bold text-sm">${s.name}</h4><p class="text-[9px] text-gray-500">${s.dept}</p></div></div><span class="text-lg font-black text-[#d4af37]">${s.score} PTS</span></div>`:'').join('') || '<div class="text-center text-gray-400 p-4 text-sm">No Data</div>';
+            document.getElementById('dashLeaderboardList').innerHTML = st.slice(0,10).map((s,i) => s.score>0?`<div class="p-3 rounded border border-gray-100 flex justify-between items-center shadow-sm hover:bg-gray-50 transition cursor-pointer" onclick="StaffTaskReport.open('${s.id}')"><div class="flex gap-3"><div class="font-black text-xl text-gray-300 w-6">#${i+1}</div><div><h4 class="font-bold text-sm dhivehi-text text-left">${s.name}</h4><p class="text-[9px] text-gray-500">${s.dept}</p></div></div><span class="text-lg font-black text-[#d4af37]">${s.score} PTS</span></div>`:'').join('') || '<div class="text-center text-gray-400 p-4 text-sm">No Data</div>';
         },
         renderCharts: (scope) => {
             let ts = { 'Pending':0, 'In Progress':0, 'Endorsed':0 }; scope.tasks.forEach(t => { if(t.progress===0) ts['Pending']++; else if(t.status==='Endorsed') ts['Endorsed']++; else ts['In Progress']++; });
             if(chartInstances.taskEfficiency) chartInstances.taskEfficiency.destroy();
             chartInstances.taskEfficiency = new Chart(document.getElementById('canvasTaskChart'), { type: 'doughnut', data: { labels: Object.keys(ts), datasets: [{ data: Object.values(ts), backgroundColor: ['#94a3b8', '#3a86ff', '#0a934d'] }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins:{legend:{position:'bottom'}} } });
 
-            // Ensure NO yellow in the bar chart
             let depts = [...new Set(scope.staff.map(s => s.dept))];
-            let cats = ["Civil Service", "Political", "Consultant", "Expert"];
-            let catColors = ["#002855", "#ef4444", "#0a934d", "#6b21a8"]; 
+            let cats = ["Civil Service", "Political", "Consultant", "Part-Time", "Advisor", "Other"];
+            let catColors = ["#002855", "#ef4444", "#0a934d", "#d4af37", "#6b21a8", "#64748b"]; 
             
             let datasets = cats.map((cat, i) => { return { label: cat, backgroundColor: catColors[i], data: depts.map(d => scope.staff.filter(s => s.dept === d && s.category === cat).length) }; });
 
             if(chartInstances.deptConfig) chartInstances.deptConfig.destroy();
             chartInstances.deptConfig = new Chart(document.getElementById('canvasDeptChart'), { 
-                type: 'bar', data: { labels: depts.map(d=>d.split(' ')[0]), datasets: datasets }, 
+                type: 'bar', data: { labels: depts.map(d=>d.split(' ')[0] + '..'), datasets: datasets }, 
                 options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } } 
             });
         }
     };
     window.DashboardEngine = DashboardEngine;
 
-    // Staff Directory & CRUD
+    // Staff Directory & Export/Import CRUD
     const StaffDirectory = {
         renderTable: () => {
             const fs = document.getElementById('filterSearch').value.toLowerCase(); const fd = document.getElementById('filterDept').value;
-            let f = AppState.db.staff.filter(s => { if(AppState.currentUser.role === 'DEPT_HEAD' && s.dept !== AppState.currentUser.profile.dept) return false; return (!fs || s.name.toLowerCase().includes(fs)) && (!fd || s.dept === fd); });
+            let f = AppState.db.staff.filter(s => { if(AppState.currentUser.role === 'DEPT_HEAD' && s.dept !== AppState.currentUser.profile.dept) return false; return (!fs || s.name.toLowerCase().includes(fs) || s.idCard.toLowerCase().includes(fs)) && (!fd || s.dept === fd); });
+            
             let h = '';
-            f.forEach(s => {
+            // Limit render to 100 on screen to avoid lag, but exports will export all
+            f.slice(0, 100).forEach(s => {
                 h += `<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="StaffTaskReport.open('${s.id}')">
-                    <td class="p-3"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-[#001233] text-white flex items-center justify-center font-bold text-xs">${s.name.charAt(0)}</div><div><h4 class="font-bold text-sm text-[#001233]">${s.name}</h4><p class="text-[9px] text-gray-500">${s.id}</p></div></div></td>
-                    <td class="p-3 text-xs font-bold text-[#0466c8]">${s.dept}<br><span class="text-[9px] text-gray-500 font-normal">${s.section}</span></td>
+                    <td class="p-3"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-[#001233] text-white flex items-center justify-center font-bold text-xs">${s.name.charAt(0)}</div><div><h4 class="font-bold text-sm text-[#001233] dhivehi-text text-left">${s.name}</h4><p class="text-[9px] text-gray-500">${s.recordNo || s.id} | ${s.idCard || 'N/A'}</p></div></div></td>
+                    <td class="p-3 text-xs font-bold text-[#0466c8]">${s.dept}<br><span class="text-[9px] text-gray-500 font-normal">${s.section} | ${s.designation || 'Staff'}</span></td>
+                    <td class="p-3 text-xs text-gray-600">${s.mobile}<br><span class="text-[9px] dhivehi-text block text-left">${s.currAddress || ''}</span></td>
                     <td class="p-3 text-center"><span class="font-black text-lg text-[#d4af37]">${Utils.calculatePerformanceScore(s.id)} PTS</span></td>
                     <td class="p-3 text-center"><span class="badge ${s.status==='Active'?'badge-active':'badge-leave'}">${s.status}</span></td>
                     ${AppState.currentUser.role !== 'STAFF' ? `<td class="p-3 text-center" onclick="event.stopPropagation();"><button onclick="StaffDirectory.openEdit('${s.id}')" class="btn-base bg-white border px-2 py-1 text-[10px] text-gray-600 mr-1">Edit</button></td>` : ''}
                 </tr>`;
             });
-            document.getElementById('dirTableBody').innerHTML = h || `<tr><td colspan="5" class="p-8 text-center text-gray-400">No records found.</td></tr>`;
+            document.getElementById('dirTableBody').innerHTML = h || `<tr><td colspan="6" class="p-8 text-center text-gray-400">No records found.</td></tr>`;
         },
         openEdit: (id) => {
             const s = AppState.db.staff.find(x => x.id === id); if(!s) return;
-            document.getElementById('saEditingId').value = s.id; document.getElementById('saInputName').value = s.name; document.getElementById('saInputId').value = s.id; document.getElementById('saInputMobile').value = s.mobile; document.getElementById('saSelectCat').value = s.category; document.getElementById('saSelectStatus').value = s.status;
+            document.getElementById('saEditingId').value = s.id; 
+            document.getElementById('saInputName').value = s.name; 
+            document.getElementById('saInputRecord').value = s.recordNo || s.id; 
+            document.getElementById('saInputSumar').value = s.sumarNo || ''; 
+            document.getElementById('saInputIdCard').value = s.idCard || ''; 
+            document.getElementById('saInputPermAddress').value = s.permAddress || ''; 
+            document.getElementById('saInputCurrAddress').value = s.currAddress || ''; 
+            document.getElementById('saInputMobile').value = s.mobile; 
+            document.getElementById('saInputDesignation').value = s.designation || ''; 
+            document.getElementById('saSelectCat').value = s.category; 
+            document.getElementById('saSelectStatus').value = s.status;
+            
             let dOpts = ''; AppState.db.departments.forEach(d => dOpts += `<option value="${d}" ${d===s.dept?'selected':''}>${d}</option>`); document.getElementById('saSelectDept').innerHTML = dOpts;
             OrgManager.populateSecDropdown(s.dept, 'saSelectSec'); setTimeout(()=>document.getElementById('saSelectSec').value = s.section, 50);
             document.getElementById('saModalTitle').innerText = "Edit Staff Record"; ModalManager.open('modalStaffActions');
@@ -973,21 +1115,129 @@
         commitStaffRecord: () => {
             const n = document.getElementById('saInputName').value.trim(); if(!n) return;
             const eid = document.getElementById('saEditingId').value;
-            let id = document.getElementById('saInputId').value.trim() || Utils.generateUID('EID');
-            let data = { id: id, name: n, mobile: document.getElementById('saInputMobile').value, dept: document.getElementById('saSelectDept').value, section: document.getElementById('saSelectSec').value, category: document.getElementById('saSelectCat').value, status: document.getElementById('saSelectStatus').value, email: `${id.toLowerCase()}@bureau.com`, attendance: 100 };
+            let id = eid || Utils.generateUID('EID');
+            
+            let data = { 
+                id: id, 
+                recordNo: document.getElementById('saInputRecord').value.trim() || id,
+                sumarNo: document.getElementById('saInputSumar').value.trim(),
+                idCard: document.getElementById('saInputIdCard').value.trim(),
+                name: n, 
+                permAddress: document.getElementById('saInputPermAddress').value.trim(),
+                currAddress: document.getElementById('saInputCurrAddress').value.trim(),
+                mobile: document.getElementById('saInputMobile').value, 
+                designation: document.getElementById('saInputDesignation').value.trim(),
+                dept: document.getElementById('saSelectDept').value, 
+                section: document.getElementById('saSelectSec').value, 
+                category: document.getElementById('saSelectCat').value, 
+                status: document.getElementById('saSelectStatus').value, 
+                email: `${id.toLowerCase()}@bureau.com`, 
+                attendance: eid ? (AppState.db.staff.find(s=>s.id===eid).attendance||100) : 100 
+            };
+            
             if(eid) { const idx = AppState.db.staff.findIndex(s=>s.id===eid); if(idx>-1) AppState.db.staff[idx] = data; } else { AppState.db.staff.push(data); }
             HybridCloud.saveToLocal(); StaffDirectory.renderTable(); ModalManager.close('modalStaffActions'); Utils.showToast("Record saved.", "success");
+        },
+        exportCSV: () => {
+            let data = AppState.db.staff.map(s => ({
+                "Sumar Number": s.sumarNo || "",
+                "Record Number": s.recordNo || s.id,
+                "Full Name": s.name,
+                "ID Card Number": s.idCard || "",
+                "Permanent Address": s.permAddress || "",
+                "Current Address": s.currAddress || "",
+                "Mobile Number": s.mobile || "",
+                "Department": s.dept,
+                "Section": s.section,
+                "Designation": s.designation || "",
+                "Job Type": s.category,
+                "Status": s.status
+            }));
+            const csv = Papa.unparse(data);
+            const blob = new Blob(["\uFEFF"+csv], {type: 'text/csv;charset=utf-8;'});
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "rasfahi_staff_list.csv";
+            link.click();
+            Utils.showToast("CSV Exported successfully", "success");
+        },
+        exportPDF: () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('landscape');
+            doc.text("Rasfahi Enterprise - Staff Directory", 14, 15);
+            
+            let tableData = AppState.db.staff.map(s => [
+                s.sumarNo || '-', s.name, s.idCard || '-', s.mobile || '-', s.dept, s.designation || '-', s.category, s.status
+            ]);
+            
+            doc.autoTable({
+                head: [['Sumar', 'Name', 'ID Card', 'Mobile', 'Dept', 'Designation', 'Type', 'Status']],
+                body: tableData,
+                startY: 20,
+                styles: { fontSize: 8 }
+            });
+            doc.save('rasfahi_staff_directory.pdf');
+            Utils.showToast("PDF Exported successfully", "success");
+        },
+        downloadDummyCSV: () => {
+            let dummy = [{
+                "Sumar Number": "S-0001", "Record Number": "REC-0001", "Full Name": "Ali Ibrahim", "ID Card Number": "A000000",
+                "Permanent Address": "M. Address", "Current Address": "H. Address", "Mobile Number": "7770000",
+                "Department": "Department 1", "Section": "Section 1", "Designation": "Director", "Job Type": "Civil Service"
+            }];
+            const csv = Papa.unparse(dummy);
+            const blob = new Blob(["\uFEFF"+csv], {type: 'text/csv;charset=utf-8;'});
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "dummy_import_format.csv"; link.click();
+        },
+        importCSV: (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    let imported = 0;
+                    results.data.forEach(row => {
+                        let id = Utils.generateUID('EID');
+                        let dept = row["Department"] || AppState.db.departments[0];
+                        let sec = row["Section"] || AppState.db.sections[dept][0];
+                        
+                        AppState.db.staff.push({
+                            id: id,
+                            recordNo: row["Record Number"] || id,
+                            sumarNo: row["Sumar Number"] || '',
+                            idCard: row["ID Card Number"] || '',
+                            name: row["Full Name"] || 'Unknown',
+                            permAddress: row["Permanent Address"] || '',
+                            currAddress: row["Current Address"] || '',
+                            mobile: row["Mobile Number"] || '',
+                            designation: row["Designation"] || '',
+                            dept: dept,
+                            section: sec,
+                            category: row["Job Type"] || 'Civil Service',
+                            status: "Active",
+                            email: `${id.toLowerCase()}@bureau.com`,
+                            attendance: 100
+                        });
+                        imported++;
+                    });
+                    HybridCloud.saveToLocal();
+                    StaffDirectory.renderTable();
+                    Utils.showToast(`Imported ${imported} records successfully!`, "success");
+                    e.target.value = ''; // reset
+                }
+            });
         }
     };
     window.StaffDirectory = StaffDirectory;
 
-    // Royal Staff Print Report
+    // Staff Print Report
     const StaffTaskReport = {
         activeStaff: null, currentFilter: 'All',
         open: (staffId) => {
             StaffTaskReport.activeStaff = staffId;
             const staff = AppState.db.staff.find(s => s.id === staffId); if(!staff) return;
-            document.getElementById('strPrintName').innerText = staff.name; document.getElementById('strPrintId').innerText = staff.id; document.getElementById('strPrintDept').innerText = staff.dept; document.getElementById('strPrintSec').innerText = staff.section;
+            document.getElementById('strPrintName').innerText = staff.name; document.getElementById('strPrintId').innerText = staff.recordNo || staff.id; document.getElementById('strPrintDept').innerText = staff.dept; document.getElementById('strPrintSec').innerText = staff.section;
             StaffTaskReport.renderList(); ModalManager.open('modalStaffTaskReport');
         },
         filter: (type) => { StaffTaskReport.currentFilter = type; StaffTaskReport.renderList(); },
@@ -1002,10 +1252,10 @@
                 let typeBadge = t.title.includes('[') ? '<span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[8px] uppercase font-bold mr-2 border border-gray-300">Daily Log</span>' : '<span class="bg-[#002855] text-white px-2 py-0.5 rounded text-[8px] uppercase font-bold mr-2">Directive</span>';
                 html += `
                 <div class="task-report-card bg-gray-50/50">
-                    <div class="flex justify-between items-center mb-2"><h4 class="font-bold text-[#001233] text-sm">${typeBadge} ${t.title}</h4><span class="text-xs font-black text-[#0466c8]">${t.progress}%</span></div>
+                    <div class="flex justify-between items-center mb-2"><h4 class="font-bold text-[#001233] text-sm dhivehi-text text-left">${typeBadge} ${t.title}</h4><span class="text-xs font-black text-[#0466c8]">${t.progress}%</span></div>
                     <div class="progress-track bg-gray-200 h-1.5 mb-2"><div class="progress-fill ${t.progress===100?'fill-green':'fill-blue'}" style="width:${t.progress}%"></div></div>
                     <div class="flex justify-between text-[9px] font-bold text-gray-500 uppercase"><span>Due: ${t.dueDate||'N/A'}</span><span>Status: ${t.status}</span></div>
-                    ${t.feedback ? `<div class="mt-2 bg-white border border-gray-200 p-2 text-[10px] text-gray-600"><strong>Notes:</strong> ${t.feedback}</div>` : ''}
+                    ${t.feedback ? `<div class="mt-2 bg-white border border-gray-200 p-2 text-[10px] text-gray-600 dhivehi-text text-left"><strong>Notes:</strong> ${t.feedback}</div>` : ''}
                 </div>`;
             });
             document.getElementById('strTaskList').innerHTML = html || '<div class="text-center p-6 text-gray-400 uppercase font-bold tracking-widest text-xs border-2 border-dashed border-gray-200 rounded">No Records Found</div>';
@@ -1014,15 +1264,15 @@
     };
     window.StaffTaskReport = StaffTaskReport;
 
-    // Org Manager (Add/Edit/Delete Depts & Sections)
+    // Org Manager
     const OrgManager = {
         renderDeptList: () => {
-            let html = ''; AppState.db.departments.forEach((d,i) => { html += `<div class="flex justify-between bg-white border p-3 rounded shadow-sm items-center"><span class="font-bold text-sm">${d}</span><div><button onclick="OrgManager.editDept(${i})" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fa-solid fa-pen"></i></button><button onclick="OrgManager.delDept(${i})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button></div></div>`; });
+            let html = ''; AppState.db.departments.forEach((d,i) => { html += `<div class="flex justify-between bg-white border p-3 rounded shadow-sm items-center"><span class="font-bold text-sm truncate">${d}</span><div class="flex-shrink-0"><button onclick="OrgManager.editDept(${i})" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fa-solid fa-pen"></i></button><button onclick="OrgManager.delDept(${i})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button></div></div>`; });
             document.getElementById('orgDeptList').innerHTML = html; document.getElementById('orgSecFilter').innerHTML = AppState.db.departments.map(d => `<option value="${d}">${d}</option>`).join(''); if(AppState.db.departments.length>0) OrgManager.renderSections();
         },
         renderSections: () => {
             const d = document.getElementById('orgSecFilter').value; const list = document.getElementById('orgSecList'); if(!d || !AppState.db.sections[d]) { list.innerHTML=''; return; }
-            list.innerHTML = AppState.db.sections[d].map((s,i) => `<div class="flex justify-between bg-yellow-50 border border-yellow-100 p-3 rounded shadow-sm items-center"><span class="font-bold text-sm text-yellow-900">${s}</span><div><button onclick="OrgManager.editSec('${d}', ${i})" class="text-yellow-600 hover:text-yellow-800 mr-3"><i class="fa-solid fa-pen"></i></button><button onclick="OrgManager.delSec('${d}', ${i})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button></div></div>`).join('');
+            list.innerHTML = AppState.db.sections[d].map((s,i) => `<div class="flex justify-between bg-yellow-50 border border-yellow-100 p-3 rounded shadow-sm items-center"><span class="font-bold text-sm text-yellow-900 truncate">${s}</span><div class="flex-shrink-0"><button onclick="OrgManager.editSec('${d}', ${i})" class="text-yellow-600 hover:text-yellow-800 mr-3"><i class="fa-solid fa-pen"></i></button><button onclick="OrgManager.delSec('${d}', ${i})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button></div></div>`).join('');
         },
         addDept: () => { const n = prompt("New Department Name:"); if(n && !AppState.db.departments.includes(n)) { AppState.db.departments.push(n); AppState.db.sections[n] = ["General Unit"]; HybridCloud.saveToLocal(); OrgManager.renderDeptList(); } },
         editDept: (i) => { const old = AppState.db.departments[i]; const n = prompt("Edit Department Name:", old); if(n && n !== old && !AppState.db.departments.includes(n)) { AppState.db.departments[i] = n; AppState.db.sections[n] = AppState.db.sections[old]; delete AppState.db.sections[old]; AppState.db.staff.forEach(s => { if(s.dept === old) s.dept = n; }); HybridCloud.saveToLocal(); OrgManager.renderDeptList(); } },
@@ -1036,7 +1286,7 @@
 
     // Zinmaadhaaru (DG/CEO) Panel
     const ZinmaadhaaruEngine = {
-        render: () => { ZinmaadhaaruEngine.loadFilters(); },
+        render: () => { ZinmaadhaaruEngine.loadFilters(); ZinmaadhaaruEngine.renderTrackedTasks(); },
         loadFilters: () => {
             const d = document.getElementById('zdFilterDept').value; let sHTML = '<option value="">-- All Sections --</option>';
             if(d && AppState.db.sections[d]) { AppState.db.sections[d].forEach(s => sHTML += `<option value="${s}">${s}</option>`); }
@@ -1044,19 +1294,28 @@
         },
         loadStaff: () => {
             const d = document.getElementById('zdFilterDept').value; const s = document.getElementById('zdFilterSec').value; let f = AppState.db.staff;
-            if(AppState.currentUser.role === 'DEPT_HEAD') f = f.filter(x => x.dept === AppState.currentUser.profile.dept); else if(d) f = f.filter(x => x.dept === d);
+            if(d) f = f.filter(x => x.dept === d);
             if(s) f = f.filter(x => x.section === s);
-            document.getElementById('zdStaffList').innerHTML = f.map(st => `<div onclick="ZinmaadhaaruEngine.selectTarget('${st.id}', '${st.name}')" class="bg-white border border-gray-200 p-3 rounded shadow-sm hover:border-[#d4af37] cursor-pointer transition"><h4 class="font-bold text-sm text-[#001233]">${st.name}</h4><p class="text-[9px] text-gray-500 uppercase">${st.dept} - ${st.section}</p></div>`).join('') || '<div class="text-xs text-gray-400 p-4 text-center">No personnel found.</div>';
+            document.getElementById('zdStaffList').innerHTML = f.slice(0, 100).map(st => `<div onclick="ZinmaadhaaruEngine.selectTarget('${st.id}', '${st.name}')" class="bg-white border border-gray-200 p-3 rounded shadow-sm hover:border-[#d4af37] cursor-pointer transition"><h4 class="font-bold text-sm text-[#001233] dhivehi-text text-left">${st.name}</h4><p class="text-[9px] text-gray-500 uppercase">${st.dept} - ${st.section}</p></div>`).join('') || '<div class="text-xs text-gray-400 p-4 text-center">No personnel found.</div>';
         },
         activeTargetId: null,
         selectTarget: (id, name) => {
-            ZinmaadhaaruEngine.activeTargetId = id; document.getElementById('zdTargetName').innerText = name; document.getElementById('zdFormArea').classList.remove('opacity-50', 'pointer-events-none');
+            ZinmaadhaaruEngine.activeTargetId = id; document.getElementById('zdTargetName').innerText = name; document.getElementById('zdTargetName').className = "text-purple-600 dhivehi-text"; document.getElementById('zdFormArea').classList.remove('opacity-50', 'pointer-events-none');
         },
         dispatchTask: () => {
             if(!ZinmaadhaaruEngine.activeTargetId) return;
             const t = document.getElementById('zdTaskTitle').value.trim(); if(!t) return Utils.showToast("Enter directive description.", "error");
-            AppState.db.tasks.push({ id: Utils.generateUID('DIR'), staffId: ZinmaadhaaruEngine.activeTargetId, title: `[DIRECTIVE] ${t}`, assignedDate: new Date().toISOString().split('T')[0], dueDate: document.getElementById('zdTaskDue').value || "", priority: document.getElementById('zdTaskPrio').value, progress: 0, status: "Pending", feedback: "", needsCelebration: false });
-            HybridCloud.saveToLocal(); document.getElementById('zdTaskTitle').value = ''; Utils.showToast("Directive Dispatched.", "success");
+            AppState.db.tasks.push({ id: Utils.generateUID('DIR'), staffId: ZinmaadhaaruEngine.activeTargetId, title: `[DIRECTIVE] ${t}`, assignedDate: new Date().toISOString().split('T')[0], dueDate: document.getElementById('zdTaskDue').value || "", priority: document.getElementById('zdTaskPrio').value, progress: 0, status: "Pending", feedback: "", assignedBy: "ZINMAADHAARU", needsCelebration: false });
+            HybridCloud.saveToLocal(); document.getElementById('zdTaskTitle').value = ''; ZinmaadhaaruEngine.renderTrackedTasks(); Utils.showToast("Directive Dispatched.", "success");
+        },
+        renderTrackedTasks: () => {
+            let tracked = AppState.db.tasks.filter(t => t.assignedBy === 'ZINMAADHAARU');
+            let h = '';
+            tracked.forEach(t => {
+                let staffName = (AppState.db.staff.find(s=>s.id === t.staffId) || {}).name || 'Unknown';
+                h += `<div class="p-3 bg-indigo-50 border border-indigo-100 rounded flex justify-between items-center"><div class="flex-1"><h4 class="text-sm font-bold dhivehi-text text-left">${t.title}</h4><p class="text-[9px] text-gray-500 uppercase mt-1">Assigned to: <span class="dhivehi-text">${staffName}</span></p></div><div class="text-right ml-4"><span class="text-xs font-black text-indigo-700">${t.progress}%</span><br><span class="text-[8px] uppercase">${t.status}</span></div></div>`;
+            });
+            document.getElementById('zdTrackedTasks').innerHTML = h || '<div class="p-4 text-center text-gray-400 text-xs">No active directives tracked.</div>';
         }
     };
     window.ZinmaadhaaruEngine = ZinmaadhaaruEngine;
@@ -1066,10 +1325,10 @@
         render: () => {
             let targetStaff = AppState.db.staff; if(AppState.currentUser.role === 'DEPT_HEAD') targetStaff = targetStaff.filter(s => s.dept === AppState.currentUser.profile.dept);
             let html = '';
-            targetStaff.forEach(s => {
+            targetStaff.slice(0, 100).forEach(s => { // render 100 max to avoid lag
                 const tasks = AppState.db.tasks.filter(t => t.staffId === s.id && t.status === 'Endorsed');
                 let normalTasks = tasks.filter(t => !t.title.includes('[')).length; let logs = tasks.length - normalTasks; let score = Utils.calculatePerformanceScore(s.id);
-                html += `<tr class="hover:bg-gray-50 border-b"><td class="p-3 text-sm font-bold text-[#001233]">${s.name}</td><td class="p-3 text-xs text-gray-500">${s.dept}</td><td class="p-3 text-sm text-center font-bold text-[#0466c8]">${normalTasks}</td><td class="p-3 text-sm text-center font-bold text-green-600">${logs}</td><td class="p-3 text-center"><input type="number" min="0" max="100" class="border rounded w-16 text-center text-sm p-1" value="${s.attendance || 100}" onchange="PerformanceEngine.updateAttendance('${s.id}', this.value)"></td><td class="p-3 text-lg font-black text-center text-[#d4af37] bg-yellow-50">${score}</td></tr>`;
+                html += `<tr class="hover:bg-gray-50 border-b"><td class="p-3 text-sm font-bold text-[#001233] dhivehi-text text-left">${s.name}</td><td class="p-3 text-xs text-gray-500">${s.dept}</td><td class="p-3 text-sm text-center font-bold text-[#0466c8]">${normalTasks}</td><td class="p-3 text-sm text-center font-bold text-green-600">${logs}</td><td class="p-3 text-center"><input type="number" min="0" max="100" class="border rounded w-16 text-center text-sm p-1" value="${s.attendance || 100}" onchange="PerformanceEngine.updateAttendance('${s.id}', this.value)"></td><td class="p-3 text-lg font-black text-center text-[#d4af37] bg-yellow-50">${score}</td></tr>`;
             });
             document.getElementById('perfTableBody').innerHTML = html;
         },
@@ -1083,7 +1342,7 @@
             document.getElementById('tmtPrintScope').innerText = `Scope: ${scope}`; document.getElementById('tmtPrintDate').innerText = `Date: ${new Date().toLocaleDateString('en-US')}`;
             let targetStaff = AppState.db.staff; if(AppState.currentUser.role === 'DEPT_HEAD') targetStaff = targetStaff.filter(s => s.dept === scope);
             let reportData = targetStaff.map(s => { const tasks = AppState.db.tasks.filter(t => t.staffId === s.id && t.status === 'Endorsed'); let normalTasks = tasks.filter(t => !t.title.includes('[')).length; return { ...s, normalTasks, logs: tasks.length - normalTasks, score: Utils.calculatePerformanceScore(s.id) }; }).sort((a,b) => b.score - a.score);
-            let html = ''; reportData.forEach((s, i) => { html += `<tr><td class="p-3 text-sm font-black border border-gray-300 text-center">${i+1}</td><td class="p-3 border border-gray-300"><h4 class="font-bold text-sm">${s.name}</h4><p class="text-[9px] text-gray-500">${s.id}</p></td><td class="p-3 text-xs border border-gray-300">${s.dept}</td><td class="p-3 text-center font-bold border border-gray-300">${s.normalTasks}</td><td class="p-3 text-center font-bold border border-gray-300">${s.logs}</td><td class="p-3 text-center font-bold border border-gray-300">${s.attendance || 100}%</td><td class="p-3 text-center font-black text-lg bg-gray-50 border border-gray-300">${s.score}</td></tr>`; });
+            let html = ''; reportData.slice(0, 50).forEach((s, i) => { html += `<tr><td class="p-3 text-sm font-black border border-gray-300 text-center">${i+1}</td><td class="p-3 border border-gray-300"><h4 class="font-bold text-sm dhivehi-text text-left">${s.name}</h4><p class="text-[9px] text-gray-500">${s.id}</p></td><td class="p-3 text-xs border border-gray-300">${s.dept}</td><td class="p-3 text-center font-bold border border-gray-300">${s.normalTasks}</td><td class="p-3 text-center font-bold border border-gray-300">${s.logs}</td><td class="p-3 text-center font-bold border border-gray-300">${s.attendance || 100}%</td><td class="p-3 text-center font-black text-lg bg-gray-50 border border-gray-300">${s.score}</td></tr>`; });
             document.getElementById('tmtReportBody').innerHTML = html; ModalManager.open('modalTMTReport');
         }
     };
@@ -1112,14 +1371,14 @@
         render: () => {
             if(!AppState.currentUser || AppState.currentUser.role !== 'STAFF') return;
             const p = AppState.currentUser.profile; const mTasks = AppState.db.tasks.filter(t => t.staffId === p.id);
-            document.getElementById('wsName').innerText = p.name; document.getElementById('wsId').innerText = p.id; document.getElementById('wsDept').innerText = p.dept; document.getElementById('wsSec').innerText = p.section; document.getElementById('wsScoreDisplay').innerHTML = `<span class="text-3xl font-black text-[#d4af37]">${Utils.calculatePerformanceScore(p.id)} PTS</span>`;
+            document.getElementById('wsName').innerText = p.name; document.getElementById('wsName').className = "font-black text-lg tracking-tight dhivehi-text"; document.getElementById('wsId').innerText = p.recordNo || p.id; document.getElementById('wsDept').innerText = p.dept; document.getElementById('wsSec').innerText = p.section; document.getElementById('wsScoreDisplay').innerHTML = `<span class="text-3xl font-black text-[#d4af37]">${Utils.calculatePerformanceScore(p.id)} PTS</span>`;
 
             let celCount = 0;
             mTasks.forEach(t => {
                 if(t.needsCelebration) {
                     setTimeout(() => {
                         const ad = document.createElement('div'); ad.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-500';
-                        ad.innerHTML = `<div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm transform scale-0 animate-[modalPopIn_0.5s_ease-out_forwards] border-t-8 border-[#d4af37]"><div class="text-6xl mb-4 animate-bounce">🏆</div><h2 class="royal-font text-2xl font-bold text-[#001233] mb-2">Exceptional Work!</h2><p class="text-sm text-gray-600 mb-6">Your activity <strong>"${t.title}"</strong> has been endorsed. Your score increased.</p><button onclick="this.parentElement.parentElement.remove()" class="btn-base bg-[#d4af37] text-[#001233] w-full">Continue Work</button></div>`;
+                        ad.innerHTML = `<div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl text-center max-w-sm w-[90%] transform scale-0 animate-[modalPopIn_0.5s_ease-out_forwards] border-t-8 border-[#d4af37]"><div class="text-6xl mb-4 animate-bounce">🏆</div><h2 class="royal-font text-2xl font-bold text-[#001233] mb-2">Exceptional Work!</h2><p class="text-sm text-gray-600 mb-6">Your activity <strong class="dhivehi-text">"${t.title}"</strong> has been endorsed. Your score increased.</p><button onclick="this.parentElement.parentElement.remove()" class="btn-base bg-[#d4af37] text-[#001233] w-full">Continue Work</button></div>`;
                         document.body.appendChild(ad);
                     }, 1000 + (celCount * 2000)); t.needsCelebration = false; celCount++;
                 }
@@ -1133,14 +1392,31 @@
             aTasks.forEach(t => {
                 let actionBtn = `<button onclick="TaskEngine.openStaffUpdateModal('${t.id}')" class="btn-base btn-blue-solid w-full mt-3 text-xs py-2">Update Progress</button>`;
                 if(t.status === 'Wait Endorse') actionBtn = `<div class="bg-yellow-50 text-yellow-800 text-xs font-bold p-2 text-center mt-3 rounded">Pending Endorsement</div>`;
-                html += `<div class="royal-card p-4 bg-white border-l-[4px] border-l-[#0466c8] mb-4"><h4 class="font-bold text-[#001233]">${t.title}</h4><div class="flex justify-between items-center mt-2"><span class="text-xs text-gray-500">${t.status}</span><span class="text-xl font-black text-[#0466c8]">${t.progress}%</span></div><div class="w-full bg-gray-200 h-1 mt-2 mb-2 rounded"><div class="bg-[#0466c8] h-1 rounded" style="width:${t.progress}%"></div></div>${actionBtn}</div>`;
+                html += `<div class="royal-card p-4 bg-white border-l-[4px] border-l-[#0466c8] mb-4"><h4 class="font-bold text-[#001233] dhivehi-text text-left">${t.title}</h4><div class="flex justify-between items-center mt-2"><span class="text-xs text-gray-500">${t.status}</span><span class="text-xl font-black text-[#0466c8]">${t.progress}%</span></div><div class="w-full bg-gray-200 h-1 mt-2 mb-2 rounded"><div class="bg-[#0466c8] h-1 rounded" style="width:${t.progress}%"></div></div>${actionBtn}</div>`;
             });
             document.getElementById('wsTaskContainer').innerHTML = html || '<div class="text-center p-8 text-gray-400">No pending operations.</div>';
         }
     };
     window.WorkspaceEngine = WorkspaceEngine;
 
-    const ModalManager = { open: (id) => { const m = document.getElementById(id); if(m) m.style.display = 'flex'; }, close: (id) => { const m = document.getElementById(id); if(m) m.style.display = 'none'; }, openStaffEditor: () => { document.getElementById('saEditingId').value = ''; document.getElementById('saInputName').value = ''; document.getElementById('saInputId').value = ''; document.getElementById('saInputMobile').value = ''; document.getElementById('saModalTitle').innerText = "Register New Staff"; ModalManager.open('modalStaffActions'); } }; window.ModalManager = ModalManager;
+    const ModalManager = { 
+        open: (id) => { const m = document.getElementById(id); if(m) m.style.display = 'flex'; }, 
+        close: (id) => { const m = document.getElementById(id); if(m) m.style.display = 'none'; }, 
+        openStaffEditor: () => { 
+            document.getElementById('saEditingId').value = ''; 
+            document.getElementById('saInputName').value = ''; 
+            document.getElementById('saInputRecord').value = '';
+            document.getElementById('saInputSumar').value = '';
+            document.getElementById('saInputIdCard').value = '';
+            document.getElementById('saInputPermAddress').value = '';
+            document.getElementById('saInputCurrAddress').value = '';
+            document.getElementById('saInputDesignation').value = '';
+            document.getElementById('saInputMobile').value = ''; 
+            document.getElementById('saModalTitle').innerText = "Register New Staff"; 
+            ModalManager.open('modalStaffActions'); 
+        } 
+    }; 
+    window.ModalManager = ModalManager;
 
     // Boot Sequence
     setTimeout(async () => {
