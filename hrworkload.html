@@ -1698,8 +1698,66 @@
                     } 
                 });
             }
+        }, // <--- މިއީ renderCharts ނިމޭ ހިސާބު، މީގެ ތިރިއަށް މިއޮތީ އައު ބައި
+
+        // ==========================================
+        // EXECUTIVE TASK STATUS CARDS LOGIC
+        // ==========================================
+        renderTaskStatusCards: () => {
+            if(AppState.currentUser.role === 'STAFF') return;
+
+            // 1. ގިންތިކުރުން
+            let lists = { assigned: [], started: [], completed: [], notStarted: [] };
+            
+            AppState.db.staff.forEach(staff => {
+                let tasks = AppState.db.tasks.filter(t => t.staffId === staff.id);
+                if(tasks.length === 0) return; // ޓާސްކެއް ނެތް މީހުން ނުލާނެ
+                
+                let sData = { id: staff.id, name: staff.name, dept: staff.dept, stars: Utils.calculateStars(staff.id) };
+                
+                lists.assigned.push(sData);
+
+                let isCompleted = tasks.every(t => t.status === 'Endorsed');
+                let isNotStarted = tasks.every(t => t.progress === 0);
+                let isStarted = tasks.some(t => t.progress > 0 && t.progress < 100);
+
+                if(isCompleted) lists.completed.push(sData);
+                else if(isStarted) lists.started.push(sData);
+                else if(isNotStarted) lists.notStarted.push(sData);
+            });
+
+            // 2. ކައުންޓަރުތައް އަޕްޑޭޓްކުރުން
+            document.getElementById('count-assigned').innerText = lists.assigned.length;
+            document.getElementById('count-started').innerText = lists.started.length;
+            document.getElementById('count-completed').innerText = lists.completed.length;
+            document.getElementById('count-notstarted').innerText = lists.notStarted.length;
+
+            // 3. އެޗްޓީއެމްއެލް ޖެނެރޭޓް ކުރާ ހެލްޕަރ ފަންކްޝަން
+            const buildHtml = (listArr, showStars = false, showReminder = false) => {
+                if(listArr.length === 0) return `<div class="text-center text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-4 opacity-50">Empty List</div>`;
+                
+                return listArr.map(s => `
+                <div onclick="StaffTaskReport.open('${s.id}')" class="bg-white border border-gray-100 p-3 rounded-lg shadow-sm hover:shadow-md hover:border-[#0466c8] transition cursor-pointer relative group">
+                    <h4 class="font-bold text-sm text-[#001233] leading-tight">${s.name}</h4>
+                    <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">${s.dept}</p>
+                    
+                    ${showStars ? `<div class="mt-2 bg-gray-50 inline-block px-2 py-0.5 rounded border border-gray-100">${Utils.renderStarHtml(s.stars)}</div>` : ''}
+                    
+                    ${showReminder ? `<button onclick="StaffTaskReport.remindStaff('${s.id}', event)" class="mt-3 w-full btn-base bg-red-50 text-red-600 border border-red-200 text-[9px] px-2 py-1.5 uppercase tracking-widest hover:bg-red-100 transition shadow-sm"><i class="fa-solid fa-bell mr-1"></i> Send Reminder Alert</button>` : ''}
+                    
+                    <div class="absolute right-3 top-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
+                </div>
+                `).join('');
+            };
+
+            // 4. ގޮޅިތަކަށް ޑޭޓާ އެޅުން
+            document.getElementById('list-assigned').innerHTML = buildHtml(lists.assigned);
+            document.getElementById('list-started').innerHTML = buildHtml(lists.started);
+            document.getElementById('list-completed').innerHTML = buildHtml(lists.completed, true, false); 
+            document.getElementById('list-notstarted').innerHTML = buildHtml(lists.notStarted, false, true); 
         }
-    };
+
+    }; // <--- DashboardEngine ނިމޭ ހިސާބު
 
     /**
      * Engine handling the Master Staff Directory (Table, Filters, Modals)
