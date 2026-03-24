@@ -2118,12 +2118,19 @@ html += `
     /**
      * Engine handling the Staff Task Report (View & Print)
      */
+    /**
+     * Engine handling the Staff Task Report (View & Print)
+     */
     const StaffTaskReport = {
         open: (staffId) => {
+            console.log("Opening report for staff:", staffId); // Debugging line
             const s = AppState.db.staff.find(x => x.id === staffId);
             const tasks = AppState.db.tasks.filter(t => t.staffId === staffId);
 
-            if(!s) return;
+            if(!s) {
+                console.error("Staff member not found!");
+                return;
+            }
 
             // Set Screen UI
             document.getElementById('strName').innerText = s.name;
@@ -2144,28 +2151,24 @@ html += `
                             <p class="text-xs font-bold uppercase tracking-widest">No Active Operations</p>
                         </div>`;
             } else {
-                // Sort: Pending/In Progress first, Endorsed last
+                // Sort by status
                 tasks.sort((a,b) => (a.status === 'Endorsed' ? 1 : 0) - (b.status === 'Endorsed' ? 1 : 0));
 
                 tasks.forEach(t => {
                     let isDone = t.status === 'Endorsed';
                     let barColor = isDone ? 'bg-green-500' : (t.progress > 0 ? 'bg-blue-500' : 'bg-gray-300');
-                    let statusColor = isDone ? 'text-green-600 bg-green-50 border-green-200' : 'text-blue-600 bg-blue-50 border-blue-200';
+                    let statusClass = isDone ? 'text-green-600 bg-green-50 border-green-200' : 'text-blue-600 bg-blue-50 border-blue-200';
                     let prioHtml = t.priority === 'High' ? `<span class="text-[8px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black uppercase tracking-widest border border-red-200">Urgent</span>` : '';
 
                     html += `
                     <div class="bg-white p-5 rounded-xl border ${isDone ? 'border-gray-200 opacity-80' : 'border-blue-100 shadow-md'} task-report-card relative overflow-hidden transition-all">
-                        ${isDone ? '<div class="absolute -right-6 top-4 bg-green-100 text-green-700 text-[8px] font-black uppercase tracking-widest py-1 px-8 rotate-45 border border-green-200">Endorsed</div>' : ''}
-                        
                         <div class="pr-8">
                             <div class="flex gap-2 mb-1">${prioHtml}</div>
                             <h4 class="font-bold text-[#001233] text-sm leading-tight">${t.title}</h4>
                             <p class="text-[10px] text-gray-500 font-mono mt-1"><i class="fa-solid fa-calendar-day mr-1"></i> Due: ${t.dueDate || 'No Deadline'}</p>
                         </div>
-
                         <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                            <span class="text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded border ${statusColor}">${t.status}</span>
-                            
+                            <span class="text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded border ${statusClass}">${t.status}</span>
                             <div class="flex items-center gap-2">
                                 <span class="text-xs font-black text-gray-700">${t.progress}%</span>
                                 <div class="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden flex">
@@ -2179,8 +2182,16 @@ html += `
 
             document.getElementById('strTaskList').innerHTML = html;
             
-            // މިއީ މޮޑަލް ހުޅުވައިދޭ ކޯޑު (މިބައި އިނުން ވަރަށް މުހިންމު)
-            ModalManager.open('modalStaffTaskReport');
+            // މިއީ މޮޑަލް ހުޅުވައިދޭ ކޯޑު
+            if (typeof ModalManager !== 'undefined') {
+                ModalManager.open('modalStaffTaskReport');
+            } else {
+                document.getElementById('modalStaffTaskReport').style.display = 'flex';
+            }
+        },
+        printReport: () => { window.print(); }
+    };
+    window.StaffTaskReport = StaffTaskReport;
         },
         
         printReport: () => {
