@@ -1540,51 +1540,60 @@
     };
     window.PortalNav = PortalNav;
 
-    /**
+/**
      * Engine handling all Executive Dashboard logic (Charts, KPIs, Leaderboards)
      */
     const DashboardEngine = {
+        
+        // 🛠️ ނިޒާމީ ޙައްލު: ރޯލަށް ބަލައި ޑޭޓާ ފިލްޓަރ ކުރާ ހެލްޕަރ ފަންކްޝަން
+        getScope: () => {
+            let scopedStaff = AppState.db.staff;
+            // ޑިޕާޓްމަންޓް ހެޑެއްނަމަ، ހަމައެކަނި އޭނާގެ ޑިޕާޓްމަންޓްގެ މީހުން ފިލްޓަރ ކުރުން
+            if(AppState.currentUser.role === 'DEPT_HEAD') {
+                scopedStaff = AppState.db.staff.filter(s => s.dept === AppState.currentUser.profile.dept);
+            }
+            let scopedStaffIds = scopedStaff.map(s => s.id);
+            let scopedTasks = AppState.db.tasks.filter(t => scopedStaffIds.includes(t.staffId));
+            
+            return { staff: scopedStaff, tasks: scopedTasks };
+        },
+
         render: () => {
-            // Security check - Staff should not run intensive dashboard queries
             if(AppState.currentUser.role === 'STAFF') return; 
 
-            // Calculate Base KPIs
-            let totalStaff = AppState.db.staff.length;
-            let activeTasks = 0, compTasks = 0, waitEndorse = 0;
+            // ރޯލާ ގުޅޭ ޑޭޓާ ނެގުން
+            const scope = DashboardEngine.getScope();
 
-            AppState.db.tasks.forEach(t => { 
+            let activeTasks = 0, compTasks = 0, waitEndorse = 0;
+            scope.tasks.forEach(t => { 
                 if(t.status === 'Endorsed') compTasks++;
                 else if(t.status === 'Wait Endorse') waitEndorse++;
                 else activeTasks++;
             });
 
-            // Animate Numbers (Simple direct update for now to ensure stability)
-            document.getElementById('kpi-total-staff').innerText = totalStaff.toLocaleString();
+            // ނަންބަރުތައް އަޕްޑޭޓްކުރުން (ފިލްޓަރ ކުރެވިފައިވާ ޑޭޓާއިން)
+            document.getElementById('kpi-total-staff').innerText = scope.staff.length.toLocaleString();
             document.getElementById('kpi-active-tasks').innerText = activeTasks.toLocaleString();
             document.getElementById('kpi-comp-tasks').innerText = compTasks.toLocaleString();
             document.getElementById('kpi-pending-approvals').innerText = waitEndorse.toLocaleString();
 
-            // Render sub-components
-            DashboardEngine.renderLeaderboard();
-            DashboardEngine.renderPendingApprovals();
-            DashboardEngine.renderCharts(); 
-            
-            // ⬇️ މިއޮތީ އަލަށް އިތުރުކުރެވުނު ކޯޑު ⬇️
-            DashboardEngine.renderTaskStatusCards(); 
+            // ޗާޓުތަކާއި ކާޑުތަކަށް ފިލްޓަރ ކުރެވިފައިވާ ޑޭޓާ ފޮނުވުން
+            DashboardEngine.renderLeaderboard(scope);
+            DashboardEngine.renderPendingApprovals(scope);
+            DashboardEngine.renderCharts(scope); 
+            DashboardEngine.renderTaskStatusCards(scope); 
         },
         
-        renderLeaderboard: () => {
-            // Elect Top Performers Organization-wide based on Star Rating and Completed count
-            let staffStats = AppState.db.staff.map(s => {
-                const tasks = AppState.db.tasks.filter(t => t.staffId === s.id);
-                const comp = tasks.filter(t => t.status === 'Endorsed').length;
+        renderLeaderboard: (scope) => {
+            let staffStats = scope.staff.map(s => {
+                const sTasks = scope.tasks.filter(t => t.staffId === s.id);
+                const comp = sTasks.filter(t => t.status === 'Endorsed').length;
                 return { 
                     id: s.id, name: s.name, dept: s.dept, 
-                    completed: comp, total: tasks.length, 
+                    completed: comp, total: sTasks.length, 
                     stars: Utils.calculateStars(s.id) 
                 };
             }).sort((a,b) => {
-                // Primary sort: Stars, Secondary sort: Total Completed
                 if(b.stars === a.stars) return b.completed - a.completed;
                 return b.stars - a.stars;
             });
@@ -1594,7 +1603,7 @@
             
             for(let i=0; i < Math.min(5, staffStats.length); i++) {
                 const s = staffStats[i];
-                if(s.total === 0 || s.completed === 0) continue; // Skip unproven staff
+                if(s.total === 0 || s.completed === 0) continue; 
                 
                 let rankClass = i === 0 ? 'leaderboard-rank-1' : (i===1 ? 'leaderboard-rank-2' : (i===2 ? 'leaderboard-rank-3' : 'border-l-4 border-l-gray-200'));
                 
@@ -1624,11 +1633,10 @@
                 </div>`;
         },
         
-        renderPendingApprovals: () => {
+        renderPendingApprovals: (scope) => {
             const container = document.getElementById('dashApprovalsList');
-            let pendingTasks = AppState.db.tasks.filter(t => t.status === 'Wait Endorse');
+            let pendingTasks = scope.tasks.filter(t => t.status === 'Wait Endorse');
             
-            // Update counter pill
             document.getElementById('dashApprovalCount').innerText = `${pendingTasks.length} Pending`;
 
             if(pendingTasks.length === 0) { 
@@ -1643,7 +1651,7 @@
 
             let html = '';
             pendingTasks.forEach(t => {
-                const staff = AppState.db.staff.find(s => s.id === t.staffId);
+                const staff = scope.staff.find(s => s.id === t.staffId);
                 const sName = staff ? staff.name : 'Unknown Staff';
                 
                 html += `
@@ -1670,10 +1678,9 @@
             container.innerHTML = html;
         },
         
-        renderCharts: () => {
-            // 1. Task Efficiency Doughnut Chart
+        renderCharts: (scope) => {
             let taskStatusMap = { 'Pending (0%)': 0, 'In Progress': 0, 'Completed / Endorsed': 0 };
-            AppState.db.tasks.forEach(t => {
+            scope.tasks.forEach(t => {
                 if(t.progress === 0) taskStatusMap['Pending (0%)']++;
                 else if(t.status === 'Endorsed' || t.progress === 100) taskStatusMap['Completed / Endorsed']++;
                 else taskStatusMap['In Progress']++;
@@ -1705,11 +1712,9 @@
                 });
             }
 
-            // 2. Workforce Distribution Bar Chart
             let deptMap = {};
-            AppState.db.staff.forEach(s => { deptMap[s.dept] = (deptMap[s.dept] || 0) + 1; });
+            scope.staff.forEach(s => { deptMap[s.dept] = (deptMap[s.dept] || 0) + 1; });
             
-            // Shorten names for chart x-axis if needed
             let labels = Object.keys(deptMap).map(d => d.replace('&', '').split(' ')[0]);
 
             const ctx1 = document.getElementById('canvasDeptChart');
@@ -1738,41 +1743,32 @@
                     } 
                 });
             }
-        }, // <--- މިއީ renderCharts ނިމޭ ހިސާބު، މީގެ ތިރިއަށް މިއޮތީ އައު ބައި
+        },
 
-        // ==========================================
-        // EXECUTIVE TASK STATUS CARDS LOGIC
-        // ==========================================
-        renderTaskStatusCards: () => {
-            if(AppState.currentUser.role === 'STAFF') return;
-
-            // 1. ގިންތިކުރުން
+        renderTaskStatusCards: (scope) => {
             let lists = { assigned: [], started: [], completed: [], notStarted: [] };
             
-            AppState.db.staff.forEach(staff => {
-                let tasks = AppState.db.tasks.filter(t => t.staffId === staff.id);
-                if(tasks.length === 0) return; // ޓާސްކެއް ނެތް މީހުން ނުލާނެ
+            scope.staff.forEach(staff => {
+                let sTasks = scope.tasks.filter(t => t.staffId === staff.id);
+                if(sTasks.length === 0) return; 
                 
                 let sData = { id: staff.id, name: staff.name, dept: staff.dept, stars: Utils.calculateStars(staff.id) };
-                
                 lists.assigned.push(sData);
 
-                let isCompleted = tasks.every(t => t.status === 'Endorsed');
-                let isNotStarted = tasks.every(t => t.progress === 0);
-                let isStarted = tasks.some(t => t.progress > 0 && t.progress < 100);
+                let isCompleted = sTasks.every(t => t.status === 'Endorsed');
+                let isNotStarted = sTasks.every(t => t.progress === 0);
+                let isStarted = sTasks.some(t => t.progress > 0 && t.progress < 100);
 
                 if(isCompleted) lists.completed.push(sData);
                 else if(isStarted) lists.started.push(sData);
                 else if(isNotStarted) lists.notStarted.push(sData);
             });
 
-            // 2. ކައުންޓަރުތައް އަޕްޑޭޓްކުރުން
             document.getElementById('count-assigned').innerText = lists.assigned.length;
             document.getElementById('count-started').innerText = lists.started.length;
             document.getElementById('count-completed').innerText = lists.completed.length;
             document.getElementById('count-notstarted').innerText = lists.notStarted.length;
 
-            // 3. އެޗްޓީއެމްއެލް ޖެނެރޭޓް ކުރާ ހެލްޕަރ ފަންކްޝަން
             const buildHtml = (listArr, showStars = false, showReminder = false) => {
                 if(listArr.length === 0) return `<div class="text-center text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-4 opacity-50">Empty List</div>`;
                 
@@ -1790,18 +1786,14 @@
                 `).join('');
             };
 
-            // 4. ގޮޅިތަކަށް ޑޭޓާ އެޅުން
             document.getElementById('list-assigned').innerHTML = buildHtml(lists.assigned);
             document.getElementById('list-started').innerHTML = buildHtml(lists.started);
             document.getElementById('list-completed').innerHTML = buildHtml(lists.completed, true, false); 
             document.getElementById('list-notstarted').innerHTML = buildHtml(lists.notStarted, false, true); 
         }
+    };
+    window.DashboardEngine = DashboardEngine;
 
-    }; // <--- DashboardEngine ނިމޭ ހިސާބު
-
-    /**
-     * Engine handling the Master Staff Directory (Table, Filters, Modals)
-     */
     const StaffDirectory = {
         renderTable: () => {
             const fSearch = document.getElementById('filterSearch').value.toLowerCase();
