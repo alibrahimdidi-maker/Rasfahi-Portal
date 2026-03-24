@@ -2121,13 +2121,76 @@
         }
     };
     window.TaskEngine = TaskEngine;
-
-
-    // === މި ހިސާބަށް ModalManager ގެ ކޯޑުކޮޅު ލައްވާ ===
-
-    /**
-     * Handles all Modal (Popup) open and close actions
+/**
+     * Engine handling the Staff Task Report (Print / PDF View)
      */
+    const StaffTaskReport = {
+        open: (staffId) => {
+            const staff = AppState.db.staff.find(s => s.id === staffId);
+            const tasks = AppState.db.tasks.filter(t => t.staffId === staffId);
+
+            if(!staff) return;
+
+            // Header Meta (Screen)
+            document.getElementById('strName').innerText = staff.name;
+            document.getElementById('strMeta').innerText = `ID: ${staff.id} | Dept: ${staff.dept}`;
+            document.getElementById('strAvatar').innerText = staff.name.charAt(0);
+
+            // Header Meta (Print out)
+            document.getElementById('strPrintName').innerText = staff.name;
+            document.getElementById('strPrintId').innerText = staff.id;
+            document.getElementById('strPrintDept').innerText = `${staff.dept} (${staff.category})`;
+            
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('strPrintDate').innerText = new Date().toLocaleDateString('en-US', options);
+
+            // Generate Task List HTML
+            let html = '';
+            if(tasks.length === 0) {
+                html = `<div class="col-span-2 text-center text-gray-400 py-10 font-bold uppercase tracking-widest">No Active Operations Assigned</div>`;
+            } else {
+                tasks.forEach(t => {
+                    const isUrgent = t.priority === 'High';
+                    const urgencyBadge = isUrgent ? `<span class="bg-red-100 text-red-700 text-[8px] font-black uppercase px-2 py-0.5 rounded border border-red-200">Urgent</span>` : `<span class="bg-blue-50 text-blue-600 text-[8px] font-black uppercase px-2 py-0.5 rounded border border-blue-100">Normal</span>`;
+                    
+                    const dueHtml = t.dueDate ? `<span class="text-[10px] font-bold text-gray-600"><i class="fa-regular fa-calendar text-blue-400 mr-1"></i> Deadline: ${t.dueDate}</span>` : `<span class="text-[10px] text-gray-400">No strict deadline</span>`;
+                    
+                    const feedbackHtml = t.feedback ? `<div class="mt-3 bg-gray-50 border-l-2 border-gray-300 p-2 text-[10px] text-gray-600 leading-relaxed"><strong>Officer Comment:</strong> ${t.feedback}</div>` : '';
+
+                    html += `
+                    <div class="task-report-card bg-white p-5 rounded-xl border-l-[4px] ${isUrgent ? 'border-l-red-500' : 'border-l-[#0466c8]'} shadow-sm">
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-[#001233] text-sm leading-tight pr-4">${t.title}</h4>
+                            ${urgencyBadge}
+                        </div>
+                        <div class="flex justify-between items-center mb-3">
+                            ${dueHtml}
+                            <span class="text-xs font-black text-[#002855]">${t.progress}%</span>
+                        </div>
+                        <div class="progress-track bg-gray-100 h-1.5 mb-2">
+                            <div class="progress-fill ${t.progress === 100 ? 'fill-green' : 'fill-blue'}" style="width:${t.progress}%"></div>
+                        </div>
+                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">${t.status}</p>
+                        ${feedbackHtml}
+                    </div>`;
+                });
+            }
+
+            document.getElementById('strTaskList').innerHTML = html;
+            ModalManager.open('modalStaffTaskReport');
+        },
+
+        printReport: () => {
+            window.print();
+        },
+
+        remindStaff: (staffId, event) => {
+            event.stopPropagation(); // ކާޑަށް ކްލިކްވިޔަ ނުދިނުމަށް
+            // މިތަނަށް SMS/Email API އެއް ގުޅުވާލެވިދާނެ. ވަގުތީގޮތުން ޓޯސްޓެއް:
+            Utils.showToast("Reminder alert initiated for the selected officer.", "info");
+        }
+    };
+    window.StaffTaskReport = StaffTaskReport;
     const ModalManager = {
         open: (modalId) => {
             const modal = document.getElementById(modalId);
