@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Rasfahi Enterprise HR Management Dashboard - Presidential Edition">
-    <title>Rasfahi Presidential HR Portal</title>
+    <meta name="description" content="Rasfahi Enterprise HR Management Dashboard - HR Edition">
+    <title>Rasfahi HR Management Portal</title>
     
+    <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,9 +16,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDKs -->
+    <!-- Firebase SDKs (App, Database, Auth) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800&family=Cinzel:wght@600;700;800;900&display=swap');
@@ -56,6 +58,13 @@
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #e2e8f0; }
         ::-webkit-scrollbar-thumb { background: var(--accent-gold); border-radius: 4px; }
+
+        /* Copyright Watermark styling */
+        .watermark {
+            position: absolute; top: 15px; left: 15px; font-size: 11px; font-weight: 800; 
+            color: rgba(0,0,0,0.25); text-transform: uppercase; letter-spacing: 1px; z-index: 1000; pointer-events: none;
+        }
+        .watermark-light { color: rgba(255,255,255,0.2); }
 
         .dashboard-card { 
             background: #ffffff; border-radius: 12px; 
@@ -120,7 +129,7 @@
         .toast.error { border-left-color: var(--danger-red); }
         @keyframes slideInUp { from { transform: translateY(120%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-        /* Fullscreen Royal Button */
+        /* Fullscreen Button */
         .fs-btn {
             position: fixed; bottom: 20px; right: 20px; z-index: 9999;
             width: 50px; height: 50px; border-radius: 50%;
@@ -153,22 +162,25 @@
     Chart.register(ChartDataLabels);
 </script>
 
-<!-- Royal Wrapper -->
+<!-- Outer Wrapper with Double White Border -->
 <div class="presidential-wrapper" id="appWrapper">
 
     <div id="toast-container"></div>
     <div id="mobileSidebarOverlay" onclick="UI.toggleSidebar()"></div>
     
     <!-- Fullscreen Toggle -->
-    <button onclick="UI.toggleFullScreen()" class="fs-btn"><i class="fa-solid fa-expand" id="fsIcon"></i></button>
+    <button onclick="UI.toggleFullScreen()" class="fs-btn" title="Toggle Fullscreen"><i class="fa-solid fa-expand" id="fsIcon"></i></button>
 
     <!-- Auth Screen -->
     <div id="authScreen" class="h-full w-full flex flex-col items-center justify-center relative z-50 overflow-hidden" style="background: radial-gradient(circle at center, var(--primary-main) 0%, var(--primary-dark) 100%);">
         
-        <div class="bg-white p-8 md:p-10 rounded-2xl shadow-[0_0_50px_rgba(212,175,55,0.3)] w-full max-w-md z-10 border-t-[10px] border-b-[10px] border-[#d4af37] mx-4">
+        <!-- Copyright Watermark -->
+        <div class="watermark watermark-light">© Rasfahi Software Ali Ibrahim Didi +9607791550</div>
+        
+        <div class="bg-white p-8 md:p-10 rounded-2xl shadow-[0_0_50px_rgba(212,175,55,0.3)] w-full max-w-md z-10 border-t-[10px] border-b-[10px] border-[#d4af37] mx-4 relative">
             <div class="text-center mb-8">
                 <h1 class="royal-font text-3xl font-bold text-[#1e3a8a] uppercase tracking-widest leading-tight">Rasfahi<br><span class="text-xl text-[#d4af37]">HR Management Software</span></h1>
-                <p class="text-[10px] text-slate-500 font-black uppercase mt-3 tracking-widest bg-slate-100 py-1 px-4 rounded-full inline-block border border-slate-200">Presidential Edition</p>
+                <p class="text-[10px] text-slate-500 font-black uppercase mt-3 tracking-widest bg-slate-100 py-1 px-4 rounded-full inline-block border border-slate-200">Human Resource Management Edition</p>
             </div>
             
             <div class="space-y-4">
@@ -180,6 +192,8 @@
                         <li><span class="font-bold w-16 inline-block text-blue-700">STAFF:</span> staff@bureau.com</li>
                     </ul>
                 </div>
+                
+                <!-- Email Field -->
                 <div>
                     <label class="label-base">Official Identity (Email)</label>
                     <div class="relative">
@@ -187,7 +201,23 @@
                         <input type="email" id="authEmail" class="input-base pl-10" value="exec@bureau.com" placeholder="email@domain.com">
                     </div>
                 </div>
+                
+                <!-- Password Field for Firebase Auth -->
+                <div>
+                    <label class="label-base">Secret Key (Password)</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                        <input type="password" id="authPassword" class="input-base pl-10" value="123456" placeholder="••••••••">
+                    </div>
+                </div>
+
                 <button onclick="SystemAuth.login()" class="w-full btn-base btn-gold py-4 mt-2 shadow-lg text-lg"><i class="fa-solid fa-fingerprint mr-2"></i> Authenticate</button>
+            </div>
+            
+            <!-- Bottom Copyright inside card -->
+            <div class="mt-6 text-center border-t pt-4">
+                <p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">© Rasfahi Software</p>
+                <p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Ali Ibrahim Didi | +9607791550</p>
             </div>
         </div>
     </div>
@@ -196,7 +226,7 @@
     <div id="workspacePortal" class="flex h-full w-full hidden">
         
         <!-- Sidebar -->
-        <aside class="w-64 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a] text-slate-300 flex flex-col h-full flex-shrink-0 shadow-2xl transition-all duration-300">
+        <aside class="w-64 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a] text-slate-300 flex flex-col h-full flex-shrink-0 shadow-2xl transition-all duration-300 relative z-40">
             <div class="p-5 border-b border-white/10 flex flex-col items-center justify-center bg-black/30">
                 <h2 class="royal-font text-lg font-black text-[#d4af37] text-center uppercase leading-tight">Rasfahi<br>HR Management</h2>
             </div>
@@ -243,7 +273,8 @@
                     <i class="fa-solid fa-power-off"></i> Logout
                 </button>
                 
-                <div class="royal-park-card text-center p-2 mt-2">
+                <!-- Copyright Card -->
+                <div class="royal-park-card text-center p-2 mt-2 shadow-inner">
                     <p class="text-[7px] text-amber-800 font-bold uppercase">Designed & Developed by</p>
                     <p class="text-[9px] text-[#001233] font-black uppercase mt-0.5">Rasfahi Software</p>
                     <p class="text-[8px] text-slate-700 font-bold">Ali Ibrahim Didi</p>
@@ -253,8 +284,10 @@
         </aside>
 
         <!-- Main Area -->
-        <main class="flex-1 flex flex-col h-full overflow-hidden relative bg-[#f1f5f9]">
-            
+        <main class="flex-1 flex flex-col h-full overflow-hidden relative bg-[#f1f5f9] z-30">
+            <!-- Copyright Watermark Main Area -->
+            <div class="watermark">© Rasfahi Software Ali Ibrahim Didi +9607791550</div>
+
             <!-- Header -->
             <header class="bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm z-20 shrink-0">
                 <div class="flex items-center gap-3">
@@ -280,7 +313,7 @@
             </header>
 
             <!-- Scrollable Views -->
-            <div class="flex-1 overflow-y-auto p-4 md:p-6 relative" id="mainScrollArea">
+            <div class="flex-1 overflow-y-auto p-4 md:p-6 relative z-10" id="mainScrollArea">
                 
                 <!-- VIEW: DASHBOARD -->
                 <div id="view-dashboard" class="tab-section max-w-7xl mx-auto space-y-6 auth-req auth-bureau auth-hod">
@@ -727,7 +760,7 @@
 <script>
     /**
      * ==========================================================================
-     * ENTERPRISE HR SYSTEM - PRESIDENTIAL FULL LOGIC (Auto-Save, Firebase, etc.)
+     * ENTERPRISE HR SYSTEM - HR MANAGEMENT EDITION FULL LOGIC 
      * ==========================================================================
      */
 
@@ -752,11 +785,11 @@
 
     let CurrentUser = null; let ChartInstances = { staffDist: null, overallPie: null, taskProg: null };
 
-    // --- FIREBASE CONFIGURATION ---
+    // --- FIREBASE CONFIGURATION & AUTHENTICATION ---
     const firebaseConfig = {
       apiKey: "AIzaSyAz7kLgHUvY5YO7PsQN-vuorLY0Xo7q7B4",
       authDomain: "hrworkload.firebaseapp.com",
-      databaseURL: "https://hrworkload-default-rtdb.firebaseio.com", // Explicitly added for Realtime DB
+      databaseURL: "https://hrworkload-default-rtdb.firebaseio.com",
       projectId: "hrworkload",
       storageBucket: "hrworkload.firebasestorage.app",
       messagingSenderId: "692169023061",
@@ -764,17 +797,18 @@
       measurementId: "G-PHDTDH9184"
     };
 
-    let fbDb = null; let useFirebase = false;
+    let fbDb = null; let fbAuth = null; let useFirebase = false;
     try {
         firebase.initializeApp(firebaseConfig);
         fbDb = firebase.database();
+        fbAuth = firebase.auth();
         useFirebase = true;
-    } catch(e) { console.log("Firebase Init bypassed. Using LocalStorage."); }
+    } catch(e) { console.log("Firebase Init bypassed. Using LocalStorage fallback."); }
 
     // --- SAVE MECHANISMS ---
     const HybridCloud = {
         saveAutoLocal: () => { 
-            try { localStorage.setItem('rasfahi_cloud_presidential', JSON.stringify(AppState.db)); 
+            try { localStorage.setItem('rasfahi_cloud_hr_edition', JSON.stringify(AppState.db)); 
                   let ind = document.getElementById('autoSaveInd'); if(ind){ ind.classList.remove('hidden'); setTimeout(()=>ind.classList.add('hidden'), 2000); }
             } catch(e){} 
         },
@@ -784,7 +818,7 @@
         saveCloudManual: () => {
             if(useFirebase && fbDb) {
                 UI.showToast("Syncing to Cloud Vault...", "info");
-                fbDb.ref('presidential_data').set(AppState.db)
+                fbDb.ref('hr_management_data').set(AppState.db)
                     .then(() => { UI.showToast("Cloud Vault Secured", "success"); HybridCloud.showSyncStatus(true); })
                     .catch(err => { UI.showToast("Cloud Error. Saved Locally.", "error"); HybridCloud.showSyncStatus(false); });
             } else { UI.showToast("Cloud offline. Saved to Browser.", "warning"); }
@@ -793,14 +827,14 @@
         forceSync: () => { HybridCloud.saveCloudManual(); },
         load: (callback) => { 
             if(useFirebase && fbDb) {
-                fbDb.ref('presidential_data').once('value').then(snapshot => {
+                fbDb.ref('hr_management_data').once('value').then(snapshot => {
                     if(snapshot.exists()) { AppState.db = snapshot.val(); HybridCloud.saveAutoLocal(); callback(true); }
                     else { HybridCloud.loadLocal(callback); }
                 }).catch(() => HybridCloud.loadLocal(callback));
             } else { HybridCloud.loadLocal(callback); }
         },
         loadLocal: (callback) => {
-            try { const d = localStorage.getItem('rasfahi_cloud_presidential'); if(d) { AppState.db = JSON.parse(d); callback(true); } else callback(false); } catch(e) { callback(false); }
+            try { const d = localStorage.getItem('rasfahi_cloud_hr_edition'); if(d) { AppState.db = JSON.parse(d); callback(true); } else callback(false); } catch(e) { callback(false); }
         },
         showSyncStatus: (success) => {
             const dot = document.getElementById('syncDot'); const txt = document.getElementById('syncText');
@@ -810,7 +844,7 @@
         }
     };
 
-    // Global interceptor to auto-save on array changes (wrapper)
+    // Global interceptor to auto-save on array changes
     const originalPushTask = AppState.db.tasks.push.bind(AppState.db.tasks);
     AppState.db.tasks.push = function() { let r = originalPushTask.apply(this, arguments); HybridCloud.saveAutoLocal(); return r; };
     const originalPushStaff = AppState.db.staff.push.bind(AppState.db.staff);
@@ -853,7 +887,7 @@
             let completedTasks = AppState.db.tasks.filter(x => x.staffId === id && x.status === 'Completed');
             
             let totalScore = 0; let breakdown = {}; let routineCount = 0; 
-            const ptsObj = AppState.db.pointSystem || PointSystem;
+            const ptsObj = AppState.db.pointSystem || AppState.db.pointSystem;
 
             completedTasks.forEach(t => {
                 let cat = t.category || 'Daily Routine';
@@ -869,18 +903,19 @@
         }
     };
 
-    // --- MOCK DATA GENERATOR (Maldivian Names, Massive Payload) ---
+    // MOCK KEPLER API
+    const KeplerAPI = { isAbsentToday: (staffId) => { return Math.random() > 0.85; } };
+
+    // --- MOCK DATA GENERATOR (Maldivian Names, Scaled Array) ---
     const buildDummyData = () => {
         const firstNames = ["Ali", "Aminath", "Hassan", "Fathimath", "Mohamed", "Mariyam", "Hussain", "Aishath", "Ibrahim", "Khadheeja", "Ahmed", "Hawwa", "Ismail", "Nazeera", "Moosa"];
         const lastNames = ["Didi", "Manik", "Rasheed", "Shareef", "Naseer", "Nizam", "Shiyam", "Faisal", "Hameed", "Zahir", "Moosa", "Waheed", "Ibrahim"];
         let count = 1;
         
-        // Generating requested payload (Scaled slightly down to prevent browser freeze, but math remains robust)
         AppState.db.departments.forEach(dept => {
             AppState.db.sections[dept].forEach(sec => {
-                // 15 Staff + 5 Political + 2 Consultants per section to show scale
-                for(let i=0; i<22; i++) { 
-                    let type = i < 15 ? 'Civil Service' : (i < 20 ? 'Political' : 'Consultant');
+                for(let i=0; i<15; i++) { 
+                    let type = i < 10 ? 'Civil Service' : (i < 13 ? 'Political' : 'Consultant');
                     AppState.db.staff.push({
                         id: 'EMP-' + String(count).padStart(4, '0'),
                         name: `${firstNames[Math.floor(Math.random()*firstNames.length)]} ${lastNames[Math.floor(Math.random()*lastNames.length)]}`,
@@ -893,17 +928,16 @@
             });
         });
 
-        // Set Specific Accounts
+        // Exec accounts
         AppState.db.staff[0] = {...AppState.db.staff[0], email: "exec@bureau.com", role: "BUREAU", name: "Chief Executive Officer", empType: "Management", dept: "Executive Office", section: "Strategy"};
         AppState.db.staff[1] = {...AppState.db.staff[1], email: "hod.head@zaad.com", role: "HOD", name: "Head of Department", empType: "Management"};
         AppState.db.staff[2] = {...AppState.db.staff[2], email: "staff@bureau.com", role: "STAFF", name: "General Staff User"};
 
-        const cats = Object.keys(AppState.db.pointSystem || PointSystem);
+        const cats = Object.keys(AppState.db.pointSystem);
         const today = new Date().toISOString().split('T')[0];
         
-        // Add tasks to a subset to prevent massive initial lag
-        for(let i=0; i<200; i++) {
-            let s = AppState.db.staff[Math.floor(Math.random() * 50)]; // apply to first 50 staff
+        for(let i=0; i<150; i++) {
+            let s = AppState.db.staff[Math.floor(Math.random() * 30)]; 
             let prog = Math.floor(Math.random() * 5) * 25; 
             let stat = prog === 0 ? "Pending" : (prog === 100 ? "Completed" : "In Progress");
             if(prog === 100 && Math.random() > 0.5) stat = "Wait Endorse";
@@ -923,12 +957,40 @@
         HybridCloud.saveLocalManual();
     };
 
-    // --- CORE LOGIC ---
+    // --- SYSTEM AUTHENTICATION WITH FIREBASE ---
     const SystemAuth = {
         login: () => {
             const email = document.getElementById('authEmail').value.trim().toLowerCase();
+            const password = document.getElementById('authPassword').value;
+
+            if(!email || !password) return UI.showToast('Identity and Secret Key required', 'error');
+
+            if(useFirebase && fbAuth) {
+                UI.showToast('Authenticating with Firebase...', 'info');
+                fbAuth.signInWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        SystemAuth.proceedLogin(email);
+                    })
+                    .catch((error) => {
+                        console.error(error);
+                        // If Firebase auth fails, try fallback for demo purposes
+                        SystemAuth.fallbackLogin(email, password);
+                    });
+            } else {
+                SystemAuth.fallbackLogin(email, password);
+            }
+        },
+        fallbackLogin: (email, password) => {
+            // Accept fallback passwords for demo ease
+            if(password === '123456' || password === 'admin') {
+                SystemAuth.proceedLogin(email);
+            } else {
+                UI.showToast('Authentication Failed. Check Credentials.', 'error');
+            }
+        },
+        proceedLogin: (email) => {
             const user = AppState.db.staff.find(s => s.email === email);
-            if(!user) return UI.showToast('Identity unverified. Access Denied.', 'error');
+            if(!user) return UI.showToast('User not found in HR Database', 'error');
             
             CurrentUser = user;
             document.getElementById('navUserName').innerText = user.name;
@@ -960,7 +1022,10 @@
             Navigation.goTo(user.role === 'STAFF' ? 'myWorkspace' : 'dashboard');
             UI.showToast(`Clearance Code: ${user.role} Granted`, 'success');
         },
-        logout: () => { window.location.reload(); }
+        logout: () => {
+            if(useFirebase && fbAuth) fbAuth.signOut();
+            window.location.reload(); 
+        }
     };
 
     const SystemAdmin = {
@@ -1001,15 +1066,15 @@
             }
         },
         executeFinalReset: () => {
-            localStorage.removeItem('rasfahi_cloud_presidential');
-            if(useFirebase && fbDb) fbDb.ref('presidential_data').remove();
+            localStorage.removeItem('rasfahi_cloud_hr_edition');
+            if(useFirebase && fbDb) fbDb.ref('hr_management_data').remove();
             window.location.reload();
         }
     };
 
     const MetricsManager = {
         populateForm: () => {
-            let html = ''; const pts = AppState.db.pointSystem || PointSystem;
+            let html = ''; const pts = AppState.db.pointSystem;
             for(const [k, v] of Object.entries(pts)) {
                 if(k === 'ManualOverride') continue;
                 html += `<div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-200 mb-1"><span class="text-[10px] font-bold text-[#1e3a8a]">${k}</span><input type="number" id="metric_${k.replace(/\s/g,'')}" value="${v}" class="w-16 p-1 border rounded text-center text-xs font-black text-[#d4af37]"></div>`;
@@ -1017,7 +1082,7 @@
             document.getElementById('metricFormArea').innerHTML = html;
         },
         save: () => {
-            const pts = AppState.db.pointSystem || PointSystem;
+            const pts = AppState.db.pointSystem;
             for(const k of Object.keys(pts)) {
                 if(k === 'ManualOverride') continue;
                 let el = document.getElementById(`metric_${k.replace(/\s/g,'')}`);
@@ -1036,7 +1101,7 @@
 
             const titles = { 'dashboard': 'Executive Analytics Dashboard', 'directory': 'Master Staff Directory', 'orgStructure': 'Organizational Structure', 'performance': 'Performance & Attendance Matrix', 'taskAssignment': 'Operations Command Center', 'myWorkspace': 'Personal Workspace' };
             document.getElementById('viewTitle').innerText = titles[viewId] || viewId;
-            document.body.classList.remove('sidebar-open'); // Close mobile sidebar
+            document.body.classList.remove('sidebar-open');
 
             const scrollArea = document.getElementById('mainScrollArea'); if(scrollArea) scrollArea.scrollTop = 0;
 
@@ -1218,7 +1283,7 @@
 
     const ActivityLogger = {
         populateCategories: () => {
-            const pts = AppState.db.pointSystem || PointSystem; let h = '';
+            const pts = AppState.db.pointSystem; let h = '';
             for(const [k,v] of Object.entries(pts)) { if(k==='ManualOverride'||k==='Directive') continue; h += `<option value="${k}">${k} (${v} Pts)</option>`; }
             document.getElementById('alCategory').innerHTML = h;
         },
@@ -1234,7 +1299,7 @@
             if(!t) return UI.showToast("Description required", "error");
             let otStart = null; let otEnd = null; if(c.includes('OT')) { otStart = document.getElementById('otStart').value; otEnd = document.getElementById('otEnd').value; if(!otStart || !otEnd) return UI.showToast("Time required for OT", "error"); }
             let initialStatus = KeplerAPI.isAbsentToday(CurrentUser.id) ? 'Parked' : 'Wait Endorse';
-            if(initialStatus==='Parked') UI.showToast("Absent in Kepler. Parked.", "warning"); else UI.showToast("Submitted to Executive", "success");
+            if(initialStatus==='Parked') UI.showToast("Absent in System. Parked.", "warning"); else UI.showToast("Submitted to Executive", "success");
             AppState.db.tasks.push({ id: generateUID('LOG'), staffId: CurrentUser.id, title: t, category: c, progress: 100, status: initialStatus, logDate: logDate, isLate: isLate, otStart: otStart, otEnd: otEnd, assignedBy: CurrentUser.id });
             UI.closeModal('modalLogActivity'); WorkspaceEngine.render(); 
         }
@@ -1271,10 +1336,10 @@
             document.getElementById('staffModalTitle').innerHTML = '<i class="fa-solid fa-user-pen mr-2"></i> Amend Profile'; UI.openModal('modalAddStaff');
         },
         amendAttendance: () => { let p = prompt("Override attendance % (0-100):"); if(p !== null && !isNaN(p)) { let s = AppState.db.staff.find(x => x.id === StaffTaskReport.activeId); if(s) { s.attendance = parseFloat(p); HybridCloud.saveAutoLocal(); StaffTaskReport.open(s.id); PerformanceEngine.render(); UI.showToast("Attendance Amended", "success"); } } },
-        exportFullCSV: () => { const csv = Papa.unparse(AppState.db.staff); const blob = new Blob(["\uFEFF"+csv], {type: 'text/csv;charset=utf-8;'}); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `Royal_Directory_${new Date().getTime()}.csv`; link.click(); UI.showToast("Exported", "success"); },
+        exportFullCSV: () => { const csv = Papa.unparse(AppState.db.staff); const blob = new Blob(["\uFEFF"+csv], {type: 'text/csv;charset=utf-8;'}); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `HR_Directory_${new Date().getTime()}.csv`; link.click(); UI.showToast("Exported", "success"); },
         importCSV: (e) => { const file = e.target.files[0]; if(!file) return; Papa.parse(file, { header: true, complete: function(results) { let i=0; results.data.forEach(r => { if(r.name || r['Full Name']) { AppState.db.staff.push({ id: generateUID('EMP'), name: r.name||r['Full Name'], email: r.email||r['Email'], dept: r.dept||r['Department'], empType: r.empType||r['Type']||'General', status: 'Active', role: 'STAFF' }); i++; } }); StaffDirectory.render(); document.getElementById('csvImportFile').value = ''; UI.showToast(`${i} Profiles Imported`, "success"); }}); },
         exportFullPDF: () => {
-            const { jsPDF } = window.jspdf; const doc = new jsPDF('landscape'); doc.setFontSize(12); doc.text("Presidential Master Directory", 14, 15);
+            const { jsPDF } = window.jspdf; const doc = new jsPDF('landscape'); doc.setFontSize(12); doc.text("HR Master Directory", 14, 15);
             doc.autoTable({ head: [['Index', 'ID', 'Name', 'Email', 'Dept', 'Type', 'Status']], body: AppState.db.staff.map(s => [s.indexNo||'-', s.idCard||'-', s.name, s.email, s.dept, s.empType, s.status]), startY: 20, styles: { fontSize: 7 } });
             doc.save(`Master_Directory_${new Date().getTime()}.pdf`); UI.showToast("PDF Exported", "success");
         }
@@ -1289,7 +1354,7 @@
 
     const PerformanceEngine = {
         render: () => {
-            const ptsObj = AppState.db.pointSystem || PointSystem;
+            const ptsObj = AppState.db.pointSystem;
             let headers = `<th class="p-3">Staff Profile</th><th class="p-3 text-center border-l border-slate-200">Att %</th>`;
             for(const [k,v] of Object.entries(ptsObj)) { if(k!=='ManualOverride' && k!=='Directive') headers += `<th class="p-3 text-center" title="${k}">${k} <span class="text-[7px]">(${v})</span></th>`; }
             headers += `<th class="p-3 text-center border-l border-slate-200 bg-[#d4af37]/10 text-[#b8860b]">Final Pts</th>`;
@@ -1306,7 +1371,7 @@
             }).join('');
         },
         generateReportPDF: () => {
-            const { jsPDF } = window.jspdf; const doc = new jsPDF('landscape'); doc.setFontSize(14); doc.text("Presidential Performance Matrix", 14, 15);
+            const { jsPDF } = window.jspdf; const doc = new jsPDF('landscape'); doc.setFontSize(14); doc.text("HR Performance Matrix", 14, 15);
             doc.autoTable({ html: '#perfTableObj', startY: 22, styles: { fontSize: 6 }, headStyles: { fillColor: [30, 58, 138] } });
             doc.save(`Performance_Matrix_${new Date().getTime()}.pdf`); UI.showToast("Matrix Exported", "success");
         }
@@ -1353,7 +1418,7 @@
     window.onload = () => { 
         HybridCloud.load((hasData) => { 
             if(!hasData) buildDummyData(); 
-            console.log("Rasfahi Presidential System Core Online."); 
+            console.log("Rasfahi HR Management System Core Online."); 
         });
     };
 </script>
