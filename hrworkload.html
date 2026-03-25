@@ -9,48 +9,53 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Chart.js Datalabels plugin for percentages -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800&family=Cinzel:wght@600;700;800;900&display=swap');
 
-        /* Anti-Theft Protection */
-        * { -webkit-user-select: none; -ms-user-select: none; user-select: none; }
+        /* Anti-Theft Protection & Basic Reset */
+        * { -webkit-user-select: none; -ms-user-select: none; user-select: none; box-sizing: border-box; }
         input, textarea, select { -webkit-user-select: auto; user-select: auto; }
         
-        /* Universal Dhivehi Font Fallback for inputs & generic text */
-        body { 
-            font-family: 'Faruma', 'Mv Boli', 'Inter', sans-serif; 
-            background-color: #f1f5f9; color: #0f172a; overflow: hidden; margin: 0; padding: 0;
+        html, body {
+            margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden;
+            background-color: #0f172a; /* Dark background for the white border to show */
+        }
+
+        /* Royal Double White Border wrapper */
+        .presidential-wrapper {
+            width: 100%; height: 100%;
+            border: 6px double #ffffff;
+            background-color: #f1f5f9;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            font-family: 'Faruma', 'Mv Boli', 'Inter', sans-serif;
+            color: #0f172a;
+            position: relative;
         }
 
         :root {
-            --primary-dark: #0f172a; --primary-main: #1e3a8a; /* Dark Blue */
-            --accent-gold: #d4af37; --success-green: #064e3b; /* Dark Green */
-            --danger-red: #991b1b; --task-gray: #64748b; /* Gray for tasks */
+            --primary-dark: #0f172a; --primary-main: #1e3a8a; 
+            --accent-gold: #d4af37; --success-green: #064e3b; 
+            --danger-red: #991b1b; --task-gray: #64748b; 
             --warning-orange: #b45309;
         }
 
         .heading-font { font-family: 'Montserrat', sans-serif; }
         .royal-font { font-family: 'Cinzel', serif; }
 
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #e2e8f0; }
         ::-webkit-scrollbar-thumb { background: var(--accent-gold); border-radius: 4px; }
-
-        .watermark {
-            position: absolute; top: 15px; left: 15px; font-size: 10px; font-weight: 800; 
-            color: rgba(0,0,0,0.2); text-transform: uppercase; letter-spacing: 2px; z-index: 1000; pointer-events: none;
-        }
-        .watermark-light { color: rgba(255,255,255,0.15); }
 
         .dashboard-card { 
             background: #ffffff; border-radius: 12px; 
@@ -76,6 +81,7 @@
         .btn-success { background: linear-gradient(to right, var(--success-green), #047857); color: white; }
         .btn-danger { background: linear-gradient(to right, var(--danger-red), #b91c1c); color: white; }
         .btn-gold { background: linear-gradient(to right, #d4af37, #b8860b); color: #000; font-weight: 900; }
+        .btn-outline { background: transparent; border: 1px solid var(--accent-gold); color: var(--accent-gold); }
 
         .input-base { width: 100%; padding: 0.6rem 1rem; border: 2px solid #cbd5e1; border-radius: 0.5rem; font-size: 0.85rem; outline: none; transition: all 0.2s; color: #0f172a; font-family: inherit;}
         .input-base:focus { border-color: var(--accent-gold); box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2); }
@@ -90,19 +96,53 @@
         .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
         .modal-body { padding: 1.5rem; overflow-y: auto; flex-grow: 1; }
 
+        .report-wrapper { border: 4px double var(--accent-gold); padding: 24px; background: linear-gradient(to bottom, #ffffff, #fdfbf7); }
+        .print-only { display: none; }
+        
+        @media print {
+            body * { visibility: hidden !important; }
+            #modalStaffTaskReport, #modalStaffTaskReport *, #modalTMTReport, #modalTMTReport * { visibility: visible !important; }
+            #modalStaffTaskReport, #modalTMTReport { position: absolute !important; left: 0 !important; top: 0 !important; width: 100vw !important; background: white !important; display: block !important; padding: 0 !important; }
+            .modal-container { box-shadow: none !important; border: none !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; border-radius: 0 !important;}
+            .modal-body { overflow: visible !important; background: white !important; padding: 1cm !important; height: auto !important; max-height: none !important; border: none !important; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .report-wrapper { border: none !important; background: white !important;}
+            @page { margin: 1cm; }
+        }
+
         .auth-hidden { display: none !important; }
         .disabled-ui { opacity: 0.5; pointer-events: none; filter: grayscale(100%); }
         
-        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-        .toast { background: var(--primary-main); color: white; padding: 14px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; border-left: 4px solid var(--accent-gold); box-shadow: 0 10px 25px rgba(0,0,0,0.5); animation: slideInRight 0.3s forwards; display: flex; align-items: center; gap: 10px; }
+        #toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: var(--primary-main); color: white; padding: 14px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; border-left: 4px solid var(--accent-gold); box-shadow: 0 10px 25px rgba(0,0,0,0.5); animation: slideInUp 0.3s forwards; display: flex; align-items: center; gap: 10px; }
         .toast.success { border-left-color: var(--success-green); }
         .toast.error { border-left-color: var(--danger-red); }
-        @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideInUp { from { transform: translateY(120%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* Fullscreen Royal Button */
+        .fs-btn {
+            position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+            width: 50px; height: 50px; border-radius: 50%;
+            background: linear-gradient(135deg, #d4af37, #b8860b);
+            border: 2px solid white; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            color: white; font-size: 20px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform 0.2s;
+        }
+        .fs-btn:hover { transform: scale(1.1); }
+        
+        /* Mobile Sidebar Toggle Overlay */
+        #mobileSidebarOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+        .sidebar-open #mobileSidebarOverlay { display: block; }
+        @media (max-width: 768px) {
+            aside { position: fixed; transform: translateX(-100%); z-index: 50; width: 260px !important; }
+            .sidebar-open aside { transform: translateX(0); }
+        }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body>
 
-<!-- Anti-Theft Protection Scripts -->
+<!-- Anti-Theft Scripts -->
 <script>
     document.addEventListener('contextmenu', event => event.preventDefault());
     document.addEventListener('keydown', function(e) {
@@ -113,382 +153,394 @@
     Chart.register(ChartDataLabels);
 </script>
 
-<div id="toast-container"></div>
+<!-- Royal Wrapper -->
+<div class="presidential-wrapper" id="appWrapper">
 
-<!-- Auth Screen -->
-<div id="authScreen" class="min-h-screen flex flex-col items-center justify-center relative z-50 overflow-hidden" style="background: radial-gradient(circle at center, var(--primary-main) 0%, var(--primary-dark) 100%);">
-    <div class="watermark watermark-light">Rasfahi Software Ali Ibrahim Didi +9607791550</div>
+    <div id="toast-container"></div>
+    <div id="mobileSidebarOverlay" onclick="UI.toggleSidebar()"></div>
     
-    <div class="bg-white p-8 md:p-10 rounded-2xl shadow-[0_0_50px_rgba(212,175,55,0.3)] w-full max-w-md z-10 border-t-[10px] border-b-[10px] border-[#d4af37]">
-        <div class="text-center mb-8">
-            <div class="w-24 h-24 bg-gradient-to-br from-[#0f172a] to-[#1e3a8a] rounded-full mx-auto flex items-center justify-center text-[#d4af37] text-4xl mb-4 shadow-xl border-4 border-[#d4af37]">
-                <i class="fa-solid fa-chess-king"></i>
-            </div>
-            <h1 class="royal-font text-3xl font-bold text-slate-800 uppercase tracking-widest">Rasfahi HR</h1>
-            <p class="text-[11px] text-slate-500 font-black uppercase mt-2 tracking-widest bg-slate-100 py-1 px-4 rounded-full inline-block border border-slate-200">Presidential Edition</p>
-        </div>
+    <!-- Fullscreen Toggle -->
+    <button onclick="UI.toggleFullScreen()" class="fs-btn"><i class="fa-solid fa-expand" id="fsIcon"></i></button>
+
+    <!-- Auth Screen -->
+    <div id="authScreen" class="h-full w-full flex flex-col items-center justify-center relative z-50 overflow-hidden" style="background: radial-gradient(circle at center, var(--primary-main) 0%, var(--primary-dark) 100%);">
         
-        <div class="space-y-4">
-            <div class="bg-blue-50/50 p-4 rounded-lg text-xs text-blue-900 border border-blue-100">
-                <strong class="uppercase tracking-widest text-[9px] text-blue-900 mb-2 block border-b border-blue-200 pb-1"><i class="fa-solid fa-key mr-1"></i> Authorized Roles:</strong>
-                <ul class="space-y-1 ml-1 font-mono text-[10px]">
-                    <li><span class="font-bold w-16 inline-block text-red-700">EXEC:</span> exec@bureau.com</li>
-                    <li><span class="font-bold w-16 inline-block text-amber-700">HOD/ZIN:</span> hod.head@zaad.com</li>
-                    <li><span class="font-bold w-16 inline-block text-blue-700">STAFF:</span> staff@bureau.com</li>
-                </ul>
+        <div class="bg-white p-8 md:p-10 rounded-2xl shadow-[0_0_50px_rgba(212,175,55,0.3)] w-full max-w-md z-10 border-t-[10px] border-b-[10px] border-[#d4af37] mx-4">
+            <div class="text-center mb-8">
+                <h1 class="royal-font text-3xl font-bold text-[#1e3a8a] uppercase tracking-widest leading-tight">Rasfahi<br><span class="text-xl text-[#d4af37]">HR Management Software</span></h1>
+                <p class="text-[10px] text-slate-500 font-black uppercase mt-3 tracking-widest bg-slate-100 py-1 px-4 rounded-full inline-block border border-slate-200">Presidential Edition</p>
             </div>
-            <div>
-                <label class="label-base">Official Identity (Email)</label>
-                <div class="relative">
-                    <i class="fa-solid fa-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                    <input type="email" id="authEmail" class="input-base pl-10" value="exec@bureau.com" placeholder="email@domain.com">
+            
+            <div class="space-y-4">
+                <div class="bg-blue-50/50 p-4 rounded-lg text-xs text-blue-900 border border-blue-100">
+                    <strong class="uppercase tracking-widest text-[9px] text-blue-900 mb-2 block border-b border-blue-200 pb-1"><i class="fa-solid fa-key mr-1"></i> Authorized Roles:</strong>
+                    <ul class="space-y-1 ml-1 font-mono text-[10px]">
+                        <li><span class="font-bold w-16 inline-block text-red-700">EXEC:</span> exec@bureau.com</li>
+                        <li><span class="font-bold w-16 inline-block text-amber-700">HOD:</span> hod.head@zaad.com</li>
+                        <li><span class="font-bold w-16 inline-block text-blue-700">STAFF:</span> staff@bureau.com</li>
+                    </ul>
                 </div>
+                <div>
+                    <label class="label-base">Official Identity (Email)</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                        <input type="email" id="authEmail" class="input-base pl-10" value="exec@bureau.com" placeholder="email@domain.com">
+                    </div>
+                </div>
+                <button onclick="SystemAuth.login()" class="w-full btn-base btn-gold py-4 mt-2 shadow-lg text-lg"><i class="fa-solid fa-fingerprint mr-2"></i> Authenticate</button>
             </div>
-            <button onclick="SystemAuth.login()" class="w-full btn-base btn-gold py-4 mt-2 shadow-lg text-lg"><i class="fa-solid fa-fingerprint mr-2"></i> Authenticate</button>
         </div>
     </div>
-</div>
 
-<!-- Main Workspace -->
-<div id="workspacePortal" class="flex h-screen w-full hidden bg-slate-100">
-    <div class="watermark">Rasfahi Software Ali Ibrahim Didi +9607791550</div>
-    
-    <!-- Sidebar -->
-    <aside class="w-20 md:w-64 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a] text-slate-300 flex flex-col h-full flex-shrink-0 shadow-2xl z-30 transition-all duration-300">
-        <div class="p-4 md:p-6 border-b border-white/10 flex flex-col items-center justify-center gap-2 bg-black/30">
-            <i class="fa-solid fa-chess-king text-[#d4af37] text-3xl drop-shadow-[0_0_10px_rgba(212,175,55,0.8)]"></i>
-            <h2 class="royal-font text-xl font-black text-[#d4af37] tracking-widest uppercase hidden md:block mt-2">RASFAHI</h2>
-        </div>
+    <!-- Main Workspace -->
+    <div id="workspacePortal" class="flex h-full w-full hidden">
         
-        <div class="p-2 md:p-4 bg-white/5 border-b border-white/10 m-2 rounded-xl text-center">
-            <p id="navUserName" class="text-[10px] md:text-xs font-bold text-white truncate mb-1">Name</p>
-            <span id="navUserRole" class="text-[8px] md:text-[9px] bg-[#d4af37] text-black px-2 py-0.5 rounded-full font-black uppercase tracking-widest">ROLE</span>
-        </div>
-        
-        <nav class="flex-1 py-2 space-y-1 overflow-y-auto px-2 md:px-3">
-            <div class="auth-req auth-bureau auth-hod">
-                <p class="text-[8px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest px-2 mb-2 mt-2 border-b border-white/10 pb-1 hidden md:block">Command Center</p>
-                <button onclick="Navigation.goTo('dashboard')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold hover:bg-white/10 hover:text-white transition" title="Dashboard">
-                    <div class="w-6 flex justify-center"><i class="fa-solid fa-chart-line text-[#d4af37]"></i></div> <span class="ml-3 hidden md:block">Executive Dashboard</span>
-                </button>
-                <button onclick="Navigation.goTo('directory')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold hover:bg-white/10 hover:text-white transition" title="Directory">
-                    <div class="w-6 flex justify-center"><i class="fa-solid fa-users text-[#d4af37]"></i></div> <span class="ml-3 hidden md:block">Master Directory</span>
-                </button>
-                <button onclick="Navigation.goTo('orgStructure')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold hover:bg-white/10 hover:text-white transition" title="Org Structure">
-                    <div class="w-6 flex justify-center"><i class="fa-solid fa-sitemap text-[#d4af37]"></i></div> <span class="ml-3 hidden md:block">Org Structure</span>
-                </button>
-                <button onclick="Navigation.goTo('performance')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold hover:bg-white/10 hover:text-white transition" title="Performance">
-                    <div class="w-6 flex justify-center"><i class="fa-solid fa-award text-[#d4af37]"></i></div> <span class="ml-3 hidden md:block">Performance Matrix</span>
-                </button>
-                <button onclick="Navigation.goTo('taskAssignment')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold hover:bg-white/10 hover:text-white transition" title="Assignments">
-                    <div class="w-6 flex justify-center"><i class="fa-solid fa-bolt text-[#d4af37]"></i></div> <span class="ml-3 hidden md:block">Operations Command</span>
-                </button>
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a] text-slate-300 flex flex-col h-full flex-shrink-0 shadow-2xl transition-all duration-300">
+            <div class="p-5 border-b border-white/10 flex flex-col items-center justify-center bg-black/30">
+                <h2 class="royal-font text-lg font-black text-[#d4af37] text-center uppercase leading-tight">Rasfahi<br>HR Management</h2>
             </div>
-
-            <div class="mt-4">
-                <p class="text-[8px] md:text-[9px] text-slate-400 font-bold uppercase tracking-widest px-2 mb-2 border-b border-white/10 pb-1 hidden md:block">Personal Space</p>
-                <button onclick="Navigation.goTo('myWorkspace')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold bg-[#d4af37]/20 text-white hover:bg-[#d4af37]/40 transition border border-[#d4af37]/30" title="Workspace">
-                    <div class="w-6 flex justify-center"><i class="fa-solid fa-briefcase text-[#d4af37]"></i></div> <span class="ml-3 hidden md:block font-bold">My Workspace</span>
-                </button>
-            </div>
-        </nav>
-        
-        <div class="p-2 md:p-4 border-t border-white/10 flex flex-col gap-2 bg-black/40">
-            <button onclick="SystemAdmin.openReset()" class="auth-req auth-bureau-only w-full flex items-center justify-center gap-2 p-2 text-xs font-bold text-red-400 hover:text-white hover:bg-red-900/50 rounded transition border border-red-900/50" title="Master Reset">
-                <i class="fa-solid fa-skull"></i> <span class="hidden md:inline">Master Reset</span>
-            </button>
-            <button onclick="SystemAuth.logout()" class="w-full flex items-center justify-center gap-2 p-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 rounded transition uppercase tracking-wider" title="Logout">
-                <i class="fa-solid fa-power-off"></i> <span class="hidden md:inline">Logout</span>
-            </button>
-        </div>
-    </aside>
-
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
-        <!-- Header -->
-        <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex justify-between items-center shadow-sm z-20">
-            <div class="ml-4 md:ml-0">
-                <h2 id="viewTitle" class="royal-font text-lg md:text-2xl font-bold text-[#1e3a8a]">Loading...</h2>
-                <p id="viewSubtitle" class="text-[9px] md:text-xs text-slate-500 font-bold mt-1 uppercase tracking-widest">Interface active</p>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded border border-slate-200 cursor-pointer hover:bg-slate-100 transition shadow-sm" onclick="HybridCloud.forceSync()" title="Force Cloud Sync">
-                    <div id="syncDot" class="pulse-dot bg-green-500"></div>
-                    <span id="syncText" class="text-[8px] md:text-[9px] font-bold text-slate-600 uppercase tracking-widest hidden md:inline">Synced</span>
-                </div>
-            </div>
-        </header>
-
-        <div class="flex-1 overflow-y-auto p-4 md:p-8 relative" id="mainScrollArea">
             
-            <!-- VIEW: DASHBOARD -->
-            <div id="view-dashboard" class="tab-section max-w-7xl mx-auto space-y-6 auth-req auth-bureau auth-hod">
+            <div class="p-4 bg-white/5 border-b border-white/10 m-2 rounded-xl text-center">
+                <p id="navUserName" class="text-xs font-bold text-white truncate mb-1">Name</p>
+                <span id="navUserRole" class="text-[9px] bg-[#d4af37] text-black px-2 py-0.5 rounded-full font-black uppercase tracking-widest">ROLE</span>
+            </div>
+            
+            <nav class="flex-1 py-2 space-y-1 overflow-y-auto px-3">
+                <div class="auth-req auth-bureau auth-hod">
+                    <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest px-2 mb-2 mt-2 border-b border-white/10 pb-1">Command Center</p>
+                    <button onclick="Navigation.goTo('dashboard')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold hover:bg-white/10 hover:text-white transition">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-chart-line text-[#d4af37]"></i></div> <span class="ml-3">Executive Dashboard</span>
+                    </button>
+                    <button onclick="Navigation.goTo('directory')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold hover:bg-white/10 hover:text-white transition">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-users text-[#d4af37]"></i></div> <span class="ml-3">Master Directory</span>
+                    </button>
+                    <button onclick="Navigation.goTo('orgStructure')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold hover:bg-white/10 hover:text-white transition">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-sitemap text-[#d4af37]"></i></div> <span class="ml-3">Org Structure</span>
+                    </button>
+                    <button onclick="Navigation.goTo('performance')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold hover:bg-white/10 hover:text-white transition">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-award text-[#d4af37]"></i></div> <span class="ml-3">Performance Matrix</span>
+                    </button>
+                    <button onclick="Navigation.goTo('taskAssignment')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold hover:bg-white/10 hover:text-white transition">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-bolt text-[#d4af37]"></i></div> <span class="ml-3">Operations Command</span>
+                    </button>
+                </div>
+
+                <div class="mt-4">
+                    <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest px-2 mb-2 border-b border-white/10 pb-1">Personal Space</p>
+                    <button onclick="Navigation.goTo('myWorkspace')" class="w-full flex items-center p-3 rounded-lg text-sm font-semibold bg-[#d4af37]/20 text-white hover:bg-[#d4af37]/40 transition border border-[#d4af37]/30">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-briefcase text-[#d4af37]"></i></div> <span class="ml-3 font-bold">My Workspace</span>
+                    </button>
+                </div>
+            </nav>
+            
+            <!-- System Controls & Copyright Card -->
+            <div class="mt-auto flex flex-col gap-2 p-3 bg-black/40 border-t border-white/10">
+                <button onclick="SystemAdmin.openReset()" class="auth-req auth-bureau-only w-full flex items-center justify-center gap-2 p-2 text-[10px] font-bold text-red-400 hover:text-white hover:bg-red-900/50 rounded transition border border-red-900/50 uppercase tracking-widest">
+                    <i class="fa-solid fa-skull"></i> Master Reset
+                </button>
+                <button onclick="SystemAuth.logout()" class="w-full flex items-center justify-center gap-2 p-2 text-[10px] font-bold text-slate-300 hover:text-white hover:bg-white/10 rounded transition uppercase tracking-widest">
+                    <i class="fa-solid fa-power-off"></i> Logout
+                </button>
                 
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                    <div class="dashboard-card p-6 border-l-[6px] border-l-[#1e3a8a] relative overflow-hidden">
-                        <i class="fa-solid fa-users absolute -right-4 -bottom-4 text-6xl text-slate-100"></i>
-                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest z-10 relative">Total Workforce</p>
-                        <h3 class="text-4xl font-black text-[#1e3a8a] mt-2 z-10 relative" id="kpi-staff">0</h3>
-                    </div>
-                    <div class="dashboard-card p-6 border-l-[6px] border-l-[#064e3b] relative overflow-hidden">
-                        <i class="fa-solid fa-check-double absolute -right-4 -bottom-4 text-6xl text-emerald-50"></i>
-                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest z-10 relative">Completed (Green)</p>
-                        <h3 class="text-4xl font-black text-[#064e3b] mt-2 z-10 relative" id="kpi-completed">0</h3>
-                    </div>
-                    <div class="dashboard-card p-6 border-l-[6px] border-l-[#64748b] relative overflow-hidden">
-                        <i class="fa-solid fa-spinner absolute -right-4 -bottom-4 text-6xl text-slate-50"></i>
-                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest z-10 relative">In Progress (Gray)</p>
-                        <h3 class="text-4xl font-black text-[#64748b] mt-2 z-10 relative" id="kpi-progress">0</h3>
-                    </div>
-                    <div class="dashboard-card p-6 border-l-[6px] border-l-[#991b1b] relative overflow-hidden">
-                        <i class="fa-solid fa-triangle-exclamation absolute -right-4 -bottom-4 text-6xl text-red-50"></i>
-                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest z-10 relative">Late / Parked (Red)</p>
-                        <h3 class="text-4xl font-black text-[#991b1b] mt-2 z-10 relative" id="kpi-pending">0</h3>
+                <div class="royal-park-card text-center p-2 mt-2">
+                    <p class="text-[7px] text-amber-800 font-bold uppercase">Designed & Developed by</p>
+                    <p class="text-[9px] text-[#001233] font-black uppercase mt-0.5">Rasfahi Software</p>
+                    <p class="text-[8px] text-slate-700 font-bold">Ali Ibrahim Didi</p>
+                    <p class="text-[8px] text-slate-700 font-bold">+9607791550</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden relative bg-[#f1f5f9]">
+            
+            <!-- Header -->
+            <header class="bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm z-20 shrink-0">
+                <div class="flex items-center gap-3">
+                    <button class="md:hidden text-[#1e3a8a] text-xl" onclick="UI.toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+                    <div>
+                        <h2 id="viewTitle" class="royal-font text-lg md:text-xl font-bold text-[#1e3a8a]">Loading...</h2>
+                        <p id="viewSubtitle" class="text-[9px] text-slate-500 font-bold mt-0.5 uppercase tracking-widest">Interface active</p>
                     </div>
                 </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="dashboard-card p-6 lg:col-span-2">
-                        <h3 class="text-sm font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 uppercase tracking-widest"><i class="fa-solid fa-chart-column text-[#1e3a8a] mr-2"></i> Department Distribution</h3>
-                        <div class="chart-container" style="height: 300px;"><canvas id="chartStaffDist"></canvas></div>
-                    </div>
-                    <div class="dashboard-card p-6 lg:col-span-1">
-                        <h3 class="text-sm font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 uppercase tracking-widest"><i class="fa-solid fa-chart-pie text-[#1e3a8a] mr-2"></i> Operations Status</h3>
-                        <div class="chart-container" style="height: 300px;"><canvas id="chartOverallPie"></canvas></div>
-                    </div>
-                </div>
-
-                <div class="dashboard-card p-6">
-                    <h3 class="text-sm font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 uppercase tracking-widest"><i class="fa-solid fa-bars-progress text-[#1e3a8a] mr-2"></i> Timeline Progress (Percentages)</h3>
-                    <div class="chart-container" style="height: 400px;"><canvas id="chartTaskProgress"></canvas></div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                    <!-- Royal Parked Tasks Card -->
-                    <div class="royal-park-card h-[450px] flex flex-col">
-                        <div class="flex justify-between items-center mb-4 border-b border-[#d4af37]/30 pb-3">
-                            <h3 class="text-sm font-black text-[#b8860b] uppercase tracking-widest"><i class="fa-solid fa-chess-rook mr-2"></i> Royal Parked / Review</h3>
-                            <span id="dashParkedCount" class="text-[10px] font-black bg-[#b8860b] text-white px-3 py-1 rounded-full shadow">0</span>
-                        </div>
-                        <div class="flex-1 overflow-y-auto space-y-3 pr-2" id="dashParkedList"></div>
-                    </div>
+                
+                <!-- Save Controls -->
+                <div class="flex items-center gap-2 flex-wrap justify-end">
+                    <span id="autoSaveInd" class="text-[8px] font-black text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200 uppercase tracking-widest hidden md:inline-block">Auto-Saved to Browser</span>
                     
-                    <div class="dashboard-card p-0 border-t-[4px] border-t-[#064e3b] h-[450px] flex flex-col">
-                        <div class="p-5 bg-white border-b border-slate-100 flex justify-between items-center">
-                            <h3 class="text-sm font-black text-[#001233] uppercase tracking-widest"><i class="fa-solid fa-clipboard-check text-[#064e3b] mr-2"></i> Action Needed (Approvals)</h3>
-                            <span id="dashApprovalCount" class="text-[10px] font-bold text-white bg-[#064e3b] px-3 py-1 rounded-full shadow">0</span>
-                        </div>
-                        <div class="p-4 overflow-y-auto flex-1 space-y-3 bg-slate-50/50" id="dashApprovals"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- VIEW: DIRECTORY -->
-            <div id="view-directory" class="tab-section max-w-full mx-auto h-[calc(100vh-140px)] auth-req auth-bureau auth-hod">
-                <div class="dashboard-card p-5 mb-4 flex flex-col md:flex-row gap-4 justify-between items-center shrink-0">
-                    <div class="flex flex-1 gap-3 w-full">
-                        <input type="text" id="dirSearch" placeholder="Search Index, ID, or Name..." class="input-base w-full md:max-w-md" oninput="StaffDirectory.render()">
-                        <select id="dirDeptFilter" class="input-base w-full md:max-w-[200px]" onchange="StaffDirectory.render()"></select>
-                    </div>
-                    <div class="flex gap-2 flex-wrap">
-                        <input type="file" id="csvImportFile" accept=".csv" class="hidden" onchange="StaffDirectory.importCSV(event)">
-                        <button onclick="document.getElementById('csvImportFile').click()" class="btn-base bg-slate-800 text-white text-[10px] auth-req auth-bureau-only"><i class="fa-solid fa-upload"></i> Import CSV</button>
-                        <button onclick="StaffDirectory.exportCSV()" class="btn-base bg-emerald-700 text-white text-[10px]"><i class="fa-solid fa-download"></i> Export CSV</button>
-                        <button onclick="UI.openModal('modalAddStaff')" class="btn-base btn-gold text-[10px] shadow-lg auth-req auth-bureau-only"><i class="fa-solid fa-user-plus"></i> Register Staff</button>
-                    </div>
-                </div>
-                <div class="dashboard-card flex-1 overflow-hidden flex flex-col border-t-[4px] border-t-[#1e3a8a]">
-                    <div class="overflow-x-auto overflow-y-auto flex-1 p-2">
-                        <table class="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
-                            <thead class="bg-[#f8fafc] text-[#1e3a8a] sticky top-0 z-10 text-[10px] uppercase tracking-widest border-b-2 border-slate-200">
-                                <tr>
-                                    <th class="p-4">Index & ID</th>
-                                    <th class="p-4">Profile & Contact</th>
-                                    <th class="p-4">Placement & Type</th>
-                                    <th class="p-4">Current Status</th>
-                                    <th class="p-4 text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="dirTableBody" class="divide-y divide-slate-100 bg-white text-sm"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- VIEW: PERFORMANCE -->
-            <div id="view-performance" class="tab-section max-w-full mx-auto h-[calc(100vh-140px)] flex flex-col auth-req auth-bureau auth-hod">
-                <div class="dashboard-card p-6 mb-5 shrink-0 bg-gradient-to-r from-[#0f172a] to-[#1e3a8a] text-white border-none shadow-xl relative overflow-hidden">
-                    <i class="fa-solid fa-award absolute right-10 -bottom-10 text-8xl text-white/5"></i>
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
-                        <div>
-                            <h3 class="royal-font text-2xl font-bold text-[#d4af37]">Performance & Attendance Matrix</h3>
-                            <p class="text-xs text-slate-300 mt-1">Calculated via daily routines, points, and current/past month attendance %.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="dashboard-card flex-1 overflow-hidden flex flex-col">
-                    <div class="overflow-x-auto overflow-y-auto flex-1 p-2">
-                        <table class="w-full text-left border-collapse whitespace-nowrap min-w-[1500px]">
-                            <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10 text-[9px] uppercase tracking-widest border-b-2 border-slate-200">
-                                <tr>
-                                    <th class="p-3">Staff Profile</th>
-                                    <th class="p-3 text-center border-l border-slate-200" title="Attendance via Daily Routine">Attend %</th>
-                                    <th class="p-3 text-center border-l border-slate-200 text-blue-800 bg-blue-50/50">Daily (2)</th>
-                                    <th class="p-3 text-center text-purple-800 bg-purple-50/50">Add. Task (3)</th>
-                                    <th class="p-3 text-center text-orange-800 bg-orange-50/50">Committee (4)</th>
-                                    <th class="p-3 text-center text-emerald-800 bg-emerald-50/50">Meeting (2)</th>
-                                    <th class="p-3 text-center text-rose-800 bg-rose-50/50">Event (5)</th>
-                                    <th class="p-3 text-center text-indigo-800 bg-indigo-50/50">Promo (5)</th>
-                                    <th class="p-3 text-center text-cyan-800 bg-cyan-50/50">Research (10)</th>
-                                    <th class="p-3 text-center text-fuchsia-800 bg-fuchsia-50/50">Publish (15)</th>
-                                    <th class="p-3 text-center text-amber-800 bg-amber-50/50">Supervise (8)</th>
-                                    <th class="p-3 text-center border-l border-slate-200 bg-[#d4af37]/10 text-[#b8860b]">Final Pts & Stars</th>
-                                </tr>
-                            </thead>
-                            <tbody id="perfTableBody" class="divide-y divide-slate-100 bg-white text-xs"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- VIEW: ORG STRUCTURE -->
-            <div id="view-orgStructure" class="tab-section max-w-5xl mx-auto h-full auth-req auth-bureau auth-hod">
-                <div class="dashboard-card p-8 h-full flex flex-col border-t-[4px] border-t-[#d4af37]">
-                    <h3 class="royal-font text-2xl font-bold text-[#1e3a8a] mb-2"><i class="fa-solid fa-sitemap text-[#d4af37] mr-3"></i> Organizational Blueprint</h3>
-                    <p class="text-xs text-slate-500 mb-6 pb-4 border-b">Manage Departments and Sections. (Edit access restricted to Executive level).</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 overflow-hidden">
-                        <div class="flex flex-col h-full md:border-r pr-4">
-                            <div class="flex justify-between items-center mb-4">
-                                <h4 class="font-black text-[#1e3a8a] text-sm uppercase tracking-widest">Departments</h4>
-                                <button onclick="OrgManager.addDept()" class="btn-base btn-primary text-[10px] px-3 py-1 auth-req auth-bureau-only"><i class="fa-solid fa-plus"></i> New</button>
-                            </div>
-                            <div id="orgDeptList" class="overflow-y-auto space-y-3 flex-1 px-1"></div>
-                        </div>
-                        <div class="flex flex-col h-full md:pl-4">
-                            <select id="orgSecFilter" onchange="OrgManager.renderSections()" class="input-base text-sm font-bold mb-4 shadow-sm border-[#1e3a8a]/20"></select>
-                            <div class="flex justify-between items-center mb-4">
-                                <h4 class="font-black text-[#1e3a8a] text-sm uppercase tracking-widest">Sections</h4>
-                                <button onclick="OrgManager.addSec()" class="btn-base bg-slate-800 text-white text-[10px] px-3 py-1 auth-req auth-bureau-only"><i class="fa-solid fa-plus"></i> New</button>
-                            </div>
-                            <div id="orgSecList" class="overflow-y-auto space-y-3 flex-1 px-1"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- VIEW: TASK ASSIGNMENT -->
-            <div id="view-taskAssignment" class="tab-section max-w-7xl mx-auto h-full flex flex-col auth-req auth-bureau auth-hod pb-10">
-                <div class="mb-6">
-                    <h2 class="royal-font text-3xl font-bold text-[#1e3a8a]"><i class="fa-solid fa-satellite-dish text-[#d4af37] mr-3"></i> Operations Command</h2>
-                    <p class="text-xs text-slate-500 mt-2 font-bold tracking-widest uppercase">Assign Directives & Override Points</p>
-                </div>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-                    <div class="dashboard-card p-0 lg:col-span-1 flex flex-col h-[500px] lg:h-full border-t-[4px] border-[#1e3a8a]">
-                        <div class="p-5 border-b bg-slate-50">
-                            <h3 class="text-[10px] font-black text-[#1e3a8a] uppercase tracking-widest mb-3">1. Select Target Personnel</h3>
-                            <select id="taFilterDept" onchange="TaskEngine.loadStaffForAssignment()" class="input-base text-xs font-bold"></select>
-                        </div>
-                        <div class="space-y-2 flex-1 overflow-y-auto p-4 bg-white" id="taskStaffSelectArea"></div>
-                    </div>
+                    <button onclick="HybridCloud.saveLocalManual()" class="btn-base bg-slate-100 text-slate-700 border border-slate-300 text-[9px] px-2 py-1 shadow-sm hidden md:flex" title="Manual Browser Save">
+                        <i class="fa-solid fa-hard-drive"></i> Save Local
+                    </button>
                     
-                    <div class="lg:col-span-2 flex flex-col gap-6">
-                        <div class="dashboard-card p-6 bg-white border-t-[4px] border-[#d4af37] shadow-xl relative overflow-hidden">
-                            <i class="fa-solid fa-paper-plane absolute right-4 top-4 text-6xl text-slate-50"></i>
-                            <h3 class="text-sm font-black text-[#1e3a8a] uppercase tracking-widest mb-4 border-b pb-3 relative z-10">2. Formulate Directive for: <span id="taTargetName" class="text-[#d4af37] bg-yellow-50 px-2 py-1 rounded border border-yellow-200">Select Staff &rarr;</span></h3>
-                            <div class="space-y-4 max-w-xl opacity-50 pointer-events-none transition-opacity relative z-10" id="taFormArea">
-                                <div>
-                                    <label class="label-base text-[9px]">Directive Category / Type</label>
-                                    <select id="taDirCat" class="input-base text-sm font-bold">
-                                        <option value="Directive">Standard Directive</option>
-                                        <option value="ManualOverride">Manual Points Override (Executive Only)</option>
-                                    </select>
+                    <button onclick="HybridCloud.saveCloudManual()" class="btn-base bg-[#1e3a8a] text-white text-[9px] px-2 py-1 shadow-sm" title="Manual Cloud Save">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Save Cloud
+                    </button>
+                </div>
+            </header>
+
+            <!-- Scrollable Views -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-6 relative" id="mainScrollArea">
+                
+                <!-- VIEW: DASHBOARD -->
+                <div id="view-dashboard" class="tab-section max-w-7xl mx-auto space-y-6 auth-req auth-bureau auth-hod">
+                    
+                    <div id="topPerformerBanner" class="hidden"></div>
+
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="dashboard-card p-5 border-l-[6px] border-l-[#1e3a8a] relative overflow-hidden">
+                            <i class="fa-solid fa-users absolute -right-4 -bottom-4 text-5xl text-slate-100"></i>
+                            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest z-10 relative">Total Workforce</p>
+                            <h3 class="text-3xl md:text-4xl font-black text-[#1e3a8a] mt-2 z-10 relative" id="kpi-staff">0</h3>
+                        </div>
+                        <div class="dashboard-card p-5 border-l-[6px] border-l-[#064e3b] relative overflow-hidden">
+                            <i class="fa-solid fa-check-double absolute -right-4 -bottom-4 text-5xl text-emerald-50"></i>
+                            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest z-10 relative">Completed (Green)</p>
+                            <h3 class="text-3xl md:text-4xl font-black text-[#064e3b] mt-2 z-10 relative" id="kpi-completed">0</h3>
+                        </div>
+                        <div class="dashboard-card p-5 border-l-[6px] border-l-[#64748b] relative overflow-hidden">
+                            <i class="fa-solid fa-spinner absolute -right-4 -bottom-4 text-5xl text-slate-50"></i>
+                            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest z-10 relative">In Progress (Gray)</p>
+                            <h3 class="text-3xl md:text-4xl font-black text-[#64748b] mt-2 z-10 relative" id="kpi-progress">0</h3>
+                        </div>
+                        <div class="dashboard-card p-5 border-l-[6px] border-l-[#991b1b] relative overflow-hidden">
+                            <i class="fa-solid fa-triangle-exclamation absolute -right-4 -bottom-4 text-5xl text-red-50"></i>
+                            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest z-10 relative">Late / Pending (Red)</p>
+                            <h3 class="text-3xl md:text-4xl font-black text-[#991b1b] mt-2 z-10 relative" id="kpi-pending">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="dashboard-card p-5 lg:col-span-2">
+                            <h3 class="text-xs font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 uppercase tracking-widest"><i class="fa-solid fa-chart-column text-[#1e3a8a] mr-2"></i> Department Distribution</h3>
+                            <div class="chart-container overflow-x-auto" style="height: 300px; min-width: 400px;"><canvas id="chartStaffDist"></canvas></div>
+                        </div>
+                        <div class="dashboard-card p-5 lg:col-span-1">
+                            <h3 class="text-xs font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 uppercase tracking-widest"><i class="fa-solid fa-chart-pie text-[#1e3a8a] mr-2"></i> Operations Status</h3>
+                            <div class="chart-container" style="height: 300px;"><canvas id="chartOverallPie"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card p-5">
+                        <h3 class="text-xs font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 uppercase tracking-widest"><i class="fa-solid fa-bars-progress text-[#1e3a8a] mr-2"></i> Timeline Progress (Percentages)</h3>
+                        <div class="chart-container overflow-x-auto" style="height: 350px; min-width: 600px;"><canvas id="chartTaskProgress"></canvas></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                        <div class="royal-park-card h-[400px] flex flex-col">
+                            <div class="flex justify-between items-center mb-3 border-b border-[#d4af37]/30 pb-2">
+                                <h3 class="text-xs font-black text-[#b8860b] uppercase tracking-widest"><i class="fa-solid fa-chess-rook mr-2"></i> Royal Parked / Review</h3>
+                                <span id="dashParkedCount" class="text-[9px] font-black bg-[#b8860b] text-white px-2 py-1 rounded-full shadow">0</span>
+                            </div>
+                            <div class="flex-1 overflow-y-auto space-y-2 pr-1" id="dashParkedList"></div>
+                        </div>
+                        
+                        <div class="dashboard-card p-0 border-t-[4px] border-t-[#064e3b] h-[400px] flex flex-col">
+                            <div class="p-4 bg-white border-b border-slate-100 flex justify-between items-center">
+                                <h3 class="text-xs font-black text-[#001233] uppercase tracking-widest"><i class="fa-solid fa-clipboard-check text-[#064e3b] mr-2"></i> Action Needed (Approvals)</h3>
+                                <span id="dashApprovalCount" class="text-[9px] font-bold text-white bg-[#064e3b] px-2 py-1 rounded-full shadow">0</span>
+                            </div>
+                            <div class="p-3 overflow-y-auto flex-1 space-y-2 bg-slate-50/50" id="dashApprovals"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: DIRECTORY -->
+                <div id="view-directory" class="tab-section max-w-full mx-auto h-full auth-req auth-bureau auth-hod flex flex-col">
+                    <div class="dashboard-card p-4 mb-4 flex flex-col md:flex-row gap-3 justify-between items-center shrink-0">
+                        <div class="flex flex-1 gap-2 w-full flex-col md:flex-row">
+                            <input type="text" id="dirSearch" placeholder="Search Index, ID, Name..." class="input-base w-full md:max-w-xs" oninput="StaffDirectory.render()">
+                            <select id="dirDeptFilter" class="input-base w-full md:max-w-[200px]" onchange="StaffDirectory.render()"></select>
+                        </div>
+                        <div class="flex gap-2 flex-wrap w-full md:w-auto justify-end mt-2 md:mt-0">
+                            <input type="file" id="csvImportFile" accept=".csv" class="hidden" onchange="StaffDirectory.importCSV(event)">
+                            <button onclick="document.getElementById('csvImportFile').click()" class="btn-base bg-slate-800 text-white text-[9px] auth-req auth-bureau-only flex-1 md:flex-none"><i class="fa-solid fa-upload"></i> Import CSV</button>
+                            <button onclick="StaffDirectory.exportFullCSV()" class="btn-base bg-emerald-700 text-white text-[9px] flex-1 md:flex-none"><i class="fa-solid fa-download"></i> Export CSV</button>
+                            <button onclick="StaffDirectory.exportFullPDF()" class="btn-base bg-rose-700 text-white text-[9px] flex-1 md:flex-none"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                            <button onclick="UI.openModal('modalAddStaff')" class="btn-base btn-gold text-[9px] shadow-lg auth-req auth-bureau-only flex-1 md:flex-none"><i class="fa-solid fa-user-plus"></i> Add Staff</button>
+                        </div>
+                    </div>
+                    <div class="dashboard-card flex-1 overflow-hidden flex flex-col border-t-[4px] border-t-[#1e3a8a]">
+                        <div class="overflow-x-auto overflow-y-auto flex-1 p-1">
+                            <table class="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                                <thead class="bg-[#f8fafc] text-[#1e3a8a] sticky top-0 z-10 text-[9px] uppercase tracking-widest border-b-2 border-slate-200">
+                                    <tr>
+                                        <th class="p-3">Index & ID</th>
+                                        <th class="p-3">Profile & Contact</th>
+                                        <th class="p-3">Placement & Type</th>
+                                        <th class="p-3">Current Status</th>
+                                        <th class="p-3 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dirTableBody" class="divide-y divide-slate-100 bg-white text-sm"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: PERFORMANCE -->
+                <div id="view-performance" class="tab-section max-w-full mx-auto h-full flex flex-col auth-req auth-bureau auth-hod">
+                    <div class="dashboard-card p-5 mb-4 shrink-0 bg-gradient-to-r from-[#0f172a] to-[#1e3a8a] text-white border-none shadow-xl relative overflow-hidden">
+                        <i class="fa-solid fa-award absolute right-4 -bottom-8 text-8xl text-white/5"></i>
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
+                            <div>
+                                <h3 class="royal-font text-xl font-bold text-[#d4af37]">Performance & Attendance Matrix</h3>
+                                <p class="text-[10px] text-slate-300 mt-1 uppercase tracking-widest">Calculated via daily routines, points, and attendance.</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="UI.openModal('modalMetricSettings')" class="btn-base bg-white text-[#1e3a8a] text-[9px] hover:bg-slate-100 auth-req auth-bureau-only"><i class="fa-solid fa-sliders"></i> Edit Metrics</button>
+                                <button onclick="PerformanceEngine.generateReportPDF()" class="btn-base btn-gold text-[9px]"><i class="fa-solid fa-file-pdf"></i> Export Report</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dashboard-card flex-1 overflow-hidden flex flex-col" id="perfReportContainer">
+                        <div class="overflow-x-auto overflow-y-auto flex-1 p-1">
+                            <table class="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]" id="perfTableObj">
+                                <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10 text-[9px] uppercase tracking-widest border-b-2 border-slate-200">
+                                    <tr id="perfTableHeadRow">
+                                        <!-- Dynamic headers -->
+                                    </tr>
+                                </thead>
+                                <tbody id="perfTableBody" class="divide-y divide-slate-100 bg-white text-xs"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: ORG STRUCTURE -->
+                <div id="view-orgStructure" class="tab-section max-w-5xl mx-auto h-full auth-req auth-bureau auth-hod">
+                    <div class="dashboard-card p-6 h-full flex flex-col border-t-[4px] border-t-[#d4af37]">
+                        <h3 class="royal-font text-xl font-bold text-[#1e3a8a] mb-2"><i class="fa-solid fa-sitemap text-[#d4af37] mr-3"></i> Organizational Blueprint</h3>
+                        <p class="text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-5 pb-3 border-b">Manage Departments and Sections. (Executive Edit Only).</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-hidden">
+                            <div class="flex flex-col h-full md:border-r pr-3">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h4 class="font-black text-[#1e3a8a] text-xs uppercase tracking-widest">Departments</h4>
+                                    <button onclick="OrgManager.addDept()" class="btn-base btn-primary text-[9px] px-2 py-1 auth-req auth-bureau-only"><i class="fa-solid fa-plus"></i> New</button>
                                 </div>
-                                <div>
-                                    <label class="label-base text-[9px]">Description</label>
-                                    <input type="text" id="taTitle" class="input-base text-sm" placeholder="Detailed instruction or reason...">
+                                <div id="orgDeptList" class="overflow-y-auto space-y-2 flex-1 px-1"></div>
+                            </div>
+                            <div class="flex flex-col h-full md:pl-3">
+                                <select id="orgSecFilter" onchange="OrgManager.renderSections()" class="input-base text-xs font-bold mb-3 border-[#1e3a8a]/20"></select>
+                                <div class="flex justify-between items-center mb-3">
+                                    <h4 class="font-black text-[#1e3a8a] text-xs uppercase tracking-widest">Sections</h4>
+                                    <button onclick="OrgManager.addSec()" class="btn-base bg-slate-800 text-white text-[9px] px-2 py-1 auth-req auth-bureau-only"><i class="fa-solid fa-plus"></i> New</button>
                                 </div>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div><label class="label-base text-[9px]">Points (If Override)</label><input type="number" id="taPoints" class="input-base text-sm" placeholder="e.g. 5"></div>
-                                    <div><label class="label-base text-[9px]">Priority</label><select id="taPrio" class="input-base text-sm"><option value="Normal">Normal</option><option value="Urgent">Immediate / Urgent</option></select></div>
+                                <div id="orgSecList" class="overflow-y-auto space-y-2 flex-1 px-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: TASK ASSIGNMENT -->
+                <div id="view-taskAssignment" class="tab-section max-w-7xl mx-auto h-full flex flex-col auth-req auth-bureau auth-hod pb-10">
+                    <div class="mb-4">
+                        <h2 class="royal-font text-2xl font-bold text-[#1e3a8a]"><i class="fa-solid fa-satellite-dish text-[#d4af37] mr-3"></i> Operations Command</h2>
+                        <p class="text-[10px] text-slate-500 mt-1 font-bold tracking-widest uppercase">Assign Directives & Override Points</p>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 h-full">
+                        <div class="dashboard-card p-0 lg:col-span-1 flex flex-col h-[400px] lg:h-full border-t-[4px] border-[#1e3a8a]">
+                            <div class="p-4 border-b bg-slate-50">
+                                <h3 class="text-[9px] font-black text-[#1e3a8a] uppercase tracking-widest mb-2">1. Select Target Personnel</h3>
+                                <select id="taFilterDept" onchange="TaskEngine.loadStaffForAssignment()" class="input-base text-xs font-bold"></select>
+                            </div>
+                            <div class="space-y-2 flex-1 overflow-y-auto p-3 bg-white" id="taskStaffSelectArea"></div>
+                        </div>
+                        
+                        <div class="lg:col-span-2 flex flex-col gap-5">
+                            <div class="dashboard-card p-5 bg-white border-t-[4px] border-[#d4af37] shadow-lg relative overflow-hidden">
+                                <i class="fa-solid fa-paper-plane absolute right-2 top-2 text-6xl text-slate-50"></i>
+                                <h3 class="text-xs font-black text-[#1e3a8a] uppercase tracking-widest mb-3 border-b pb-2 relative z-10">2. Formulate Directive for: <span id="taTargetName" class="text-[#d4af37] bg-yellow-50 px-2 py-0.5 rounded border border-yellow-200">Select Staff &rarr;</span></h3>
+                                <div class="space-y-3 max-w-xl opacity-50 pointer-events-none transition-opacity relative z-10" id="taFormArea">
+                                    <div>
+                                        <label class="label-base text-[8px]">Directive Type</label>
+                                        <select id="taDirCat" class="input-base text-xs font-bold">
+                                            <option value="Directive">Standard Directive</option>
+                                            <option value="ManualOverride">Manual Points Override (Executive Only)</option>
+                                        </select>
+                                    </div>
+                                    <div><label class="label-base text-[8px]">Description</label><input type="text" id="taTitle" class="input-base text-xs" placeholder="Detailed instruction..."></div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div><label class="label-base text-[8px]">Points (If Override)</label><input type="number" id="taPoints" class="input-base text-xs" placeholder="e.g. 5"></div>
+                                        <div><label class="label-base text-[8px]">Priority</label><select id="taPrio" class="input-base text-xs"><option value="Normal">Normal</option><option value="Urgent">Urgent</option></select></div>
+                                    </div>
+                                    <button onclick="TaskEngine.assignTask()" class="btn-base btn-primary w-full mt-1 py-2 shadow"><i class="fa-solid fa-bolt mr-2"></i> Issue Command</button>
                                 </div>
-                                <button onclick="TaskEngine.assignTask()" class="btn-base btn-primary w-full mt-2 py-3 text-sm shadow-md"><i class="fa-solid fa-bolt mr-2"></i> Issue Command</button>
+                            </div>
+                            
+                            <div class="dashboard-card p-0 flex-1 flex flex-col border-t-[4px] border-slate-800 min-h-[250px]">
+                                <div class="p-3 border-b bg-slate-800 text-white flex justify-between items-center rounded-t-lg">
+                                    <h3 class="text-[9px] font-black uppercase tracking-widest"><i class="fa-solid fa-radar mr-2"></i> Tracked Directives</h3>
+                                </div>
+                                <div class="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50" id="taTrackedTasks"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: MY WORKSPACE -->
+                <div id="view-myWorkspace" class="tab-section max-w-5xl mx-auto h-full overflow-y-auto pb-12">
+                    <div class="mb-5"><h2 class="royal-font text-2xl md:text-3xl font-bold text-[#1e3a8a]">Personal Workspace</h2></div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                        <div class="dashboard-card p-0 lg:col-span-1 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a] text-white text-center border-t-[6px] border-[#d4af37] overflow-hidden flex flex-col shadow-xl relative">
+                            <div class="p-6 flex-1 relative z-10">
+                                <div class="w-20 h-20 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full mx-auto flex items-center justify-center text-3xl mb-3 border-2 border-white shadow-[0_0_15px_rgba(212,175,55,0.5)]"><i class="fa-solid fa-user-tie text-[#0f172a]"></i></div>
+                                <h2 class="text-xl font-black mb-1" id="wsName">Name</h2>
+                                <p class="text-[9px] text-blue-200 font-bold uppercase tracking-widest bg-black/30 inline-block px-2 py-0.5 rounded-full border border-white/10" id="wsDetails">Dept</p>
+                                
+                                <div class="mt-6 bg-black/40 p-4 rounded-xl border border-white/10 backdrop-blur-sm shadow-inner">
+                                    <p class="text-[9px] uppercase tracking-widest text-[#d4af37] mb-2 font-black">Attendance & Rating</p>
+                                    <div id="wsScoreDisplay" class="flex flex-col items-center gap-1"></div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-black/50 shrink-0 relative z-10">
+                                <button onclick="ActivityLogger.openForm()" class="w-full btn-base btn-gold py-2 text-xs shadow-[0_0_10px_rgba(212,175,55,0.4)]"><i class="fa-solid fa-plus-circle mr-1"></i> Log Activity</button>
                             </div>
                         </div>
                         
-                        <div class="dashboard-card p-0 flex-1 flex flex-col border-t-[4px] border-slate-800 min-h-[300px]">
-                            <div class="p-5 border-b bg-slate-800 text-white flex justify-between items-center rounded-t-lg">
-                                <h3 class="text-[10px] font-black uppercase tracking-widest"><i class="fa-solid fa-radar mr-2"></i> Tracked Directives Status</h3>
+                        <div class="dashboard-card p-0 lg:col-span-2 border-t-[6px] border-slate-800 flex flex-col h-[500px] lg:h-auto shadow-lg">
+                            <div class="flex justify-between items-center p-4 border-b bg-white shrink-0">
+                                <h3 class="royal-font text-lg font-bold text-[#0f172a]"><i class="fa-solid fa-list-check text-[#d4af37] mr-2"></i> Operations Queue</h3>
+                                <span class="bg-red-50 text-red-800 text-[9px] font-black px-2 py-1 rounded-full border border-red-200" id="wsTaskCountBadge">0 Pending</span>
                             </div>
-                            <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50" id="taTrackedTasks"></div>
+                            <div id="wsTaskList" class="p-4 space-y-3 overflow-y-auto flex-1 bg-slate-50/80"></div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- VIEW: MY WORKSPACE -->
-            <div id="view-myWorkspace" class="tab-section max-w-5xl mx-auto h-full overflow-y-auto pb-12">
-                <div class="mb-6"><h2 class="royal-font text-3xl md:text-4xl font-bold text-[#1e3a8a]">Personal Workspace</h2></div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Profile Card -->
-                    <div class="dashboard-card p-0 lg:col-span-1 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a] text-white text-center border-t-[8px] border-[#d4af37] overflow-hidden flex flex-col shadow-2xl relative">
-                        <div class="watermark watermark-light">Ali Ibrahim Didi</div>
-                        <div class="p-8 flex-1 relative z-10">
-                            <div class="w-24 h-24 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full mx-auto flex items-center justify-center text-4xl mb-4 border-4 border-white shadow-[0_0_20px_rgba(212,175,55,0.5)]"><i class="fa-solid fa-user-tie text-[#0f172a]"></i></div>
-                            <h2 class="text-2xl font-black mb-1" id="wsName">Name</h2>
-                            <p class="text-[10px] text-blue-200 font-bold uppercase tracking-widest bg-black/30 inline-block px-3 py-1 rounded-full border border-white/10" id="wsDetails">Dept</p>
-                            
-                            <div class="mt-8 bg-black/40 p-5 rounded-xl border border-white/10 backdrop-blur-sm shadow-inner">
-                                <p class="text-[10px] uppercase tracking-widest text-[#d4af37] mb-2 font-black">Attendance & Rating</p>
-                                <div id="wsScoreDisplay" class="flex flex-col items-center gap-2"></div>
-                            </div>
-                        </div>
-                        <div class="p-4 bg-black/50 shrink-0 relative z-10">
-                            <button onclick="ActivityLogger.openForm()" class="w-full btn-base btn-gold py-3 shadow-[0_0_15px_rgba(212,175,55,0.4)] text-sm"><i class="fa-solid fa-plus-circle mr-2"></i> Log Daily Activity</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Task Queue -->
-                    <div class="dashboard-card p-0 lg:col-span-2 border-t-[8px] border-slate-800 flex flex-col h-[600px] lg:h-auto shadow-xl">
-                        <div class="flex justify-between items-center p-6 border-b bg-white shrink-0">
-                            <h3 class="royal-font text-xl font-bold text-[#0f172a]"><i class="fa-solid fa-list-check text-[#d4af37] mr-3"></i> Operations Queue</h3>
-                            <span class="bg-red-50 text-red-800 text-[10px] font-black px-3 py-1.5 rounded-full border border-red-200 shadow-sm" id="wsTaskCountBadge">0 Pending</span>
-                        </div>
-                        <div id="wsTaskList" class="p-6 space-y-4 overflow-y-auto flex-1 bg-slate-50/80"></div>
-                    </div>
-                </div>
-            </div>
-
-        </div> 
-    </main>
+            </div> 
+        </main>
+    </div>
 </div>
 
 <!-- MODALS -->
 
-<!-- Add/Edit Staff Modal (Extensive Fields) -->
+<!-- Add/Edit Staff Modal -->
 <div id="modalAddStaff" class="modal-backdrop">
     <div class="modal-container border-t-[6px] border-[#1e3a8a]">
-        <div class="modal-header bg-slate-50">
-            <h2 class="font-black text-[#1e3a8a] text-lg uppercase tracking-widest" id="staffModalTitle"><i class="fa-solid fa-user-shield mr-2"></i> Register / Amend Personnel</h2>
-            <button onclick="UI.closeModal('modalAddStaff')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+        <div class="modal-header bg-slate-50 pb-3">
+            <h2 class="font-black text-[#1e3a8a] text-sm uppercase tracking-widest" id="staffModalTitle"><i class="fa-solid fa-user-shield mr-2"></i> Register / Amend Personnel</h2>
+            <button onclick="UI.closeModal('modalAddStaff')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="modal-body bg-white">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="modal-body bg-white text-xs">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <input type="hidden" id="stfIdHidden">
-                <div><label class="label-base">Index Number</label><input type="text" id="stfIndex" class="input-base" placeholder="IDX-000"></div>
-                <div><label class="label-base">Record Number</label><input type="text" id="stfRecord" class="input-base" placeholder="REC-000"></div>
-                <div><label class="label-base">ID Card Number</label><input type="text" id="stfIdCard" class="input-base" placeholder="A000000"></div>
+                <div><label class="label-base">Index Number</label><input type="text" id="stfIndex" class="input-base text-xs" placeholder="IDX-000"></div>
+                <div><label class="label-base">Record Number</label><input type="text" id="stfRecord" class="input-base text-xs" placeholder="REC-000"></div>
+                <div><label class="label-base">ID Card Number</label><input type="text" id="stfIdCard" class="input-base text-xs" placeholder="A000000"></div>
                 
-                <div class="md:col-span-2 lg:col-span-3"><label class="label-base">Full Name</label><input type="text" id="stfName" class="input-base font-bold text-blue-900" placeholder="Full legal name..."></div>
+                <div class="md:col-span-2 lg:col-span-3"><label class="label-base">Full Name (Dhivehi/English)</label><input type="text" id="stfName" class="input-base text-sm font-bold text-blue-900" placeholder="Full legal name..."></div>
                 
-                <div class="md:col-span-2"><label class="label-base">Permanent Address</label><input type="text" id="stfPermAddr" class="input-base" placeholder="..."></div>
-                <div class="md:col-span-2"><label class="label-base">Current Address</label><input type="text" id="stfCurrAddr" class="input-base" placeholder="..."></div>
+                <div class="md:col-span-2"><label class="label-base">Permanent Address</label><input type="text" id="stfPermAddr" class="input-base text-xs" placeholder="..."></div>
+                <div class="md:col-span-2"><label class="label-base">Current Address</label><input type="text" id="stfCurrAddr" class="input-base text-xs" placeholder="..."></div>
                 
-                <div><label class="label-base">Mobile Number</label><input type="text" id="stfMobile" class="input-base" placeholder="+960..."></div>
-                <div><label class="label-base">Official Email</label><input type="email" id="stfEmail" class="input-base" placeholder="@domain.com"></div>
-                <div><label class="label-base">System Role</label><select id="stfRole" class="input-base"><option value="STAFF">STAFF</option><option value="HOD">HOD/ZINMAADHAARU</option><option value="BUREAU">EXECUTIVE</option></select></div>
+                <div><label class="label-base">Mobile Number</label><input type="text" id="stfMobile" class="input-base text-xs" placeholder="+960..."></div>
+                <div><label class="label-base">Official Email</label><input type="email" id="stfEmail" class="input-base text-xs" placeholder="@domain.com"></div>
+                <div><label class="label-base">System Role</label><select id="stfRole" class="input-base text-xs"><option value="STAFF">STAFF</option><option value="HOD">HOD/ZINMAADHAARU</option><option value="BUREAU">EXECUTIVE</option></select></div>
                 
                 <div><label class="label-base">Employment Type</label>
-                    <select id="stfEmpType" class="input-base">
+                    <select id="stfEmpType" class="input-base text-xs">
                         <option value="Civil Service">Civil Service</option>
                         <option value="Academic">Academic</option>
                         <option value="General">General</option>
@@ -499,7 +551,7 @@
                     </select>
                 </div>
                 <div><label class="label-base">Current Status</label>
-                    <select id="stfStatus" class="input-base text-red-700 font-bold">
+                    <select id="stfStatus" class="input-base text-xs text-red-700 font-bold">
                         <option value="Active">Active Duty</option>
                         <option value="Annual Leave">Annual Leave</option>
                         <option value="Sick Leave">Sick Leave</option>
@@ -509,144 +561,165 @@
                     </select>
                 </div>
                 
-                <div><label class="label-base">Department</label><select id="stfDept" class="input-base"></select></div>
-                <div><label class="label-base">Section</label><input type="text" id="stfSection" class="input-base" placeholder="E.g. Procurement"></div>
+                <div><label class="label-base">Department</label><select id="stfDept" class="input-base text-xs"></select></div>
+                <div><label class="label-base">Section</label><input type="text" id="stfSection" class="input-base text-xs" placeholder="E.g. Procurement"></div>
                 
-                <div class="col-span-1 md:col-span-2 lg:col-span-3 mt-4 border-t pt-4">
-                    <button onclick="StaffDirectory.saveStaff()" class="btn-base btn-primary w-full py-3 text-lg shadow-lg"><i class="fa-solid fa-save mr-2"></i> Save / Amend Profile</button>
+                <div class="col-span-1 md:col-span-2 lg:col-span-3 mt-2 border-t pt-3">
+                    <button onclick="StaffDirectory.saveStaff()" class="btn-base btn-primary w-full py-2 shadow-lg"><i class="fa-solid fa-save mr-2"></i> Save / Amend Profile</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Log Activity Modal (Extensive Categories) -->
+<!-- Log Activity Modal -->
 <div id="modalLogActivity" class="modal-backdrop">
-    <div class="modal-container max-w-md border-t-[6px] border-emerald-600">
-        <div class="modal-header bg-emerald-50 pb-4">
-            <h2 class="font-black text-emerald-900 text-base uppercase tracking-widest"><i class="fa-solid fa-clipboard-list mr-2"></i> Official Log Entry</h2>
-            <button onclick="UI.closeModal('modalLogActivity')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <div class="modal-container max-w-sm border-t-[6px] border-emerald-600">
+        <div class="modal-header bg-emerald-50 pb-3">
+            <h2 class="font-black text-emerald-900 text-sm uppercase tracking-widest"><i class="fa-solid fa-clipboard-list mr-2"></i> Official Log Entry</h2>
+            <button onclick="UI.closeModal('modalLogActivity')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="modal-body space-y-4 bg-white">
-            <div class="bg-blue-50 border border-blue-200 p-3 rounded text-center">
-                <label class="label-base text-[9px] text-blue-800">Date of Action</label>
-                <input type="date" id="logDateInput" class="input-base text-center font-bold text-blue-900 border-blue-300 bg-white" onchange="ActivityLogger.checkDate()">
-                <p id="lateWarning" class="text-[9px] font-black text-red-600 mt-1 uppercase hidden"><i class="fa-solid fa-triangle-exclamation"></i> LATE UPDATE WARNING</p>
+        <div class="modal-body space-y-3 bg-white">
+            <div class="bg-blue-50 border border-blue-200 p-2 rounded text-center">
+                <label class="label-base text-[8px] text-blue-800">Date of Action</label>
+                <input type="date" id="logDateInput" class="input-base text-xs text-center font-bold text-blue-900 bg-white" onchange="ActivityLogger.checkDate()">
+                <p id="lateWarning" class="text-[8px] font-black text-red-600 mt-1 uppercase hidden"><i class="fa-solid fa-triangle-exclamation"></i> LATE UPDATE</p>
             </div>
             
             <div>
-                <label class="label-base">Work Category (މަސައްކަތުގެ ބާވަތް)</label>
-                <select id="alCategory" class="input-base text-sm font-bold text-slate-700 bg-slate-50 border-slate-300">
-                    <option value="Daily Routine">Daily Routine / އޮފީސް ރޫޓީން (Att. Pts)</option>
-                    <option value="Additional Task">Additional Task / އިތުރު މަސައްކަތް</option>
-                    <option value="Committee">Committee / ކޮމިޓީ ބައްދަލުވުން</option>
-                    <option value="Meeting">Meeting / އާންމު ބައްދަލުވުން</option>
-                    <option value="Event">Event / އިވެންޓްގައި ބައިވެރިވުން</option>
-                    <option value="Promotion">Promotion / މުއައްސަސާ އިޝްތިހާރުކުރުން</option>
-                    <option value="Research">Research / ރިސަރޗް މަސައްކަތް</option>
-                    <option value="Publishing">Publishing / ޕަބްލިޝްކުރުން</option>
-                    <option value="Supervising">Supervising / ސުޕަވައިޒްކުރުން</option>
-                    <option value="Prof Dev">Prof. Development / ތަމްރީނު</option>
-                    <option value="Representation">Representation / ތަމްސީލުކުރުން</option>
-                    <option value="Repute">Repute / ރީތިނަން ހޯދައިދިނުން</option>
-                    <option value="Coordination">Coordination / ވިލަރެސްކުރުން</option>
-                    <option value="Presentation">Presentation / ޕްރެސެންޓްކުރުން</option>
-                    <option value="Program Design">Program Design / ޕްރޮގްރާމް ފަރުމާކުރުން</option>
-                </select>
+                <label class="label-base">Work Category</label>
+                <select id="alCategory" class="input-base text-xs font-bold text-slate-700" onchange="ActivityLogger.toggleOT()"></select>
             </div>
 
-            <div><label class="label-base">Details (ތަފްޞީލް)</label><textarea id="alTitle" class="input-base text-sm h-24 resize-none" placeholder="Enter full details of the work done..."></textarea></div>
+            <div id="otFields" class="hidden grid-cols-2 gap-2">
+                <div><label class="label-base text-[8px]">Start Time</label><input type="time" id="otStart" class="input-base text-xs"></div>
+                <div><label class="label-base text-[8px]">End Time</label><input type="time" id="otEnd" class="input-base text-xs"></div>
+            </div>
+
+            <div><label class="label-base">Details (Dhivehi/English)</label><textarea id="alTitle" class="input-base text-xs h-20 resize-none" placeholder="Enter full details..."></textarea></div>
             
-            <button onclick="ActivityLogger.submit()" class="btn-base btn-success w-full mt-2 py-3 shadow-md"><i class="fa-solid fa-paper-plane mr-2"></i> Submit for Royal Endorsement</button>
+            <button onclick="ActivityLogger.submit()" class="btn-base btn-success w-full mt-1 py-2 shadow"><i class="fa-solid fa-paper-plane mr-2"></i> Submit for Endorsement</button>
         </div>
     </div>
 </div>
 
-<!-- Update Task Progress Modal (Staff) -->
+<!-- Update Task Progress Modal -->
 <div id="modalUpdateTask" class="modal-backdrop">
     <div class="modal-container max-w-sm border-t-[6px] border-[#d4af37]">
-        <div class="modal-header bg-slate-50 pb-3">
-            <h2 class="text-sm font-black text-[#1e3a8a] uppercase tracking-widest"><i class="fa-solid fa-sliders text-[#d4af37] mr-2"></i> Update Directive</h2>
+        <div class="modal-header bg-slate-50 pb-2">
+            <h2 class="text-xs font-black text-[#1e3a8a] uppercase tracking-widest"><i class="fa-solid fa-sliders text-[#d4af37] mr-2"></i> Update Directive</h2>
             <button onclick="UI.closeModal('modalUpdateTask')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="modal-body space-y-4 bg-white">
-            <h3 class="font-bold text-slate-800 text-sm border-b pb-2" id="updTaskTitle">Task Title</h3>
-            <div class="p-4 bg-slate-50 border border-slate-200 rounded">
-                <div class="flex justify-between items-center mb-3">
-                    <label class="text-[10px] font-black text-slate-500 uppercase">Completion</label>
-                    <span id="updVal" class="text-xl font-black text-[#064e3b]">0%</span>
+        <div class="modal-body space-y-3 bg-white">
+            <h3 class="font-bold text-slate-800 text-xs border-b pb-2" id="updTaskTitle">Task Title</h3>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-[9px] font-black text-slate-500 uppercase">Completion</label>
+                    <span id="updVal" class="text-lg font-black text-[#064e3b]">0%</span>
                 </div>
-                <input type="range" id="updSlider" min="0" max="100" step="5" class="w-full h-2 bg-slate-300 rounded appearance-none accent-[#064e3b] mb-4" oninput="document.getElementById('updVal').innerText = this.value + '%'">
-                <textarea id="updFeedback" class="input-base text-xs h-20 bg-white" placeholder="Work details or revision notes..."></textarea>
+                <input type="range" id="updSlider" min="0" max="100" step="5" class="w-full h-2 bg-slate-300 rounded appearance-none accent-[#064e3b] mb-3" oninput="document.getElementById('updVal').innerText = this.value + '%'">
+                <textarea id="updFeedback" class="input-base text-xs h-16 bg-white" placeholder="Revision notes..."></textarea>
             </div>
-            <button onclick="TaskEngine.saveProgress()" class="btn-base btn-primary w-full py-3 shadow-md"><i class="fa-solid fa-save mr-2"></i> Save Progress</button>
+            <button onclick="TaskEngine.saveProgress()" class="btn-base btn-primary w-full py-2 shadow"><i class="fa-solid fa-save mr-2"></i> Save Progress</button>
         </div>
     </div>
 </div>
 
-<!-- Modal: Royal Staff Dossier / Executive Override -->
+<!-- Royal Staff Dossier Modal -->
 <div id="modalStaffTaskReport" class="modal-backdrop">
     <div class="modal-container report-wrapper flex flex-col h-[95vh] md:h-auto md:max-h-[95vh]">
-        <div class="modal-header bg-[#fdfbf7] border-b border-[#d4af37] no-print shrink-0 py-4">
-            <h2 class="royal-font font-black text-[#001233] text-xl uppercase tracking-widest"><i class="fa-solid fa-file-signature text-[#d4af37] mr-3"></i> Royal Personnel Dossier</h2>
+        <div class="modal-header bg-[#fdfbf7] border-b border-[#d4af37] no-print shrink-0 py-3">
+            <h2 class="royal-font font-black text-[#001233] text-lg uppercase tracking-widest"><i class="fa-solid fa-file-signature text-[#d4af37] mr-2"></i> Royal Personnel Dossier</h2>
             <div class="flex gap-2">
-                <button onclick="StaffTaskReport.exportPDF()" class="btn-base bg-rose-50 text-rose-700 text-xs hover:bg-rose-700 hover:text-white transition border border-rose-200"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                <button onclick="UI.closeModal('modalStaffTaskReport')" class="btn-base bg-slate-800 text-white hover:bg-red-600 px-4"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="StaffTaskReport.exportPDF()" class="btn-base bg-rose-50 text-rose-700 text-[10px] hover:bg-rose-700 hover:text-white transition border border-rose-200"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                <button onclick="window.print()" class="btn-base bg-slate-100 text-slate-700 border border-slate-300 text-[10px] hover:bg-slate-800 hover:text-white shadow-sm"><i class="fa-solid fa-print"></i> Print</button>
+                <button onclick="UI.closeModal('modalStaffTaskReport')" class="btn-base bg-slate-800 text-white hover:bg-red-600 px-3 text-[10px]"><i class="fa-solid fa-xmark"></i></button>
             </div>
         </div>
-        <div class="modal-body flex-1 overflow-y-auto p-4 md:p-8" id="reportContentArea">
-            <div class="print-only mb-8 text-center border-b-[3px] border-[#d4af37] pb-6">
-                <i class="fa-solid fa-chess-king text-4xl text-[#d4af37] mb-2"></i>
-                <h1 class="text-3xl font-black text-[#1e3a8a] uppercase royal-font tracking-widest">Rasfahi Enterprise</h1>
-                <p class="text-[10px] font-bold text-slate-500 mt-2 uppercase tracking-widest">Presidential Personnel Portfolio</p>
+        <div class="modal-body flex-1 overflow-y-auto p-4 md:p-6" id="reportContentArea">
+            <div class="print-only mb-6 text-center border-b-[3px] border-[#d4af37] pb-4">
+                <i class="fa-solid fa-chess-king text-3xl text-[#d4af37] mb-1"></i>
+                <h1 class="text-2xl font-black text-[#1e3a8a] uppercase royal-font tracking-widest">Rasfahi Enterprise</h1>
+                <p class="text-[9px] font-bold text-slate-500 mt-1 uppercase tracking-widest">Presidential Personnel Portfolio</p>
             </div>
             
-            <div class="bg-white p-6 rounded-xl border border-slate-200 mb-8 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
-                <div class="absolute right-0 top-0 h-full w-2 bg-[#d4af37]"></div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 mb-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
+                <div class="absolute right-0 top-0 h-full w-1.5 bg-[#d4af37]"></div>
                 <div>
-                    <h3 class="text-2xl font-black text-[#1e3a8a] uppercase" id="repName">Name</h3>
-                    <p class="text-xs font-mono font-bold text-slate-500 mt-1 bg-slate-100 px-2 py-1 inline-block rounded">ID: <span id="repId" class="text-[#b8860b]"></span> | IDX: <span id="repIndex"></span></p>
-                    <p class="text-[11px] font-bold text-slate-600 mt-2" id="repAddr">Address, Phone</p>
+                    <h3 class="text-xl font-black text-[#1e3a8a] uppercase" id="repName">Name</h3>
+                    <p class="text-[10px] font-mono font-bold text-slate-500 mt-1 bg-slate-100 px-2 py-0.5 inline-block rounded">ID: <span id="repId" class="text-[#b8860b]"></span> | IDX: <span id="repIndex"></span></p>
+                    <p class="text-[10px] font-bold text-slate-600 mt-1" id="repAddr">Address</p>
                 </div>
-                <div class="md:text-right bg-slate-50 p-4 rounded-lg border border-slate-100 w-full md:w-auto">
-                    <p class="text-sm font-black text-[#001233] uppercase tracking-widest mb-1" id="repDept">Dept</p>
-                    <p class="text-[9px] font-bold text-red-600 uppercase bg-red-50 px-2 py-0.5 rounded inline-block border border-red-100 mb-2" id="repStatus">Status</p>
-                    <div id="repStars" class="flex md:justify-end scale-90 origin-right"></div>
-                    <p class="text-xs font-black mt-2 text-[#b8860b] bg-[#d4af37]/10 px-3 py-1 rounded inline-block" id="repTotalPts">0 POINTS</p>
+                <div class="md:text-right bg-slate-50 p-3 rounded-lg border border-slate-100 w-full md:w-auto">
+                    <p class="text-xs font-black text-[#001233] uppercase tracking-widest mb-1" id="repDept">Dept</p>
+                    <p class="text-[8px] font-bold text-red-600 uppercase bg-red-50 px-2 py-0.5 rounded inline-block border border-red-100 mb-1" id="repStatus">Status</p>
+                    <div id="repStars" class="flex md:justify-end scale-75 origin-right -mt-1"></div>
+                    <p class="text-[11px] font-black text-[#b8860b] bg-[#d4af37]/10 px-2 py-0.5 rounded inline-block" id="repTotalPts">0 POINTS</p>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div>
-                    <h4 class="font-black text-sm text-[#1e3a8a] border-b-2 border-slate-200 pb-2 mb-4 uppercase tracking-widest">Points Breakdown (Current)</h4>
-                    <div class="grid grid-cols-2 gap-3" id="repCategoryBreakdown"></div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="md:col-span-2">
+                    <h4 class="font-black text-[10px] text-[#1e3a8a] border-b border-slate-200 pb-1 mb-2 uppercase tracking-widest">Points Breakdown</h4>
+                    <div class="grid grid-cols-3 md:grid-cols-5 gap-2" id="repCategoryBreakdown"></div>
                 </div>
-                <div>
-                    <h4 class="font-black text-sm text-[#1e3a8a] border-b-2 border-slate-200 pb-2 mb-4 uppercase tracking-widest flex justify-between">
-                        Attendance Record
-                        <button class="text-[9px] bg-slate-800 text-white px-2 py-1 rounded auth-req auth-bureau-only" onclick="StaffDirectory.amendAttendance()"><i class="fa-solid fa-pen"></i> Amend</button>
+                <div class="md:col-span-1">
+                    <h4 class="font-black text-[10px] text-[#1e3a8a] border-b border-slate-200 pb-1 mb-2 uppercase tracking-widest flex justify-between">
+                        Attendance
+                        <button class="text-[8px] bg-slate-800 text-white px-1.5 rounded auth-req auth-bureau-only" onclick="StaffDirectory.amendAttendance()"><i class="fa-solid fa-pen"></i></button>
                     </h4>
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-5 text-center">
-                        <p class="text-4xl font-black text-blue-900 mb-1" id="repAttVal">0%</p>
-                        <p class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Aggregate Score</p>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center flex flex-col justify-center h-full">
+                        <p class="text-3xl font-black text-blue-900 mb-1" id="repAttVal">0%</p>
                     </div>
                 </div>
             </div>
 
-            <h4 class="font-black text-sm text-[#1e3a8a] border-b-2 border-slate-200 pb-2 mb-4 uppercase tracking-widest flex justify-between items-center">
+            <h4 class="font-black text-[10px] text-[#1e3a8a] border-b border-slate-200 pb-1 mb-3 uppercase tracking-widest flex justify-between items-center">
                 Official Logs & Directives
-                <div class="flex gap-2 no-print" data-html2canvas-ignore="true">
-                    <button onclick="StaffTaskReport.filter('All')" class="text-[9px] font-bold px-3 py-1 rounded bg-[#1e3a8a] text-white shadow">All</button>
-                    <button onclick="StaffTaskReport.filter('Directive')" class="text-[9px] font-bold px-3 py-1 rounded border border-slate-300 bg-white">Directives</button>
-                    <button onclick="StaffTaskReport.filter('Parked')" class="text-[9px] font-bold px-3 py-1 rounded border border-red-300 text-red-700 bg-red-50">Parked</button>
+                <div class="flex gap-1 no-print" data-html2canvas-ignore="true">
+                    <button onclick="StaffTaskReport.filter('All')" class="text-[8px] font-bold px-2 py-0.5 rounded bg-[#1e3a8a] text-white">All</button>
+                    <button onclick="StaffTaskReport.filter('Directive')" class="text-[8px] font-bold px-2 py-0.5 rounded border border-slate-300 bg-white">Directives</button>
                 </div>
             </h4>
-            <div id="repTaskList" class="space-y-4"></div>
+            <div id="repTaskList" class="space-y-2"></div>
             
-            <div class="print-only mt-24 flex justify-between border-t-2 border-slate-800 pt-8 px-10">
-                <div class="w-48 text-center"><div class="border-b-2 border-slate-800 h-12 mb-3"></div><p class="text-[10px] font-black uppercase text-slate-800 tracking-widest">Authorized Executive</p></div>
-                <div class="w-48 text-center"><div class="border-b-2 border-slate-800 h-12 mb-3"></div><p class="text-[10px] font-black uppercase text-slate-800 tracking-widest">Official Seal</p></div>
+            <div class="print-only mt-16 flex justify-between border-t-2 border-slate-800 pt-6 px-6">
+                <div class="w-40 text-center"><div class="border-b-2 border-slate-800 h-8 mb-2"></div><p class="text-[8px] font-black uppercase text-slate-800 tracking-widest">Authorized Executive</p></div>
+                <div class="w-40 text-center"><div class="border-b-2 border-slate-800 h-8 mb-2"></div><p class="text-[8px] font-black uppercase text-slate-800 tracking-widest">Official Seal</p></div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Metrics Modal -->
+<div id="modalMetricSettings" class="modal-backdrop">
+    <div class="modal-container max-w-sm border-t-[6px] border-[#1e3a8a]">
+        <div class="modal-header bg-slate-50 pb-3">
+            <h2 class="text-sm font-black text-[#1e3a8a] uppercase tracking-widest"><i class="fa-solid fa-sliders mr-2"></i> Metric Weights Override</h2>
+            <button onclick="UI.closeModal('modalMetricSettings')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body space-y-2 bg-white text-xs" id="metricFormArea">
+            <!-- Injected via JS -->
+        </div>
+        <div class="p-3 border-t bg-slate-50">
+            <button onclick="MetricsManager.save()" class="btn-base btn-primary w-full shadow"><i class="fa-solid fa-save mr-2"></i> Save Point System</button>
+        </div>
+    </div>
+</div>
+
+<!-- 3-Step Hard Reset Modal -->
+<div id="modalHardReset" class="modal-backdrop">
+    <div class="modal-container max-w-sm border-t-[6px] border-red-700">
+        <div class="modal-header bg-red-50 pb-3">
+            <h2 class="text-sm font-black text-red-800 uppercase tracking-widest"><i class="fa-solid fa-triangle-exclamation mr-2"></i> System Wipe (3-Step)</h2>
+            <button onclick="UI.closeModal('modalHardReset'); SystemAdmin.resetState=1;" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body space-y-3 bg-white text-center" id="resetStepContainer">
+            <i class="fa-solid fa-skull text-4xl text-red-600 mb-2"></i>
+            <p class="text-xs font-bold text-slate-700">Warning: Permanent Data Annihilation.</p>
+            <p class="text-[9px] text-slate-500">Step 1: Type <span class="font-mono text-red-600 font-bold bg-red-50 px-1 border border-red-200">RESET</span></p>
+            <input type="text" id="resetInput1" class="input-base text-center font-mono text-red-600 font-bold tracking-widest mt-1 text-xs">
+            <button onclick="SystemAdmin.nextResetStep()" class="btn-base btn-danger w-full mt-2"><i class="fa-solid fa-arrow-right mr-2"></i> Proceed</button>
         </div>
     </div>
 </div>
@@ -654,100 +727,104 @@
 <script>
     /**
      * ==========================================================================
-     * ENTERPRISE HR SYSTEM - PRESIDENTIAL FULL LOGIC
+     * ENTERPRISE HR SYSTEM - PRESIDENTIAL FULL LOGIC (Auto-Save, Firebase, etc.)
      * ==========================================================================
      */
 
+    // --- STATE MANAGEMENT ---
     const AppState = {
         db: {
             departments: ["Executive Office", "Human Resources", "Finance & Operations", "Information Technology", "Public Relations"],
             sections: {
-                "Executive Office": ["Strategy", "Legal"],
-                "Human Resources": ["Recruitment", "Welfare"],
-                "Finance & Operations": ["Treasury", "Logistics"],
-                "Information Technology": ["Infrastructure", "Development"],
+                "Executive Office": ["Strategy", "Legal"], "Human Resources": ["Recruitment", "Welfare"],
+                "Finance & Operations": ["Treasury", "Logistics"], "Information Technology": ["Infrastructure", "Development"],
                 "Public Relations": ["Media", "Protocol"]
             },
-            staff: [], 
-            tasks: []  
+            staff: [], tasks: [],
+            pointSystem: {
+                'Daily Routine': 2, 'Additional Task': 3, 'Committee': 4, 'Meeting': 2, 
+                'Event': 5, 'Promotion': 5, 'Research': 10, 'Publishing': 15, 
+                'Supervising': 8, 'Prof Dev': 5, 'Representation': 5, 'Repute': 10, 
+                'Coordination': 6, 'Presentation': 8, 'Program Design': 12, 'Directive': 5, 'ManualOverride': 0
+            }
         }
     };
 
-    let CurrentUser = null;
-    let ChartInstances = { staffDist: null, overallPie: null, taskProg: null };
+    let CurrentUser = null; let ChartInstances = { staffDist: null, overallPie: null, taskProg: null };
 
-    // Points Dictionary matching massive requirement list
-    const PointSystem = {
-        'Daily Routine': 2, 'Additional Task': 3, 'Committee': 4, 'Meeting': 2, 
-        'Event': 5, 'Promotion': 5, 'Research': 10, 'Publishing': 15, 
-        'Supervising': 8, 'Prof Dev': 5, 'Representation': 5, 'Repute': 10, 
-        'Coordination': 6, 'Presentation': 8, 'Program Design': 12, 'Directive': 5, 'ManualOverride': 0
+    // --- FIREBASE CONFIGURATION ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyAz7kLgHUvY5YO7PsQN-vuorLY0Xo7q7B4",
+      authDomain: "hrworkload.firebaseapp.com",
+      databaseURL: "https://hrworkload-default-rtdb.firebaseio.com", // Explicitly added for Realtime DB
+      projectId: "hrworkload",
+      storageBucket: "hrworkload.firebasestorage.app",
+      messagingSenderId: "692169023061",
+      appId: "1:692169023061:web:ca93ecf8eda7b91b2afedc",
+      measurementId: "G-PHDTDH9184"
     };
 
-    // Firebase Init (Bypass if missing to use LocalStorage)
     let fbDb = null; let useFirebase = false;
     try {
-        const firebaseConfig = { /* Paste Config Here */ };
-        if(Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
-            firebase.initializeApp(firebaseConfig); fbDb = firebase.database(); useFirebase = true;
-        }
-    } catch(e) {}
+        firebase.initializeApp(firebaseConfig);
+        fbDb = firebase.database();
+        useFirebase = true;
+    } catch(e) { console.log("Firebase Init bypassed. Using LocalStorage."); }
 
+    // --- SAVE MECHANISMS ---
     const HybridCloud = {
-        save: () => { 
-            try {
-                localStorage.setItem('rasfahi_cloud_db_v_presidential', JSON.stringify(AppState.db)); 
-                HybridCloud.showSyncStatus(true);
-            } catch (e) { console.error("Save error", e); }
+        saveAutoLocal: () => { 
+            try { localStorage.setItem('rasfahi_cloud_presidential', JSON.stringify(AppState.db)); 
+                  let ind = document.getElementById('autoSaveInd'); if(ind){ ind.classList.remove('hidden'); setTimeout(()=>ind.classList.add('hidden'), 2000); }
+            } catch(e){} 
         },
+        saveLocalManual: () => {
+            HybridCloud.saveAutoLocal(); UI.showToast("Manual Browser Save Complete", "success");
+        },
+        saveCloudManual: () => {
+            if(useFirebase && fbDb) {
+                UI.showToast("Syncing to Cloud Vault...", "info");
+                fbDb.ref('presidential_data').set(AppState.db)
+                    .then(() => { UI.showToast("Cloud Vault Secured", "success"); HybridCloud.showSyncStatus(true); })
+                    .catch(err => { UI.showToast("Cloud Error. Saved Locally.", "error"); HybridCloud.showSyncStatus(false); });
+            } else { UI.showToast("Cloud offline. Saved to Browser.", "warning"); }
+            HybridCloud.saveAutoLocal();
+        },
+        forceSync: () => { HybridCloud.saveCloudManual(); },
         load: (callback) => { 
-            try {
-                const d = localStorage.getItem('rasfahi_cloud_db_v_presidential'); 
-                if(d) { AppState.db = JSON.parse(d); callback(true); } else callback(false); 
-            } catch(e) { callback(false); }
+            if(useFirebase && fbDb) {
+                fbDb.ref('presidential_data').once('value').then(snapshot => {
+                    if(snapshot.exists()) { AppState.db = snapshot.val(); HybridCloud.saveAutoLocal(); callback(true); }
+                    else { HybridCloud.loadLocal(callback); }
+                }).catch(() => HybridCloud.loadLocal(callback));
+            } else { HybridCloud.loadLocal(callback); }
         },
-        forceSync: () => { 
-            UI.showToast("Forcing Cloud Sync...", "info"); 
-            HybridCloud.save(); 
-            setTimeout(() => UI.showToast("Data secured to Vault", "success"), 500);
+        loadLocal: (callback) => {
+            try { const d = localStorage.getItem('rasfahi_cloud_presidential'); if(d) { AppState.db = JSON.parse(d); callback(true); } else callback(false); } catch(e) { callback(false); }
         },
         showSyncStatus: (success) => {
             const dot = document.getElementById('syncDot'); const txt = document.getElementById('syncText');
             if(!dot || !txt) return;
-            if(success) { dot.className = "pulse-dot bg-green-500"; txt.innerText = "Synced"; } 
-            else { dot.className = "w-2 h-2 rounded-full bg-red-500"; txt.innerText = "Offline"; }
+            if(success) { dot.className = "pulse-dot bg-green-500"; txt.innerText = "Cloud Synced"; } 
+            else { dot.className = "w-2 h-2 rounded-full bg-red-500"; txt.innerText = "Browser Only"; }
         }
     };
 
+    // Global interceptor to auto-save on array changes (wrapper)
+    const originalPushTask = AppState.db.tasks.push.bind(AppState.db.tasks);
+    AppState.db.tasks.push = function() { let r = originalPushTask.apply(this, arguments); HybridCloud.saveAutoLocal(); return r; };
+    const originalPushStaff = AppState.db.staff.push.bind(AppState.db.staff);
+    AppState.db.staff.push = function() { let r = originalPushStaff.apply(this, arguments); HybridCloud.saveAutoLocal(); return r; };
+
+    // --- UTILITIES ---
     const generateUID = (prefix) => prefix + '-' + Math.floor(Math.random() * 90000 + 10000);
 
-    const buildDummyData = () => {
-        AppState.db.staff.push({ 
-            id: 'EMP-001', name: 'Chief Executive Officer', email: 'exec@bureau.com', role: 'BUREAU', 
-            indexNo: 'IDX-001', recordNo: 'REC-001', idCard: 'A000001', empType: 'Political', status: 'Active',
-            dept: 'Executive Office', section: 'Strategy', attendance: 100 
-        });
-        AppState.db.staff.push({ 
-            id: 'EMP-002', name: 'Head of Operations', email: 'hod.head@zaad.com', role: 'HOD', 
-            indexNo: 'IDX-002', recordNo: 'REC-002', idCard: 'A000002', empType: 'Management', status: 'Active',
-            dept: 'Finance & Operations', section: 'Logistics', attendance: 95 
-        });
-        AppState.db.staff.push({ 
-            id: 'EMP-003', name: 'Senior Officer', email: 'staff@bureau.com', role: 'STAFF', 
-            indexNo: 'IDX-003', recordNo: 'REC-003', idCard: 'A000003', empType: 'Civil Service', status: 'Active',
-            dept: 'Human Resources', section: 'Recruitment', attendance: 92 
-        });
-
-        // Add dummy tasks
-        const today = new Date().toISOString().split('T')[0];
-        AppState.db.tasks.push({ id: generateUID('LOG'), staffId: 'EMP-003', title: 'Filed quarterly reports', category: 'Daily Routine', progress: 100, status: 'Wait Endorse', logDate: today, assignedBy: 'EMP-003', isLate: false });
-        AppState.db.tasks.push({ id: generateUID('DIR'), staffId: 'EMP-003', title: 'Review welfare policy', category: 'Directive', progress: 0, status: 'Pending', logDate: today, assignedBy: 'EMP-001', isLate: false });
-        AppState.db.tasks.push({ id: generateUID('LOG'), staffId: 'EMP-002', title: 'Missed meeting (Sick)', category: 'Committee', progress: 100, status: 'Parked', logDate: '2026-03-20', assignedBy: 'EMP-002', isLate: true });
-
-        HybridCloud.save();
-    };
-
     const UI = {
+        toggleFullScreen: () => {
+            if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); document.getElementById('fsIcon').className="fa-solid fa-compress"; }
+            else { if (document.exitFullscreen) { document.exitFullscreen(); document.getElementById('fsIcon').className="fa-solid fa-expand"; } }
+        },
+        toggleSidebar: () => { document.body.classList.toggle('sidebar-open'); },
         openModal: (id) => { const el = document.getElementById(id); if(el) el.style.display = 'flex'; },
         closeModal: (id) => { const el = document.getElementById(id); if(el) el.style.display = 'none'; },
         showToast: (msg, type='info') => {
@@ -755,51 +832,103 @@
             const t = document.createElement('div'); t.className = `toast ${type}`;
             let icon = type==='success'?'fa-check text-green-400':(type==='error'?'fa-triangle-exclamation text-red-400':'fa-info text-[#d4af37]');
             t.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${msg}</span>`;
-            c.appendChild(t); setTimeout(() => { t.style.animation = 'slideInRight 0.3s reverse forwards'; setTimeout(() => t.remove(), 300); }, 3000);
+            c.appendChild(t); setTimeout(() => { t.style.animation = 'slideInUp 0.3s reverse forwards'; setTimeout(() => t.remove(), 300); }, 3000);
         },
         getStatusColor: (s, p, isLate) => {
-            if(isLate && s !== 'Completed') return '#991b1b'; // Darker red for late
-            if(s === 'Parked') return '#991b1b'; // Red
-            if(s === 'Wait Endorse') return '#b45309'; // Orange
-            if(s === 'Returned') return '#991b1b'; // Red
-            if(s === 'Completed' || p === 100) return '#064e3b'; // Dark Green
-            if(s === 'Pending' || p === 0) return '#991b1b'; // Red (Not started 1 day = red logic simplified here)
-            return '#64748b'; // Gray for In Progress
+            if(isLate && s !== 'Completed') return '#991b1b'; 
+            if(s === 'Parked') return '#991b1b'; 
+            if(s === 'Wait Endorse') return '#b45309'; 
+            if(s === 'Returned') return '#991b1b'; 
+            if(s === 'Completed' || p === 100) return '#064e3b'; 
+            if(s === 'Pending' || p === 0) return '#991b1b'; 
+            return '#64748b'; 
         },
         renderStars: (count) => {
             let h = '<div class="flex gap-0.5">';
-            for(let i=0; i<5; i++) { h += `<i class="fa-solid fa-star ${i<count?'text-[#d4af37] drop-shadow-md':'text-slate-200'} text-[16px]"></i>`; }
+            for(let i=0; i<5; i++) { h += `<i class="fa-solid fa-star ${i<count?'text-[#d4af37] drop-shadow-md':'text-slate-200'} text-[14px]"></i>`; }
             h += '</div>'; return h;
         },
         calcScoreAndStars: (id) => {
             let s = AppState.db.staff.find(x => x.id === id); if(!s) return {score:0, stars:0, breakdown: {}, att: 0};
             let completedTasks = AppState.db.tasks.filter(x => x.staffId === id && x.status === 'Completed');
             
-            let totalScore = 0; let breakdown = {};
-            let routineCount = 0; // For attendance simulation
-            
+            let totalScore = 0; let breakdown = {}; let routineCount = 0; 
+            const ptsObj = AppState.db.pointSystem || PointSystem;
+
             completedTasks.forEach(t => {
                 let cat = t.category || 'Daily Routine';
-                let pts = t.manualPoints !== undefined ? t.manualPoints : (PointSystem[cat] || 0);
-                totalScore += pts;
-                breakdown[cat] = (breakdown[cat] || 0) + pts;
+                let pts = t.manualPoints !== undefined ? t.manualPoints : (ptsObj[cat] || 0);
+                totalScore += pts; breakdown[cat] = (breakdown[cat] || 0) + pts;
                 if(cat === 'Daily Routine') routineCount++;
             });
             
-            // Attendance calculation: Base attendance + routine days logged (capped at 100)
             let currentAtt = Math.min(100, (s.attendance || 85) + (routineCount * 0.5)).toFixed(1);
-
             let starScore = Math.min(totalScore, 100);
             let stars = starScore === 0 ? 0 : Math.max(1, Math.round((starScore/100)*5));
             return { score: totalScore, stars, breakdown, att: currentAtt };
         }
     };
 
+    // --- MOCK DATA GENERATOR (Maldivian Names, Massive Payload) ---
+    const buildDummyData = () => {
+        const firstNames = ["Ali", "Aminath", "Hassan", "Fathimath", "Mohamed", "Mariyam", "Hussain", "Aishath", "Ibrahim", "Khadheeja", "Ahmed", "Hawwa", "Ismail", "Nazeera", "Moosa"];
+        const lastNames = ["Didi", "Manik", "Rasheed", "Shareef", "Naseer", "Nizam", "Shiyam", "Faisal", "Hameed", "Zahir", "Moosa", "Waheed", "Ibrahim"];
+        let count = 1;
+        
+        // Generating requested payload (Scaled slightly down to prevent browser freeze, but math remains robust)
+        AppState.db.departments.forEach(dept => {
+            AppState.db.sections[dept].forEach(sec => {
+                // 15 Staff + 5 Political + 2 Consultants per section to show scale
+                for(let i=0; i<22; i++) { 
+                    let type = i < 15 ? 'Civil Service' : (i < 20 ? 'Political' : 'Consultant');
+                    AppState.db.staff.push({
+                        id: 'EMP-' + String(count).padStart(4, '0'),
+                        name: `${firstNames[Math.floor(Math.random()*firstNames.length)]} ${lastNames[Math.floor(Math.random()*lastNames.length)]}`,
+                        indexNo: 'IDX-'+(1000+count), recordNo: 'REC-'+(2000+count), idCard: 'A0'+(10000+count),
+                        dept: dept, section: sec, empType: type, status: "Active", 
+                        email: `staff${count}@bureau.com`, role: "STAFF", attendance: Math.floor(Math.random() * 15) + 80
+                    });
+                    count++;
+                }
+            });
+        });
+
+        // Set Specific Accounts
+        AppState.db.staff[0] = {...AppState.db.staff[0], email: "exec@bureau.com", role: "BUREAU", name: "Chief Executive Officer", empType: "Management", dept: "Executive Office", section: "Strategy"};
+        AppState.db.staff[1] = {...AppState.db.staff[1], email: "hod.head@zaad.com", role: "HOD", name: "Head of Department", empType: "Management"};
+        AppState.db.staff[2] = {...AppState.db.staff[2], email: "staff@bureau.com", role: "STAFF", name: "General Staff User"};
+
+        const cats = Object.keys(AppState.db.pointSystem || PointSystem);
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Add tasks to a subset to prevent massive initial lag
+        for(let i=0; i<200; i++) {
+            let s = AppState.db.staff[Math.floor(Math.random() * 50)]; // apply to first 50 staff
+            let prog = Math.floor(Math.random() * 5) * 25; 
+            let stat = prog === 0 ? "Pending" : (prog === 100 ? "Completed" : "In Progress");
+            if(prog === 100 && Math.random() > 0.5) stat = "Wait Endorse";
+            if(Math.random() > 0.9) stat = "Parked";
+            
+            let isLt = Math.random() > 0.7;
+            let logDt = isLt ? "2026-03-" + String(Math.floor(Math.random()*20)+1).padStart(2, '0') : today;
+
+            AppState.db.tasks.push({
+                id: generateUID('TSK'), staffId: s.id, 
+                title: "Historical Assignment Reference #" + Math.floor(Math.random()*1000),
+                category: cats[Math.floor(Math.random()*cats.length)],
+                progress: prog, status: stat, logDate: logDt, isLate: isLt,
+                assignedBy: AppState.db.staff[0].id, feedback: prog > 0 ? "Work logged." : ""
+            });
+        }
+        HybridCloud.saveLocalManual();
+    };
+
+    // --- CORE LOGIC ---
     const SystemAuth = {
         login: () => {
             const email = document.getElementById('authEmail').value.trim().toLowerCase();
             const user = AppState.db.staff.find(s => s.email === email);
-            if(!user) return UI.showToast('Account not found in Royal Database', 'error');
+            if(!user) return UI.showToast('Identity unverified. Access Denied.', 'error');
             
             CurrentUser = user;
             document.getElementById('navUserName').innerText = user.name;
@@ -825,23 +954,77 @@
             if(document.getElementById('taFilterDept')) document.getElementById('taFilterDept').innerHTML = dOpts;
             if(document.getElementById('stfDept')) document.getElementById('stfDept').innerHTML = dOpts;
 
+            MetricsManager.populateForm();
+            ActivityLogger.populateCategories();
+
             Navigation.goTo(user.role === 'STAFF' ? 'myWorkspace' : 'dashboard');
-            UI.showToast(`Authenticated: ${user.role}`, 'success');
+            UI.showToast(`Clearance Code: ${user.role} Granted`, 'success');
         },
         logout: () => { window.location.reload(); }
     };
 
     const SystemAdmin = {
+        resetState: 1,
         openReset: () => {
-            if(CurrentUser.role !== 'BUREAU') return UI.showToast('Access Denied', 'error');
-            document.getElementById('resetConfirmInput').value = '';
+            if(CurrentUser.role !== 'BUREAU') return;
+            SystemAdmin.resetState = 1;
+            document.getElementById('resetStepContainer').innerHTML = `
+                <i class="fa-solid fa-skull text-4xl text-red-600 mb-2"></i>
+                <p class="text-xs font-bold text-slate-700">Warning: Permanent Data Annihilation.</p>
+                <p class="text-[9px] text-slate-500 mt-2">Step 1: Type <span class="font-mono text-red-600 font-bold bg-red-50 px-1 border border-red-200">RESET</span></p>
+                <input type="text" id="resetInput1" class="input-base text-center font-mono text-red-600 font-bold tracking-widest mt-1 text-xs">
+                <button onclick="SystemAdmin.nextResetStep()" class="btn-base btn-danger w-full mt-3"><i class="fa-solid fa-arrow-right mr-2"></i> Proceed Step 1</button>
+            `;
             UI.openModal('modalHardReset');
         },
-        executeReset: () => {
-            if(document.getElementById('resetConfirmInput').value === 'RESET') {
-                localStorage.removeItem('rasfahi_cloud_db_v_presidential');
-                window.location.reload();
-            } else { UI.showToast("Type RESET exactly", "error"); }
+        nextResetStep: () => {
+            const cont = document.getElementById('resetStepContainer');
+            if(SystemAdmin.resetState === 1) {
+                if(document.getElementById('resetInput1').value !== 'RESET') return UI.showToast("Verification failed", "error");
+                SystemAdmin.resetState = 2;
+                cont.innerHTML = `
+                    <i class="fa-solid fa-shield-halved text-4xl text-amber-600 mb-2"></i>
+                    <p class="text-xs font-bold text-slate-700">Step 2: Verification</p>
+                    <p class="text-[9px] text-slate-500 mt-2">Enter Executive Email to confirm auth.</p>
+                    <input type="email" id="resetInput2" class="input-base text-center font-bold tracking-widest mt-1 text-xs">
+                    <button onclick="SystemAdmin.nextResetStep()" class="btn-base btn-warning w-full mt-3"><i class="fa-solid fa-arrow-right mr-2"></i> Verify</button>
+                `;
+            } else if (SystemAdmin.resetState === 2) {
+                if(document.getElementById('resetInput2').value !== CurrentUser.email) return UI.showToast("Email mismatch", "error");
+                SystemAdmin.resetState = 3;
+                cont.innerHTML = `
+                    <i class="fa-solid fa-bomb text-5xl text-red-700 mb-2 pulse-dot"></i>
+                    <p class="text-xs font-black text-red-700 uppercase">Final Warning</p>
+                    <p class="text-[9px] text-slate-500 mt-2">This action is irreversible across local and cloud instances.</p>
+                    <button onclick="SystemAdmin.executeFinalReset()" class="btn-base bg-red-800 text-white w-full mt-4 py-3"><i class="fa-solid fa-radiation mr-2"></i> CONFIRM FINAL WIPE</button>
+                `;
+            }
+        },
+        executeFinalReset: () => {
+            localStorage.removeItem('rasfahi_cloud_presidential');
+            if(useFirebase && fbDb) fbDb.ref('presidential_data').remove();
+            window.location.reload();
+        }
+    };
+
+    const MetricsManager = {
+        populateForm: () => {
+            let html = ''; const pts = AppState.db.pointSystem || PointSystem;
+            for(const [k, v] of Object.entries(pts)) {
+                if(k === 'ManualOverride') continue;
+                html += `<div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-200 mb-1"><span class="text-[10px] font-bold text-[#1e3a8a]">${k}</span><input type="number" id="metric_${k.replace(/\s/g,'')}" value="${v}" class="w-16 p-1 border rounded text-center text-xs font-black text-[#d4af37]"></div>`;
+            }
+            document.getElementById('metricFormArea').innerHTML = html;
+        },
+        save: () => {
+            const pts = AppState.db.pointSystem || PointSystem;
+            for(const k of Object.keys(pts)) {
+                if(k === 'ManualOverride') continue;
+                let el = document.getElementById(`metric_${k.replace(/\s/g,'')}`);
+                if(el) AppState.db.pointSystem[k] = parseInt(el.value) || 0;
+            }
+            HybridCloud.saveLocalManual(); UI.closeModal('modalMetricSettings');
+            PerformanceEngine.render(); UI.showToast("Metrics Re-calibrated", "success");
         }
     };
 
@@ -853,6 +1036,7 @@
 
             const titles = { 'dashboard': 'Executive Analytics Dashboard', 'directory': 'Master Staff Directory', 'orgStructure': 'Organizational Structure', 'performance': 'Performance & Attendance Matrix', 'taskAssignment': 'Operations Command Center', 'myWorkspace': 'Personal Workspace' };
             document.getElementById('viewTitle').innerText = titles[viewId] || viewId;
+            document.body.classList.remove('sidebar-open'); // Close mobile sidebar
 
             const scrollArea = document.getElementById('mainScrollArea'); if(scrollArea) scrollArea.scrollTop = 0;
 
@@ -878,7 +1062,7 @@
             document.getElementById('kpi-staff').innerText = AppState.db.staff.length; 
             document.getElementById('kpi-completed').innerText = tDone;
             document.getElementById('kpi-progress').innerText = tProg; 
-            document.getElementById('kpi-pending').innerText = tWait + tNot; // Combined late/parked/pending
+            document.getElementById('kpi-pending').innerText = tWait + tNot;
 
             DashboardEngine.renderCharts(tDone, tWait, tProg, tNot);
             DashboardEngine.renderParkedAndApprovals();
@@ -887,36 +1071,28 @@
         renderTopPerformer: () => {
             let sc = AppState.db.staff.map(s => ({ ...s, ...UI.calcScoreAndStars(s.id) })).sort((a,b) => b.score - a.score).slice(0, 10);
             document.getElementById('dashLeaderboard').innerHTML = sc.map((s, i) => s.score>0?`
-                <div class="p-4 rounded border-b border-slate-100 flex justify-between items-center bg-white mb-1 hover:bg-slate-50 transition cursor-pointer" onclick="StaffTaskReport.open('${s.id}')">
-                    <div class="flex gap-4 items-center">
-                        <div class="font-black text-xl ${i===0?'text-[#d4af37]':(i===1?'text-slate-400':(i===2?'text-[#b8860b]':'text-slate-300'))} w-6 text-center">#${i+1}</div>
-                        <div><h4 class="font-bold text-sm text-[#1e3a8a]">${s.name}</h4><p class="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">${s.dept}</p></div>
+                <div class="p-3 rounded border-b border-slate-100 flex justify-between items-center bg-white mb-1 hover:bg-slate-50 transition cursor-pointer" onclick="StaffTaskReport.open('${s.id}')">
+                    <div class="flex gap-3 items-center">
+                        <div class="font-black text-lg ${i===0?'text-[#d4af37]':(i===1?'text-slate-400':(i===2?'text-[#b8860b]':'text-slate-300'))} w-6 text-center">#${i+1}</div>
+                        <div><h4 class="font-bold text-xs text-[#1e3a8a] truncate max-w-[120px] md:max-w-[200px]">${s.name}</h4><p class="text-[8px] text-slate-500 uppercase tracking-widest mt-0.5">${s.dept}</p></div>
                     </div>
-                    <div class="text-right"><div class="scale-90 origin-right">${UI.renderStars(s.stars)}</div><p class="text-[10px] text-[#b8860b] font-black mt-0.5">${s.score} PTS</p></div>
-                </div>`:'').join('') || '<div class="text-center text-slate-400 p-4 text-[10px] font-bold uppercase tracking-widest">No Data</div>';
+                    <div class="text-right"><div class="scale-75 origin-right">${UI.renderStars(s.stars)}</div><p class="text-[9px] text-[#b8860b] font-black mt-0.5">${s.score} PTS</p></div>
+                </div>`:'').join('') || '<div class="text-center text-slate-400 p-4 text-[9px] font-bold uppercase tracking-widest">No Data</div>';
         },
         renderCharts: (d, w, p, n) => {
-            // Colors: Dark Blue (#1e3a8a), Dark Green (#064e3b), Gray (#64748b), Red (#991b1b)
-            const commonOptions = {
-                plugins: {
-                    datalabels: { color: '#ffffff', font: { weight: 'bold', size: 12 }, formatter: (value, ctx) => { let sum=0; let dataArr=ctx.chart.data.datasets[0].data; dataArr.map(data => { sum += data; }); return sum > 0 ? (value*100 / sum).toFixed(0)+"%" : ""; } }
-                }
-            };
-
+            const commonOptions = { plugins: { datalabels: { color: '#ffffff', font: { weight: 'bold', size: 10 }, formatter: (value, ctx) => { let sum=0; ctx.chart.data.datasets[0].data.map(data => sum += data); return sum > 0 ? (value*100 / sum).toFixed(0)+"%" : ""; } } } };
             const ctxPie = document.getElementById('chartOverallPie'); if(ctxPie) {
                 if(ChartInstances.overallPie) ChartInstances.overallPie.destroy();
-                ChartInstances.overallPie = new Chart(ctxPie, { type: 'doughnut', data: { labels: ['Completed', 'Pending Endorse', 'In Progress', 'Late/Parked'], datasets: [{ data: [d, w, p, n], backgroundColor: ['#064e3b', '#b45309', '#64748b', '#991b1b'], borderWidth: 2 }] }, options: { ...commonOptions, responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right', labels:{boxWidth:12, font:{size:10}} }, ...commonOptions.plugins } } });
+                ChartInstances.overallPie = new Chart(ctxPie, { type: 'doughnut', data: { labels: ['Completed', 'Pending Endorse', 'In Progress', 'Late/Parked'], datasets: [{ data: [d, w, p, n], backgroundColor: ['#064e3b', '#b45309', '#64748b', '#991b1b'], borderWidth: 2 }] }, options: { ...commonOptions, responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels:{boxWidth:10, font:{size:9}} }, ...commonOptions.plugins } } });
             }
-
             const ctxDist = document.getElementById('chartStaffDist'); if(ctxDist) {
                 if(ChartInstances.staffDist) ChartInstances.staffDist.destroy();
-                ChartInstances.staffDist = new Chart(ctxDist, { type: 'bar', data: { labels: AppState.db.departments.map(d=>d.split(' ')[0]), datasets: [{ label: 'Staff Count', backgroundColor: '#1e3a8a', data: AppState.db.departments.map(d => AppState.db.staff.filter(s => s.dept === d).length), borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid:{display:false} } }, plugins: { legend: { display: false } } } });
+                ChartInstances.staffDist = new Chart(ctxDist, { type: 'bar', data: { labels: AppState.db.departments.map(d=>d.split(' ')[0]), datasets: [{ label: 'Staff Count', backgroundColor: '#1e3a8a', data: AppState.db.departments.map(d => AppState.db.staff.filter(s => s.dept === d).length), borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid:{display:false}, ticks:{font:{size:9}} } }, plugins: { legend: { display: false } } } });
             }
-
             const ctxProg = document.getElementById('chartTaskProgress'); if(ctxProg) {
                 if(ChartInstances.taskProg) ChartInstances.taskProg.destroy();
                 const dt = AppState.db.tasks.slice(0, 15);
-                ChartInstances.taskProg = new Chart(ctxProg, { type: 'bar', data: { labels: dt.map(t => t.title.substring(0,15)), datasets: [{ data: dt.map(t => t.progress), backgroundColor: dt.map(t => UI.getStatusColor(t.status, t.progress, t.isLate)), borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { max: 100, beginAtZero: true }, y:{grid:{display:false}} }, plugins: { legend: { display: false }, datalabels: { color: '#ffffff', font: { weight: 'bold', size: 10 }, formatter: (value) => value + "%", anchor: 'end', align: 'start' } } } });
+                ChartInstances.taskProg = new Chart(ctxProg, { type: 'bar', data: { labels: dt.map(t => t.title.substring(0,15)), datasets: [{ data: dt.map(t => t.progress), backgroundColor: dt.map(t => UI.getStatusColor(t.status, t.progress, t.isLate)), borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { max: 100, beginAtZero: true }, y:{grid:{display:false}, ticks:{font:{size:9}}} }, plugins: { legend: { display: false }, datalabels: { color: '#ffffff', font: { weight: 'bold', size: 9 }, formatter: (value) => value + "%", anchor: 'end', align: 'start' } } } });
             }
         },
         renderParkedAndApprovals: () => {
@@ -925,62 +1101,47 @@
             document.getElementById('dashParkedList').innerHTML = pk.map(t => {
                 let s = AppState.db.staff.find(x => x.id === t.staffId);
                 return `
-                <div class="p-4 bg-white border border-red-200 rounded-lg shadow-sm border-l-[4px] border-l-red-700">
-                    <h4 class="text-sm font-bold text-slate-800">${t.title}</h4>
-                    <p class="text-[10px] text-slate-500 font-bold uppercase mt-1">Staff: <span class="text-[#1e3a8a]">${s?s.name:'Unk'}</span></p>
-                    <div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">
-                        <button onclick="TaskEngine.approve('${t.id}')" class="btn-base btn-success text-[9px] py-1.5 px-3 flex-1"><i class="fa-solid fa-check-double"></i> Override & Approve</button>
-                        <button onclick="TaskEngine.reject('${t.id}')" class="btn-base btn-danger text-[9px] py-1.5 px-3"><i class="fa-solid fa-rotate-left"></i> Return</button>
+                <div class="p-3 bg-white border border-red-200 rounded-lg shadow-sm border-l-[4px] border-l-red-700">
+                    <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${t.title}</h4>
+                    <p class="text-[9px] text-slate-500 font-bold uppercase mt-1">Staff: <span class="text-[#1e3a8a]">${s?s.name:'Unk'}</span></p>
+                    <div class="flex gap-2 mt-2 pt-2 border-t border-slate-100">
+                        <button onclick="TaskEngine.approve('${t.id}')" class="btn-base btn-success text-[8px] py-1 px-2 flex-1"><i class="fa-solid fa-check-double"></i> Override</button>
+                        <button onclick="TaskEngine.reject('${t.id}')" class="btn-base btn-danger text-[8px] py-1 px-2"><i class="fa-solid fa-rotate-left"></i> Return</button>
                     </div>
                 </div>`;
-            }).join('') || '<p class="text-xs text-slate-500 text-center py-8">No parked elements.</p>';
+            }).join('') || '<p class="text-[9px] text-slate-500 text-center py-6 uppercase font-bold">No parked elements.</p>';
 
             let wt = AppState.db.tasks.filter(t => t.status === 'Wait Endorse');
             document.getElementById('dashApprovalCount').innerText = wt.length;
             document.getElementById('dashApprovals').innerHTML = wt.map(t => {
                 let s = AppState.db.staff.find(x => x.id === t.staffId);
                 let badgeClass = t.isLate ? "bg-red-100 text-red-800 border-red-300" : "bg-orange-100 text-orange-800 border-orange-300";
-                let lateText = t.isLate ? "LATE " : "";
                 return `
-                <div class="p-4 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-[#064e3b] transition cursor-pointer" onclick="StaffTaskReport.open('${t.staffId}')">
-                    <div class="flex justify-between items-start mb-2">
-                        <h4 class="text-sm font-bold text-slate-800 pr-2">${t.title}</h4>
-                        <span class="text-[9px] ${badgeClass} px-2 py-0.5 rounded font-black border shrink-0">${lateText}${t.category}</span>
+                <div class="p-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-[#064e3b] transition cursor-pointer" onclick="StaffTaskReport.open('${t.staffId}')">
+                    <div class="flex justify-between items-start mb-1">
+                        <h4 class="text-xs font-bold text-slate-800 pr-2 line-clamp-1">${t.title}</h4>
+                        <span class="text-[8px] ${badgeClass} px-1.5 py-0.5 rounded font-black border shrink-0">${t.category}</span>
                     </div>
-                    <p class="text-[10px] text-slate-500 mb-3 font-bold uppercase">By: <span class="text-[#1e3a8a]">${s?s.name:'Unk'}</span> | Date: ${t.logDate}</p>
-                    <div class="flex gap-2 border-t pt-3 border-slate-100">
-                        <button onclick="event.stopPropagation(); TaskEngine.approve('${t.id}')" class="btn-base btn-success text-[9px] py-1.5 flex-1 shadow"><i class="fa-solid fa-check"></i> Approve</button>
-                        <button onclick="event.stopPropagation(); TaskEngine.park('${t.id}')" class="btn-base bg-slate-700 text-white text-[9px] py-1.5 px-3 shadow"><i class="fa-solid fa-pause"></i> Park</button>
+                    <p class="text-[9px] text-slate-500 mb-2 font-bold uppercase">By: <span class="text-[#1e3a8a]">${s?s.name:'Unk'}</span></p>
+                    <div class="flex gap-2 border-t pt-2 border-slate-100">
+                        <button onclick="event.stopPropagation(); TaskEngine.approve('${t.id}')" class="btn-base btn-success text-[8px] py-1 flex-1 shadow"><i class="fa-solid fa-check"></i> Approve</button>
+                        <button onclick="event.stopPropagation(); TaskEngine.park('${t.id}')" class="btn-base bg-slate-700 text-white text-[8px] py-1 px-2 shadow"><i class="fa-solid fa-pause"></i> Park</button>
                     </div>
                 </div>`;
-            }).join('') || '<div class="text-center text-slate-400 p-8 text-[11px] font-bold uppercase tracking-widest">All Clear</div>';
+            }).join('') || '<div class="text-center text-slate-400 p-6 text-[9px] font-bold uppercase tracking-widest">All Clear</div>';
         }
     };
 
     const TaskEngine = {
-        approve: (id) => {
-            let t = AppState.db.tasks.find(x=>x.id===id);
-            if(t) { t.status = 'Completed'; t.progress = 100; HybridCloud.save(); UI.showToast(`Approved`, "success"); DashboardEngine.render(); }
-        },
-        reject: (id) => {
-            let t = AppState.db.tasks.find(x=>x.id===id);
-            if(t) { t.status = 'Returned'; t.progress = 0; HybridCloud.save(); UI.showToast(`Returned to staff`, "warning"); DashboardEngine.render(); }
-        },
-        park: (id) => {
-            let t = AppState.db.tasks.find(x=>x.id===id);
-            if(t) { t.status = 'Parked'; HybridCloud.save(); UI.showToast(`Moved to Royal Park`, "info"); DashboardEngine.render(); }
-        },
-        renderAssignmentView: () => {
-            let dOpts = '<option value="">All Departments</option>' + AppState.db.departments.map(d=>`<option value="${d}">${d}</option>`).join('');
-            document.getElementById('taFilterDept').innerHTML = dOpts;
-            TaskEngine.loadStaffForAssignment();
-        },
+        approve: (id) => { let t = AppState.db.tasks.find(x=>x.id===id); if(t) { t.status = 'Completed'; t.progress = 100; HybridCloud.saveAutoLocal(); UI.showToast(`Approved`, "success"); DashboardEngine.render(); } },
+        reject: (id) => { let t = AppState.db.tasks.find(x=>x.id===id); if(t) { t.status = 'Returned'; t.progress = 0; HybridCloud.saveAutoLocal(); UI.showToast(`Returned`, "warning"); DashboardEngine.render(); } },
+        park: (id) => { let t = AppState.db.tasks.find(x=>x.id===id); if(t) { t.status = 'Parked'; HybridCloud.saveAutoLocal(); UI.showToast(`Parked`, "info"); DashboardEngine.render(); } },
+        renderAssignmentView: () => { let dOpts = '<option value="">All Departments</option>' + AppState.db.departments.map(d=>`<option value="${d}">${d}</option>`).join(''); document.getElementById('taFilterDept').innerHTML = dOpts; TaskEngine.loadStaffForAssignment(); },
         loadStaffForAssignment: () => {
-            const d = document.getElementById('taFilterDept').value; let f = AppState.db.staff;
-            if(d) f = f.filter(x=>x.dept===d);
+            const d = document.getElementById('taFilterDept').value; let f = AppState.db.staff; if(d) f = f.filter(x=>x.dept===d);
             document.getElementById('taskStaffSelectArea').innerHTML = f.map(s => `
-                <div class="p-3 border border-slate-200 rounded-lg hover:border-[#d4af37] hover:bg-yellow-50 cursor-pointer transition shadow-sm" onclick="document.getElementById('taTargetName').innerText='${s.name}'; window.taTargetId='${s.id}'; document.getElementById('taFormArea').classList.remove('opacity-50', 'pointer-events-none');">
-                    <h4 class="text-sm font-bold text-[#1e3a8a]">${s.name}</h4><p class="text-[9px] text-slate-500 font-bold uppercase mt-1">${s.dept}</p>
+                <div class="p-2 border border-slate-200 rounded-lg hover:border-[#d4af37] hover:bg-yellow-50 cursor-pointer transition shadow-sm" onclick="document.getElementById('taTargetName').innerText='${s.name}'; window.taTargetId='${s.id}'; document.getElementById('taFormArea').classList.remove('opacity-50', 'pointer-events-none');">
+                    <h4 class="text-xs font-bold text-[#1e3a8a]">${s.name}</h4><p class="text-[8px] text-slate-500 font-bold uppercase mt-0.5">${s.dept}</p>
                 </div>`).join('');
             TaskEngine.renderTracked();
         },
@@ -989,33 +1150,25 @@
             document.getElementById('taTrackedTasks').innerHTML = my.map(t => {
                 let s = AppState.db.staff.find(x=>x.id===t.staffId); let pc = UI.getStatusColor(t.status, t.progress, t.isLate);
                 return `
-                <div class="p-4 bg-white border border-slate-200 rounded-lg shadow-sm border-l-[6px]" style="border-left-color: ${pc}">
-                    <div class="flex justify-between items-start"><h4 class="text-sm font-bold text-slate-800">${t.title}</h4><span class="text-[8px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-black uppercase border border-slate-200">${t.category}</span></div>
-                    <p class="text-[10px] text-slate-500 font-bold uppercase mt-2">Assigned To: <span class="text-[#1e3a8a] cursor-pointer hover:underline" onclick="StaffTaskReport.open('${t.staffId}')">${s?s.name:'Unknown'}</span></p>
-                    <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-100">
-                        <span class="text-[10px] uppercase font-black px-2 py-1 rounded" style="color: ${pc}; background: ${pc}15">${t.status}</span>
-                        <span class="text-lg font-black" style="color: ${pc}">${t.progress}%</span>
+                <div class="p-3 bg-white border border-slate-200 rounded-lg shadow-sm border-l-[4px]" style="border-left-color: ${pc}">
+                    <div class="flex justify-between items-start"><h4 class="text-xs font-bold text-slate-800 line-clamp-1">${t.title}</h4><span class="text-[8px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-black uppercase border border-slate-200">${t.category}</span></div>
+                    <p class="text-[9px] text-slate-500 font-bold uppercase mt-1">To: <span class="text-[#1e3a8a] cursor-pointer" onclick="StaffTaskReport.open('${t.staffId}')">${s?s.name:'Unk'}</span></p>
+                    <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
+                        <span class="text-[8px] uppercase font-black px-1.5 py-0.5 rounded" style="color: ${pc}; background: ${pc}15">${t.status}</span>
+                        <span class="text-sm font-black" style="color: ${pc}">${t.progress}%</span>
                     </div>
                 </div>`;
-            }).join('') || '<p class="text-xs text-slate-400 p-6 text-center">No active assignments.</p>';
+            }).join('') || '<p class="text-[10px] text-slate-400 p-4 text-center font-bold uppercase tracking-widest">No active assignments.</p>';
         },
         assignTask: () => {
-            if(!window.taTargetId) return UI.showToast("Select target staff", "error");
-            const t = document.getElementById('taTitle').value.trim(); if(!t) return UI.showToast("Title required", "error");
-            const cat = document.getElementById('taDirCat').value;
-            const pts = document.getElementById('taPoints').value;
+            if(!window.taTargetId) return UI.showToast("Select target", "error");
+            const t = document.getElementById('taTitle').value.trim(); if(!t) return UI.showToast("Description required", "error");
+            const cat = document.getElementById('taDirCat').value; const pts = document.getElementById('taPoints').value;
             const today = new Date().toISOString().split('T')[0];
-
             let newTask = { id: generateUID('DIR'), staffId: window.taTargetId, title: t, category: cat, progress: 0, status: 'Pending', logDate: today, priority: document.getElementById('taPrio').value, assignedBy: CurrentUser.id };
-            
-            if(cat === 'ManualOverride') {
-                if(!pts) return UI.showToast("Points required for manual override", "error");
-                newTask.manualPoints = parseInt(pts);
-                newTask.progress = 100; newTask.status = 'Completed'; // Auto-complete manual marks
-            }
-
+            if(cat === 'ManualOverride') { if(!pts) return UI.showToast("Points required", "error"); newTask.manualPoints = parseInt(pts); newTask.progress = 100; newTask.status = 'Completed'; }
             AppState.db.tasks.push(newTask);
-            HybridCloud.save(); document.getElementById('taTitle').value = ''; document.getElementById('taPoints').value = ''; TaskEngine.renderTracked(); UI.showToast("Command Issued", "success");
+            document.getElementById('taTitle').value = ''; document.getElementById('taPoints').value = ''; TaskEngine.renderTracked(); UI.showToast("Command Issued", "success");
         },
         activeTaskEdit: null,
         openUpdateModal: (id) => {
@@ -1026,10 +1179,10 @@
         saveProgress: () => {
             let t = AppState.db.tasks.find(x=>x.id===TaskEngine.activeTaskEdit); if(!t) return;
             let v = parseInt(document.getElementById('updSlider').value); let f = document.getElementById('updFeedback').value.trim();
-            if(v===100 && f==='') return UI.showToast("Revision note required for 100%", "warning");
+            if(v===100 && f==='') return UI.showToast("Note required for 100%", "warning");
             t.progress = v; t.feedback = f;
             if(v===100) t.status = 'Wait Endorse'; else if(v>0) t.status = 'In Progress'; else t.status = 'Pending';
-            HybridCloud.save(); UI.closeModal('modalUpdateTask'); WorkspaceEngine.render(); UI.showToast("Progress Saved", "success");
+            HybridCloud.saveAutoLocal(); UI.closeModal('modalUpdateTask'); WorkspaceEngine.render(); UI.showToast("Progress Saved", "success");
         }
     };
 
@@ -1038,211 +1191,124 @@
             if(!CurrentUser) return;
             document.getElementById('wsName').innerText = CurrentUser.name; document.getElementById('wsDetails').innerText = CurrentUser.dept;
             let pStats = UI.calcScoreAndStars(CurrentUser.id);
-            document.getElementById('wsScoreDisplay').innerHTML = UI.renderStars(pStats.stars) + `<div class="text-xl font-black text-[#d4af37] mt-2">${pStats.score} PTS</div>`;
+            document.getElementById('wsScoreDisplay').innerHTML = UI.renderStars(pStats.stars) + `<div class="text-lg font-black text-[#d4af37] mt-1">${pStats.score} PTS</div>`;
 
             let act = AppState.db.tasks.filter(t => t.staffId === CurrentUser.id && t.status !== 'Completed').sort((a,b) => b.progress - a.progress);
-            document.getElementById('wsTaskCountBadge').innerText = `${act.length} Pending Actions`;
+            document.getElementById('wsTaskCountBadge').innerText = `${act.length} Pending`;
 
             document.getElementById('wsTaskList').innerHTML = act.map(t => {
                 let pc = UI.getStatusColor(t.status, t.progress, t.isLate);
-                let badge = `<span class="bg-slate-200 text-[#1e3a8a] px-2 py-0.5 rounded text-[9px] font-black uppercase mr-2 border border-slate-300 shadow-sm">${t.category||'Routine'}</span>`;
-                let statBadge = `<span class="text-[10px] font-black uppercase px-2 py-1 rounded" style="color:${pc}; background:${pc}10; border: 1px solid ${pc}50">${t.status}</span>`;
-                
-                let btn = '';
-                if(t.category === 'Directive' && t.status !== 'Wait Endorse' && t.status !== 'Parked') {
-                    btn = `<button onclick="TaskEngine.openUpdateModal('${t.id}')" class="btn-base btn-primary w-full mt-4 text-[10px] py-2.5 shadow-md">Update Progress</button>`;
-                }
-
-                let returnWarn = t.status === 'Returned' ? `<div class="bg-red-50 text-red-700 text-[10px] p-3 rounded mt-3 border border-red-200 font-bold shadow-inner"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Executive requested revisions. Please review.</div>` : '';
-                let lateWarn = t.isLate ? `<span class="bg-red-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase ml-2 late-badge">Late</span>` : '';
+                let badge = `<span class="bg-slate-200 text-[#1e3a8a] px-1.5 py-0.5 rounded text-[8px] font-black uppercase mr-2 border border-slate-300 shadow-sm">${t.category||'Routine'}</span>`;
+                let statBadge = `<span class="text-[8px] font-black uppercase px-2 py-1 rounded" style="color:${pc}; background:${pc}10; border: 1px solid ${pc}50">${t.status}</span>`;
+                let btn = ''; if(t.category === 'Directive' && t.status !== 'Wait Endorse' && t.status !== 'Parked') { btn = `<button onclick="TaskEngine.openUpdateModal('${t.id}')" class="btn-base btn-primary w-full mt-3 text-[9px] py-2 shadow-md">Update Progress</button>`; }
+                let returnWarn = t.status === 'Returned' ? `<div class="bg-red-50 text-red-700 text-[9px] p-2 rounded mt-2 border border-red-200 font-bold shadow-inner"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Revisions requested.</div>` : '';
+                let lateWarn = t.isLate ? `<span class="bg-red-600 text-white text-[7px] font-black px-1 py-0.5 rounded uppercase ml-2 late-badge">Late</span>` : '';
 
                 return `
-                <div class="bg-white p-5 border border-slate-200 rounded-xl shadow-md border-l-[6px] transition-all hover:shadow-lg" style="border-left-color: ${pc}">
-                    <div class="flex items-center mb-2">${badge} <span class="text-[10px] text-slate-500 font-bold"><i class="fa-solid fa-calendar-day mr-1"></i> ${t.logDate||''}</span> ${lateWarn}</div>
-                    <h4 class="font-bold text-[#0f172a] text-base mt-2">${t.title}</h4>
-                    <div class="flex justify-between items-center mt-4 pt-3 border-t border-slate-100">${statBadge} <span class="text-xl font-black" style="color:${pc}">${t.progress}%</span></div>
-                    <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mt-3 shadow-inner"><div class="h-2 rounded-full transition-all" style="width:${t.progress}%; background-color:${pc}"></div></div>
-                    ${returnWarn}
-                    ${btn}
+                <div class="bg-white p-4 border border-slate-200 rounded-lg shadow-sm border-l-[4px]" style="border-left-color: ${pc}">
+                    <div class="flex items-center mb-1">${badge} <span class="text-[9px] text-slate-500 font-bold"><i class="fa-solid fa-calendar-day mr-1"></i> ${t.logDate||''}</span> ${lateWarn}</div>
+                    <h4 class="font-bold text-[#0f172a] text-sm mt-1">${t.title}</h4>
+                    <div class="flex justify-between items-center mt-3 pt-2 border-t border-slate-100">${statBadge} <span class="text-lg font-black" style="color:${pc}">${t.progress}%</span></div>
+                    <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-2 shadow-inner"><div class="h-1.5 rounded-full transition-all" style="width:${t.progress}%; background-color:${pc}"></div></div>
+                    ${returnWarn} ${btn}
                 </div>`;
-            }).join('') || '<div class="text-center p-10 text-slate-400 text-sm font-bold uppercase tracking-widest border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">Operational Queue Clear</div>';
+            }).join('') || '<div class="text-center p-6 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-2 border-dashed border-slate-200 rounded-lg bg-slate-50">Queue Clear</div>';
         }
     };
 
     const ActivityLogger = {
+        populateCategories: () => {
+            const pts = AppState.db.pointSystem || PointSystem; let h = '';
+            for(const [k,v] of Object.entries(pts)) { if(k==='ManualOverride'||k==='Directive') continue; h += `<option value="${k}">${k} (${v} Pts)</option>`; }
+            document.getElementById('alCategory').innerHTML = h;
+        },
         openForm: () => { 
             document.getElementById('alTitle').value = ''; document.getElementById('otStart').value = ''; document.getElementById('otEnd').value = '';
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('logDateInput').value = today;
-            ActivityLogger.checkDate(); ActivityLogger.toggleOT();
-            UI.openModal('modalLogActivity'); 
+            document.getElementById('logDateInput').value = new Date().toISOString().split('T')[0]; ActivityLogger.checkDate(); ActivityLogger.toggleOT(); UI.openModal('modalLogActivity'); 
         },
-        checkDate: () => {
-            const today = new Date().toISOString().split('T')[0];
-            const selDate = document.getElementById('logDateInput').value;
-            const w = document.getElementById('lateWarning');
-            if(selDate < today) w.classList.remove('hidden'); else w.classList.add('hidden');
-        },
-        toggleOT: () => {
-            const cat = document.getElementById('alCategory').value;
-            if(cat === 'OT') document.getElementById('otFields').classList.remove('hidden');
-            else document.getElementById('otFields').classList.add('hidden');
-        },
+        checkDate: () => { const today = new Date().toISOString().split('T')[0]; const w = document.getElementById('lateWarning'); if(document.getElementById('logDateInput').value < today) w.classList.remove('hidden'); else w.classList.add('hidden'); },
+        toggleOT: () => { const cat = document.getElementById('alCategory').value; if(cat.includes('OT')) document.getElementById('otFields').classList.remove('hidden'); else document.getElementById('otFields').classList.add('hidden'); },
         submit: () => {
-            const c = document.getElementById('alCategory').value; const t = document.getElementById('alTitle').value.trim();
-            const logDate = document.getElementById('logDateInput').value;
-            const today = new Date().toISOString().split('T')[0];
-            const isLate = logDate < today;
-
-            if(!t) return UI.showToast("Description is required", "error");
-            
-            let otStart = null; let otEnd = null;
-            if(c === 'OT') {
-                otStart = document.getElementById('otStart').value; otEnd = document.getElementById('otEnd').value;
-                if(!otStart || !otEnd) return UI.showToast("Time required for Overtime", "error");
-            }
-
-            let initialStatus = 'Wait Endorse';
-            if(KeplerAPI.isAbsentToday(CurrentUser.id)) {
-                initialStatus = 'Parked'; 
-                UI.showToast("Kepler Attendance: Absent. Log diverted to Royal Park.", "warning");
-            } else { UI.showToast("Log submitted to Executive", "success"); }
-
-            AppState.db.tasks.push({ 
-                id: generateUID('LOG'), staffId: CurrentUser.id, title: t, category: c,
-                progress: 100, status: initialStatus, logDate: logDate, isLate: isLate, otStart: otStart, otEnd: otEnd, assignedBy: CurrentUser.id 
-            });
-            
-            HybridCloud.save(); UI.closeModal('modalLogActivity'); WorkspaceEngine.render(); 
+            const c = document.getElementById('alCategory').value; const t = document.getElementById('alTitle').value.trim(); const logDate = document.getElementById('logDateInput').value;
+            const today = new Date().toISOString().split('T')[0]; const isLate = logDate < today;
+            if(!t) return UI.showToast("Description required", "error");
+            let otStart = null; let otEnd = null; if(c.includes('OT')) { otStart = document.getElementById('otStart').value; otEnd = document.getElementById('otEnd').value; if(!otStart || !otEnd) return UI.showToast("Time required for OT", "error"); }
+            let initialStatus = KeplerAPI.isAbsentToday(CurrentUser.id) ? 'Parked' : 'Wait Endorse';
+            if(initialStatus==='Parked') UI.showToast("Absent in Kepler. Parked.", "warning"); else UI.showToast("Submitted to Executive", "success");
+            AppState.db.tasks.push({ id: generateUID('LOG'), staffId: CurrentUser.id, title: t, category: c, progress: 100, status: initialStatus, logDate: logDate, isLate: isLate, otStart: otStart, otEnd: otEnd, assignedBy: CurrentUser.id });
+            UI.closeModal('modalLogActivity'); WorkspaceEngine.render(); 
         }
     };
 
     const StaffDirectory = {
         render: () => {
-            const q = document.getElementById('dirSearch') ? document.getElementById('dirSearch').value.toLowerCase() : '';
-            const d = document.getElementById('dirDeptFilter') ? document.getElementById('dirDeptFilter').value : '';
+            const q = document.getElementById('dirSearch') ? document.getElementById('dirSearch').value.toLowerCase() : ''; const d = document.getElementById('dirDeptFilter') ? document.getElementById('dirDeptFilter').value : '';
             const f = AppState.db.staff.filter(s => (s.name.toLowerCase().includes(q) || s.idCard?.toLowerCase().includes(q) || s.indexNo?.toLowerCase().includes(q)) && (!d || s.dept === d));
             const tb = document.getElementById('dirTableBody'); if(!tb) return;
-            if(f.length === 0) { tb.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400 text-sm font-bold uppercase tracking-widest border-2 border-dashed">No Personnel Found.</td></tr>`; return; }
-            
+            if(f.length === 0) { tb.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400 text-xs font-bold uppercase tracking-widest border-2 border-dashed">No Personnel Found.</td></tr>`; return; }
             tb.innerHTML = f.map(s => {
                 let m = UI.calcScoreAndStars(s.id);
                 return `
                 <tr class="hover:bg-blue-50/50 transition border-b border-slate-100">
-                    <td class="p-4"><p class="font-mono text-[10px] font-black text-[#1e3a8a] bg-blue-100 px-2 py-1 inline-block rounded">${s.indexNo||'N/A'}</p><p class="text-[9px] text-slate-500 mt-1 uppercase font-bold">ID: ${s.idCard||'N/A'}</p></td>
-                    <td class="p-4 cursor-pointer" onclick="StaffTaskReport.open('${s.id}')"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-[#1e3a8a] text-white flex items-center justify-center font-bold text-sm shadow-md">${s.name.charAt(0)}</div><div><h4 class="font-bold text-sm text-[#0f172a] hover:text-[#d4af37] transition">${s.name}</h4><p class="text-[10px] text-slate-500 font-mono mt-0.5">${s.mobile||s.email}</p></div></div></td>
-                    <td class="p-4"><span class="block text-xs font-black text-[#1e3a8a] uppercase tracking-wider mb-1">${s.dept}</span><span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">${s.empType||'General'}</span></td>
-                    <td class="p-4"><span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded text-[10px] font-black uppercase border border-emerald-300 shadow-sm">${s.status||'Active'}</span></td>
-                    <td class="p-4 text-center">
-                        <div class="flex flex-col items-center gap-1">
-                            <div class="scale-75">${UI.renderStars(m.stars)}</div><p class="text-[9px] font-black text-[#b8860b]">${m.score} PTS</p>
-                            <button onclick="StaffDirectory.editStaff('${s.id}')" class="mt-2 text-[9px] bg-slate-800 text-white px-3 py-1 rounded auth-req auth-bureau-only hover:bg-[#d4af37] transition font-bold uppercase tracking-widest"><i class="fa-solid fa-pen mr-1"></i> Amend</button>
-                        </div>
-                    </td>
+                    <td class="p-3"><p class="font-mono text-[9px] font-black text-[#1e3a8a] bg-blue-100 px-1.5 py-0.5 inline-block rounded">${s.indexNo||'N/A'}</p><p class="text-[8px] text-slate-500 mt-1 uppercase font-bold">ID: ${s.idCard||'N/A'}</p></td>
+                    <td class="p-3 cursor-pointer" onclick="StaffTaskReport.open('${s.id}')"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-[#1e3a8a] text-white flex items-center justify-center font-bold text-xs shadow-md">${s.name.charAt(0)}</div><div><h4 class="font-bold text-xs text-[#0f172a] hover:text-[#d4af37] transition">${s.name}</h4><p class="text-[9px] text-slate-500 font-mono mt-0.5">${s.mobile||s.email}</p></div></div></td>
+                    <td class="p-3"><span class="block text-[10px] font-black text-[#1e3a8a] uppercase tracking-wider mb-0.5">${s.dept}</span><span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">${s.empType||'General'}</span></td>
+                    <td class="p-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-emerald-300 shadow-sm">${s.status||'Active'}</span></td>
+                    <td class="p-3 text-center"><div class="flex flex-col items-center gap-1"><div class="scale-75">${UI.renderStars(m.stars)}</div><p class="text-[8px] font-black text-[#b8860b]">${m.score} PTS</p><button onclick="StaffDirectory.editStaff('${s.id}')" class="mt-1 text-[8px] bg-slate-800 text-white px-2 py-0.5 rounded auth-req auth-bureau-only hover:bg-[#d4af37] transition font-bold uppercase tracking-widest"><i class="fa-solid fa-pen"></i></button></div></td>
                 </tr>`;
             }).join('');
         },
         saveStaff: () => {
-            const id = document.getElementById('stfIdHidden').value;
-            const name = document.getElementById('stfName').value.trim();
-            if(!name) return UI.showToast("Name is strictly required", "error");
-
-            let sData = {
-                name: name, indexNo: document.getElementById('stfIndex').value, recordNo: document.getElementById('stfRecord').value,
-                idCard: document.getElementById('stfIdCard').value, permAddress: document.getElementById('stfPermAddr').value,
-                currAddress: document.getElementById('stfCurrAddr').value, mobile: document.getElementById('stfMobile').value,
-                email: document.getElementById('stfEmail').value, role: document.getElementById('stfRole').value,
-                empType: document.getElementById('stfEmpType').value, status: document.getElementById('stfStatus').value,
-                dept: document.getElementById('stfDept').value, section: document.getElementById('stfSection').value
-            };
-
-            if(id) { let idx = AppState.db.staff.findIndex(x=>x.id===id); if(idx>-1) AppState.db.staff[idx] = {...AppState.db.staff[idx], ...sData}; }
-            else { sData.id = generateUID('EMP'); AppState.db.staff.push(sData); }
-            
-            HybridCloud.save(); UI.closeModal('modalAddStaff'); StaffDirectory.render(); UI.showToast("Profile Saved to Vault", "success");
+            const id = document.getElementById('stfIdHidden').value; const name = document.getElementById('stfName').value.trim();
+            if(!name) return UI.showToast("Name required", "error");
+            let sData = { name: name, indexNo: document.getElementById('stfIndex').value, recordNo: document.getElementById('stfRecord').value, idCard: document.getElementById('stfIdCard').value, permAddress: document.getElementById('stfPermAddr').value, currAddress: document.getElementById('stfCurrAddr').value, mobile: document.getElementById('stfMobile').value, email: document.getElementById('stfEmail').value, role: document.getElementById('stfRole').value, empType: document.getElementById('stfEmpType').value, status: document.getElementById('stfStatus').value, dept: document.getElementById('stfDept').value, section: document.getElementById('stfSection').value };
+            if(id) { let idx = AppState.db.staff.findIndex(x=>x.id===id); if(idx>-1) AppState.db.staff[idx] = {...AppState.db.staff[idx], ...sData}; } else { sData.id = generateUID('EMP'); AppState.db.staff.push(sData); }
+            UI.closeModal('modalAddStaff'); StaffDirectory.render(); UI.showToast("Profile Saved", "success");
         },
         editStaff: (id) => {
             let s = AppState.db.staff.find(x=>x.id===id); if(!s) return;
-            document.getElementById('stfIdHidden').value = s.id; document.getElementById('stfName').value = s.name;
-            document.getElementById('stfIndex').value = s.indexNo||''; document.getElementById('stfRecord').value = s.recordNo||'';
-            document.getElementById('stfIdCard').value = s.idCard||''; document.getElementById('stfPermAddr').value = s.permAddress||'';
-            document.getElementById('stfCurrAddr').value = s.currAddress||''; document.getElementById('stfMobile').value = s.mobile||'';
-            document.getElementById('stfEmail').value = s.email||''; document.getElementById('stfRole').value = s.role||'STAFF';
-            document.getElementById('stfEmpType').value = s.empType||'Civil Service'; document.getElementById('stfStatus').value = s.status||'Active';
-            document.getElementById('stfDept').value = s.dept||''; document.getElementById('stfSection').value = s.section||'';
-            document.getElementById('staffModalTitle').innerHTML = '<i class="fa-solid fa-user-pen mr-2"></i> Amend Profile';
-            UI.openModal('modalAddStaff');
+            document.getElementById('stfIdHidden').value = s.id; document.getElementById('stfName').value = s.name; document.getElementById('stfIndex').value = s.indexNo||''; document.getElementById('stfRecord').value = s.recordNo||''; document.getElementById('stfIdCard').value = s.idCard||''; document.getElementById('stfPermAddr').value = s.permAddress||''; document.getElementById('stfCurrAddr').value = s.currAddress||''; document.getElementById('stfMobile').value = s.mobile||''; document.getElementById('stfEmail').value = s.email||''; document.getElementById('stfRole').value = s.role||'STAFF'; document.getElementById('stfEmpType').value = s.empType||'Civil Service'; document.getElementById('stfStatus').value = s.status||'Active'; document.getElementById('stfDept').value = s.dept||''; document.getElementById('stfSection').value = s.section||'';
+            document.getElementById('staffModalTitle').innerHTML = '<i class="fa-solid fa-user-pen mr-2"></i> Amend Profile'; UI.openModal('modalAddStaff');
         },
-        amendAttendance: () => {
-            let p = prompt("Enter manual override for attendance percentage (0-100):");
-            if(p !== null && !isNaN(p)) {
-                let s = AppState.db.staff.find(x => x.id === StaffTaskReport.activeId);
-                if(s) { s.attendance = parseFloat(p); HybridCloud.save(); StaffTaskReport.open(s.id); PerformanceEngine.render(); UI.showToast("Attendance Amended", "success"); }
-            }
-        },
-        exportCSV: () => {
-            const csv = Papa.unparse(AppState.db.staff); const blob = new Blob(["\uFEFF"+csv], {type: 'text/csv;charset=utf-8;'});
-            const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `Royal_Directory_${new Date().getTime()}.csv`; link.click();
-            UI.showToast("Royal Directory Exported", "success");
-        },
-        importCSV: (e) => {
-            const file = e.target.files[0]; if(!file) return;
-            Papa.parse(file, { header: true, complete: function(results) {
-                let imported = 0;
-                results.data.forEach(r => {
-                    if(r.name || r['Full Name']) {
-                        AppState.db.staff.push({ id: generateUID('EMP'), name: r.name||r['Full Name'], email: r.email||r['Email'], dept: r.dept||r['Department'], empType: r.empType||r['Type']||'General', status: 'Active', role: 'STAFF' });
-                        imported++;
-                    }
-                });
-                HybridCloud.save(); StaffDirectory.render(); document.getElementById('csvImportFile').value = '';
-                UI.showToast(`${imported} Profiles Imported`, "success");
-            }});
+        amendAttendance: () => { let p = prompt("Override attendance % (0-100):"); if(p !== null && !isNaN(p)) { let s = AppState.db.staff.find(x => x.id === StaffTaskReport.activeId); if(s) { s.attendance = parseFloat(p); HybridCloud.saveAutoLocal(); StaffTaskReport.open(s.id); PerformanceEngine.render(); UI.showToast("Attendance Amended", "success"); } } },
+        exportFullCSV: () => { const csv = Papa.unparse(AppState.db.staff); const blob = new Blob(["\uFEFF"+csv], {type: 'text/csv;charset=utf-8;'}); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `Royal_Directory_${new Date().getTime()}.csv`; link.click(); UI.showToast("Exported", "success"); },
+        importCSV: (e) => { const file = e.target.files[0]; if(!file) return; Papa.parse(file, { header: true, complete: function(results) { let i=0; results.data.forEach(r => { if(r.name || r['Full Name']) { AppState.db.staff.push({ id: generateUID('EMP'), name: r.name||r['Full Name'], email: r.email||r['Email'], dept: r.dept||r['Department'], empType: r.empType||r['Type']||'General', status: 'Active', role: 'STAFF' }); i++; } }); StaffDirectory.render(); document.getElementById('csvImportFile').value = ''; UI.showToast(`${i} Profiles Imported`, "success"); }}); },
+        exportFullPDF: () => {
+            const { jsPDF } = window.jspdf; const doc = new jsPDF('landscape'); doc.setFontSize(12); doc.text("Presidential Master Directory", 14, 15);
+            doc.autoTable({ head: [['Index', 'ID', 'Name', 'Email', 'Dept', 'Type', 'Status']], body: AppState.db.staff.map(s => [s.indexNo||'-', s.idCard||'-', s.name, s.email, s.dept, s.empType, s.status]), startY: 20, styles: { fontSize: 7 } });
+            doc.save(`Master_Directory_${new Date().getTime()}.pdf`); UI.showToast("PDF Exported", "success");
         }
     };
 
     const OrgManager = {
-        render: () => {
-            document.getElementById('orgDeptList').innerHTML = AppState.db.departments.map(d => `<div class="p-4 bg-white border border-slate-200 rounded-lg mb-3 text-sm font-bold text-[#1e3a8a] shadow hover:border-[#d4af37] cursor-pointer flex justify-between transition" onclick="document.getElementById('orgSecFilter').value='${d}'; OrgManager.renderSections()"><span class="uppercase tracking-widest">${d}</span><i class="fa-solid fa-chevron-right text-slate-300"></i></div>`).join('');
-            document.getElementById('orgSecFilter').innerHTML = AppState.db.departments.map(d => `<option value="${d}">${d}</option>`).join('');
-            OrgManager.renderSections();
-        },
-        renderSections: () => {
-            const d = document.getElementById('orgSecFilter').value; if(!d || !AppState.db.sections[d]) return;
-            document.getElementById('orgSecList').innerHTML = AppState.db.sections[d].map(s => `<div class="p-4 bg-blue-50/50 border border-blue-100 rounded-lg mb-3 text-xs font-bold text-blue-900 shadow-sm flex justify-between uppercase tracking-widest"><span><i class="fa-solid fa-layer-group mr-2 text-[#d4af37]"></i> ${s}</span></div>`).join('');
-        },
-        addDept: () => {
-            let n = prompt("Enter new Department Name:");
-            if(n) { AppState.db.departments.push(n); AppState.db.sections[n] = []; HybridCloud.save(); OrgManager.render(); }
-        },
-        addSec: () => {
-            let d = document.getElementById('orgSecFilter').value; let n = prompt("Enter new Section Name:");
-            if(d && n) { AppState.db.sections[d].push(n); HybridCloud.save(); OrgManager.renderSections(); }
-        }
+        render: () => { document.getElementById('orgDeptList').innerHTML = AppState.db.departments.map(d => `<div class="p-3 bg-white border border-slate-200 rounded-lg mb-2 text-xs font-bold text-[#1e3a8a] shadow hover:border-[#d4af37] cursor-pointer flex justify-between transition" onclick="document.getElementById('orgSecFilter').value='${d}'; OrgManager.renderSections()"><span class="uppercase tracking-widest">${d}</span></div>`).join(''); document.getElementById('orgSecFilter').innerHTML = AppState.db.departments.map(d => `<option value="${d}">${d}</option>`).join(''); OrgManager.renderSections(); },
+        renderSections: () => { const d = document.getElementById('orgSecFilter').value; if(!d || !AppState.db.sections[d]) return; document.getElementById('orgSecList').innerHTML = AppState.db.sections[d].map(s => `<div class="p-3 bg-blue-50/50 border border-blue-100 rounded-lg mb-2 text-[10px] font-bold text-blue-900 shadow-sm uppercase tracking-widest"><i class="fa-solid fa-layer-group mr-2 text-[#d4af37]"></i> ${s}</div>`).join(''); },
+        addDept: () => { let n = prompt("Enter new Department Name:"); if(n) { AppState.db.departments.push(n); AppState.db.sections[n] = []; HybridCloud.saveAutoLocal(); OrgManager.render(); } },
+        addSec: () => { let d = document.getElementById('orgSecFilter').value; let n = prompt("Enter new Section Name:"); if(d && n) { AppState.db.sections[d].push(n); HybridCloud.saveAutoLocal(); OrgManager.renderSections(); } }
     };
 
     const PerformanceEngine = {
         render: () => {
+            const ptsObj = AppState.db.pointSystem || PointSystem;
+            let headers = `<th class="p-3">Staff Profile</th><th class="p-3 text-center border-l border-slate-200">Att %</th>`;
+            for(const [k,v] of Object.entries(ptsObj)) { if(k!=='ManualOverride' && k!=='Directive') headers += `<th class="p-3 text-center" title="${k}">${k} <span class="text-[7px]">(${v})</span></th>`; }
+            headers += `<th class="p-3 text-center border-l border-slate-200 bg-[#d4af37]/10 text-[#b8860b]">Final Pts</th>`;
+            document.getElementById('perfTableHeadRow').innerHTML = headers;
+
             let sc = AppState.db.staff.map(s => ({ ...s, ...UI.calcScoreAndStars(s.id) })).sort((a,b)=>b.score - a.score);
-            document.getElementById('perfTableBody').innerHTML = sc.map((s,i) => `
-                <tr class="hover:bg-slate-100 border-b border-slate-200 transition cursor-pointer" onclick="StaffTaskReport.open('${s.id}')">
-                    <td class="p-4">
-                        <span class="font-black text-[#1e3a8a] text-sm">${s.name}</span>
-                        ${i<3?`<span class="text-[9px] bg-[#d4af37] text-black px-2 py-0.5 rounded-full ml-2 font-black shadow uppercase tracking-widest">Top ${i+1}</span>`:''}
-                        <p class="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-widest">${s.dept}</p>
-                    </td>
-                    <td class="p-4 text-center text-sm font-black border-l border-slate-200">${s.att}%</td>
-                    <td class="p-4 text-center text-xs font-bold text-blue-900 bg-blue-50/50">${s.breakdown['Daily Routine']||0}</td>
-                    <td class="p-4 text-center text-xs font-bold text-purple-900 bg-purple-50/50">${s.breakdown['Additional Task']||0}</td>
-                    <td class="p-4 text-center text-xs font-bold text-orange-900 bg-orange-50/50">${s.breakdown['Committee']||0}</td>
-                    <td class="p-4 text-center text-xs font-bold text-emerald-900 bg-emerald-50/50">${s.breakdown['Meeting']||0}</td>
-                    <td class="p-4 text-center text-xs font-bold text-rose-900 bg-rose-50/50">${s.breakdown['Event']||0}</td>
-                    <td class="p-4 text-center text-xs font-bold text-indigo-900 bg-indigo-50/50">${s.breakdown['Promotion']||0}</td>
-                    <td class="p-4 text-center text-xs font-bold text-cyan-900 bg-cyan-50/50">${s.breakdown['Research']||0}</td>
-                    <td class="p-4 text-center text-xs font-bold text-fuchsia-900 bg-fuchsia-50/50">${s.breakdown['Publishing']||0}</td>
-                    <td class="p-4 text-center text-xs font-bold text-amber-900 bg-amber-50/50">${s.breakdown['Supervising']||0}</td>
-                    <td class="p-4 text-center bg-[#d4af37]/10 border-l border-slate-200"><div class="flex flex-col items-center"><div class="scale-90">${UI.renderStars(s.stars)}</div><span class="text-[12px] mt-1 font-black text-[#b8860b]">${s.score} PTS</span></div></td>
-                </tr>`).join('');
+            document.getElementById('perfTableBody').innerHTML = sc.map((s,i) => {
+                let row = `<tr class="hover:bg-slate-100 border-b border-slate-200 transition cursor-pointer" onclick="StaffTaskReport.open('${s.id}')">
+                    <td class="p-3"><span class="font-black text-[#1e3a8a] text-xs">${s.name}</span>${i<3?`<span class="text-[8px] bg-[#d4af37] text-black px-1.5 py-0.5 rounded-full ml-1 font-black shadow uppercase tracking-widest">Top ${i+1}</span>`:''}<p class="text-[8px] text-slate-500 font-bold uppercase mt-0.5 tracking-widest">${s.dept}</p></td>
+                    <td class="p-3 text-center text-xs font-black border-l border-slate-200">${s.att}%</td>`;
+                for(const k of Object.keys(ptsObj)) { if(k!=='ManualOverride' && k!=='Directive') row += `<td class="p-3 text-center text-[10px] font-bold">${s.breakdown[k]||0}</td>`; }
+                row += `<td class="p-3 text-center bg-[#d4af37]/10 border-l border-slate-200"><div class="flex flex-col items-center"><div class="scale-75">${UI.renderStars(s.stars)}</div><span class="text-[10px] mt-0.5 font-black text-[#b8860b]">${s.score} PTS</span></div></td></tr>`;
+                return row;
+            }).join('');
+        },
+        generateReportPDF: () => {
+            const { jsPDF } = window.jspdf; const doc = new jsPDF('landscape'); doc.setFontSize(14); doc.text("Presidential Performance Matrix", 14, 15);
+            doc.autoTable({ html: '#perfTableObj', startY: 22, styles: { fontSize: 6 }, headStyles: { fillColor: [30, 58, 138] } });
+            doc.save(`Performance_Matrix_${new Date().getTime()}.pdf`); UI.showToast("Matrix Exported", "success");
         }
     };
 
@@ -1251,53 +1317,36 @@
         open: (id) => {
             StaffTaskReport.activeId = id; let s = AppState.db.staff.find(x => x.id === id); if(!s) return;
             document.getElementById('repName').innerText = s.name; document.getElementById('repId').innerText = s.idCard||'N/A'; document.getElementById('repIndex').innerText = s.indexNo||'N/A';
-            document.getElementById('repDept').innerText = `${s.dept} | ${s.section||'General'}`;
-            document.getElementById('repAddr').innerText = `${s.currAddress||'No Address Provided'} • ${s.mobile||'No Mobile'}`;
-            document.getElementById('repStatus').innerText = s.status||'Active';
+            document.getElementById('repDept').innerText = `${s.dept} | ${s.section||'General'}`; document.getElementById('repAddr').innerText = `${s.currAddress||'No Address Provided'} • ${s.mobile||'No Mobile'}`; document.getElementById('repStatus').innerText = s.status||'Active';
+            let pts = UI.calcScoreAndStars(id); document.getElementById('repStars').innerHTML = UI.renderStars(pts.stars); document.getElementById('repTotalPts').innerText = `${pts.score} TOTAL POINTS`; document.getElementById('repAttVal').innerText = `${pts.att}%`;
             
-            let pts = UI.calcScoreAndStars(id);
-            document.getElementById('repStars').innerHTML = UI.renderStars(pts.stars);
-            document.getElementById('repTotalPts').innerText = `${pts.score} TOTAL POINTS`;
-            document.getElementById('repAttVal').innerText = `${pts.att}%`;
+            let bHtml = ''; for (const [cat, score] of Object.entries(pts.breakdown)) { bHtml += `<div class="bg-white p-2 rounded border border-slate-200 text-center shadow-sm"><p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">${cat}</p><p class="text-sm font-black text-[#1e3a8a]">${score}</p></div>`; }
+            document.getElementById('repCategoryBreakdown').innerHTML = bHtml || '<div class="col-span-3 text-[10px] text-slate-400 p-3 border border-dashed text-center rounded">No points.</div>';
 
-            let bHtml = '';
-            for (const [cat, score] of Object.entries(pts.breakdown)) {
-                bHtml += `<div class="bg-white p-3 rounded-lg border border-slate-200 text-center shadow-sm"><p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">${cat}</p><p class="text-xl font-black text-[#1e3a8a]">${score}</p></div>`;
-            }
-            document.getElementById('repCategoryBreakdown').innerHTML = bHtml || '<div class="col-span-2 text-xs text-slate-400 p-4 border-2 border-dashed text-center rounded">No points recorded.</div>';
-
-            StaffTaskReport.filter('All'); 
-            UI.openModal('modalStaffTaskReport');
+            StaffTaskReport.filter('All'); UI.openModal('modalStaffTaskReport');
         },
         filter: (t) => { StaffTaskReport.currentFilter = t; StaffTaskReport.renderList(); },
         renderList: () => {
             let tks = AppState.db.tasks.filter(t => t.staffId === StaffTaskReport.activeId).sort((a,b) => new Date(b.logDate) - new Date(a.logDate));
             if(StaffTaskReport.currentFilter === 'Directive') tks = tks.filter(t => t.category === 'Directive' || t.category === 'ManualOverride');
-            if(StaffTaskReport.currentFilter === 'Parked') tks = tks.filter(t => t.status === 'Parked');
-
+            
             document.getElementById('repTaskList').innerHTML = tks.map(t => {
                 let pc = UI.getStatusColor(t.status, t.progress, t.isLate);
-                let catBadge = `<span class="bg-slate-100 text-[#1e3a8a] px-2 py-0.5 rounded text-[8px] uppercase font-black mr-2 border border-slate-200 shadow-sm">${t.category||'Routine'}</span>`;
-                let timeStr = t.otStart ? `<span class="text-purple-600 font-bold ml-3"><i class="fa-solid fa-clock"></i> OT: ${t.otStart} - ${t.otEnd}</span>` : '';
-                let lateBadge = t.isLate ? `<span class="bg-red-600 text-white text-[8px] px-1.5 py-0.5 font-black uppercase rounded ml-2 late-badge">Late</span>` : '';
-                
+                let catBadge = `<span class="bg-slate-100 text-[#1e3a8a] px-1.5 py-0.5 rounded text-[7px] uppercase font-black mr-2 border border-slate-200 shadow-sm">${t.category||'Routine'}</span>`;
+                let lateBadge = t.isLate ? `<span class="bg-red-600 text-white text-[7px] px-1 py-0.5 font-black uppercase rounded ml-2 late-badge">Late</span>` : '';
                 return `
-                <div class="bg-white border border-slate-200 rounded-xl p-5 mb-3 border-l-[6px] shadow-sm" style="border-left-color: ${pc}">
-                    <div class="flex justify-between items-start mb-3"><div>${catBadge} ${lateBadge}<h5 class="text-sm font-bold text-[#0f172a] mt-2 block">${t.title}</h5></div></div>
-                    <div class="w-full bg-slate-100 h-1.5 mb-3 rounded-full overflow-hidden shadow-inner"><div class="h-1.5 rounded-full" style="width:${t.progress}%; background-color:${pc}"></div></div>
-                    <div class="flex justify-between text-[10px] font-bold text-slate-500 uppercase mt-3 pt-3 border-t border-slate-100">
-                        <span><i class="fa-solid fa-calendar-day mr-1"></i> ${t.logDate||'N/A'} ${timeStr}</span><span style="color:${pc}" class="font-black bg-slate-50 px-2 py-1 border border-slate-200 rounded">${t.status}</span>
+                <div class="bg-white border border-slate-200 rounded p-3 mb-2 border-l-[4px] shadow-sm" style="border-left-color: ${pc}">
+                    <div class="flex justify-between items-start mb-2"><div>${catBadge} ${lateBadge}<h5 class="text-[11px] font-bold text-[#0f172a] mt-1 block">${t.title}</h5></div></div>
+                    <div class="w-full bg-slate-100 h-1 mb-2 rounded-full overflow-hidden shadow-inner"><div class="h-1 rounded-full" style="width:${t.progress}%; background-color:${pc}"></div></div>
+                    <div class="flex justify-between text-[8px] font-bold text-slate-500 uppercase mt-2 pt-2 border-t border-slate-50">
+                        <span><i class="fa-solid fa-calendar-day mr-1"></i> ${t.logDate||'N/A'}</span><span style="color:${pc}" class="font-black bg-slate-50 px-1 py-0.5 border border-slate-200 rounded">${t.status}</span>
                     </div>
                 </div>`;
-            }).join('') || '<div class="text-center p-8 text-slate-400 text-xs font-bold uppercase tracking-widest border-2 border-dashed rounded-xl bg-slate-50">No Operations Recorded</div>';
+            }).join('') || '<div class="text-center p-6 text-slate-400 text-[9px] font-bold uppercase tracking-widest border border-dashed rounded bg-slate-50">No Operations Recorded</div>';
         },
         exportPDF: () => {
-            UI.showToast("Generating Royal PDF...", "info");
-            const el = document.getElementById('reportContentArea');
-            document.querySelectorAll('.no-print').forEach(e => e.style.display = 'none');
-            html2pdf().set({ margin: 15, filename: `Royal_Dossier_${StaffTaskReport.activeId}.pdf`, image: { type: 'jpeg', quality: 1.0 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(el).save().then(() => {
-                document.querySelectorAll('.no-print').forEach(e => e.style.display = ''); UI.showToast("Dossier Exported", "success");
-            });
+            UI.showToast("Generating Royal PDF...", "info"); const el = document.getElementById('reportContentArea'); document.querySelectorAll('.no-print').forEach(e => e.style.display = 'none');
+            html2pdf().set({ margin: 15, filename: `Royal_Dossier_${StaffTaskReport.activeId}.pdf`, image: { type: 'jpeg', quality: 1.0 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(el).save().then(() => { document.querySelectorAll('.no-print').forEach(e => e.style.display = ''); UI.showToast("Dossier Exported", "success"); });
         }
     };
 
