@@ -15,11 +15,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800;900&family=Cinzel:wght@600;700;800;900&display=swap');
@@ -579,9 +574,15 @@
 
                 <!-- VIEW: ACTION CENTER (Approvals & Tasks) -->
                 <div id="view-actionCenter" class="tab-section max-w-7xl mx-auto space-y-6 auth-req auth-bureau auth-hod w-full">
-                    <div class="dashboard-card p-6 bg-slate-50 shadow-inner">
-                        <h3 class="royal-font text-2xl font-black text-[#0f172a] uppercase tracking-widest mb-2"><i class="fa-solid fa-clipboard-check text-[#d4af37] mr-3"></i> Unified Action Center</h3>
-                        <p class="text-xs text-slate-500 font-bold uppercase tracking-widest border-b border-slate-300 pb-4 mb-6">Review, Endorse, or Return Staff Submissions.</p>
+                    <div class="dashboard-card p-6 bg-slate-50 shadow-inner relative">
+                        <div class="flex justify-between items-start mb-6 border-b border-slate-300 pb-4">
+                            <div>
+                                <h3 class="royal-font text-2xl font-black text-[#0f172a] uppercase tracking-widest mb-2"><i class="fa-solid fa-clipboard-check text-[#d4af37] mr-3"></i> Unified Action Center</h3>
+                                <p class="text-xs text-slate-500 font-bold uppercase tracking-widest">Review, Endorse, or Assign Staff Submissions.</p>
+                            </div>
+                            <!-- Assign Task Button -->
+                            <button onclick="TaskEngine.openAssignModal()" class="btn-base btn-primary text-xs shadow-lg auth-req auth-bureau-only"><i class="fa-solid fa-thumbtack mr-2"></i> Assign Task</button>
+                        </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="actionCenterGrid">
                             <!-- Populated by JS -->
@@ -818,6 +819,37 @@
 </div>
 
 <!-- MODALS -->
+
+<!-- Assign Task Modal (Executive/HOD Only) -->
+<div id="modalAssignTask" class="modal-backdrop">
+    <div class="modal-container max-w-lg border-t-[8px] border-[#1e3a8a]">
+        <div class="modal-header">
+            <h2 class="royal-font font-black text-[#0f172a] text-lg uppercase tracking-widest"><i class="fa-solid fa-thumbtack text-[#d4af37] mr-2"></i> Assign Directive / Task</h2>
+            <button onclick="UI.closeModal('modalAssignTask')" class="text-slate-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body space-y-4 bg-slate-50">
+            <div class="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
+                <div class="mb-4">
+                    <label class="label-base">Assign To (Staff Member)</label>
+                    <select id="atStaff" class="input-base font-bold text-[#1e3a8a]"></select>
+                </div>
+                <div class="mb-4">
+                    <label class="label-base">Task Title</label>
+                    <input type="text" id="atTitle" class="input-base" placeholder="Enter specific task name...">
+                </div>
+                <div class="mb-4">
+                    <label class="label-base text-[#991b1b]">Deadline (Due Date)</label>
+                    <input type="date" id="atDueDate" class="input-base text-center font-black text-[#0f172a]">
+                </div>
+                <div class="mb-4">
+                    <label class="label-base">Instructions / Guidelines</label>
+                    <textarea id="atInstructions" class="input-base h-24 resize-none" placeholder="Provide clear instructions on how to execute this task..."></textarea>
+                </div>
+                <button onclick="TaskEngine.submitAssignedTask()" class="btn-base btn-primary w-full py-3 shadow-[0_5px_15px_rgba(30,58,138,0.3)] text-sm"><i class="fa-solid fa-paper-plane mr-2"></i> Dispatch Directive</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Task Update Modal (For Staff) -->
 <div id="modalTaskUpdate" class="modal-backdrop">
@@ -1441,6 +1473,47 @@
 
     const TaskEngine = {
         activeTaskId: null,
+        openAssignModal: () => {
+            let staffOpts = '<option value="">Select Personnel...</option>';
+            AppState.db.staff.forEach(s => {
+                if(s.status === 'Active') staffOpts += `<option value="${s.id}">${s.name} (${s.jobTitle} - ${s.dept})</option>`;
+            });
+            document.getElementById('atStaff').innerHTML = staffOpts;
+            
+            document.getElementById('atTitle').value = '';
+            document.getElementById('atDueDate').value = '';
+            document.getElementById('atInstructions').value = '';
+            
+            UI.openModal('modalAssignTask');
+        },
+        submitAssignedTask: () => {
+            const staffId = document.getElementById('atStaff').value;
+            const title = document.getElementById('atTitle').value.trim();
+            const dueDate = document.getElementById('atDueDate').value;
+            const inst = document.getElementById('atInstructions').value.trim();
+            
+            if(!staffId || !title || !dueDate) return UI.showToast("Staff, Title, and Due Date are required", "error");
+            
+            AppState.db.tasks.push({ 
+                id: generateUID('DIR'), 
+                staffId: staffId, 
+                title: title, 
+                category: 'Directive', 
+                progress: 0, 
+                status: 'In Progress', 
+                logDate: new Date().toISOString().split('T')[0], 
+                dueDate: dueDate,
+                instructions: inst,
+                isLate: false, 
+                assignedBy: CurrentUser.id,
+                updates: [{date: new Date().toLocaleString(), text: `Task officially assigned by Executive.`}]
+            });
+            
+            HybridCloud.saveAutoLocal(); 
+            UI.closeModal('modalAssignTask'); 
+            DashboardEngine.render();
+            UI.showToast("Directive Dispatched Successfully", "success");
+        },
         openUpdateModal: (id) => {
             TaskEngine.activeTaskId = id;
             let t = AppState.db.tasks.find(x => x.id === id);
@@ -1490,7 +1563,6 @@
             UI.showToast("Progress successfully documented.", "success");
         },
         remind: (id) => {
-            // Placeholder for notification system
             UI.showToast("Official reminder sent to staff member.", "info");
         },
         openCommentModal: (id) => {
@@ -1898,7 +1970,7 @@
             
             const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Ibrahim", "Fathimath", "Aminath", "Aishath", "Mariyam", "Khadheeja", "Hawwa", "Moosa", "Ismail", "Yusuf", "Zainab"];
             const lastNames = ["Manik", "Didi", "Rasheed", "Shareef", "Waheed", "Naseer", "Shihab", "Zahir", "Faheem", "Najeeb", "Luthfee", "Jaleel"];
-            const empTypes = ["Civil Service", "Civil Service", "Civil Service", "Consultant", "Academic", "Advisor"]; // Civil Service ގިނަކުރަން
+            const empTypes = ["Civil Service", "Civil Service", "Civil Service", "Consultant", "Academic", "Advisor"]; 
             
             const depts = {
                 "Executive Office": ["Strategy", "Legal"], 
@@ -1910,7 +1982,6 @@
             let data = [];
             let counter = 1;
 
-            // ޑަމީ މުވައްޒަފުން އުފައްދާ ފަންކްޝަން
             const generateRow = (dept, section, role, headStatus, titlePrefix, typePrefix) => {
                 let fn = firstNames[Math.floor(Math.random() * firstNames.length)];
                 let ln = lastNames[Math.floor(Math.random() * lastNames.length)];
@@ -1942,29 +2013,23 @@
             // 2. ކޮންމެ ޑިޕާރޓްމެންޓަކަށް އަދި ސެކްޝަނަކަށް މުވައްޒަފުން އެލޮކޭޓް ކުރުން
             for (const [dept, sections] of Object.entries(depts)) {
                 
-                // ޑިޕާރޓްމެންޓް ހެޑް އުފެއްދުން (އެގްޒެކްޓިވް އޮފީސް ފިޔަވާ)
                 if(dept !== "Executive Office") {
                     data.push(generateRow(dept, "General", "HOD", "Department Head", "Director General", "Civil Service"));
                 }
 
-                // ޑިޕާރޓްމެންޓް ލެވެލްގެ 10 ސްޓާފުން
                 for(let i=0; i<9; i++) {
                     data.push(generateRow(dept, "General", "STAFF", "None", "Senior Officer", "Civil Service"));
                 }
 
-                // ކޮންމެ ސެކްޝަނަކަށް
                 for (const sec of sections) {
-                    // 1 ސެކްޝަން ހެޑް
                     data.push(generateRow(dept, sec, "HOD", "Section Head", "Director", "Civil Service"));
                     
-                    // 49 ސެކްޝަން ލެވެލް ސްޓާފުން (ޖުމްލަ 50 ކުރުމަށް)
                     for(let i=0; i<49; i++) {
                         data.push(generateRow(dept, sec, "STAFF", "None", "Officer", "Civil Service"));
                     }
                 }
             }
 
-            // ފައިލް ޑައުންލޯޑް ކުރުން
             const csv = Papa.unparse(data); 
             const blob = new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8;'}); 
             const link = document.createElement("a"); 
@@ -2332,14 +2397,18 @@
                 let returnWarn = t.status === 'Returned' ? `<div class="bg-red-50 text-red-800 text-[10px] p-3 rounded mt-3 border border-red-200 font-bold shadow-inner"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Revisions requested by Executive.</div>` : '';
                 let lateWarn = t.isLate ? `<span class="bg-red-600 text-white text-[8px] font-black px-2 py-0.5 rounded uppercase ml-2 shadow-sm animate-pulse">LATE</span>` : '';
 
+                let dueBlock = t.dueDate ? `<span class="bg-red-50 text-red-800 px-2 py-0.5 rounded text-[8px] font-black uppercase ml-2 border border-red-200 shadow-sm"><i class="fa-solid fa-calendar-xmark mr-1"></i> DUE: ${t.dueDate}</span>` : '';
+                let instBlock = t.instructions ? `<div class="bg-blue-50 p-3 rounded mt-3 border border-blue-200 text-[10px] text-blue-900"><strong class="uppercase tracking-widest block mb-1"><i class="fa-solid fa-circle-info mr-1"></i> Executive Instructions:</strong>${t.instructions}</div>` : '';
+
                 return `
                 <div class="bg-white p-5 border border-slate-200 rounded-xl shadow-sm border-l-[5px] relative transition hover:shadow-md" style="border-left-color: ${pc}">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center">${catBadge} ${lateWarn}</div>
+                        <div class="flex items-center">${catBadge} ${lateWarn} ${dueBlock}</div>
                         <span class="text-[9px] text-slate-400 font-bold font-mono"><i class="fa-solid fa-clock mr-1"></i> ${t.logDate||''}</span> 
                     </div>
-                    <h4 class="font-black text-[#0f172a] text-base mt-2 mb-4 leading-tight">${t.title}</h4>
-                    <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-black text-[#0f172a] text-base mt-2 mb-2 leading-tight">${t.title}</h4>
+                    ${instBlock}
+                    <div class="flex justify-between items-center mb-2 mt-4">
                         ${statBadge} 
                         <span class="text-xl font-black" style="color:${pc}">${t.progress || 0}%</span>
                     </div>
