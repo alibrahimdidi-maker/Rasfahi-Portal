@@ -1894,17 +1894,85 @@
             }
         },
         downloadDummyCSV: () => {
-            const data = [
-                {"Index No": "IDX-9001", "Record No": "REC-111", "ID Card": "A001234", "Full Name": "Ali Manik", "Job Title": "Director", "Email": "ali@example.com", "Mobile": "7771111", "Department": "Executive Office", "Section": "Strategy", "Type": "Political", "Role": "BUREAU", "Head Status": "Department Head"},
-                {"Index No": "IDX-9002", "Record No": "REC-112", "ID Card": "A005678", "Full Name": "Fathimath Didi", "Job Title": "Officer", "Email": "fathu@example.com", "Mobile": "7772222", "Department": "Human Resources", "Section": "Welfare", "Type": "Civil Service", "Role": "STAFF", "Head Status": "None"}
-            ];
+            UI.showToast("Generating Massive Dummy Data...", "info");
+            
+            const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Ibrahim", "Fathimath", "Aminath", "Aishath", "Mariyam", "Khadheeja", "Hawwa", "Moosa", "Ismail", "Yusuf", "Zainab"];
+            const lastNames = ["Manik", "Didi", "Rasheed", "Shareef", "Waheed", "Naseer", "Shihab", "Zahir", "Faheem", "Najeeb", "Luthfee", "Jaleel"];
+            const empTypes = ["Civil Service", "Civil Service", "Civil Service", "Consultant", "Academic", "Advisor"]; // Civil Service ގިނަކުރަން
+            
+            const depts = {
+                "Executive Office": ["Strategy", "Legal"], 
+                "Human Resources": ["Recruitment", "Welfare"],
+                "Finance": ["Treasury"], 
+                "Information Technology": ["Infrastructure", "Development"]
+            };
+
+            let data = [];
+            let counter = 1;
+
+            // ޑަމީ މުވައްޒަފުން އުފައްދާ ފަންކްޝަން
+            const generateRow = (dept, section, role, headStatus, titlePrefix, typePrefix) => {
+                let fn = firstNames[Math.floor(Math.random() * firstNames.length)];
+                let ln = lastNames[Math.floor(Math.random() * lastNames.length)];
+                let empType = typePrefix ? typePrefix : empTypes[Math.floor(Math.random() * empTypes.length)];
+                
+                let row = {
+                    "Index No": "IDX-" + (1000 + counter),
+                    "Record No": "REC-" + (5000 + counter),
+                    "ID Card": "A" + (100000 + counter),
+                    "Full Name": fn + " " + ln,
+                    "Job Title": titlePrefix,
+                    "Email": fn.toLowerCase() + counter + "@rasfahi.com",
+                    "Mobile": "+960 7" + Math.floor(100000 + Math.random() * 900000),
+                    "Department": dept,
+                    "Section": section,
+                    "Type": empType,
+                    "Role": role,
+                    "Head Status": headStatus
+                };
+                counter++;
+                return row;
+            };
+
+            // 1. އެގްޒެކްޓިވް ބިއުރޯ / އިސްވެރިން (BUREAU)
+            data.push(generateRow("Executive Office", "Strategy", "BUREAU", "Department Head", "Chief Executive", "Political"));
+            data.push(generateRow("Executive Office", "Strategy", "BUREAU", "None", "Deputy Executive", "Political"));
+            data.push(generateRow("Executive Office", "Legal", "BUREAU", "None", "Chief Counsel", "Political"));
+
+            // 2. ކޮންމެ ޑިޕާރޓްމެންޓަކަށް އަދި ސެކްޝަނަކަށް މުވައްޒަފުން އެލޮކޭޓް ކުރުން
+            for (const [dept, sections] of Object.entries(depts)) {
+                
+                // ޑިޕާރޓްމެންޓް ހެޑް އުފެއްދުން (އެގްޒެކްޓިވް އޮފީސް ފިޔަވާ)
+                if(dept !== "Executive Office") {
+                    data.push(generateRow(dept, "General", "HOD", "Department Head", "Director General", "Civil Service"));
+                }
+
+                // ޑިޕާރޓްމެންޓް ލެވެލްގެ 10 ސްޓާފުން
+                for(let i=0; i<9; i++) {
+                    data.push(generateRow(dept, "General", "STAFF", "None", "Senior Officer", "Civil Service"));
+                }
+
+                // ކޮންމެ ސެކްޝަނަކަށް
+                for (const sec of sections) {
+                    // 1 ސެކްޝަން ހެޑް
+                    data.push(generateRow(dept, sec, "HOD", "Section Head", "Director", "Civil Service"));
+                    
+                    // 49 ސެކްޝަން ލެވެލް ސްޓާފުން (ޖުމްލަ 50 ކުރުމަށް)
+                    for(let i=0; i<49; i++) {
+                        data.push(generateRow(dept, sec, "STAFF", "None", "Officer", "Civil Service"));
+                    }
+                }
+            }
+
+            // ފައިލް ޑައުންލޯޑް ކުރުން
             const csv = Papa.unparse(data); 
             const blob = new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8;'}); 
             const link = document.createElement("a"); 
             link.href = URL.createObjectURL(blob); 
-            link.download = `Royal_HR_Template.csv`; 
+            link.download = `Mass_Royal_HR_Template_${data.length}_Staff.csv`; 
             link.click(); 
-            UI.showToast("Royal Template Downloaded", "success");
+            
+            UI.showToast(`Successfully Generated ${data.length} Dummy Records!`, "success");
         },
         exportFilteredCSV: () => {
             const list = StaffDirectory.getFilteredStaff();
