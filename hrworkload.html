@@ -348,6 +348,10 @@
         .action-card.endorse { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-left: 5px solid #d4af37;}
         .action-card.returned { background: linear-gradient(135deg, #991b1b, #ef4444); border-left: 5px solid #fca5a5;}
         .action-card.pending { background: linear-gradient(135deg, #0f172a, #475569); border-left: 5px solid #94a3b8;}
+
+        /* Custom Task Progress Bar CSS */
+        .task-bar-container { width: 100%; background-color: #ef4444; border-radius: 9999px; height: 1rem; overflow: hidden; display: flex; border: 1px solid #cbd5e1; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .task-bar-fill { height: 100%; background-color: #22c55e; transition: width 0.3s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; font-size: 0.6rem; color: white; font-weight: 900;}
         
     </style>
 </head>
@@ -406,7 +410,7 @@
             </div>
             
             <div class="mt-8 text-center border-t border-white/20 pt-4">
-                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">© Rasfahi Software Architecture</p>
+                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">© 2026 Rasfahi Software Architecture</p>
             </div>
         </div>
     </div>
@@ -477,6 +481,9 @@
                     <p class="text-[9px] text-slate-400">Ali Ibrahim Didi</p>
                 </div>
                 <button onclick="SystemAuth.logout()" class="w-full btn-base btn-outline text-[10px] hover:bg-white/10"><i class="fa-solid fa-power-off"></i> Secure Logout</button>
+                <div class="mt-3 text-[7px] text-center text-slate-500 font-black uppercase tracking-widest">
+                    © 2026 Rasfahi Enterprise HR. All Rights Reserved.
+                </div>
             </div>
         </aside>
 
@@ -540,6 +547,16 @@
                                 </div>
                                 <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation text-2xl text-[#991b1b]"></i></div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- NEW: SPECIAL TASKS BAR CHART -->
+                    <div class="dashboard-card p-5">
+                        <h3 class="text-sm font-black text-[#1e3a8a] uppercase tracking-widest mb-4 border-b border-slate-200 pb-2 flex justify-between items-center">
+                            <span><i class="fa-solid fa-chart-gantt mr-2 text-[#d4af37]"></i> Special Tasks Progress (By Department)</span>
+                        </h3>
+                        <div id="specialTasksChartContainer" class="space-y-6 max-h-[400px] overflow-y-auto pr-2">
+                            <!-- Populated by JS -->
                         </div>
                     </div>
 
@@ -630,7 +647,6 @@
                             </div>
                             
                             <div class="flex flex-col md:flex-row gap-2 w-full lg:w-auto bg-black/30 p-2 rounded-lg border border-white/10 backdrop-blur-sm flex-wrap justify-end">
-                                <!-- ADVANCED FILTERS ADDED -->
                                 <select id="perfMonth" class="input-base text-xs font-bold text-black py-1 px-2" onchange="PerformanceEngine.render()">
                                     <option value="">All Months</option>
                                     <option value="1">January</option><option value="2">February</option><option value="3">March</option>
@@ -710,7 +726,7 @@
                     </div>
                 </div>
 
-                <!-- VIEW: POINT CONFIG (NEW) -->
+                <!-- VIEW: POINT CONFIG -->
                 <div id="view-pointConfig" class="tab-section max-w-5xl mx-auto h-full auth-req auth-bureau-only w-full">
                     <div class="dashboard-card p-6 h-full flex flex-col bg-slate-50">
                         <div class="text-center mb-6 border-b border-slate-200 pb-4">
@@ -729,7 +745,7 @@
                     </div>
                 </div>
 
-                <!-- VIEW: SYSTEM ADMIN (RESET MOVED HERE) -->
+                <!-- VIEW: SYSTEM ADMIN -->
                 <div id="view-systemAdmin" class="tab-section max-w-5xl mx-auto h-full auth-req auth-bureau-only w-full">
                     <div class="dashboard-card p-6 border-t-[5px] border-t-red-700 bg-red-50 text-center shadow-xl">
                         <i class="fa-solid fa-server text-6xl text-red-700 mb-4 drop-shadow-md"></i>
@@ -802,6 +818,56 @@
 </div>
 
 <!-- MODALS -->
+
+<!-- Task Update Modal (For Staff) -->
+<div id="modalTaskUpdate" class="modal-backdrop">
+    <div class="modal-container max-w-md border-t-[8px] border-[#1e3a8a]">
+        <div class="modal-header">
+            <h2 class="royal-font font-black text-[#0f172a] text-lg uppercase tracking-widest"><i class="fa-solid fa-percent text-[#1e3a8a] mr-2"></i> Update Task Progress</h2>
+            <button onclick="UI.closeModal('modalTaskUpdate')" class="text-slate-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body space-y-4 bg-slate-50">
+            <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                <div class="mb-6 text-center">
+                    <label class="label-base text-[#1e3a8a]">Completion Percentage</label>
+                    <input type="range" id="tuProgress" min="0" max="100" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer mt-2" oninput="TaskEngine.updateSlider(this.value)">
+                    <div id="tuProgressVal" class="text-3xl font-black text-[#064e3b] mt-3">0%</div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="label-base">Notes / Issues Encountered</label>
+                    <textarea id="tuNotes" class="input-base h-20 resize-none" placeholder="Explain the progress, or state any issues holding back completion..."></textarea>
+                </div>
+                
+                <button onclick="TaskEngine.submitUpdate()" class="btn-base btn-primary w-full py-3 shadow-[0_5px_15px_rgba(30,58,138,0.3)] text-sm"><i class="fa-solid fa-save mr-2"></i> Save Progress</button>
+            </div>
+            
+            <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm max-h-40 overflow-y-auto">
+                <h4 class="text-[10px] font-black text-[#d4af37] uppercase tracking-widest border-b border-slate-100 pb-2 mb-3">Update History</h4>
+                <div id="tuHistory" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Supervisor Comment Modal -->
+<div id="modalTaskComment" class="modal-backdrop">
+    <div class="modal-container max-w-md border-t-[8px] border-[#d4af37]">
+        <div class="modal-header">
+            <h2 class="royal-font font-black text-[#0f172a] text-lg uppercase tracking-widest"><i class="fa-solid fa-comment-dots text-[#d4af37] mr-2"></i> Supervisor Remarks</h2>
+            <button onclick="UI.closeModal('modalTaskComment')" class="text-slate-400 hover:text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body space-y-4 bg-slate-50">
+            <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                <div class="mb-4">
+                    <label class="label-base">Official Feedback</label>
+                    <textarea id="tcComment" class="input-base h-24 resize-none" placeholder="Provide feedback or remarks on the completed task..."></textarea>
+                </div>
+                <button onclick="TaskEngine.submitComment()" class="btn-base btn-gold w-full py-3 shadow-lg text-sm"><i class="fa-solid fa-paper-plane mr-2"></i> Submit Feedback</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Add/Edit Staff Modal -->
 <div id="modalAddStaff" class="modal-backdrop">
@@ -980,6 +1046,7 @@
             <div class="mt-12 text-center text-[8px] text-slate-400 font-bold uppercase tracking-widest print-footer">
                 <p>Generated by Rasfahi Enterprise HR System</p>
                 <p id="repGenDate"></p>
+                <p class="mt-2 text-[7px]">© 2026 Rasfahi Enterprise HR. All Rights Reserved.</p>
             </div>
         </div>
     </div>
@@ -1022,6 +1089,7 @@
         'Presentation': 8, 
         'Program Design': 12, 
         'Directive': 5, 
+        'Special Task': 20,
         'ManualOverride': 0
     };
 
@@ -1129,11 +1197,8 @@
             let s = AppState.db.staff.find(x => x.id === id); 
             if(!s) return {score: 0, stars: 0, breakdown: {}, att: 0};
             
-            // Apply Date Filters
             let userTasks = AppState.db.tasks.filter(x => x.staffId === id);
             
-            // Attendance Calculation based on actual logged days
-            // Filter userTasks by month/year if selected, otherwise current month for general workspace view
             let attTasks = userTasks;
             let targetMonth = month ? month : (new Date().getMonth() + 1).toString();
             let targetYear = year ? year : new Date().getFullYear().toString();
@@ -1150,14 +1215,10 @@
                 attTasks = userTasks.filter(t => t.logDate && new Date(t.logDate).getFullYear().toString() === year);
             }
 
-            // Count unique dates the user worked
             let uniqueDates = new Set(attTasks.map(t => t.logDate)).size;
-            // Assume average working days per month = 22, max attendance = 100%
-            // If year is selected, total days = 260
             let divisor = year && !month ? 260 : 22;
             let attPercentage = Math.min(100, Math.round((uniqueDates / divisor) * 100));
 
-            // Points Calculation
             let completedTasks = attTasks.filter(x => x.status === 'Completed');
             let totalScore = 0; 
             let breakdown = {}; 
@@ -1378,6 +1439,76 @@
         }
     };
 
+    const TaskEngine = {
+        activeTaskId: null,
+        openUpdateModal: (id) => {
+            TaskEngine.activeTaskId = id;
+            let t = AppState.db.tasks.find(x => x.id === id);
+            if(!t) return;
+            document.getElementById('tuProgress').value = t.progress || 0;
+            document.getElementById('tuProgressVal').innerText = (t.progress || 0) + '%';
+            document.getElementById('tuNotes').value = '';
+            
+            let logHtml = (t.updates || []).map(u => `
+                <div class="mb-2 p-2 bg-slate-100 border border-slate-200 rounded text-[10px]">
+                    <span class="font-bold text-[#1e3a8a] block border-b border-slate-200 pb-1 mb-1"><i class="fa-solid fa-clock text-[#d4af37] mr-1"></i> ${u.date}</span>
+                    <span class="text-slate-700">${u.text}</span>
+                </div>
+            `).join('');
+            document.getElementById('tuHistory').innerHTML = logHtml || '<p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">No previous updates.</p>';
+            
+            UI.openModal('modalTaskUpdate');
+        },
+        updateSlider: (val) => {
+            document.getElementById('tuProgressVal').innerText = val + '%';
+        },
+        submitUpdate: () => {
+            let t = AppState.db.tasks.find(x => x.id === TaskEngine.activeTaskId);
+            let prog = parseInt(document.getElementById('tuProgress').value);
+            let notes = document.getElementById('tuNotes').value.trim();
+            
+            if(!notes && prog === (t.progress||0)) return UI.showToast("No changes made", "warning");
+            
+            t.progress = prog;
+            if(!t.updates) t.updates = [];
+            
+            let now = new Date();
+            let dateStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+            
+            t.updates.push({ date: dateStr, text: `Progress adjusted to ${prog}%. Remarks: ${notes || 'None'}` });
+            
+            if(prog === 100) {
+                t.status = 'Wait Endorse';
+            } else if (prog > 0) {
+                t.status = 'In Progress';
+            }
+            
+            HybridCloud.saveAutoLocal();
+            UI.closeModal('modalTaskUpdate');
+            WorkspaceEngine.render();
+            DashboardEngine.render();
+            UI.showToast("Progress successfully documented.", "success");
+        },
+        remind: (id) => {
+            // Placeholder for notification system
+            UI.showToast("Official reminder sent to staff member.", "info");
+        },
+        openCommentModal: (id) => {
+            TaskEngine.activeTaskId = id;
+            let t = AppState.db.tasks.find(x => x.id === id);
+            document.getElementById('tcComment').value = t.supComment || '';
+            UI.openModal('modalTaskComment');
+        },
+        submitComment: () => {
+            let t = AppState.db.tasks.find(x => x.id === TaskEngine.activeTaskId);
+            t.supComment = document.getElementById('tcComment').value;
+            HybridCloud.saveAutoLocal();
+            UI.closeModal('modalTaskComment');
+            DashboardEngine.render();
+            UI.showToast("Supervisor remarks firmly attached.", "success");
+        }
+    };
+
     const ActionCenterEngine = {
         render: () => {
             let pendingTasks = AppState.db.tasks.filter(t => t.status === 'Wait Endorse' || t.status === 'Returned');
@@ -1462,7 +1593,82 @@
             document.getElementById('kpi-completed').innerText = tDone;
             document.getElementById('kpi-pending').innerText = tWait + tNot;
 
+            DashboardEngine.renderSpecialTasks();
             DashboardEngine.renderCharts();
+        },
+        stringToColor: (str) => {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            let color = '#';
+            for (let i = 0; i < 3; i++) {
+                let value = (hash >> (i * 8)) & 0xFF;
+                color += ('00' + value.toString(16)).substr(-2);
+            }
+            return color;
+        },
+        renderSpecialTasks: () => {
+            // Filter all special tasks/directives
+            let tasks = AppState.db.tasks.filter(t => t.category === 'Special Task' || t.category === 'Directive');
+            let grouped = {};
+            
+            tasks.forEach(t => {
+                let s = AppState.db.staff.find(x => x.id === t.staffId);
+                let d = s ? s.dept : 'Unassigned';
+                if(!grouped[d]) grouped[d] = [];
+                grouped[d].push({...t, staffName: s ? s.name : 'Unknown Staff'});
+            });
+
+            let html = '';
+            for(let d in grouped) {
+                html += `<div class="mb-5 bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                            <h4 class="font-black text-[#064e3b] text-xs uppercase mb-3 border-b border-slate-300 pb-2"><i class="fa-solid fa-building mr-2 text-[#d4af37]"></i> ${d}</h4>
+                            <div class="space-y-4">`;
+                
+                grouped[d].forEach(t => {
+                    let tColor = DashboardEngine.stringToColor(t.title + t.id); // Generate unique task color
+                    let prog = t.progress || 0;
+                    
+                    let supCmds = '';
+                    if(prog === 0) {
+                        supCmds = `<button onclick="TaskEngine.remind('${t.id}')" class="text-[9px] bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-1 rounded shadow-sm"><i class="fa-solid fa-bell mr-1"></i> Remind</button>`;
+                    }
+                    if(prog === 100 && t.status !== 'Completed') {
+                        supCmds = `
+                        <button onclick="TaskEngine.openCommentModal('${t.id}')" class="text-[9px] bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-1 rounded shadow-sm"><i class="fa-solid fa-comment mr-1"></i> Comment</button>
+                        <button onclick="ActionCenterEngine.approve('${t.id}')" class="text-[9px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded shadow-sm"><i class="fa-solid fa-check mr-1"></i> Approve</button>`;
+                    }
+
+                    html += `
+                    <div>
+                        <div class="flex justify-between items-end mb-1">
+                            <span class="text-[10px] font-black uppercase truncate flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full border border-slate-300 shadow-sm" style="background-color: ${tColor};"></span>
+                                <span style="color: #0f172a">${t.title} <span class="text-slate-500 font-bold ml-1">(${t.staffName})</span></span>
+                            </span>
+                            <span class="text-[10px] font-black text-[#1e3a8a]">${prog}%</span>
+                        </div>
+                        <div class="task-bar-container">
+                            <div class="task-bar-fill" style="width: ${prog}%">${prog > 10 ? prog+'%' : ''}</div>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <div class="text-[9px] font-bold text-slate-500 italic max-w-[60%] truncate">
+                                ${t.supComment ? '<i class="fa-solid fa-comment-dots text-[#d4af37] mr-1"></i> ' + t.supComment : ''}
+                            </div>
+                            <div class="flex gap-2">
+                                ${supCmds}
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                html += `</div></div>`;
+            }
+            
+            if(Object.keys(grouped).length === 0) {
+                html = '<div class="text-center py-6 border-2 border-dashed border-slate-200 rounded-lg text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50">No Special Tasks Recorded</div>';
+            }
+            
+            let container = document.getElementById('specialTasksChartContainer');
+            if(container) container.innerHTML = html;
         },
         renderCharts: () => {
             const commonOpts = { plugins: { datalabels: { color: '#fff', font: { weight: 'bold', size: 10 } } } };
@@ -2053,7 +2259,8 @@
                 let catBadge = `<span class="bg-[#0f172a] text-white px-2 py-0.5 rounded text-[8px] font-black uppercase mr-2 shadow-sm">${t.category||'Routine'}</span>`;
                 let statBadge = `<span class="text-[9px] font-black uppercase px-2 py-1 rounded shadow-sm border border-slate-200" style="color:${pc}; background:white;">${t.status}</span>`;
                 
-                let btn = (t.category === 'Directive' && t.status !== 'Wait Endorse' && t.status !== 'Parked') ? `<button onclick="TaskEngine.openUpdateModal('${t.id}')" class="btn-base btn-primary w-full mt-4 text-[10px] py-2 shadow-lg"><i class="fa-solid fa-sliders mr-2"></i> Update Progress</button>` : '';
+                // Allow Update Progress button for both Directive and Special Tasks
+                let btn = ((t.category === 'Directive' || t.category === 'Special Task') && t.status !== 'Wait Endorse' && t.status !== 'Parked') ? `<button onclick="TaskEngine.openUpdateModal('${t.id}')" class="btn-base btn-primary w-full mt-4 text-[10px] py-2 shadow-lg"><i class="fa-solid fa-sliders mr-2"></i> Update Progress</button>` : '';
                 let returnWarn = t.status === 'Returned' ? `<div class="bg-red-50 text-red-800 text-[10px] p-3 rounded mt-3 border border-red-200 font-bold shadow-inner"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Revisions requested by Executive.</div>` : '';
                 let lateWarn = t.isLate ? `<span class="bg-red-600 text-white text-[8px] font-black px-2 py-0.5 rounded uppercase ml-2 shadow-sm animate-pulse">LATE</span>` : '';
 
@@ -2066,10 +2273,10 @@
                     <h4 class="font-black text-[#0f172a] text-base mt-2 mb-4 leading-tight">${t.title}</h4>
                     <div class="flex justify-between items-center mb-2">
                         ${statBadge} 
-                        <span class="text-xl font-black" style="color:${pc}">${t.progress}%</span>
+                        <span class="text-xl font-black" style="color:${pc}">${t.progress || 0}%</span>
                     </div>
                     <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden shadow-inner">
-                        <div class="h-full rounded-full transition-all" style="width:${t.progress}%; background-color:${pc}"></div>
+                        <div class="h-full rounded-full transition-all" style="width:${t.progress || 0}%; background-color:${pc}"></div>
                     </div>
                     ${returnWarn} ${btn}
                 </div>`;
@@ -2082,7 +2289,7 @@
     const ActivityLogger = {
         populateCategories: () => {
             const pts = AppState.db.pointSystem || DefaultMetrics; 
-            document.getElementById('alCategory').innerHTML = Object.entries(pts).filter(([k]) => k !== 'ManualOverride' && k !== 'Directive').map(([k,v]) => `<option value="${k}">${k} (${v} Pts)</option>`).join('');
+            document.getElementById('alCategory').innerHTML = Object.entries(pts).filter(([k]) => k !== 'ManualOverride').map(([k,v]) => `<option value="${k}">${k} (${v} Pts)</option>`).join('');
         },
         openForm: () => { 
             document.getElementById('alTitle').value = ''; 
@@ -2098,11 +2305,16 @@
             const t = document.getElementById('alTitle').value.trim(); 
             if(!t) return UI.showToast("Description required", "error");
             
+            let isSpecialTask = document.getElementById('alCategory').value === 'Special Task' || document.getElementById('alCategory').value === 'Directive';
+            
             AppState.db.tasks.push({ 
                 id: generateUID('LOG'), staffId: CurrentUser.id, title: t, category: document.getElementById('alCategory').value, 
-                progress: 100, status: 'Wait Endorse', logDate: document.getElementById('logDateInput').value, 
+                progress: isSpecialTask ? 0 : 100, 
+                status: isSpecialTask ? 'In Progress' : 'Wait Endorse', 
+                logDate: document.getElementById('logDateInput').value, 
                 isLate: document.getElementById('logDateInput').value < new Date().toISOString().split('T')[0], 
-                assignedBy: CurrentUser.id 
+                assignedBy: CurrentUser.id,
+                updates: isSpecialTask ? [{date: new Date().toLocaleString(), text: "Task initiated in the system."}] : []
             });
             
             HybridCloud.saveAutoLocal(); UI.closeModal('modalLogActivity'); WorkspaceEngine.render(); ActionCenterEngine.render();
@@ -2145,7 +2357,7 @@
         filter: (t) => { StaffTaskReport.currentFilter = t; StaffTaskReport.renderList(); },
         renderList: () => {
             let tks = AppState.db.tasks.filter(t => t.staffId === StaffTaskReport.activeId).sort((a,b) => new Date(b.logDate) - new Date(a.logDate));
-            if(StaffTaskReport.currentFilter === 'Directive') tks = tks.filter(t => t.category === 'Directive' || t.category === 'ManualOverride');
+            if(StaffTaskReport.currentFilter === 'Directive') tks = tks.filter(t => t.category === 'Directive' || t.category === 'Special Task' || t.category === 'ManualOverride');
             
             document.getElementById('repTaskList').innerHTML = tks.length > 0 ? tks.map(t => {
                 let pc = UI.getStatusColor(t.status, t.progress, t.isLate);
@@ -2155,7 +2367,7 @@
                     <div class="flex justify-between items-start mb-2">
                         <div><span class="bg-slate-100 text-[#1e3a8a] px-2 py-0.5 rounded text-[8px] uppercase font-black border border-slate-200">${t.category||'Routine'}</span> ${lateBadge}<h5 class="text-xs font-bold text-[#0f172a] mt-2">${t.title}</h5></div>
                     </div>
-                    <div class="w-full bg-slate-100 h-1.5 mb-2 rounded-full overflow-hidden shadow-inner"><div class="h-full rounded-full" style="width:${t.progress}%; background-color:${pc}"></div></div>
+                    <div class="w-full bg-slate-100 h-1.5 mb-2 rounded-full overflow-hidden shadow-inner"><div class="h-full rounded-full" style="width:${t.progress || 0}%; background-color:${pc}"></div></div>
                     <div class="flex justify-between text-[9px] font-bold text-slate-500 uppercase mt-3 pt-2 border-t border-slate-50">
                         <span><i class="fa-solid fa-clock mr-1"></i> ${t.logDate||'N/A'}</span>
                         <span style="color:${pc}" class="font-black bg-slate-50 px-2 py-0.5 border border-slate-200 rounded shadow-sm">${t.status}</span>
