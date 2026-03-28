@@ -142,7 +142,7 @@
         .timeline-complete { background-color: #166534 !important; } 
 
         /* PDF Export Optimizations */
-        .pdf-export-mode { padding: 0 !important; background: white !important; }
+        .pdf-export-mode { padding: 0 !important; background: white !important; height: auto !important; overflow: visible !important; max-height: none !important;}
         .pdf-export-mode .dashboard-card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; border-top: 4px solid var(--royal-purple) !important; border-radius: 0 !important; page-break-inside: avoid; }
         .pdf-export-mode table { font-size: 10px !important; width: 100% !important; min-width: auto !important;}
         .pdf-export-mode th { background: #f1f5f9 !important; color: #0f172a !important; border-bottom: 2px solid #1e3a8a !important; }
@@ -1397,12 +1397,271 @@
         }
     }
 
+    const OrgManager = {
+        populateDropdowns: () => {
+            let deptOpts = '<option value="">All Departments</option>';
+            let specificDeptOpts = '';
+            AppState.db.departments.forEach(d => {
+                let opt = `<option value="${d}">${d}</option>`;
+                deptOpts += opt;
+                specificDeptOpts += opt;
+            });
+            ['acFilterDept', 'reqFilterDept', 'dirDeptFilter', 'perfDeptFilter'].forEach(id => {
+                let el = document.getElementById(id);
+                if(el) el.innerHTML = deptOpts;
+            });
+            ['stfDept', 'orgSecFilter'].forEach(id => {
+                let el = document.getElementById(id);
+                if(el) el.innerHTML = specificDeptOpts;
+            });
+        },
+        render: () => {
+            let deptHtml = '';
+            AppState.db.departments.forEach(d => {
+                deptHtml += `<div class="p-2 bg-white border border-slate-200 rounded flex justify-between items-center text-sm font-bold text-[#1e3a8a] mb-2">
+                    <span>${d}</span>
+                    <button onclick="OrgManager.deleteDept('${d}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                </div>`;
+            });
+            document.getElementById('orgDeptList').innerHTML = deptHtml;
+            OrgManager.renderSections();
+            OrgManager.renderChart();
+        },
+        renderSections: () => {
+            let dept = document.getElementById('orgSecFilter').value;
+            let secHtml = '';
+            if(dept && AppState.db.sections[dept]) {
+                AppState.db.sections[dept].forEach(s => {
+                    secHtml += `<div class="p-2 bg-white border border-slate-200 rounded flex justify-between items-center text-sm font-bold text-[#064e3b] mb-2">
+                        <span>${s}</span>
+                        <button onclick="OrgManager.deleteSec('${dept}', '${s}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                    </div>`;
+                });
+            }
+            document.getElementById('orgSecList').innerHTML = secHtml || '<p class="text-xs text-slate-400">No sections found.</p>';
+        },
+        addDept: () => {
+            let name = prompt("Enter new department name:");
+            if(name && !AppState.db.departments.includes(name)) {
+                AppState.db.departments.push(name);
+                AppState.db.sections[name] = ["General"];
+                HybridCloud.saveAutoLocal();
+                OrgManager.populateDropdowns();
+                OrgManager.render();
+            }
+        },
+        addSec: () => {
+            let dept = document.getElementById('orgSecFilter').value;
+            let name = prompt(`Enter new section name for ${dept}:`);
+            if(dept && name) {
+                if(!AppState.db.sections[dept]) AppState.db.sections[dept] = [];
+                if(!AppState.db.sections[dept].includes(name)) {
+                    AppState.db.sections[dept].push(name);
+                    HybridCloud.saveAutoLocal();
+                    OrgManager.renderSections();
+                    OrgManager.renderChart();
+                }
+            }
+        },
+        deleteDept: (dept) => {
+            if(confirm(`Delete department ${dept}?`)) {
+                AppState.db.departments = AppState.db.departments.filter(d => d !== dept);
+                delete AppState.db.sections[dept];
+                HybridCloud.saveAutoLocal();
+                OrgManager.populateDropdowns();
+                OrgManager.render();
+            }
+        },
+        deleteSec: (dept, sec) => {
+            if(confirm(`Delete section ${sec} from ${dept}?`)) {
+                AppState.db.sections[dept] = AppState.db.sections[dept].filter(s => s !== sec);
+                HybridCloud.saveAutoLocal();
+                OrgManager.renderSections();
+                OrgManager.renderChart();
+            }
+        },
+        renderChart: () => {
+            let html = `<div class="org-node bg-[var(--royal-purple)] text-white border-none shadow-lg mb-4 mx-auto">
+                <h3 class="font-black text-lg">ENTERPRISE</h3>
+            </div>
+            <div class="org-line-v bg-[var(--royal-purple)] h-8 mx-auto"></div>
+            <div class="flex justify-center gap-4 relative pt-4 w-full">
+                <div class="org-line-h top-0 absolute" style="width: calc(100% - 180px);"></div>`;
+            
+            AppState.db.departments.forEach((d, i) => {
+                let sections = AppState.db.sections[d] || [];
+                html += `<div class="flex flex-col items-center relative z-10 flex-1">
+                    <div class="org-line-v h-4 absolute -top-4 bg-[#1e3a8a]"></div>
+                    <div class="org-node border-[#1e3a8a] shadow-md">
+                        <h4 class="font-black text-sm text-[#1e3a8a]">${d}</h4>
+                    </div>`;
+                if(sections.length > 0) {
+                    html += `<div class="org-line-v h-6 bg-[#064e3b]"></div><div class="flex flex-col gap-2">`;
+                    sections.forEach(s => {
+                        html += `<div class="org-node border-[#064e3b] px-4 py-2 min-w-[140px]">
+                            <span class="text-xs font-bold text-[#064e3b]">${s}</span>
+                        </div>`;
+                    });
+                    html += `</div>`;
+                }
+                html += `</div>`;
+            });
+            html += `</div>`;
+            let canvas = document.getElementById('orgChartCanvas');
+            if(canvas) canvas.innerHTML = html;
+        },
+        exportChart: () => {
+            PDFEngine.exportContainer('orgChartVisualContainer', `Org_Structure_${new Date().getTime()}.pdf`, 'ENTERPRISE ARCHITECTURE', document.getElementById('orgPdfSize').value);
+        }
+    };
+
+    const ActivityLogger = {
+        populateCategories: () => {
+            let opts = '';
+            Object.keys(AppState.db.pointSystem || DefaultMetrics).forEach(k => {
+                if(k !== 'ManualOverride' && k !== 'Directive') opts += `<option value="${k}">${k}</option>`;
+            });
+            const cat = document.getElementById('alCategory');
+            if(cat) cat.innerHTML = opts;
+        },
+        openForm: () => {
+            document.getElementById('logDateInput').value = new Date().toISOString().split('T')[0];
+            document.getElementById('alTitle').value = '';
+            ActivityLogger.checkDate();
+            UI.openModal('modalLogActivity');
+        },
+        checkDate: () => {
+            let d = new Date(document.getElementById('logDateInput').value);
+            let today = new Date();
+            let diff = (today - d) / (1000 * 3600 * 24);
+            let warn = document.getElementById('lateWarning');
+            if(diff > 2) warn.classList.remove('hidden');
+            else warn.classList.add('hidden');
+        },
+        submit: () => {
+            let dt = document.getElementById('logDateInput').value;
+            let cat = document.getElementById('alCategory').value;
+            let title = document.getElementById('alTitle').value.trim();
+            if(!dt || !title) return UI.showToast("Date and Description required", "error");
+            
+            let today = new Date();
+            let logD = new Date(dt);
+            let diff = (today - logD) / (1000 * 3600 * 24);
+            let isLate = diff > 2;
+
+            AppState.db.tasks.push({
+                id: generateUID('LOG'), staffId: CurrentUser.id, title: title, category: cat,
+                progress: 100, status: 'Completed', logDate: dt, isLate: isLate
+            });
+            HybridCloud.saveAutoLocal();
+            UI.closeModal('modalLogActivity');
+            UI.showToast("Activity Logged", "success");
+            WorkspaceEngine.render();
+            DashboardEngine.render();
+        }
+    };
+
+    const WorkspaceEngine = {
+        render: () => {
+            if(!CurrentUser) return;
+            document.getElementById('wsName').innerText = CurrentUser.name;
+            document.getElementById('wsDetails').innerText = `${CurrentUser.dept} - ${CurrentUser.section}`;
+            
+            let m = document.getElementById('wsMonth').value || (new Date().getMonth() + 1);
+            let y = document.getElementById('wsYear').value || new Date().getFullYear();
+            let fromDate = `${y}-${m.toString().padStart(2, '0')}-01`;
+            let toDate = `${y}-${m.toString().padStart(2, '0')}-31`;
+
+            let stats = UI.calcScoreAndStars(CurrentUser.id, fromDate, toDate);
+            document.getElementById('wsScoreDisplay').innerHTML = `
+                <div class="text-3xl font-black text-[var(--royal-cyan)]">${stats.score} PTS</div>
+                ${UI.renderStars(stats.stars)}
+            `;
+            
+            let userTasks = AppState.db.tasks.filter(t => t.staffId === CurrentUser.id);
+            
+            let done = userTasks.filter(t=>t.status==='Completed').length;
+            let pend = userTasks.filter(t=>t.status!=='Completed').length;
+            if(ChartInstances.wsTaskChart) ChartInstances.wsTaskChart.destroy();
+            ChartInstances.wsTaskChart = new Chart(document.getElementById('wsTaskChart'), {
+                type: 'doughnut',
+                data: { labels: ['Completed', 'Pending'], datasets: [{ data: [done, pend], backgroundColor: ['#064e3b', '#b45309'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+            });
+
+            let pendingTasks = userTasks.filter(t => t.status !== 'Completed');
+            document.getElementById('wsTaskCountBadge').innerText = `${pendingTasks.length} Pending`;
+            document.getElementById('wsTaskList').innerHTML = pendingTasks.map(t => `
+                <div class="p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-[10px] font-black uppercase text-indigo-700">${t.category}</span>
+                        <span class="text-[9px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">${t.status}</span>
+                    </div>
+                    <p class="text-sm font-bold text-[#0f172a] mb-2">${t.title}</p>
+                    <button onclick="TaskEngine.openUpdateModal('${t.id}')" class="btn-base btn-primary text-[10px] w-full py-1.5">Update Progress</button>
+                </div>
+            `).join('') || '<p class="text-xs text-slate-500 text-center py-4">All clear.</p>';
+        }
+    };
+
+    const StaffTaskReport = {
+        activeStaffId: null,
+        open: (id) => {
+            StaffTaskReport.activeStaffId = id;
+            let s = AppState.db.staff.find(x => x.id === id);
+            if(!s) return;
+            document.getElementById('repName').innerText = s.name;
+            document.getElementById('repId').innerText = s.idCard || s.indexNo;
+            document.getElementById('repRecord').innerText = s.recordNo || '-';
+            document.getElementById('repJobTitle').innerText = s.jobTitle || 'Staff';
+            document.getElementById('repDept').innerText = s.dept + ' - ' + (s.section || 'General');
+            
+            let stats = UI.calcScoreAndStars(id);
+            document.getElementById('repStars').innerHTML = UI.renderStars(stats.stars);
+            document.getElementById('repTotalPts').innerText = stats.score + ' PTS';
+            let lvl = UI.getPerfLevelConfig(stats.score);
+            let lvlBadge = document.getElementById('repPerfLevel');
+            lvlBadge.innerText = lvl.text;
+            lvlBadge.style.backgroundColor = lvl.bg;
+            lvlBadge.style.color = lvl.textCol || '#fff';
+            
+            document.getElementById('repAttVal').innerText = stats.att + '%';
+
+            let breakdownHtml = '';
+            for(const [k, v] of Object.entries(stats.breakdown)) {
+                breakdownHtml += `<div class="bg-white border border-slate-200 p-2 rounded text-center">
+                    <span class="block text-[9px] text-slate-500 font-bold uppercase truncate">${k}</span>
+                    <span class="block text-sm font-black text-[#1e3a8a]">${v} pts</span>
+                </div>`;
+            }
+            document.getElementById('repCategoryBreakdown').innerHTML = breakdownHtml || '<p class="text-xs text-slate-400 col-span-3">No points awarded yet.</p>';
+
+            StaffTaskReport.filter('All');
+            UI.openModal('modalStaffTaskReport');
+        },
+        filter: (type) => {
+            let tasks = AppState.db.tasks.filter(t => t.staffId === StaffTaskReport.activeStaffId);
+            if(type !== 'All') tasks = tasks.filter(t => t.category === type);
+            
+            document.getElementById('repTaskList').innerHTML = tasks.map(t => `
+                <div class="flex justify-between items-center bg-white p-3 rounded border border-slate-200">
+                    <div>
+                        <span class="text-[9px] font-black text-[#0e7490] uppercase tracking-widest block">${t.category} | ${t.logDate}</span>
+                        <span class="text-sm font-bold text-[#0f172a] block mt-1">${t.title}</span>
+                    </div>
+                    <span class="text-[10px] px-2 py-1 rounded font-black ${t.status==='Completed'?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800'}">${t.status}</span>
+                </div>
+            `).join('') || '<p class="text-xs text-slate-500">No records found.</p>';
+        }
+    };
+
     const PDFEngine = {
         exportContainer: (containerId, filename, title, pageSize = 'a4') => {
             UI.showToast("Constructing PDF (Dhivehi Supported)...", "info");
             const container = document.getElementById(containerId);
             const originalStyle = container.style.cssText;
             
+            container.style.height = 'auto';
             container.style.maxHeight = 'none';
             container.style.overflow = 'visible';
             container.classList.add('pdf-export-mode');
@@ -1429,7 +1688,8 @@
                 filename:     filename,
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: pageSize, orientation: 'landscape' }
+                jsPDF:        { unit: 'mm', format: pageSize, orientation: 'landscape' },
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
             html2pdf().set(opt).from(container).save().then(() => {
