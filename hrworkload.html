@@ -97,21 +97,15 @@
         tbody td { padding: 0.8rem 1rem; color: #1e293b; font-size: 0.85rem;}
 
         /* Sidebar Navigation Active State */
-        .nav-btn-active {
-            background: rgba(30, 58, 138, 0.5) !important;
-            color: white !important;
-            border-color: rgba(76, 29, 149, 0.5) !important;
-        }
+        .nav-btn-active { background: rgba(30, 58, 138, 0.5) !important; color: white !important; border-color: rgba(76, 29, 149, 0.5) !important; }
 
-        /* PDF Export Optimizations - FIXED FOR BLANK PAGES */
+        /* PDF Export Optimizations */
         .pdf-export-mode { 
             position: relative !important; display: block !important; height: auto !important; 
             max-height: none !important; width: 100% !important; overflow: visible !important; 
             background: white !important; padding: 0 !important; margin: 0 !important;
         }
-        .pdf-export-mode * { 
-            page-break-inside: avoid; overflow: visible !important; position: static !important; float: none !important; box-shadow: none !important;
-        }
+        .pdf-export-mode * { page-break-inside: avoid; overflow: visible !important; position: static !important; float: none !important; box-shadow: none !important; }
         .pdf-export-mode .dashboard-card { border: 1px solid #e2e8f0 !important; border-top: 4px solid var(--royal-purple) !important; border-radius: 0 !important; }
         .pdf-export-mode table { font-size: 10px !important; width: 100% !important; min-width: auto !important; page-break-inside: auto; }
         .pdf-export-mode tr { page-break-inside: avoid; page-break-after: auto; }
@@ -126,6 +120,7 @@
         .toast { background: rgba(15, 23, 42, 0.95); color: white; padding: 16px 20px; border-radius: 8px; font-size: 13px; font-weight: 700; border-left: 5px solid var(--royal-purple); box-shadow: 0 10px 30px rgba(0,0,0,0.6); animation: slideInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; display: flex; align-items: center; gap: 12px; backdrop-filter: blur(4px); }
         .toast.success { border-left-color: var(--success-green); }
         .toast.error { border-left-color: var(--danger-red); }
+        .toast.warning { border-left-color: var(--warning-gold); }
         @keyframes slideInUp { from { transform: translateY(150%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         /* Sidebar Overlay */
@@ -161,6 +156,29 @@
         .org-line-v { width: 2px; height: 20px; background: var(--primary-blue); margin: 0 auto; }
         .org-line-h { height: 2px; background: var(--primary-blue); width: 100%; position: absolute; top: 0; left: 0; z-index: 1;}
 
+        /* New Overdue Royal Box */
+        .royal-overdue-box {
+            background: linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%);
+            border: 2px solid #fca5a5;
+            border-radius: 12px;
+            padding: 16px;
+            color: white;
+            box-shadow: 0 10px 25px -5px rgba(153, 27, 27, 0.6), inset 0 0 15px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        .royal-overdue-box::before {
+            content: '\f071';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            right: -10px;
+            bottom: -20px;
+            font-size: 100px;
+            color: rgba(255, 255, 255, 0.05);
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
@@ -434,9 +452,12 @@
                         </div>
                         <div class="w-full h-[400px] relative"><canvas id="chartDeptStaffPerf"></canvas></div>
                     </div>
-                </div>
+                    
+                    <!-- NEW: Dashboard Overdue Container -->
+                    <div id="dashOverdueContainer" class="w-full"></div>
 
-                <!-- VIEW: ACTION CENTER -->
+                </div>
+<!-- VIEW: ACTION CENTER -->
                 <div id="view-actionCenter" class="tab-section max-w-7xl mx-auto space-y-6 auth-req auth-bureau auth-hod w-full">
                     <div class="dashboard-card p-6 bg-slate-50 shadow-inner relative">
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-slate-300 pb-4 no-print gap-4">
@@ -619,7 +640,7 @@
                     </div>
                 </div>
 
-<!-- VIEW: PERFORMANCE -->
+                <!-- VIEW: PERFORMANCE -->
                 <div id="view-performance" class="tab-section max-w-full mx-auto h-full flex flex-col auth-req auth-bureau auth-hod w-full">
                     <div class="dashboard-card p-5 mb-4 shrink-0 bg-gradient-to-r from-[#001233] to-[#064e3b] text-white border-t-[5px] border-[var(--royal-purple)] relative overflow-hidden">
                         <i class="fa-solid fa-ranking-star absolute right-4 -bottom-4 text-8xl text-white/5 transform -rotate-12"></i>
@@ -885,6 +906,9 @@
                                 </div>
                                 <div id="wsTaskList" class="p-4 space-y-4 overflow-y-auto flex-1 bg-slate-100/50 inset-shadow"></div>
                             </div>
+
+                            <!-- NEW: Workspace Overdue Container -->
+                            <div id="wsOverdueContainer" class="w-full"></div>
                         </div>
                     </div>
                 </div>
@@ -957,9 +981,19 @@
                     <label class="label-base">Task Title</label>
                     <input type="text" id="atTitle" class="input-base" placeholder="Enter specific task name..." dir="auto">
                 </div>
-                <div class="mb-4">
-                    <label class="label-base text-[#991b1b]">Deadline (Due Date)</label>
-                    <input type="date" id="atDueDate" class="input-base text-center font-black text-[#0f172a]">
+                <!-- UPDATED DEADLINE SECTION -->
+                <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 border border-red-100 p-3 rounded-lg bg-red-50/30">
+                    <div>
+                        <label class="label-base text-[#991b1b]">Deadline (Date & Time)</label>
+                        <input type="datetime-local" id="atDueDate" class="input-base text-center font-black text-[#0f172a]">
+                    </div>
+                    <div>
+                        <label class="label-base text-[#991b1b]">Or Add Days (1-90)</label>
+                        <select id="atDueDays" class="input-base font-bold text-center text-[#1e3a8a]" onchange="TaskEngine.calcDueDate()">
+                            <option value="">Select Days...</option>
+                            <!-- Options populated by JS -->
+                        </select>
+                    </div>
                 </div>
                 <div class="mb-4">
                     <label class="label-base">Instructions / Guidelines</label>
@@ -1261,7 +1295,6 @@
         </div>
     </div>
 </div>
-
 <script>
     /**
      * ==========================================================================
@@ -1270,108 +1303,50 @@
      */
 
     const DefaultMetrics = {
-        'Attendance': 10,
-        'Daily Routine': 2, 
-        'Additional Task': 3, 
-        'Committee': 4, 
-        'Meeting': 2, 
-        'Event': 5, 
-        'Promotion': 5, 
-        'Research': 10, 
-        'Publishing': 15, 
-        'Supervising': 8, 
-        'Prof Dev': 5, 
-        'Representation': 5, 
-        'Repute': 10, 
-        'Coordination': 6, 
-        'Presentation': 8, 
-        'Program Design': 12, 
-        'Directive': 5, 
-        'Special Task': 20,
-        'ManualOverride': 0
+        'Attendance': 10, 'Daily Routine': 2, 'Additional Task': 3, 'Committee': 4, 
+        'Meeting': 2, 'Event': 5, 'Promotion': 5, 'Research': 10, 'Publishing': 15, 
+        'Supervising': 8, 'Prof Dev': 5, 'Representation': 5, 'Repute': 10, 
+        'Coordination': 6, 'Presentation': 8, 'Program Design': 12, 'Directive': 5, 
+        'Special Task': 20, 'ManualOverride': 0
     };
 
     const AppState = {
         db: {
-            settings: {
-                orgName: 'Rasfahi Enterprise HR',
-                orgAddress: 'Male\', Maldives',
-                orgLogo: ''
-            },
-            departments: [
-                "Executive Office", 
-                "Human Resources", 
-                "Finance", 
-                "Information Technology"
-            ],
+            settings: { orgName: 'Rasfahi Enterprise HR', orgAddress: 'Male\', Maldives', orgLogo: '' },
+            departments: ["Executive Office", "Human Resources", "Finance", "Information Technology"],
             sections: {
-                "Executive Office": ["Strategy", "Legal"], 
-                "Human Resources": ["Recruitment", "Welfare"],
-                "Finance": ["Treasury"], 
-                "Information Technology": ["Infrastructure", "Development"]
+                "Executive Office": ["Strategy", "Legal"], "Human Resources": ["Recruitment", "Welfare"],
+                "Finance": ["Treasury"], "Information Technology": ["Infrastructure", "Development"]
             },
-            staff: [], 
-            tasks: [], 
-            requests: [],
-            resetLogs: [],
-            pointSystem: DefaultMetrics
+            staff: [], tasks: [], requests: [], resetLogs: [], pointSystem: DefaultMetrics
         }
     };
 
     let CurrentUser = null; 
-    let ChartInstances = { 
-        roleDist: null, 
-        pieCompletion: null,
-        hodPerf: null,
-        staffPerf: null,
-        workload: null,
-        deptStaffPerf: null,
-        wsTaskChart: null,
-        otPieChart: null 
-    };
-
-    // Auto-Save Inactivity Timer Setup
-    let idleTime = 0;
-    function resetIdleTimer() { idleTime = 0; }
+    let ChartInstances = { roleDist: null, pieCompletion: null, hodPerf: null, staffPerf: null, workload: null, deptStaffPerf: null, wsTaskChart: null, otPieChart: null };
 
     const HybridCloud = {
         saveAutoLocal: () => { 
             try { 
                 localStorage.setItem('rasfahi_hr_royal_full', JSON.stringify(AppState.db)); 
                 let ind = document.getElementById('autoSaveInd'); 
-                if(ind) { 
-                    ind.classList.remove('hidden'); 
-                    setTimeout(() => { ind.classList.add('hidden'); }, 2500); 
-                }
+                if(ind) { ind.classList.remove('hidden'); setTimeout(() => { ind.classList.add('hidden'); }, 2500); }
             } catch(e) { console.error("Storage Error", e); } 
         },
-        saveLocalManual: (type) => { 
-            HybridCloud.saveAutoLocal(); 
-            UI.showToast(`Manual Synchronization Complete (${type})`, "success"); 
-        },
+        saveLocalManual: (type) => { HybridCloud.saveAutoLocal(); UI.showToast(`Manual Synchronization Complete (${type})`, "success"); },
         load: (callback) => {
             try { 
                 const d = localStorage.getItem('rasfahi_hr_royal_full'); 
                 if(d) { 
                     const parsedData = JSON.parse(d);
-                    
-                    // Deep merge to protect against lost arrays/objects in older caches
                     AppState.db.staff = parsedData.staff || [];
                     AppState.db.tasks = parsedData.tasks || [];
                     AppState.db.requests = parsedData.requests || [];
                     AppState.db.resetLogs = parsedData.resetLogs || [];
-                    
-                    AppState.db.departments = (parsedData.departments && parsedData.departments.length > 0) 
-                        ? parsedData.departments : ["Executive Office", "Human Resources", "Finance", "Information Technology"];
-                    
-                    AppState.db.sections = (parsedData.sections && Object.keys(parsedData.sections).length > 0) 
-                        ? parsedData.sections : { "Executive Office": ["Strategy", "Legal"], "Human Resources": ["Recruitment", "Welfare"], "Finance": ["Treasury"], "Information Technology": ["Infrastructure", "Development"] };
-                    
-                    AppState.db.pointSystem = (parsedData.pointSystem && Object.keys(parsedData.pointSystem).length > 0) 
-                        ? parsedData.pointSystem : DefaultMetrics;
-                        
+                    AppState.db.departments = (parsedData.departments && parsedData.departments.length > 0) ? parsedData.departments : ["Executive Office", "Human Resources", "Finance", "Information Technology"];
+                    AppState.db.sections = (parsedData.sections && Object.keys(parsedData.sections).length > 0) ? parsedData.sections : { "Executive Office": ["Strategy", "Legal"], "Human Resources": ["Recruitment", "Welfare"], "Finance": ["Treasury"], "Information Technology": ["Infrastructure", "Development"] };
+                    AppState.db.pointSystem = (parsedData.pointSystem && Object.keys(parsedData.pointSystem).length > 0) ? parsedData.pointSystem : DefaultMetrics;
                     AppState.db.settings = parsedData.settings || { orgName: 'Rasfahi Enterprise HR', orgAddress: 'Maldives', orgLogo: '' };
-
                     callback(true); 
                 } else { callback(false); }
             } catch(e) { callback(false); }
@@ -1380,7 +1355,6 @@
 
    const generateUID = (prefix) => prefix + '-' + Math.floor(Math.random() * 900000 + 100000);
 
-// Excel އަށް އެކްސްޕޯރޓް ކުރާ މައި ފަންކްޝަން
 function exportTableToCSV(filename, tableId) {
     let csv = [];
     let rows = document.querySelectorAll("#" + tableId + " tr");
@@ -1423,18 +1397,11 @@ function exportTableToCSV(filename, tableId) {
             if(AppState.db.settings.orgLogo) {
                 let img = document.getElementById('navOrgLogo');
                 let def = document.getElementById('navDefaultLogo');
-                if(img && def) {
-                    img.src = AppState.db.settings.orgLogo;
-                    img.classList.remove('hidden');
-                    def.classList.add('hidden');
-                }
+                if(img && def) { img.src = AppState.db.settings.orgLogo; img.classList.remove('hidden'); def.classList.add('hidden'); }
             } else {
                 let img = document.getElementById('navOrgLogo');
                 let def = document.getElementById('navDefaultLogo');
-                if(img && def) {
-                    img.classList.add('hidden');
-                    def.classList.remove('hidden');
-                }
+                if(img && def) { img.classList.add('hidden'); def.classList.remove('hidden'); }
             }
         }
     }
@@ -1445,29 +1412,23 @@ function exportTableToCSV(filename, tableId) {
             let specificDeptOpts = '';
             AppState.db.departments.forEach(d => {
                 let opt = `<option value="${d}">${d}</option>`;
-                deptOpts += opt;
-                specificDeptOpts += opt;
+                deptOpts += opt; specificDeptOpts += opt;
             });
             ['acFilterDept', 'reqFilterDept', 'dirDeptFilter', 'perfDeptFilter'].forEach(id => {
-                let el = document.getElementById(id);
-                if(el) el.innerHTML = deptOpts;
+                let el = document.getElementById(id); if(el) el.innerHTML = deptOpts;
             });
             ['stfDept', 'orgSecFilter'].forEach(id => {
-                let el = document.getElementById(id);
-                if(el) el.innerHTML = specificDeptOpts;
+                let el = document.getElementById(id); if(el) el.innerHTML = specificDeptOpts;
             });
         },
         render: () => {
             let deptHtml = '';
             AppState.db.departments.forEach(d => {
                 deptHtml += `<div class="p-2 bg-white border border-slate-200 rounded flex justify-between items-center text-sm font-bold text-[#1e3a8a] mb-2">
-                    <span>${d}</span>
-                    <button onclick="OrgManager.deleteDept('${d}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
-                </div>`;
+                    <span>${d}</span><button onclick="OrgManager.deleteDept('${d}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button></div>`;
             });
             document.getElementById('orgDeptList').innerHTML = deptHtml;
-            OrgManager.renderSections();
-            OrgManager.renderChart();
+            OrgManager.renderSections(); OrgManager.renderChart();
         },
         renderSections: () => {
             let dept = document.getElementById('orgSecFilter').value;
@@ -1475,9 +1436,7 @@ function exportTableToCSV(filename, tableId) {
             if(dept && AppState.db.sections[dept]) {
                 AppState.db.sections[dept].forEach(s => {
                     secHtml += `<div class="p-2 bg-white border border-slate-200 rounded flex justify-between items-center text-sm font-bold text-[#064e3b] mb-2">
-                        <span>${s}</span>
-                        <button onclick="OrgManager.deleteSec('${dept}', '${s}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
-                    </div>`;
+                        <span>${s}</span><button onclick="OrgManager.deleteSec('${dept}', '${s}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button></div>`;
                 });
             }
             document.getElementById('orgSecList').innerHTML = secHtml || '<p class="text-xs text-slate-400">No sections found.</p>';
@@ -1487,9 +1446,7 @@ function exportTableToCSV(filename, tableId) {
             if(name && !AppState.db.departments.includes(name)) {
                 AppState.db.departments.push(name);
                 AppState.db.sections[name] = ["General"];
-                HybridCloud.saveAutoLocal();
-                OrgManager.populateDropdowns();
-                OrgManager.render();
+                HybridCloud.saveAutoLocal(); OrgManager.populateDropdowns(); OrgManager.render();
             }
         },
         addSec: () => {
@@ -1499,9 +1456,7 @@ function exportTableToCSV(filename, tableId) {
                 if(!AppState.db.sections[dept]) AppState.db.sections[dept] = [];
                 if(!AppState.db.sections[dept].includes(name)) {
                     AppState.db.sections[dept].push(name);
-                    HybridCloud.saveAutoLocal();
-                    OrgManager.renderSections();
-                    OrgManager.renderChart();
+                    HybridCloud.saveAutoLocal(); OrgManager.renderSections(); OrgManager.renderChart();
                 }
             }
         },
@@ -1509,39 +1464,60 @@ function exportTableToCSV(filename, tableId) {
             if(confirm(`Delete department ${dept}?`)) {
                 AppState.db.departments = AppState.db.departments.filter(d => d !== dept);
                 delete AppState.db.sections[dept];
-                HybridCloud.saveAutoLocal();
-                OrgManager.populateDropdowns();
-                OrgManager.render();
+                HybridCloud.saveAutoLocal(); OrgManager.populateDropdowns(); OrgManager.render();
             }
         },
         deleteSec: (dept, sec) => {
             if(confirm(`Delete section ${sec} from ${dept}?`)) {
                 AppState.db.sections[dept] = AppState.db.sections[dept].filter(s => s !== sec);
-                HybridCloud.saveAutoLocal();
-                OrgManager.renderSections();
-                OrgManager.renderChart();
+                HybridCloud.saveAutoLocal(); OrgManager.renderSections(); OrgManager.renderChart();
             }
         },
         renderChart: () => {
+            let filterDept = document.getElementById('orgSecFilter').value;
+            let deptsToShow = filterDept ? [filterDept] : AppState.db.departments;
+
             let html = `<div class="org-node bg-[var(--royal-purple)] text-white border-none shadow-lg mb-4 mx-auto">
-                <h3 class="font-black text-lg">ENTERPRISE</h3>
+                <h3 class="font-black text-lg">${AppState.db.settings.orgName || 'ENTERPRISE'}</h3>
             </div>
             <div class="org-line-v bg-[var(--royal-purple)] h-8 mx-auto"></div>
-            <div class="flex justify-center gap-4 relative pt-4 w-full">
-                <div class="org-line-h top-0 absolute" style="width: calc(100% - 180px);"></div>`;
+            <div class="flex justify-center gap-4 relative pt-4 w-full flex-wrap">`;
             
-            AppState.db.departments.forEach((d, i) => {
-                let sections = AppState.db.sections[d] || [];
-                html += `<div class="flex flex-col items-center relative z-10 flex-1">
+            if(deptsToShow.length > 1) {
+                 html += `<div class="org-line-h top-0 absolute" style="width: calc(100% - 180px);"></div>`;
+            }
+
+            deptsToShow.forEach((d, i) => {
+                let sections = AppState.db.sections[d] || ["General"];
+                html += `<div class="flex flex-col items-center relative z-10 flex-1 min-w-[250px] mb-8">
                     <div class="org-line-v h-4 absolute -top-4 bg-[#1e3a8a]"></div>
-                    <div class="org-node border-[#1e3a8a] shadow-md">
-                        <h4 class="font-black text-sm text-[#1e3a8a]">${d}</h4>
+                    <div class="org-node border-[#1e3a8a] shadow-md bg-blue-50 w-full">
+                        <h4 class="font-black text-sm text-[#1e3a8a] uppercase">${d}</h4>
                     </div>`;
+                
                 if(sections.length > 0) {
-                    html += `<div class="org-line-v h-6 bg-[#064e3b]"></div><div class="flex flex-col gap-2">`;
+                    html += `<div class="org-line-v h-6 bg-[#064e3b]"></div><div class="flex flex-col gap-4 w-full items-center">`;
                     sections.forEach(s => {
-                        html += `<div class="org-node border-[#064e3b] px-4 py-2 min-w-[140px]">
-                            <span class="text-xs font-bold text-[#064e3b]">${s}</span>
+                        let sectionStaff = AppState.db.staff.filter(st => st.dept === d && st.section === s && st.status === 'Active');
+                        let staffHtml = '';
+                        
+                        if(sectionStaff.length > 0) {
+                            staffHtml = `<div class="mt-2 space-y-1 border-t border-[#064e3b]/30 pt-2 w-full text-left">`;
+                            sectionStaff.forEach(st => {
+                                let headIcon = (st.headStatus && st.headStatus !== 'None') ? '<i class="fa-solid fa-star text-yellow-500 ml-1"></i>' : '';
+                                staffHtml += `<div class="text-[10px] bg-white p-1 rounded border border-slate-200 shadow-sm flex items-center gap-2">
+                                    <div class="w-4 h-4 rounded-full bg-[#0f172a] text-white flex items-center justify-center text-[8px] font-bold">${st.name.charAt(0)}</div>
+                                    <span class="font-bold text-[#0f172a] truncate block w-full" dir="auto">${st.name} ${headIcon}<br><span class="text-[8px] text-slate-500 font-normal">${st.jobTitle}</span></span>
+                                </div>`;
+                            });
+                            staffHtml += `</div>`;
+                        } else {
+                            staffHtml = `<p class="text-[8px] text-slate-400 mt-2 italic">No Active Staff</p>`;
+                        }
+
+                        html += `<div class="org-node border-[#064e3b] px-4 py-2 w-[90%] shadow-sm relative">
+                            <span class="text-xs font-black text-[#064e3b] uppercase tracking-widest">${s}</span>
+                            ${staffHtml}
                         </div>`;
                     });
                     html += `</div>`;
@@ -1598,8 +1574,7 @@ function exportTableToCSV(filename, tableId) {
             HybridCloud.saveAutoLocal();
             UI.closeModal('modalLogActivity');
             UI.showToast("Activity Logged", "success");
-            WorkspaceEngine.render();
-            DashboardEngine.render();
+            WorkspaceEngine.render(); DashboardEngine.render();
         }
     };
 
@@ -1643,6 +1618,35 @@ function exportTableToCSV(filename, tableId) {
                     <button onclick="TaskEngine.openUpdateModal('${t.id}')" class="btn-base btn-primary text-[10px] w-full py-1.5">Update Progress</button>
                 </div>
             `).join('') || '<p class="text-xs text-slate-500 text-center py-4">All clear.</p>';
+
+            // Overdue check for Staff Workspace
+            let staffOverdueTasks = userTasks.filter(t => {
+                if(t.status === 'Completed' || !t.dueDate) return false;
+                return new Date() > new Date(t.dueDate);
+            });
+
+            let wsOverdueHtml = '';
+            if(staffOverdueTasks.length > 0) {
+                wsOverdueHtml = `<div class="royal-overdue-box mt-6 z-10 relative">
+                    <h3 class="royal-font text-xl font-black text-red-200 uppercase tracking-widest mb-3 border-b border-red-400/30 pb-2"><i class="fa-solid fa-triangle-exclamation mr-2 text-yellow-400 animate-pulse"></i> Deadline Overdue</h3>
+                    <div class="space-y-2">`;
+                staffOverdueTasks.forEach(t => {
+                    if(!t.smsSent) {
+                        UI.showToast(`SYSTEM ALERT: SMS Sent to your mobile (${CurrentUser.mobile || 'Registered Number'}) regarding overdue task.`, 'error');
+                        t.smsSent = true;
+                    }
+                    wsOverdueHtml += `<div class="bg-black/40 p-3 rounded flex justify-between items-center border border-red-500/50">
+                        <div>
+                            <p class="font-bold text-sm text-white">${t.title}</p>
+                            <p class="text-[10px] text-red-300 font-mono mt-1">Missed Deadline: ${new Date(t.dueDate).toLocaleString()}</p>
+                        </div>
+                        <button onclick="TaskEngine.openUpdateModal('${t.id}')" class="btn-base bg-red-600 hover:bg-red-500 text-white text-[9px] px-3 py-1 shadow-md border border-red-400">Update Now</button>
+                    </div>`;
+                });
+                wsOverdueHtml += `</div></div>`;
+            }
+            let wsOverdueCont = document.getElementById('wsOverdueContainer');
+            if(wsOverdueCont) wsOverdueCont.innerHTML = wsOverdueHtml;
         }
     };
 
@@ -1704,31 +1708,29 @@ function exportTableToCSV(filename, tableId) {
             const originalStyle = container.style.cssText;
             
             container.classList.add('pdf-export-mode');
+            let tables = container.querySelectorAll('table');
+            tables.forEach(tbl => { tbl.style.width = '100%'; tbl.style.minWidth = 'auto'; });
             
             const headerId = 'pdf-temp-header';
             const header = document.createElement('div');
             header.id = headerId;
-
             let logoHtml = AppState.db.settings.orgLogo ? `<img src="${AppState.db.settings.orgLogo}" style="height:50px; margin-bottom:10px; object-fit:contain;">` : '';
 
             header.innerHTML = `
                 <div style="text-align:center; margin-bottom: 20px; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; display: block;">
                     ${logoHtml}
                     <h1 style="font-family: 'Cinzel', serif; font-size: 26px; font-weight: 900; color: #0f172a; margin:0;">${AppState.db.settings.orgName}</h1>
-                    <p style="font-family: 'Inter', sans-serif; font-size: 10px; color: #64748b; margin-top:5px;" dir="auto">${AppState.db.settings.orgAddress}</p>
-                    <h2 style="font-family: 'Cinzel', serif; font-size: 16px; font-weight: bold; color: #1e3a8a; margin-top:15px; text-transform: uppercase;">${title}</h2>
-                    <p style="font-family: 'Inter', sans-serif; font-size: 9px; color: #94a3b8; margin-top:5px;">Generated: ${new Date().toLocaleString()} | MED.03.IP.CR.26.EW5889</p>
+                    <h2 style="font-family: 'Cinzel', serif; font-size: 16px; font-weight: bold; color: #1e3a8a; margin-top:10px; text-transform: uppercase;">${title}</h2>
                 </div>
             `;
             container.insertBefore(header, container.firstChild);
 
-            // Fixing blank pages: Wait a moment for layout reflow, then print
             setTimeout(() => {
                 let opt = {
-                    margin:       [10, 10, 10, 10], // top, left, bottom, right
+                    margin:       [10, 5, 10, 5],
                     filename:     filename,
                     image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true, scrollY: 0, windowWidth: container.scrollWidth },
+                    html2canvas:  { scale: 1.2, useCORS: true, scrollY: 0, windowWidth: 1400 }, 
                     jsPDF:        { unit: 'mm', format: pageSize, orientation: 'landscape' },
                     pagebreak:    { mode: ['css', 'legacy'] }
                 };
@@ -1736,25 +1738,24 @@ function exportTableToCSV(filename, tableId) {
                 html2pdf().set(opt).from(container).save().then(() => {
                     document.getElementById(headerId).remove();
                     container.style.cssText = originalStyle;
+                    tables.forEach(tbl => { tbl.style.width = ''; tbl.style.minWidth = ''; });
                     container.classList.remove('pdf-export-mode');
                     UI.showToast("PDF Export Completed", "success");
                 });
-            }, 300);
+            }, 500); 
         }
     };
 
     const UI = {
         getPerfLevelConfig: (pts) => {
-            if(pts === 0) return { text: "Very Poor", bg: "#991b1b" }; // Red
-            if(pts < 20) return { text: "Poor", bg: "#b45309" }; // Orange
-            if(pts < 40) return { text: "Medium", bg: "#0f172a" }; // Slate
-            if(pts < 70) return { text: "Good", bg: "#0e7490" }; // Cyan
-            if(pts < 90) return { text: "High", bg: "#064e3b" }; // Green
-            return { text: "Excellent", bg: "#4c1d95", textCol: "#fff" }; // Purple
+            if(pts === 0) return { text: "Very Poor", bg: "#991b1b" }; 
+            if(pts < 20) return { text: "Poor", bg: "#b45309" }; 
+            if(pts < 40) return { text: "Medium", bg: "#0f172a" }; 
+            if(pts < 70) return { text: "Good", bg: "#0e7490" }; 
+            if(pts < 90) return { text: "High", bg: "#064e3b" }; 
+            return { text: "Excellent", bg: "#4c1d95", textCol: "#fff" }; 
         },
-        toggleSidebar: () => {
-            document.body.classList.toggle('sidebar-open');
-        },
+        toggleSidebar: () => { document.body.classList.toggle('sidebar-open'); },
         openModal: (id) => { const el = document.getElementById(id); if(el) el.style.display = 'flex'; },
         closeModal: (id) => { const el = document.getElementById(id); if(el) el.style.display = 'none'; },
         showToast: (msg, type='info') => {
@@ -1771,13 +1772,13 @@ function exportTableToCSV(filename, tableId) {
             }, 3500);
         },
         getStatusColor: (s, p, isLate) => {
-            if(isLate && s !== 'Completed') return '#991b1b'; // Red
-            if(s === 'Parked') return '#b45309'; // Orange-ish
-            if(s === 'Wait Endorse') return '#4c1d95'; // Royal Purple
-            if(s === 'Returned') return '#991b1b'; // Red
-            if(s === 'Completed' || p === 100) return '#064e3b'; // Royal Green
-            if(s === 'Pending' || p === 0) return '#64748b'; // Slate
-            return '#0e7490'; // Royal Cyan for In Progress
+            if(isLate && s !== 'Completed') return '#991b1b'; 
+            if(s === 'Parked') return '#b45309'; 
+            if(s === 'Wait Endorse') return '#4c1d95'; 
+            if(s === 'Returned') return '#991b1b'; 
+            if(s === 'Completed' || p === 100) return '#064e3b'; 
+            if(s === 'Pending' || p === 0) return '#64748b'; 
+            return '#0e7490'; 
         },
         renderStars: (count) => {
             let h = '<div class="flex gap-1">';
@@ -1797,7 +1798,7 @@ function exportTableToCSV(filename, tableId) {
             if (fromDate && toDate) {
                 attTasks = userTasks.filter(t => {
                     if(!t.logDate) return false;
-                    let logD = t.logDate.split(' ')[0]; // YYYY-MM-DD
+                    let logD = t.logDate.split(' ')[0]; 
                     return (logD >= fromDate && logD <= toDate);
                 });
             }
@@ -1895,7 +1896,7 @@ function exportTableToCSV(filename, tableId) {
             PerformanceEngine.setQuickDate('month');
 
             let targetView = user.role === 'STAFF' ? 'myWorkspace' : 'dashboard';
-            Navigation.goTo(targetView); // Direct jump to correct tab
+            Navigation.goTo(targetView); 
             UI.showToast(`Royal Access Granted: ${user.role}`, 'success');
         },
         logout: () => window.location.reload()
@@ -1982,7 +1983,6 @@ function exportTableToCSV(filename, tableId) {
                 el.style.opacity = '0'; 
             });
             
-            // Highlight active button in sidebar
             document.querySelectorAll('#sidebarNav button').forEach(btn => {
                 btn.classList.remove('nav-btn-active');
                 if(btn.getAttribute('onclick').includes(viewId)) {
@@ -1997,23 +1997,15 @@ function exportTableToCSV(filename, tableId) {
             }
 
             const titles = { 
-                'dashboard': 'Executive Dashboard', 
-                'actionCenter': 'Action Center',
-                'requestCenter': 'Request Center',
-                'directory': 'Master Directory', 
-                'orgStructure': 'Enterprise Architecture', 
-                'pointConfig': 'Point Config',
-                'orgSettings': 'Organization Settings',
-                'systemAdmin': 'System Admin',
-                'performance': 'Performance Matrix', 
-                'myWorkspace': 'Personal Workspace' 
+                'dashboard': 'Executive Dashboard', 'actionCenter': 'Action Center',
+                'requestCenter': 'Request Center', 'directory': 'Master Directory', 
+                'orgStructure': 'Enterprise Architecture', 'pointConfig': 'Point Config',
+                'orgSettings': 'Organization Settings', 'systemAdmin': 'System Admin',
+                'performance': 'Performance Matrix', 'myWorkspace': 'Personal Workspace' 
             };
             document.getElementById('viewTitle').innerText = titles[viewId] || viewId;
             
-            if(window.innerWidth < 768) {
-                document.body.classList.remove('sidebar-open'); 
-            }
-            
+            if(window.innerWidth < 768) { document.body.classList.remove('sidebar-open'); }
             const scrollArea = document.getElementById('mainScrollArea'); 
             if(scrollArea) scrollArea.scrollTop = 0;
 
@@ -2086,22 +2078,15 @@ function exportTableToCSV(filename, tableId) {
             if(!sub || !det) return UI.showToast("Subject and Details are required", "error");
 
             let reqObj = {
-                id: generateUID('REQ'),
-                staffId: CurrentUser.id,
-                type: type,
-                subject: sub,
-                details: det,
-                status: 'Pending',
-                date: new Date().toLocaleString(),
-                remarks: ''
+                id: generateUID('REQ'), staffId: CurrentUser.id, type: type, subject: sub,
+                details: det, status: 'Pending', date: new Date().toLocaleString(), remarks: ''
             };
 
             if(type === 'Overtime') {
                 const otHrs = document.getElementById('reqOtHours').value;
                 const otDate = document.getElementById('reqOtDate').value;
                 if(!otHrs || !otDate) return UI.showToast("OT Hours and Date required", "error");
-                reqObj.otHours = otHrs;
-                reqObj.otDate = otDate;
+                reqObj.otHours = otHrs; reqObj.otDate = otDate;
             }
 
             AppState.db.requests.push(reqObj);
@@ -2127,7 +2112,6 @@ function exportTableToCSV(filename, tableId) {
             });
             document.getElementById('reqFilterDept').innerHTML = dOpts;
             RequestCenterEngine.updateSecFilter();
-            
             RequestCenterEngine.renderList();
         },
         renderList: () => {
@@ -2163,14 +2147,12 @@ function exportTableToCSV(filename, tableId) {
 
             let html = reqs.length > 0 ? reqs.map(r => {
                 let s = AppState.db.staff.find(x => x.id === r.staffId);
-                
                 let cardClass = "req-card";
                 if(r.type === 'Urgent') cardClass += " urgent";
                 if(r.type === 'Overtime') cardClass += " overtime";
                 if(r.type === 'Normal') cardClass += " normal";
 
                 let sCol = r.status === 'Pending' ? '#b45309' : r.status === 'Approved' ? '#064e3b' : r.status === 'Rejected' ? '#991b1b' : '#0f172a';
-
                 let otInfo = r.type === 'Overtime' ? `<div class="bg-amber-100 text-amber-900 p-2 rounded text-[10px] font-bold mt-2"><i class="fa-solid fa-clock mr-1"></i> Target: ${r.otDate} | Hrs: ${r.otHours}</div>` : '';
                 
                 let actBtns = r.status === 'Pending' ? `
@@ -2248,16 +2230,30 @@ function exportTableToCSV(filename, tableId) {
             });
             document.getElementById('atStaff').innerHTML = staffOpts;
             
+            let daysOpts = '<option value="">Select Days...</option>';
+            for(let i=1; i<=90; i++) { daysOpts += `<option value="${i}">${i} Days</option>`; }
+            document.getElementById('atDueDays').innerHTML = daysOpts;
+
             document.getElementById('atTitle').value = '';
             document.getElementById('atDueDate').value = '';
             document.getElementById('atInstructions').value = '';
             
             UI.openModal('modalAssignTask');
         },
+        calcDueDate: () => {
+            let days = parseInt(document.getElementById('atDueDays').value);
+            if(!isNaN(days)) {
+                let d = new Date();
+                d.setDate(d.getDate() + days);
+                let tzOffset = d.getTimezoneOffset() * 60000;
+                let localISOTime = (new Date(d - tzOffset)).toISOString().slice(0,16);
+                document.getElementById('atDueDate').value = localISOTime;
+            }
+        },
         submitAssignedTask: () => {
             const staffId = document.getElementById('atStaff').value;
             const title = document.getElementById('atTitle').value.trim();
-            const dueDate = document.getElementById('atDueDate').value;
+            const dueDate = document.getElementById('atDueDate').value; // Now a datetime-local value
             const inst = document.getElementById('atInstructions').value.trim();
             
             if(!staffId || !title || !dueDate) return UI.showToast("Staff, Title, and Due Date are required", "error");
@@ -2266,17 +2262,9 @@ function exportTableToCSV(filename, tableId) {
             let dateStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
 
             AppState.db.tasks.push({ 
-                id: generateUID('DIR'), 
-                staffId: staffId, 
-                title: title, 
-                category: 'Directive', 
-                progress: 0, 
-                status: 'In Progress', 
-                logDate: dateStr, 
-                dueDate: dueDate,
-                instructions: inst,
-                isLate: false, 
-                assignedBy: CurrentUser.role, // Mark as assigned by role to prevent lower edits
+                id: generateUID('DIR'), staffId: staffId, title: title, category: 'Directive', 
+                progress: 0, status: 'In Progress', logDate: dateStr, dueDate: dueDate,
+                instructions: inst, isLate: false, smsSent: false, assignedBy: CurrentUser.role, 
                 updates: [{date: new Date().toLocaleString(), text: `Task officially assigned by ${CurrentUser.role}.`}]
             });
             
@@ -2306,7 +2294,6 @@ function exportTableToCSV(filename, tableId) {
             } else {
                 document.getElementById('supervisorCommentSection').style.display = 'none';
             }
-
             UI.openModal('modalTaskUpdate');
         },
         updateSlider: (val) => {
@@ -2324,14 +2311,10 @@ function exportTableToCSV(filename, tableId) {
             
             let now = new Date();
             let dateStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
-            
             t.updates.push({ date: dateStr, text: `Progress adjusted to ${prog}%. Staff Remarks: ${notes || 'None'}` });
             
-            if(prog === 100) {
-                t.status = 'Wait Endorse';
-            } else if (prog > 0) {
-                t.status = 'In Progress';
-            }
+            if(prog === 100) { t.status = 'Wait Endorse'; } 
+            else if (prog > 0) { t.status = 'In Progress'; }
             
             HybridCloud.saveAutoLocal();
             UI.closeModal('modalTaskUpdate');
@@ -2381,7 +2364,6 @@ function exportTableToCSV(filename, tableId) {
             let tasks = AppState.db.tasks.filter(t => {
                 let s = AppState.db.staff.find(x => x.id === t.staffId);
                 if(!s) return false;
-                
                 if(CurrentUser.role === 'HOD' && (s.dept !== CurrentUser.dept || s.section !== CurrentUser.section)) return false;
 
                 let matchStat = stat === 'All' ? true : t.status === stat;
@@ -2410,7 +2392,6 @@ function exportTableToCSV(filename, tableId) {
 
             let html = tasks.length > 0 ? tasks.map(t => {
                 let s = AppState.db.staff.find(x => x.id === t.staffId);
-                
                 let allowModify = (CurrentUser.role === 'BUREAU' || CurrentUser.role === 'HOD');
                 if(t.assignedBy === 'BUREAU' && CurrentUser.role !== 'BUREAU') allowModify = false;
 
@@ -2547,17 +2528,43 @@ function exportTableToCSV(filename, tableId) {
             document.getElementById('kpi-completed').innerText = tDone;
             document.getElementById('kpi-pending').innerText = tWait + tNot;
 
-            DashboardEngine.renderTimeline(relevantTasks);
+            DashboardEngine.renderTimeline(relevantTasks, relevantStaff);
             DashboardEngine.renderPerformanceWidgets(relevantStaff);
             DashboardEngine.renderCharts(relevantStaff, relevantTasks);
             DashboardEngine.renderWorkloadChart(relevantStaff, relevantTasks);
             DashboardEngine.renderDeptStaffChart();
+
+            // Overdue check for Supervisor Dashboard
+            let overdueTasks = relevantTasks.filter(t => {
+                if(t.status === 'Completed' || !t.dueDate) return false;
+                return new Date() > new Date(t.dueDate);
+            });
+            
+            let dashOverdueHtml = '';
+            if(overdueTasks.length > 0) {
+                dashOverdueHtml = `<div class="royal-overdue-box mt-6 z-10 relative">
+                    <h3 class="royal-font text-xl font-black text-red-200 uppercase tracking-widest mb-3 border-b border-red-400/30 pb-2"><i class="fa-solid fa-triangle-exclamation mr-2 text-yellow-400 animate-pulse"></i> Deadline Overdue (Enterprise Wide)</h3>
+                    <div class="space-y-2 max-h-60 overflow-y-auto pr-2">`;
+                overdueTasks.forEach(t => {
+                    let s = relevantStaff.find(x => x.id === t.staffId);
+                    dashOverdueHtml += `<div class="bg-black/40 p-3 rounded flex justify-between items-center border border-red-500/50 backdrop-blur-sm">
+                        <div>
+                            <p class="font-bold text-sm text-white">${t.title}</p>
+                            <p class="text-[10px] text-red-300 font-mono mt-1">Assigned to: ${s ? s.name : 'Unknown'} | Due: ${new Date(t.dueDate).toLocaleString()}</p>
+                        </div>
+                        <button onclick="UI.showToast('SMS Notification Sent to ${s ? s.mobile : 'Staff'}', 'warning')" class="btn-base bg-red-600 hover:bg-red-500 text-white text-[9px] px-3 py-1 shadow-md border border-red-400"><i class="fa-solid fa-comment-sms"></i> Send SMS</button>
+                    </div>`;
+                });
+                dashOverdueHtml += `</div></div>`;
+            }
+            let dashOverdueCont = document.getElementById('dashOverdueContainer');
+            if(dashOverdueCont) dashOverdueCont.innerHTML = dashOverdueHtml;
         },
-        renderTimeline: (tasks) => {
+        renderTimeline: (tasks, relevantStaff) => {
             let tlTasks = tasks.filter(t => t.status !== 'Completed').sort((a,b) => new Date(a.logDate) - new Date(b.logDate));
             
             let html = tlTasks.length > 0 ? tlTasks.map(t => {
-                let s = AppState.db.staff.find(x => x.id === t.staffId);
+                let s = relevantStaff.find(x => x.id === t.staffId);
                 let daysOld = (new Date() - new Date(t.logDate)) / (1000 * 3600 * 24);
                 let isVeryLate = t.progress === 0 && daysOld > 1;
                 
@@ -2994,18 +3001,12 @@ function exportTableToCSV(filename, tableId) {
                 let emailBase = `${fn.toLowerCase()}.${ln.toLowerCase()}${counter}@rasfahi.com`;
                 
                 let row = {
-                    "Index No": "IDX-" + (1000 + counter),
-                    "Record No": "REC-" + (5000 + counter),
-                    "ID Card": "A" + (100000 + counter),
-                    "Full Name": fn + " " + ln,
-                    "Job Title": titlePrefix || "Officer",
-                    "Email": emailBase,
+                    "Index No": "IDX-" + (1000 + counter), "Record No": "REC-" + (5000 + counter),
+                    "ID Card": "A" + (100000 + counter), "Full Name": fn + " " + ln,
+                    "Job Title": titlePrefix || "Officer", "Email": emailBase,
                     "Mobile": "+960 7" + Math.floor(100000 + Math.random() * 900000),
-                    "Department": dept,
-                    "Section": section,
-                    "Type": empType,
-                    "Role": sRole,
-                    "Head Status": headStatus || "None"
+                    "Department": dept, "Section": section, "Type": empType,
+                    "Role": sRole, "Head Status": headStatus || "None"
                 };
                 counter++;
                 return row;
@@ -3220,7 +3221,6 @@ function exportTableToCSV(filename, tableId) {
         }
     };
 
-    // System Boot
     window.onload = () => { 
         HybridCloud.load(() => { 
             console.log("Rasfahi Enterprise HR Core Online."); 
