@@ -2141,31 +2141,37 @@
 
     const generateUID = (prefix) => prefix + '-' + Math.floor(Math.random() * 900000 + 100000);
 
-    /**
+   /**
      * ==========================================================================
-     * FIREBASE CLOUD STORAGE ENGINE
-     * Manages saving and retrieving data to maintain persistent state in Firebase.
+     * FIREBASE CLOUD STORAGE ENGINE (ROBUST BATCH SYNC)
+     * Manages saving and retrieving ALL system data to maintain persistent state.
      * ==========================================================================
      */
     const HybridCloud = {
         saveAutoLocal: async () => { 
             try { 
-                // Save to Firebase Firestore Document (Centralized State)
-                const docRef = window.doc(window.db, "systemState", "mainPortal");
-                await window.updateDoc(docRef, { data: JSON.stringify(AppState.db) }).catch(async (err) => {
-                    if (err.code === 'not-found') {
-                        await window.addDoc(window.collection(window.db, "systemState"), { data: JSON.stringify(AppState.db) }, "mainPortal");
-                    }
-                });
-
-                // Also keep local backup for offline resilience
+                // 1. ފުރަތަމަ ލޯކަލްކޮށް (ބްރައުޒަރަށް) ސޭވްކުރުން (އަވަސްކުރުމަށް އަދި އޮފްލައިން ބެކަޕްއަކަށް)
                 localStorage.setItem('rasfahi_hr_royal_full_v4', JSON.stringify(AppState.db)); 
                 
+                // 2. އޮޓޯ ސޭވް އިންޑިކޭޓަރ ދެއްކުން
                 let ind = document.getElementById('autoSaveInd'); 
                 if(ind) { 
                     ind.classList.remove('hidden'); 
                     setTimeout(() => { ind.classList.add('hidden'); }, 2500); 
                 }
+
+                // 3. ފަޔަރބޭސްއަށް ފޮނުވުން (Cloud Sync)
+                if (window.db) {
+                    const docRef = window.doc(window.db, "systemState", "mainPortal");
+                    
+                    // މުވައްޒަފުންގެ ލިސްޓު ބޮޑުވެދާނެތީ، ހުރިހާ ޑޭޓާއެއް އެއްކޮށް String އަކަށް ބަދަލުކޮށްފައި ފޮނުވުން
+                    const dataString = JSON.stringify(AppState.db);
+                    
+                    // setDoc ބޭނުންކުރުމުން ފައިލް ނެތިއްޔާ ހަދާފައި، އިންނަމަ އަޕްޑޭޓްކޮށްލާނެ (addDoc/updateDoc ގެ މައްސަލަ ޙައްލުވާނެ)
+                    const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                    await setDoc(docRef, { data: dataString }, { merge: true });
+                }
+
             } catch(e) { 
                 console.error("Firebase Cloud Save Error:", e); 
             } 
@@ -2176,15 +2182,23 @@
         },
         load: async (callback) => {
             try { 
-                const docRef = window.doc(window.db, "systemState", "mainPortal");
-                const docSnap = await window.getDocs(window.collection(window.db, "systemState"));
-                
                 let cloudData = null;
-                docSnap.forEach((doc) => { if(doc.id === "mainPortal") cloudData = doc.data().data; });
 
+                // ފަޔަރބޭސްއިން ޑޭޓާ ގެނައުމަށް މަސައްކަތްކުރުން
+                if (window.db) {
+                    const docSnap = await window.getDocs(window.collection(window.db, "systemState"));
+                    docSnap.forEach((doc) => { 
+                        if(doc.id === "mainPortal") cloudData = doc.data().data; 
+                    });
+                }
+
+                // ފަޔަރބޭސްއިން ޑޭޓާ ނުލިބިއްޖެނަމަ، ލޯކަލް ސްޓޯރޭޖުން ނެގުން
                 const d = cloudData || localStorage.getItem('rasfahi_hr_royal_full_v4'); 
+                
                 if(d) { 
                     const parsedData = JSON.parse(d);
+                    
+                    // ސިސްޓަމްގެ ހުރިހާ ބައިތަކަށް ޑޭޓާ އެޅުން
                     AppState.db.staff = parsedData.staff || [];
                     AppState.db.tasks = parsedData.tasks || [];
                     AppState.db.requests = parsedData.requests || [];
@@ -2193,17 +2207,26 @@
                     AppState.db.sections = (parsedData.sections && Object.keys(parsedData.sections).length > 0) ? parsedData.sections : { "Executive Office": ["Strategy", "Legal"], "Human Resources": ["Recruitment", "Welfare"], "Finance": ["Treasury"], "Information Technology": ["Infrastructure", "Development"] };
                     AppState.db.pointSystem = (parsedData.pointSystem && Object.keys(parsedData.pointSystem).length > 0) ? parsedData.pointSystem : DefaultMetrics;
                     AppState.db.settings = parsedData.settings || { orgName: 'Rasfahi Enterprise HR', orgAddress: 'Maldives', orgLogo: '' };
+                    
                     callback(true); 
                 } else { 
                     callback(false); 
                 }
             } catch(e) { 
                 console.error("Cloud Load Error:", e);
-                callback(false); 
+                
+                // ފަޔަރބޭސް އެރަރ އެއް އަރައިފިނަމަ، ލޯކަލް ޑޭޓާއިން ލޯޑުކުރޭތޯ ބެލުން
+                const backupD = localStorage.getItem('rasfahi_hr_royal_full_v4');
+                if (backupD) {
+                    const parsedData = JSON.parse(backupD);
+                    AppState.db.staff = parsedData.staff || [];
+                    callback(true);
+                } else {
+                    callback(false); 
+                }
             }
         }
     };
-
     const SystemAuth = {
         login: async (e) => {
             if(e) e.preventDefault();
