@@ -2205,19 +2205,7 @@
         }
     };
 
-    /**
-     * ==========================================================================
-     * SYSTEM AUTHENTICATION ENGINE
-     * Handles Login flows, Role-based UI visibility, and Auto-Redirect.
-     * ==========================================================================
-     */
     const SystemAuth = {
-        quickLogin: (email, role) => {
-            document.getElementById('authEmail').value = email;
-            document.getElementById('authPassword').value = '123456';
-            document.getElementById('authRole').value = role;
-            SystemAuth.login(new Event('submit'));
-        },
         login: async (e) => {
             if(e) e.preventDefault();
             const email = document.getElementById('authEmail').value.trim().toLowerCase();
@@ -2227,24 +2215,36 @@
             if(!email || !password) return UI.showToast('Identity and Secret Key required', 'error');
             
             try {
-                // Firebase Auth Integration
+                UI.showToast("Authenticating securely...", "info");
+                
+                // ފަޔަރބޭސް މެދުވެރިކޮށް ޕާސްވޯޑް ޗެކްކުރުން
                 const userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
+                
+                // ފަޔަރބޭސްއިން ހުއްދަ ދިނުމުން ސިސްޓަމަށް ވެއްދުން
                 SystemAuth.proceedLogin(email, role); 
             } catch (error) {
-                // Fallback for demo/development if Firebase auth is not perfectly configured yet
-                if(password === '123456' || password === 'admin') {
-                    SystemAuth.proceedLogin(email, role);
-                } else {
-                    UI.showToast('Authentication Failed: ' + error.message, 'error'); 
+                // ޕާސްވޯޑް ނުވަތަ އީމެއިލް ނުބައިނަމަ އެކަން އެންގުން (123456 ބޭނުންކޮށްގެން ދެން ނުވަދެވޭނެއެވެ)
+                console.error("Login Error:", error.code, error.message);
+                
+                let errorMsg = "Authentication Failed.";
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    errorMsg = "Invalid Email or Secret Key.";
+                } else if (error.code === 'auth/network-request-failed') {
+                    errorMsg = "Network connection failed.";
                 }
+                
+                UI.showToast(errorMsg, 'error'); 
             }
         },
         proceedLogin: (email, selectedRole) => {
             let user = AppState.db.staff.find(s => s.email === email);
             
             if(!user) {
+                // އީމެއިލްއިން ނަން ނެގުމަށް ކުޑަ ބަދަލެއް ގެނެވިފައި (މިސާލަކަށް: ali.011265 އިން 'ALI' ނެގުން)
+                let extractName = email.split('@')[0].split('.')[0].toUpperCase();
+                
                 user = { 
-                    id: generateUID('EMP'), name: email.split('@')[0].toUpperCase(), email: email, role: selectedRole, 
+                    id: generateUID('EMP'), name: extractName, email: email, role: selectedRole, 
                     dept: 'Executive Office', section: 'Strategy', status: 'Active', empType: 'Civil Service', 
                     attendance: 100, idCard: 'A000000', jobTitle: 'Officer', mobile: '+960 7000000', indexNo: 'IDX-001'
                 };
@@ -2285,7 +2285,6 @@
             PointConfigEngine.renderInputs();
             PerformanceEngine.setQuickDate('month');
 
-            // Auto-redirect to the most important view based on role
             let targetView = 'myWorkspace';
             if (user.role === 'BUREAU') targetView = 'dashboard';
             else if (user.role === 'HOD') targetView = 'actionCenter';
@@ -2294,16 +2293,14 @@
             UI.showToast(`Royal Access Granted: ${user.role}`, 'success');
         },
         logout: async () => {
-            await window.signOut(window.auth).catch(console.error);
+            try {
+                await window.signOut(window.auth);
+            } catch(e) {
+                console.error(e);
+            }
             window.location.reload();
         }
     };
-
-    /**
-     * ==========================================================================
-     * SYSTEM ADMIN & MASS DATA GENERATOR (1500 STAFF)
-     * ==========================================================================
-     */
     const SystemAdmin = {
         resetState: 1,
         openReset: () => {
