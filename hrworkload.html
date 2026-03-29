@@ -2300,12 +2300,18 @@
      * Handles Login flows, Role-based UI visibility, and Auto-Redirect.
      * ==========================================================================
      */
+/**
+     * ==========================================================================
+     * SYSTEM AUTHENTICATION ENGINE (FIREBASE STRICT MODE)
+     * Handles Login flows, Role-based UI visibility, and Auto-Redirect.
+     * ==========================================================================
+     */
     const SystemAuth = {
         quickLogin: (email, role) => {
             document.getElementById('authEmail').value = email;
             document.getElementById('authPassword').value = '123456';
             document.getElementById('authRole').value = role;
-            SystemAuth.login(new Event('submit'));
+            SystemAuth.login(); // ފޯމު ސަބްމިޓް ކުރުމުގެ ބަދަލުގައި ސީދާ ލޮގިން ފަންކްޝަނަށް ގޮވުން
         },
         login: async (e) => {
             if(e) e.preventDefault();
@@ -2318,14 +2324,29 @@
             try {
                 UI.showToast("Authenticating with Firebase...", "info");
                 
-                // ފަޔަރބޭސް އިން ޕާސްވޯޑް ޗެކްކުރުން
+                // ފަޔަރބޭސް އިން ޕާސްވޯޑް ޗެކްކުރުން (މިތަނުން ފެއިލްވެއްޖެނަމަ ދާނީ catch ބްލޮކަށެވެ)
                 const userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
                 
-                // ޕާސްވޯޑް ރަނގަޅުނަމަ ސިސްޓަމަށް ވެއްދުން
+                // ޕާސްވޯޑް ރަނގަޅުވެއްޖެނަމަ ސިސްޓަމަށް ވެއްދުން
                 SystemAuth.proceedLogin(email, role); 
+                
             } catch (error) {
-                // މިތަނުން އަސްލު މައްސަލަ (Firebase Error Message) ސްކްރީނަށް އަރުވާނެއެވެ
-                UI.showToast('Error: ' + error.message, 'error'); 
+                // ފަޔަރބޭސް އިން ދޭ އަސްލު މައްސަލަ (Error Message) ސީދާ ސްކްރީނަށް އެރުވުން
+                console.error("Firebase Login Error:", error.code, error.message);
+                
+                let errorMsg = error.message; // ޑިފޯލްޓްކޮށް ފަޔަރބޭސްގެ މެސެޖު ދެއްކުން
+                
+                // އާންމުކޮށް ދިމާވާ މައްސަލަތައް ދިވެހި/އިނގިރޭސި ބަހުން ސާފުކޮށްދިނުން
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    errorMsg = "Invalid Email or Password. (އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި)";
+                } else if (error.code === 'auth/network-request-failed') {
+                    errorMsg = "Network Error. Please check your internet connection.";
+                } else if (error.code === 'auth/invalid-api-key') {
+                    errorMsg = "Firebase API Key is invalid! (ކޮންފިގަރޭޝަން މައްސަލައެއް)";
+                }
+                
+                // ރަތް ކުލައިގެ ޓޯސްޓް މެސެޖެއްގައި އެރަރ ދެއްކުން
+                UI.showToast('Login Failed: ' + errorMsg, 'error'); 
             }
         },
         proceedLogin: (email, selectedRole) => {
@@ -2374,7 +2395,6 @@
             PointConfigEngine.renderInputs();
             PerformanceEngine.setQuickDate('month');
 
-            // Auto-redirect to the most important view based on role
             let targetView = 'myWorkspace';
             if (user.role === 'BUREAU') targetView = 'dashboard';
             else if (user.role === 'HOD') targetView = 'actionCenter';
@@ -2383,7 +2403,11 @@
             UI.showToast(`Royal Access Granted: ${user.role}`, 'success');
         },
         logout: async () => {
-            await window.signOut(window.auth).catch(console.error);
+            try {
+                await window.signOut(window.auth);
+            } catch(e) {
+                console.error(e);
+            }
             window.location.reload();
         }
     };
