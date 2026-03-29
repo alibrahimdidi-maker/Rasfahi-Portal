@@ -2250,7 +2250,11 @@ let saveTimeout = null;
 
     const HybridCloud = {
         saveAutoLocal: () => { 
-            if (!isSystemReady) return; 
+            // ލޮކް ނުހުޅުވެނީސް ސޭވްވުން އެއްކޮށް މަނާކުރުން (ޑޭޓާ ފޮހެވުނަ ނުދިނުމަށް)
+            if (!isSystemReady) {
+                console.warn("Safety Lock Active: Prevented accidental data wipe.");
+                return; 
+            }
             
             let ind = document.getElementById('autoSaveInd'); 
             if(ind) { 
@@ -2264,18 +2268,16 @@ let saveTimeout = null;
                     if (window.db) {
                         const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
                         
-                        // 1MB ލިމިޓުން ސަލާމަތްވުމަށްޓަކައި ޑޭޓާ 4 ބަޔަކަށް ބަހާލުން (requests ވެސް ވަކިކޮށްފައި)
                         const coreData = JSON.stringify({ ...AppState.db, staff: [], tasks: [], requests: [] });
                         const staffData = JSON.stringify(AppState.db.staff || []);
                         const taskData = JSON.stringify(AppState.db.tasks || []);
                         const reqData = JSON.stringify(AppState.db.requests || []);
 
-                        // Promise.all ބޭނުންކޮށްގެން ހުރިހާ ބައެއް އެއްފަހަރާ ކްލައުޑަށް އެޅުން
                         await Promise.all([
-                            setDoc(window.doc(window.db, "systemState", "core"), { data: coreData }, { merge: true }),
-                            setDoc(window.doc(window.db, "systemState", "staff"), { data: staffData }, { merge: true }),
-                            setDoc(window.doc(window.db, "systemState", "tasks"), { data: taskData }, { merge: true }),
-                            setDoc(window.doc(window.db, "systemState", "requests"), { data: reqData }, { merge: true })
+                            setDoc(window.doc(window.db, "systemState", "core"), { data: coreData }),
+                            setDoc(window.doc(window.db, "systemState", "staff"), { data: staffData }),
+                            setDoc(window.doc(window.db, "systemState", "tasks"), { data: taskData }),
+                            setDoc(window.doc(window.db, "systemState", "requests"), { data: reqData })
                         ]);
                         
                         if(ind) {
@@ -2287,9 +2289,10 @@ let saveTimeout = null;
                     console.error("Firebase Cloud Save Error:", e); 
                     if(ind) ind.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i> Sync Failed';
                 } 
-            }, 1000); 
+            }, 1500); // UI ރެންޑަރ ވުމުގެ ކުރިން ސޭވްވިޔަ ނުދިނުމަށް ވަގުތުކޮޅެއް އިތުރުކޮށްފައި
         },
         saveLocalManual: (type) => { 
+            if(!isSystemReady) return UI.showToast("Cannot save. Cloud connection error.", "error");
             HybridCloud.saveAutoLocal(); 
             UI.showToast(`Cloud Synchronization Initiated`, "info"); 
         },
@@ -2300,17 +2303,15 @@ let saveTimeout = null;
                     let loadedDb = { staff: [], tasks: [], requests: [], resetLogs: [], departments: [], sections: {}, pointSystem: {}, settings: {} };
                     let hasData = false;
 
-                    // ޑޭޓާ Overwrite ވިޔަ ނުދިނުމަށްޓަކައި ވަގުތީގޮތުން ޑޭޓާ ރައްކާކުރާނެ ތަންތަން
                     let tempStaff = null;
                     let tempTasks = null;
                     let tempReqs = null;
 
                     snap.forEach((doc) => { 
-                        if(doc.data().data) {
+                        if(doc.data() && doc.data().data) {
                             hasData = true;
                             let parsed = JSON.parse(doc.data().data);
                             
-                            // ޑޭޓާތައް ވަކިވަކިން ނެގުން
                             if(doc.id === "core" || doc.id === "mainPortal") {
                                 loadedDb = { ...loadedDb, ...parsed };
                             }
@@ -2321,21 +2322,28 @@ let saveTimeout = null;
                     });
 
                     if(hasData) { 
-                        // ހުރިހާ ޑޭޓާއެއް ލޯޑުވުމަށްފަހު، އަސްލު ޑޭޓާ އެޓޭޗްކުރުން (މިހެން ހެދުމުން ފޮހެވޭ މައްސަލަ ޙައްލުވާނެ)
-                        if(tempStaff) loadedDb.staff = tempStaff;
-                        if(tempTasks) loadedDb.tasks = tempTasks;
-                        if(tempReqs) loadedDb.requests = tempReqs;
+                        if(tempStaff !== null) loadedDb.staff = tempStaff;
+                        if(tempTasks !== null) loadedDb.tasks = tempTasks;
+                        if(tempReqs !== null) loadedDb.requests = tempReqs;
 
-                        AppState.db = loadedDb;
-                        isSystemReady = true; // ލޮކް ހުޅުވުން
+                        // AppState.db އެއްކޮށް ރިޕްލޭސް ކުރުމުގެ ބަދަލުގައި އެއްކޮށްލުން (Deep Merge)
+                        AppState.db = { ...AppState.db, ...loadedDb };
+                        
+                        console.log("Cloud Database Loaded Successfully.");
+                        
+                        // މުހިންމު ބަދަލު: ޑޭޓާ ލޯޑުވުމަށްފަހު 2 ސިކުންތު ފަހުން ލޮކް ހުޅުވުން (ލޯޑުވާގޮތަށް އޮޓޯ ސޭވްވިޔަ ނުދިނުމަށް)
+                        setTimeout(() => { isSystemReady = true; }, 2000); 
                         return callback(true); 
                     }
                 }
-                isSystemReady = true; // އައު ސިސްޓަމެއްނަމަ ލޮކް ހުޅުވުން
+                console.log("Empty Cloud Database. Initializing as new.");
+                setTimeout(() => { isSystemReady = true; }, 2000); 
                 callback(false); 
             } catch(e) { 
-                console.error("Cloud Load Error:", e);
-                isSystemReady = true; 
+                console.error("CRITICAL ERROR: Cloud Load Failed. System locked.", e);
+                // އެންމެ މުހިންމު ބަދަލު: އެރަރ އެއް އަރައިފިނަމަ ލޮކް ނުހުޅުވުން!
+                isSystemReady = false; 
+                alert("Database connection error! Saving is disabled to prevent data loss. Please refresh the page.");
                 callback(false); 
             }
         }
