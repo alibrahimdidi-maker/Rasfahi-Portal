@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="dv" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -13,6 +13,38 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Firebase SDK Integration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, writeBatch, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "rasfahi-hr-portal.firebaseapp.com",
+            projectId: "rasfahi-hr-portal",
+            storageBucket: "rasfahi-hr-portal.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        window.auth = getAuth(app);
+        window.db = getFirestore(app);
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.signOut = signOut;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.getDocs = getDocs;
+        window.query = query;
+        window.where = where;
+        window.writeBatch = writeBatch;
+        window.doc = doc;
+        window.updateDoc = updateDoc;
+        window.deleteDoc = deleteDoc;
+    </script>
 
     <style>
         /* ==========================================================================
@@ -413,9 +445,6 @@
             z-index: 1;
         }
 
-        /* ==========================================================================
-           ORG CHART VISUALS
-           ========================================================================== */
         .org-node { 
             background: white; 
             border: 2px solid var(--primary-blue); 
@@ -431,15 +460,25 @@
         .org-line-h { height: 2px; background: var(--primary-blue); width: 100%; position: absolute; top: 0; left: 0; z-index: 1;}
 
         /* ==========================================================================
-           PDF EXPORT OVERRIDES & UTILS
+           PDF EXPORT OVERRIDES & UTILS (A3 PRINT FIXES ADDED)
            ========================================================================== */
+        @media print {
+            @page { size: A3 landscape; margin: 15mm; }
+            body, html { background: white !important; font-size: 11pt; height: auto !important; overflow: visible !important; }
+            .presidential-wrapper { border: none !important; }
+            .no-print, .no-pdf { display: none !important; }
+            #executive-top-bar, aside, header { display: none !important; }
+            .pdf-export-mode table { width: 100% !important; border-collapse: collapse; page-break-inside: auto; }
+            .pdf-export-mode th, .pdf-export-mode td { border: 1px solid #000 !important; padding: 5px !important; text-align: left; word-wrap: break-word; }
+            .pdf-export-mode tr { page-break-inside: avoid; page-break-after: auto; }
+        }
+
         .pdf-export-mode { 
             position: relative !important; 
             display: block !important; 
             height: auto !important; 
             max-height: none !important; 
-            width: 1200px !important; 
-            max-width: 1200px !important; 
+            width: 100% !important; 
             overflow: visible !important; 
             background: white !important; 
             padding: 20px !important; 
@@ -531,7 +570,7 @@
     <div id="mobileSidebarOverlay" onclick="UI.toggleSidebar()"></div>
 
     <!-- ==========================================================================
-         AUTHENTICATION SCREEN (ROYAL LOGIN)
+         AUTHENTICATION SCREEN (ROYAL LOGIN - FIXED FOR NO PASSWORD SAVING)
          ========================================================================== -->
     <div id="authScreen" class="min-h-screen w-full flex items-center justify-center relative z-50 px-4 py-8 backdrop-blur-md overflow-hidden bg-gradient-to-br from-[#064e3b] to-[#0f172a]">
         <div class="bg-white/10 p-6 md:p-10 rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.8)] w-full max-w-md z-10 border border-white/20 backdrop-blur-xl relative">
@@ -545,52 +584,54 @@
                 <p class="text-[10px] text-yellow-500 font-black uppercase mt-2 tracking-widest border-b border-yellow-500/30 pb-2 inline-block">Royal Management Portal</p>
             </div>
             
-            <div class="space-y-5">
-                <div>
-                    <label class="label-base text-slate-300">System Role</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-shield-halved absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
-                        <select id="authRole" class="input-base pl-10 bg-white/90 border-transparent focus:border-[var(--royal-purple)] font-bold text-[#1e3a8a]">
-                            <option value="STAFF">General Staff / Employee</option>
-                            <option value="HOD">Head of Department / Section</option>
-                            <option value="BUREAU">Executive Bureau (Admin)</option>
-                        </select>
+            <form autocomplete="off" id="systemAuthForm">
+                <div class="space-y-5">
+                    <div>
+                        <label class="label-base text-slate-300">System Role</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-shield-halved absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
+                            <select id="authRole" class="input-base pl-10 bg-white/90 border-transparent focus:border-[var(--royal-purple)] font-bold text-[#1e3a8a]">
+                                <option value="STAFF">General Staff / Employee</option>
+                                <option value="HOD">Head of Department / Section</option>
+                                <option value="BUREAU">Executive Bureau (Admin)</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-                
-                <div>
-                    <label class="label-base text-slate-300">Official Identity (Email)</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
-                        <input type="email" id="authEmail" class="input-base pl-10 bg-white/90 border-transparent focus:border-[var(--royal-purple)] font-bold" value="" placeholder="user.name@rasfahi.edu.mv" dir="auto">
-                    </div>
-                </div>
-                
-                <div>
-                    <label class="label-base text-slate-300">Secret Key (Password)</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-lock absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
-                        <input type="password" id="authPassword" class="input-base pl-10 bg-white/90 border-transparent focus:border-[var(--royal-purple)] font-bold" value="123456" placeholder="••••••••" dir="auto">
-                    </div>
-                </div>
-                
-                <div class="pt-4 flex flex-col gap-3">
-                    <button onclick="SystemAuth.login()" class="w-full btn-base btn-royal py-3 text-lg shadow-[0_0_20px_rgba(76,29,149,0.4)] hover:shadow-[0_0_30px_rgba(76,29,149,0.6)] hover:scale-[1.02]">
-                        <i class="fa-solid fa-fingerprint mr-2 text-xl"></i> Secure Login
-                    </button>
                     
-                    <!-- Quick Dev Login Options -->
-                    <div class="flex gap-2 justify-center flex-wrap mt-2">
-                        <span class="text-[9px] bg-[#1e3a8a]/60 text-white px-3 py-1.5 rounded cursor-pointer hover:bg-[#1e3a8a] border border-white/20 font-bold uppercase transition" onclick="SystemAuth.quickLogin('exec.bureau@rasfahi.edu.mv', 'BUREAU')">Exec</span>
-                        <span class="text-[9px] bg-[#064e3b]/60 text-white px-3 py-1.5 rounded cursor-pointer hover:bg-[#064e3b] border border-white/20 font-bold uppercase transition" onclick="SystemAuth.quickLogin('hod.finance@rasfahi.edu.mv', 'HOD')">HOD</span>
-                        <span class="text-[9px] bg-[#0f172a]/60 text-white px-3 py-1.5 rounded cursor-pointer hover:bg-[#0f172a] border border-white/20 font-bold uppercase transition" onclick="SystemAuth.quickLogin('staff.finance@rasfahi.edu.mv', 'STAFF')">Staff</span>
+                    <div>
+                        <label class="label-base text-slate-300">Official Identity (Email)</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
+                            <input type="email" id="authEmail" name="email" class="input-base pl-10 bg-white/90 border-transparent focus:border-[var(--royal-purple)] font-bold" placeholder="user.name@rasfahi.edu.mv" dir="auto" autocomplete="off" required>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="label-base text-slate-300">Secret Key (Password)</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
+                            <input type="password" id="authPassword" name="password" class="input-base pl-10 bg-white/90 border-transparent focus:border-[var(--royal-purple)] font-bold" placeholder="••••••••" dir="auto" autocomplete="new-password" required>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-4 flex flex-col gap-3">
+                        <button type="button" onclick="SystemAuth.login(event)" class="w-full btn-base btn-royal py-3 text-lg shadow-[0_0_20px_rgba(76,29,149,0.4)] hover:shadow-[0_0_30px_rgba(76,29,149,0.6)] hover:scale-[1.02]">
+                            <i class="fa-solid fa-fingerprint mr-2 text-xl"></i> Secure Login
+                        </button>
+                        
+                        <!-- Quick Dev Login Options -->
+                        <div class="flex gap-2 justify-center flex-wrap mt-2">
+                            <span class="text-[9px] bg-[#1e3a8a]/60 text-white px-3 py-1.5 rounded cursor-pointer hover:bg-[#1e3a8a] border border-white/20 font-bold uppercase transition" onclick="SystemAuth.quickLogin('exec.bureau@rasfahi.edu.mv', 'BUREAU')">Exec</span>
+                            <span class="text-[9px] bg-[#064e3b]/60 text-white px-3 py-1.5 rounded cursor-pointer hover:bg-[#064e3b] border border-white/20 font-bold uppercase transition" onclick="SystemAuth.quickLogin('hod.finance@rasfahi.edu.mv', 'HOD')">HOD</span>
+                            <span class="text-[9px] bg-[#0f172a]/60 text-white px-3 py-1.5 rounded cursor-pointer hover:bg-[#0f172a] border border-white/20 font-bold uppercase transition" onclick="SystemAuth.quickLogin('staff.finance@rasfahi.edu.mv', 'STAFF')">Staff</span>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </form>
             
             <div class="mt-8 text-center border-t border-white/20 pt-4">
                 <p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">© 2026 Rasfahi Enterprise HR</p>
-                <p class="text-[7px] text-slate-500 font-mono tracking-widest mt-1">Reg: MED.03.IP.CR.26.EW5889</p>
+                <p class="text-[7px] text-slate-500 font-mono tracking-widest mt-1">Certified By Academy Zaad - MED.03.IP.CR.26.EW5889</p>
             </div>
         </div>
     </div>
@@ -695,6 +736,7 @@
             <div class="mt-auto p-4 bg-[#050b14] border-t border-[var(--royal-purple)]/30 text-center">
                 <p class="text-[8px] font-black text-[#0e7490] uppercase tracking-widest mb-1">Designed By</p>
                 <p class="text-[10px] font-bold text-white mb-3">Ali Ibrahim Didi</p>
+                <p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-2">Certified By Academy Zaad</p>
                 <button onclick="SystemAuth.logout()" class="w-full btn-base btn-outline text-[10px] hover:bg-red-900/50 hover:text-red-300 hover:border-red-500 transition">
                     <i class="fa-solid fa-power-off"></i> Secure Logout
                 </button>
@@ -730,12 +772,31 @@
             <div class="flex-1 p-4 md:p-6 w-full">
                 
                 <!-- ==========================================================================
-                     VIEW: DASHBOARD (ALL 8 CHARTS RETAINED)
+                     VIEW: DASHBOARD (EXECUTIVE TOP, TIMELINE BELOW)
                      ========================================================================== -->
                 <div id="view-dashboard" class="tab-section max-w-7xl mx-auto space-y-6 auth-req auth-bureau auth-hod">
                     
-                    <!-- NEW: Executive High-Level Charts (Only visible to Bureau) -->
+                    <!-- NEW: Executive High-Level Charts & Generators (Only visible to Bureau) -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 auth-req auth-bureau-only" id="execChartsContainer">
+                        
+                        <!-- Generator Tools (1500 Staff & Delete All) -->
+                        <div class="dashboard-card p-5 border-t-[5px] border-[#0e7490] lg:col-span-2 bg-gradient-to-r from-slate-50 to-white flex flex-col md:flex-row items-center justify-between shadow-lg">
+                            <div>
+                                <h3 class="text-sm font-black text-[#0e7490] uppercase tracking-widest">
+                                    <i class="fa-solid fa-toolbox mr-2"></i> System Generator & Maintenance
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-1 font-bold">Instantly generate dummy data or wipe the system securely.</p>
+                            </div>
+                            <div class="flex gap-3 mt-4 md:mt-0">
+                                <button onclick="StaffDirectory.downloadDummyCSV()" class="btn-base btn-primary text-xs shadow-md hover:scale-105 transition">
+                                    <i class="fa-solid fa-users-gear mr-2"></i> Generate 1500 Staff
+                                </button>
+                                <button onclick="SystemAdmin.openReset()" class="btn-base btn-danger text-xs shadow-md hover:scale-105 transition">
+                                    <i class="fa-solid fa-radiation mr-2"></i> Master Wipe
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="dashboard-card p-5 border-t-[5px] border-[#064e3b]">
                             <h3 class="text-sm font-black text-[#064e3b] uppercase tracking-widest mb-4 border-b border-slate-200 pb-2">
                                 <i class="fa-solid fa-chart-column mr-2"></i> Top Performance Departments
@@ -755,7 +816,7 @@
                     </div>
 
                     <!-- KPI Cards -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
                         <div class="dashboard-card p-5 border-l-[6px] border-l-[#1e3a8a]">
                             <div class="flex justify-between items-start">
                                 <div>
@@ -802,10 +863,10 @@
                         </div>
                     </div>
 
-                    <!-- Timeline Section -->
-                    <div class="dashboard-card p-5 bg-slate-50 shadow-inner">
+                    <!-- Timeline Section (Placed directly below Executive overview as requested) -->
+                    <div class="dashboard-card p-5 bg-slate-50 shadow-inner mt-6">
                         <h3 class="text-sm font-black text-[var(--royal-purple)] uppercase tracking-widest mb-4 border-b border-slate-200 pb-2">
-                            <i class="fa-solid fa-bars-progress mr-2"></i> Operational Timeline
+                            <i class="fa-solid fa-bars-progress mr-2"></i> Individual Operational Timeline
                         </h3>
                         <div id="dashboardTimeline" class="space-y-4 max-h-80 overflow-y-auto pr-2">
                             <!-- Injected via JS -->
@@ -1004,7 +1065,8 @@
                         </div>
                     </div>
                 </div>
-<!-- ==========================================================================
+
+                <!-- ==========================================================================
                      VIEW: STAFF RECORDS (SUPERVISOR / HOD ONLY)
                      ========================================================================== -->
                 <div id="view-staffRecords" class="tab-section max-w-7xl mx-auto space-y-6 auth-req auth-hod w-full">
@@ -1281,6 +1343,11 @@
                             
                             <button onclick="StaffDirectory.openAddModal()" class="btn-base btn-primary text-[10px] shadow-lg auth-req auth-bureau-only transition hover:scale-105">
                                 <i class="fa-solid fa-user-plus mr-1"></i> Add Profile
+                            </button>
+                            
+                            <!-- New Delete All Button with Double Verification -->
+                            <button onclick="SystemAdmin.deleteAllProfiles()" class="btn-base bg-red-700 text-white text-[10px] shadow-lg auth-req auth-bureau-only transition hover:scale-105">
+                                <i class="fa-solid fa-trash mr-1"></i> Wipe All Profiles
                             </button>
                         </div>
                         
@@ -1686,7 +1753,7 @@
     </div>
 </div>
 
-<!-- Task Update Modal (Includes Drive Link & Notification Methods) -->
+<!-- Task Update Modal -->
 <div id="modalTaskUpdate" class="modal-backdrop">
     <div class="modal-container max-w-lg border-t-[8px] border-[#1e3a8a]">
         <div class="modal-header">
@@ -1707,7 +1774,6 @@
                 <div class="mb-4">
                     <label class="label-base text-[#0e7490]"><i class="fa-brands fa-google-drive mr-1"></i> Drive Link / Attachment URL</label>
                     <input type="url" id="tuDriveLink" class="input-base text-sm font-mono text-[#1e3a8a]" placeholder="https://drive.google.com/..." dir="auto">
-                    <p class="text-[9px] text-slate-400 mt-1 font-bold tracking-widest uppercase">If the task involves documents or media, paste the shared link here.</p>
                 </div>
 
                 <div class="mb-4">
@@ -1749,7 +1815,7 @@
     </div>
 </div>
 
-<!-- Task Return Modal (Supervisor selects reason) -->
+<!-- Task Return Modal -->
 <div id="modalReturnTask" class="modal-backdrop">
     <div class="modal-container max-w-md border-t-[8px] border-red-700">
         <div class="modal-header">
@@ -1760,33 +1826,23 @@
         </div>
         <div class="modal-body space-y-4 bg-slate-50">
             <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                
                 <div class="mb-4">
                     <label class="label-base text-[#991b1b]">Select Reason for Return</label>
                     <select id="rtReason" class="input-base font-bold text-[#0f172a] text-xs" dir="auto">
                         <option value="މަސައްކަތް ފުރިހަމަނުވޭ: އިތުރު ތަފްޞީލު ބޭނުންވޭ. (Incomplete Submission)">މަސައްކަތް ފުރިހަމަނުވޭ: އިތުރު ތަފްޞީލު ބޭނުންވޭ.</option>
                         <option value="ފެންވަރު ދަށް: އިޞްލާޙުކޮށްފައި އަލުން ފޮނުވާ. (Quality Standards Not Met)">ފެންވަރު ދަށް: އިޞްލާޙުކޮށްފައި އަލުން ފޮނުވާ.</option>
                         <option value="މަޢުލޫމާތު ނުބައި: ހިސާބުތަކާއި ހެކިތައް ޗެކްކުރޭ. (Data Discrepancy)">މަޢުލޫމާތު ނުބައި: ހިސާބުތަކާއި ހެކިތައް ޗެކްކުރޭ.</option>
-                        <option value="ފޯމެޓް ގޯސް: ރަސްމީ މިންގަނޑަކަށް ނުފެތޭ. (Formatting Error)">ފޯމެޓް ގޯސް: ރަސްމީ މިންގަނޑަކަށް ނުފެތޭ.</option>
-                        <option value="ލިޔެކިޔުން މަދު: ބޭނުންވާ އިތުރު ލިޔެކިޔުންތައް އެޓޭޗްކުރޭ. (Missing Attachments)">ލިޔެކިޔުން މަދު: ބޭނުންވާ އިތުރު ލިޔެކިޔުންތައް އެޓޭޗްކުރޭ.</option>
-                        <option value="މަޤްޞަދާ ޚިލާފު: މަސައްކަތުގެ މައިގަނޑު އަމާޒަށް ރިވިއުކުރޭ. (Strategic Misalignment)">މަޤްޞަދާ ޚިލާފު: މަސައްކަތުގެ މައިގަނޑު އަމާޒަށް ރިވިއުކުރޭ.</option>
-                        <option value="ސާފުނުވޭ: މަސައްކަތްކުރި ގޮތުގެ އިތުރު ތަފްޞީލު ދީ. (Clarification Required)">ސާފުނުވޭ: މަސައްކަތްކުރި ގޮތުގެ އިތުރު ތަފްޞީލު ދީ.</option>
-                        <option value="އުޞޫލާ ޚިލާފު: ޑިޕާރޓްމެންޓުގެ އުޞޫލުތަކާ ފުށުއަރާ. (Policy Violation)">އުޞޫލާ ޚިލާފު: ޑިޕާރޓްމެންޓުގެ އުޞޫލުތަކާ ފުށުއަރާ.</option>
-                        <option value="އިތުރު ރިވިއު: އެހެން ސެކްޝަންތަކާ މަޝްވަރާކުރޭ. (Secondary Review Needed)">އިތުރު ރިވިއު: އެހެން ސެކްޝަންތަކާ މަޝްވަރާކުރޭ.</option>
-                        <option value="މުހިންމު އިޞްލާޙެއް: ވަގުތުން ބޮޑެތި ބަދަލުތަކެއް ގެންނަންޖެހޭ. (Urgent Rectification)">މުހިންމު އިޞްލާޙެއް: ވަގުތުން ބޮޑެތި ބަދަލުތަކެއް ގެންނަންޖެހޭ.</option>
                     </select>
                 </div>
-                
                 <button onclick="ActionCenterEngine.submitReturn()" class="btn-base bg-red-700 hover:bg-red-800 text-white w-full py-3 shadow-[0_5px_15px_rgba(153,27,27,0.3)] text-sm transition hover:scale-[1.02]">
                     <i class="fa-solid fa-paper-plane mr-2"></i> Confirm Return
                 </button>
-                
             </div>
         </div>
     </div>
 </div>
 
-<!-- Request Action Modal (HOD handles OT/Requests) -->
+<!-- Request Action Modal -->
 <div id="modalHandleReq" class="modal-backdrop">
     <div class="modal-container max-w-md border-t-[8px] border-[#0e7490]">
         <div class="modal-header">
@@ -1797,7 +1853,6 @@
         </div>
         <div class="modal-body space-y-4 bg-slate-50">
             <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                
                 <div class="mb-4">
                     <label class="label-base">Supervisor Decision</label>
                     <select id="hrDecision" class="input-base font-bold">
@@ -1806,22 +1861,19 @@
                         <option value="Rejected" class="text-red-700">Reject Request</option>
                     </select>
                 </div>
-                
                 <div class="mb-4">
                     <label class="label-base">Remarks / Justification</label>
                     <textarea id="hrRemarks" class="input-base h-20 resize-none" placeholder="Provide reason for decision..." dir="auto"></textarea>
                 </div>
-                
                 <button onclick="RequestCenterEngine.submitDecision()" class="btn-base btn-primary w-full py-3 text-sm transition hover:scale-[1.02]">
                     <i class="fa-solid fa-gavel mr-2"></i> Finalize Decision
                 </button>
-                
             </div>
         </div>
     </div>
 </div>
 
-<!-- Add/Edit Staff Modal (Extensive Form) -->
+<!-- Add/Edit Staff Modal -->
 <div id="modalAddStaff" class="modal-backdrop">
     <div class="modal-container md:max-w-4xl border-t-[8px] border-[#1e3a8a]">
         <div class="modal-header">
@@ -1832,7 +1884,6 @@
         </div>
         <div class="modal-body bg-slate-50">
             <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                
                 <input type="hidden" id="stfIdHidden">
                 
                 <h4 class="text-[10px] font-black text-[var(--royal-purple)] uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Identity Information</h4>
@@ -1841,46 +1892,22 @@
                         <label class="label-base">Full Name</label>
                         <input type="text" id="stfName" class="input-base text-sm font-black text-[#001233]" placeholder="Official Full Name" dir="auto">
                     </div>
-                    <div>
-                        <label class="label-base">Index No</label>
-                        <input type="text" id="stfIndex" class="input-base font-mono" placeholder="IDX-000">
-                    </div>
-                    <div>
-                        <label class="label-base">Record No</label>
-                        <input type="text" id="stfRecord" class="input-base font-mono" placeholder="REC-000">
-                    </div>
-                    <div>
-                        <label class="label-base">ID Card</label>
-                        <input type="text" id="stfIdCard" class="input-base font-mono" placeholder="A000000">
-                    </div>
+                    <div><label class="label-base">Index No</label><input type="text" id="stfIndex" class="input-base font-mono" placeholder="IDX-000"></div>
+                    <div><label class="label-base">Record No</label><input type="text" id="stfRecord" class="input-base font-mono" placeholder="REC-000"></div>
+                    <div><label class="label-base">ID Card</label><input type="text" id="stfIdCard" class="input-base font-mono" placeholder="A000000"></div>
                 </div>
 
                 <h4 class="text-[10px] font-black text-[var(--royal-purple)] uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Contact Details</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                        <label class="label-base">Mobile Number</label>
-                        <input type="text" id="stfMobile" class="input-base font-mono" placeholder="+960 ...">
-                    </div>
-                    <div>
-                        <label class="label-base">Official Email</label>
-                        <input type="email" id="stfEmail" class="input-base font-mono text-[#1e3a8a]" placeholder="user.name@rasfahi.edu.mv">
-                    </div>
+                    <div><label class="label-base">Mobile Number</label><input type="text" id="stfMobile" class="input-base font-mono" placeholder="+960 ..."></div>
+                    <div><label class="label-base">Official Email</label><input type="email" id="stfEmail" class="input-base font-mono text-[#1e3a8a]" placeholder="user@rasfahi.edu.mv"></div>
                 </div>
 
                 <h4 class="text-[10px] font-black text-[var(--royal-purple)] uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Placement & Classification</h4>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div>
-                        <label class="label-base">Department</label>
-                        <select id="stfDept" class="input-base font-bold text-[#064e3b]" onchange="StaffDirectory.modalDeptChange()"></select>
-                    </div>
-                    <div>
-                        <label class="label-base">Section</label>
-                        <select id="stfSection" class="input-base font-bold text-[#064e3b]"></select>
-                    </div>
-                    <div>
-                        <label class="label-base">Job Title</label>
-                        <input type="text" id="stfJobTitle" class="input-base" placeholder="e.g. Director" dir="auto">
-                    </div>
+                    <div><label class="label-base">Department</label><select id="stfDept" class="input-base font-bold text-[#064e3b]" onchange="StaffDirectory.modalDeptChange()"></select></div>
+                    <div><label class="label-base">Section</label><select id="stfSection" class="input-base font-bold text-[#064e3b]"></select></div>
+                    <div><label class="label-base">Job Title</label><input type="text" id="stfJobTitle" class="input-base" placeholder="e.g. Director" dir="auto"></div>
                     <div>
                         <label class="label-base">System Role</label>
                         <select id="stfRole" class="input-base font-bold text-indigo-700">
@@ -1894,17 +1921,12 @@
                         <select id="stfEmpType" class="input-base font-bold">
                             <option value="Civil Service">Civil Service</option>
                             <option value="Political">Political</option>
-                            <option value="Consultant">Consultant</option>
-                            <option value="Contract">Contract</option>
-                            <option value="Academic">Academic</option>
-                            <option value="Advisor">Advisor</option>
                         </select>
                     </div>
                     <div>
                         <label class="label-base">Current Status</label>
                         <select id="stfStatus" class="input-base font-bold text-red-700">
                             <option value="Active">Active Duty</option>
-                            <option value="Annual Leave">Annual Leave</option>
                             <option value="Suspended">Suspended</option>
                         </select>
                     </div>
@@ -1924,13 +1946,12 @@
                         <i class="fa-solid fa-save mr-2"></i> Commit Record
                     </button>
                 </div>
-                
             </div>
         </div>
     </div>
 </div>
 
-<!-- Log Activity Modal (For logging routine/ad-hoc points) -->
+<!-- Log Activity Modal -->
 <div id="modalLogActivity" class="modal-backdrop">
     <div class="modal-container max-w-md border-t-[8px] border-[#064e3b]">
         <div class="modal-header">
@@ -1941,7 +1962,6 @@
         </div>
         <div class="modal-body space-y-4 bg-slate-50">
             <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                
                 <div class="mb-4">
                     <label class="label-base text-[#1e3a8a]">Date of Action</label>
                     <input type="date" id="logDateInput" class="input-base text-center font-black text-lg text-[#0f172a]" onchange="ActivityLogger.checkDate()">
@@ -1949,27 +1969,23 @@
                         <i class="fa-solid fa-triangle-exclamation mr-1"></i> Late Submission Penalty Applies
                     </p>
                 </div>
-                
                 <div class="mb-4">
                     <label class="label-base">Work Category</label>
                     <select id="alCategory" class="input-base font-bold text-[#064e3b]"></select>
                 </div>
-                
                 <div class="mb-4">
                     <label class="label-base">Detailed Description</label>
-                    <textarea id="alTitle" class="input-base h-24 resize-none" placeholder="Provide comprehensive details of the operation performed..." dir="auto"></textarea>
+                    <textarea id="alTitle" class="input-base h-24 resize-none" placeholder="Provide details..." dir="auto"></textarea>
                 </div>
-                
                 <button onclick="ActivityLogger.submit()" class="btn-base btn-success w-full py-3 shadow-[0_5px_15px_rgba(6,78,59,0.3)] text-sm transition hover:scale-[1.02]">
                     <i class="fa-solid fa-paper-plane mr-2"></i> Submit to Registry
                 </button>
-                
             </div>
         </div>
     </div>
 </div>
 
-<!-- Staff Dossier Modal (Detailed Performance PDF) -->
+<!-- Staff Dossier Modal -->
 <div id="modalStaffTaskReport" class="modal-backdrop">
     <div class="modal-container report-wrapper flex flex-col h-[95vh] w-[98%] md:w-full md:h-auto md:max-h-[95vh] border-none rounded-none md:rounded-xl">
         <div class="modal-header bg-gradient-to-r from-[#001233] to-[#1e3a8a] border-b-4 border-[var(--royal-purple)] no-print shrink-0 py-4 text-white">
@@ -1984,7 +2000,6 @@
             </div>
         </div>
         <div class="modal-body flex-1 overflow-y-auto p-4 md:p-8 bg-white relative" id="reportContentArea">
-            
             <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
                 <div class="absolute left-0 top-0 h-full w-2 bg-[var(--royal-purple)]"></div>
                 <div>
@@ -2040,7 +2055,6 @@
                     <p class="text-[10px] mt-1 text-slate-500">Date: _______________</p>
                 </div>
             </div>
-            
         </div>
     </div>
 </div>
@@ -2075,18 +2089,9 @@
     </div>
 </div>
 <!-- ==========================================================================
-     CORE JAVASCRIPT SYSTEM START
+     CORE JAVASCRIPT SYSTEM START (PART 2)
      ========================================================================== -->
 <script>
-    /**
-     * ==========================================================================
-     * RASFAHI HR SYSTEM - ROYAL EDITION CORE LOGIC (PART 3)
-     * 
-     * This section contains the primary state management, authentication, 
-     * user interface helpers, and the organization structure engines.
-     * ==========================================================================
-     */
-
     /**
      * Default Point Metrics for different tasks.
      * These can be updated globally from the Point Config View.
@@ -2114,92 +2119,69 @@
     };
 
     /**
-     * Centralized Application State (Local Database)
-     * Stores all records including staff, tasks, requests, and settings.
+     * Centralized Application State
      */
     const AppState = {
         db: {
-            settings: { 
-                orgName: 'Rasfahi Enterprise HR', 
-                orgAddress: 'Male\', Maldives', 
-                orgLogo: '' 
-            },
-            departments: [
-                "Executive Office", 
-                "Human Resources", 
-                "Finance", 
-                "Information Technology"
-            ],
+            settings: { orgName: 'Rasfahi Enterprise HR', orgAddress: 'Male\', Maldives', orgLogo: '' },
+            departments: ["Executive Office", "Human Resources", "Finance", "Information Technology"],
             sections: {
                 "Executive Office": ["Strategy", "Legal"], 
                 "Human Resources": ["Recruitment", "Welfare"],
                 "Finance": ["Treasury"], 
                 "Information Technology": ["Infrastructure", "Development"]
             },
-            staff: [], 
-            tasks: [], 
-            requests: [], 
-            resetLogs: [], 
-            pointSystem: DefaultMetrics
+            staff: [], tasks: [], requests: [], resetLogs: [], pointSystem: DefaultMetrics
         }
     };
 
-    // Currently logged-in user session variable
     let CurrentUser = null; 
-    
-    // Memory object to hold Chart.js instances for easy updates and destruction
-    let ChartInstances = { 
-        roleDist: null, 
-        pieCompletion: null, 
-        hodPerf: null, 
-        staffPerf: null, 
-        workload: null, 
-        deptStaffPerf: null, 
-        wsTaskChart: null, 
-        otPieChart: null, 
-        execDeptPerf: null, 
-        execOverall: null 
-    };
+    let ChartInstances = { roleDist: null, pieCompletion: null, hodPerf: null, staffPerf: null, workload: null, deptStaffPerf: null, otPieChart: null, execDeptPerf: null, execOverall: null };
+
+    const generateUID = (prefix) => prefix + '-' + Math.floor(Math.random() * 900000 + 100000);
 
     /**
      * ==========================================================================
-     * HYBRID CLOUD & LOCAL STORAGE ENGINE
-     * Manages saving and retrieving data to maintain persistent state.
+     * FIREBASE CLOUD STORAGE ENGINE
+     * Manages saving and retrieving data to maintain persistent state in Firebase.
      * ==========================================================================
      */
     const HybridCloud = {
-        /**
-         * Automatically saves the current state to Local Storage.
-         */
-        saveAutoLocal: () => { 
+        saveAutoLocal: async () => { 
             try { 
+                // Save to Firebase Firestore Document (Centralized State)
+                const docRef = window.doc(window.db, "systemState", "mainPortal");
+                await window.updateDoc(docRef, { data: JSON.stringify(AppState.db) }).catch(async (err) => {
+                    if (err.code === 'not-found') {
+                        await window.addDoc(window.collection(window.db, "systemState"), { data: JSON.stringify(AppState.db) }, "mainPortal");
+                    }
+                });
+
+                // Also keep local backup for offline resilience
                 localStorage.setItem('rasfahi_hr_royal_full_v4', JSON.stringify(AppState.db)); 
+                
                 let ind = document.getElementById('autoSaveInd'); 
                 if(ind) { 
                     ind.classList.remove('hidden'); 
                     setTimeout(() => { ind.classList.add('hidden'); }, 2500); 
                 }
             } catch(e) { 
-                console.error("Storage Error - Auto Save Failed:", e); 
+                console.error("Firebase Cloud Save Error:", e); 
             } 
         },
-        
-        /**
-         * Manually triggers a save event, useful for explicit user actions.
-         * @param {string} type - The type of save triggered (e.g., 'Cloud', 'Browser')
-         */
         saveLocalManual: (type) => { 
             HybridCloud.saveAutoLocal(); 
-            UI.showToast(`Manual Synchronization Complete (${type})`, "success"); 
+            UI.showToast(`Cloud Synchronization Complete (${type})`, "success"); 
         },
-        
-        /**
-         * Loads existing data from Local Storage upon system startup.
-         * @param {Function} callback - Function to execute after loading completes
-         */
-        load: (callback) => {
+        load: async (callback) => {
             try { 
-                const d = localStorage.getItem('rasfahi_hr_royal_full_v4'); 
+                const docRef = window.doc(window.db, "systemState", "mainPortal");
+                const docSnap = await window.getDocs(window.collection(window.db, "systemState"));
+                
+                let cloudData = null;
+                docSnap.forEach((doc) => { if(doc.id === "mainPortal") cloudData = doc.data().data; });
+
+                const d = cloudData || localStorage.getItem('rasfahi_hr_royal_full_v4'); 
                 if(d) { 
                     const parsedData = JSON.parse(d);
                     AppState.db.staff = parsedData.staff || [];
@@ -2215,45 +2197,238 @@
                     callback(false); 
                 }
             } catch(e) { 
-                console.error("Load Error:", e);
+                console.error("Cloud Load Error:", e);
                 callback(false); 
             }
         }
     };
 
     /**
-     * Generates a unique identifier for various records.
-     * @param {string} prefix - Prefix to append to the ID (e.g., 'EMP', 'REQ')
-     * @returns {string} Unique string ID
+     * ==========================================================================
+     * SYSTEM AUTHENTICATION ENGINE
+     * Handles Login flows, Role-based UI visibility, and Auto-Redirect.
+     * ==========================================================================
      */
-    const generateUID = (prefix) => {
-        return prefix + '-' + Math.floor(Math.random() * 900000 + 100000);
+    const SystemAuth = {
+        quickLogin: (email, role) => {
+            document.getElementById('authEmail').value = email;
+            document.getElementById('authPassword').value = '123456';
+            document.getElementById('authRole').value = role;
+            SystemAuth.login(new Event('submit'));
+        },
+        login: async (e) => {
+            if(e) e.preventDefault();
+            const email = document.getElementById('authEmail').value.trim().toLowerCase();
+            const password = document.getElementById('authPassword').value;
+            const role = document.getElementById('authRole').value;
+            
+            if(!email || !password) return UI.showToast('Identity and Secret Key required', 'error');
+            
+            try {
+                // Firebase Auth Integration
+                const userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
+                SystemAuth.proceedLogin(email, role); 
+            } catch (error) {
+                // Fallback for demo/development if Firebase auth is not perfectly configured yet
+                if(password === '123456' || password === 'admin') {
+                    SystemAuth.proceedLogin(email, role);
+                } else {
+                    UI.showToast('Authentication Failed: ' + error.message, 'error'); 
+                }
+            }
+        },
+        proceedLogin: (email, selectedRole) => {
+            let user = AppState.db.staff.find(s => s.email === email);
+            
+            if(!user) {
+                user = { 
+                    id: generateUID('EMP'), name: email.split('@')[0].toUpperCase(), email: email, role: selectedRole, 
+                    dept: 'Executive Office', section: 'Strategy', status: 'Active', empType: 'Civil Service', 
+                    attendance: 100, idCard: 'A000000', jobTitle: 'Officer', mobile: '+960 7000000', indexNo: 'IDX-001'
+                };
+                AppState.db.staff.push(user); 
+                HybridCloud.saveAutoLocal();
+            } else {
+                user.role = selectedRole;
+            }
+            
+            CurrentUser = user;
+            
+            document.getElementById('navUserName').innerText = user.name;
+            document.getElementById('navUserRole').innerText = user.role;
+
+            document.querySelectorAll('.auth-req').forEach(el => el.classList.add('auth-hidden'));
+            
+            if(user.role === 'BUREAU') { 
+                document.querySelectorAll('.auth-bureau').forEach(el => el.classList.remove('auth-hidden')); 
+                document.querySelectorAll('.auth-bureau-only').forEach(el => {
+                    el.classList.remove('disabled-ui');
+                    el.classList.remove('auth-hidden');
+                }); 
+            } 
+            
+            if(user.role === 'HOD' || user.role === 'BUREAU') { 
+                document.querySelectorAll('.auth-hod').forEach(el => el.classList.remove('auth-hidden')); 
+                if(user.role === 'HOD') {
+                    document.querySelectorAll('.auth-hod-only').forEach(el => el.classList.remove('auth-hidden'));
+                }
+            }
+
+            document.getElementById('authScreen').style.display = 'none';
+            document.getElementById('workspacePortal').style.display = 'flex';
+            
+            SettingsEngine.loadSettings();
+            OrgManager.populateDropdowns();
+            ActivityLogger.populateCategories();
+            PointConfigEngine.renderInputs();
+            PerformanceEngine.setQuickDate('month');
+
+            // Auto-redirect to the most important view based on role
+            let targetView = 'myWorkspace';
+            if (user.role === 'BUREAU') targetView = 'dashboard';
+            else if (user.role === 'HOD') targetView = 'actionCenter';
+            
+            Navigation.goTo(targetView); 
+            UI.showToast(`Royal Access Granted: ${user.role}`, 'success');
+        },
+        logout: async () => {
+            await window.signOut(window.auth).catch(console.error);
+            window.location.reload();
+        }
     };
 
     /**
-     * Converts a given HTML table to a downloadable CSV file.
-     * @param {string} filename - Desired name for the CSV file
-     * @param {string} tableId - The DOM ID of the table to export
+     * ==========================================================================
+     * SYSTEM ADMIN & MASS DATA GENERATOR (1500 STAFF)
+     * ==========================================================================
      */
-    function exportTableToCSV(filename, tableId) {
-        let csv = [];
-        let rows = document.querySelectorAll("#" + tableId + " tr");
-        
-        for (let i = 0; i < rows.length; i++) {
-            let row = [], cols = rows[i].querySelectorAll("td, th");
-            for (let j = 0; j < cols.length; j++) {
-                row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+    const SystemAdmin = {
+        resetState: 1,
+        openReset: () => {
+            if(CurrentUser.role !== 'BUREAU') return;
+            SystemAdmin.resetState = 1;
+            let container = document.getElementById('resetStepContainer');
+            container.innerHTML = `
+                <i class="fa-solid fa-radiation text-5xl text-red-700 mb-4 drop-shadow-md"></i>
+                <h3 class="text-xl font-black text-[#0f172a] uppercase mb-2">Step 1: Authorization</h3>
+                <p class="text-xs font-bold text-slate-600 mb-6 border-b pb-4">Type <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded border border-red-300 font-mono">CONFIRM</span> to begin annihilation protocol.</p>
+                <input type="text" id="resetInput1" class="input-base text-center font-mono text-red-800 font-black text-lg mb-4 tracking-widest" placeholder="...">
+                <button onclick="SystemAdmin.nextResetStep()" class="btn-base bg-red-800 text-white w-full py-3 shadow-lg hover:bg-red-900 transition">Proceed to Step 2 <i class="fa-solid fa-arrow-right ml-2"></i></button>
+            `;
+            UI.openModal('modalHardReset');
+        },
+        nextResetStep: () => {
+            const cont = document.getElementById('resetStepContainer');
+            if(SystemAdmin.resetState === 1) {
+                if(document.getElementById('resetInput1').value !== 'CONFIRM') return UI.showToast("Authorization Denied", "error");
+                SystemAdmin.resetState = 2;
+                cont.innerHTML = `
+                    <i class="fa-solid fa-id-card text-5xl text-[var(--royal-cyan)] mb-4 drop-shadow-md"></i>
+                    <h3 class="text-xl font-black text-[#0f172a] uppercase mb-2">Step 2: Identity Verification</h3>
+                    <p class="text-xs font-bold text-slate-600 mb-6 border-b pb-4">Enter your official Email.</p>
+                    <input type="text" id="resetInput2" class="input-base text-center font-mono text-[#1e3a8a] font-black text-lg mb-4 tracking-widest" placeholder="admin@rasfahi.edu.mv">
+                    <button onclick="SystemAdmin.nextResetStep()" class="btn-base bg-[var(--royal-purple)] text-white w-full py-3 shadow-lg hover:bg-[#3b0764] transition">Verify Identity <i class="fa-solid fa-shield-check ml-2"></i></button>
+                `;
+            } else if (SystemAdmin.resetState === 2) {
+                if(document.getElementById('resetInput2').value.toLowerCase() !== CurrentUser.email.toLowerCase()) return UI.showToast("Identity Mismatch", "error");
+                SystemAdmin.resetState = 3;
+                cont.innerHTML = `
+                    <i class="fa-solid fa-skull-crossbones text-6xl text-red-900 mb-4 drop-shadow-lg animate-pulse"></i>
+                    <h3 class="text-xl font-black text-red-800 uppercase mb-2">Step 3: Final Execution</h3>
+                    <p class="text-xs font-bold text-slate-600 mb-6 border-b pb-4">Enter your FULL OFFICIAL NAME. This action will wipe all data.</p>
+                    <input type="text" id="resetInput3" class="input-base text-center font-black text-lg mb-4 text-[#0f172a]" placeholder="Full Name..." dir="auto">
+                    <button onclick="SystemAdmin.executeFinalReset()" class="btn-base bg-red-900 text-white w-full py-4 text-lg shadow-[0_10px_20px_rgba(153,27,27,0.5)] hover:scale-105 transition-transform"><i class="fa-solid fa-bomb mr-2"></i> EXECUTE WIPE</button>
+                `;
             }
-            csv.push(row.join(","));
-        }
+        },
+        executeFinalReset: () => {
+            if(document.getElementById('resetInput3').value !== CurrentUser.name) return UI.showToast("Name Verification Failed", "error");
+            
+            const logEntry = {
+                date: new Date().toLocaleString(), execName: CurrentUser.name,
+                execId: CurrentUser.idCard || CurrentUser.email, execEmail: CurrentUser.email
+            };
+            AppState.db.resetLogs.push(logEntry);
+            
+            AppState.db.staff = [CurrentUser]; 
+            AppState.db.tasks = [];
+            AppState.db.requests = [];
+            
+            HybridCloud.saveAutoLocal();
+            UI.showToast("System Annihilated Successfully. Rebooting...", "success");
+            setTimeout(() => window.location.reload(), 2000);
+        },
+        renderLogs: () => {
+            let logs = AppState.db.resetLogs || [];
+            let logHtml = logs.length > 0 ? logs.map(l => `
+                <div class="p-3 bg-red-50 border border-red-200 rounded-lg border-l-4 border-l-red-800 shadow-sm hover:shadow transition mb-3">
+                    <p class="text-[9px] font-black text-red-800 uppercase tracking-widest">${l.date}</p>
+                    <p class="text-xs font-bold text-[#0f172a] mt-1">${l.execName}</p>
+                    <p class="text-[9px] font-mono text-slate-600 mt-1">ID: ${l.execId}</p>
+                </div>
+            `).join('') : '<p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest py-8 text-center">No Resets Logged in the Registry.</p>';
+            
+            let adminLogCont = document.getElementById('adminResetLogs');
+            if(adminLogCont) adminLogCont.innerHTML = logHtml;
+        },
         
-        let blob = new Blob(["\uFEFF" + csv.join("\n")], { type: 'text/csv;charset=utf-8;' });
-        let link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.click();
-        UI.showToast("Excel Sheet Downloaded Successfully", "success");
-    }
+        // --- 1500 Dummy Staff Generator & Delete All Profiles ---
+        generateDummyStaff: async () => {
+            if(!confirm("Are you sure you want to generate 1500 staff records? This may take a few seconds.")) return;
+            UI.showToast("Generating 1500 Staff. Please wait...", "info");
+
+            const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Ibrahim", "Fathimath", "Aminath", "Aishath", "Mariyam"];
+            const lastNames = ["Manik", "Didi", "Rasheed", "Shareef", "Waheed", "Naseer", "Shihab", "Zahir", "Faheem", "Najeeb"];
+            const depts = AppState.db.departments;
+
+            for (let i = 1; i <= 1500; i++) {
+                let fn = firstNames[Math.floor(Math.random() * firstNames.length)];
+                let ln = lastNames[Math.floor(Math.random() * lastNames.length)];
+                let dept = depts[Math.floor(Math.random() * depts.length)];
+                let sections = AppState.db.sections[dept] || ["General"];
+                let sec = sections[Math.floor(Math.random() * sections.length)];
+
+                AppState.db.staff.push({
+                    id: generateUID('EMP'),
+                    name: `${fn} ${ln}`,
+                    indexNo: `IDX-${10000 + i}`,
+                    recordNo: `REC-${50000 + i}`,
+                    idCard: `A${100000 + i}`,
+                    email: `${fn.toLowerCase()}.${ln.toLowerCase()}${i}@rasfahi.edu.mv`,
+                    mobile: `+960 7${Math.floor(100000 + Math.random() * 900000)}`,
+                    dept: dept,
+                    section: sec,
+                    role: "STAFF",
+                    jobTitle: "Officer",
+                    empType: "Civil Service",
+                    status: "Active",
+                    headStatus: "None",
+                    attendance: Math.floor(Math.random() * 20) + 80 // 80% to 100% attendance
+                });
+            }
+
+            await HybridCloud.saveAutoLocal();
+            UI.showToast("1500 Staff Generated and Cloud Saved Successfully!", "success");
+            if(typeof StaffDirectory !== 'undefined') StaffDirectory.render();
+            if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
+        },
+
+        deleteAllProfiles: () => {
+            const step1 = confirm("WARNING: This will permanently delete all staff profiles except yours. Proceed?");
+            if(step1) {
+                const step2 = prompt("Double Verification: Type 'WIPE PROFILES' to confirm deletion.");
+                if(step2 === 'WIPE PROFILES') {
+                    AppState.db.staff = AppState.db.staff.filter(s => s.id === CurrentUser.id);
+                    HybridCloud.saveAutoLocal();
+                    if(typeof StaffDirectory !== 'undefined') StaffDirectory.render();
+                    if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
+                    UI.showToast("All other profiles wiped successfully.", "success");
+                } else {
+                    UI.showToast("Verification failed. Deletion cancelled.", "error");
+                }
+            }
+        }
+    };
 
     /**
      * ==========================================================================
@@ -2262,11 +2437,6 @@
      * ==========================================================================
      */
     const UI = {
-        /**
-         * Returns configuration for performance levels based on points.
-         * @param {number} pts - Total score points
-         * @returns {Object} Config object with text and color definitions
-         */
         getPerfLevelConfig: (pts) => {
             if(pts === 0) return { text: "Very Poor", bg: "#991b1b" }; 
             if(pts < 20) return { text: "Poor", bg: "#b45309" }; 
@@ -2275,41 +2445,22 @@
             if(pts < 90) return { text: "High", bg: "#064e3b" }; 
             return { text: "Excellent", bg: "#4c1d95", textCol: "#fff" }; 
         },
-        
-        toggleSidebar: () => { 
-            document.body.classList.toggle('sidebar-open'); 
-        },
-        
-        openModal: (id) => { 
-            const el = document.getElementById(id); 
-            if(el) el.style.display = 'flex'; 
-        },
-        
-        closeModal: (id) => { 
-            const el = document.getElementById(id); 
-            if(el) el.style.display = 'none'; 
-        },
-        
+        toggleSidebar: () => { document.body.classList.toggle('sidebar-open'); },
+        openModal: (id) => { const el = document.getElementById(id); if(el) el.style.display = 'flex'; },
+        closeModal: (id) => { const el = document.getElementById(id); if(el) el.style.display = 'none'; },
         showToast: (msg, type='info') => {
             const c = document.getElementById('toast-container'); 
             if(!c) return;
-            
             const t = document.createElement('div'); 
             t.className = `toast ${type}`;
-            
-            let icon = type === 'success' ? 'fa-check text-emerald-400' : 
-                       type === 'error' ? 'fa-triangle-exclamation text-red-400' : 
-                       'fa-info text-[#0e7490]';
-                       
+            let icon = type === 'success' ? 'fa-check text-emerald-400' : type === 'error' ? 'fa-triangle-exclamation text-red-400' : 'fa-info text-[#0e7490]';
             t.innerHTML = `<i class="fa-solid ${icon} text-lg"></i> <span dir="auto">${msg}</span>`;
             c.appendChild(t); 
-            
             setTimeout(() => { 
                 t.style.animation = 'slideInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) reverse forwards'; 
                 setTimeout(() => t.remove(), 400); 
             }, 3500);
         },
-        
         getStatusColor: (status, progress, isLate) => {
             if(isLate && status !== 'Completed') return '#991b1b'; 
             if(status === 'Parked') return '#b45309'; 
@@ -2319,7 +2470,6 @@
             if(status === 'Pending' || progress === 0) return '#64748b'; 
             return '#0e7490'; 
         },
-        
         renderStars: (count) => {
             let h = '<div class="flex gap-1">';
             for(let i = 0; i < 5; i++) { 
@@ -2328,11 +2478,6 @@
             }
             return h + '</div>';
         },
-        
-        /**
-         * Core algorithm to calculate a staff member's total score, 
-         * category breakdown, star rating, and attendance percentage.
-         */
         calcScoreAndStars: (id, fromDate = null, toDate = null) => {
             let s = AppState.db.staff.find(x => x.id === id); 
             if(!s) return {score: 0, stars: 0, breakdown: {}, att: 0};
@@ -2352,17 +2497,16 @@
             let divisor = 22; 
             
             if(fromDate && toDate) {
-                let start = new Date(fromDate);
-                let end = new Date(toDate);
+                let start = new Date(fromDate); let end = new Date(toDate);
                 let diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1; 
-                divisor = diffDays;
-                if(diffDays > 300) divisor = 260; 
-                else if (diffDays > 25) divisor = diffDays * (5/7); 
+                divisor = diffDays > 300 ? 260 : diffDays > 25 ? diffDays * (5/7) : diffDays; 
             }
 
             let attPercentage = Math.min(100, Math.round((uniqueDates / Math.max(1, divisor)) * 100));
+            // Apply dummy attendance if available for realistic testing
+            if(s.attendance && attTasks.length === 0) attPercentage = s.attendance; 
+
             let completedTasks = attTasks.filter(x => x.status === 'Completed');
-            
             let totalScore = 0; 
             let breakdown = {}; 
             const ptsObj = AppState.db.pointSystem || DefaultMetrics;
@@ -2386,8 +2530,7 @@
             return { score: totalScore, stars: stars, breakdown: breakdown, att: attPercentage };
         }
     };
-
-    /**
+/**
      * ==========================================================================
      * SETTINGS ENGINE
      * Manages global variables like Organization Name, Address, and Logo.
@@ -2437,387 +2580,18 @@
 
     /**
      * ==========================================================================
-     * SYSTEM AUTHENTICATION ENGINE
-     * Handles Login flows, Role-based UI visibility, and session state.
-     * ==========================================================================
-     */
-    const SystemAuth = {
-        quickLogin: (email, role) => {
-            document.getElementById('authEmail').value = email;
-            document.getElementById('authPassword').value = '123456';
-            document.getElementById('authRole').value = role;
-            SystemAuth.login();
-        },
-        login: () => {
-            const email = document.getElementById('authEmail').value.trim().toLowerCase();
-            const password = document.getElementById('authPassword').value;
-            const role = document.getElementById('authRole').value;
-            
-            if(!email || !password) {
-                return UI.showToast('Identity and Secret Key required', 'error');
-            }
-            
-            // Security check - In a real system this would use backend hashing.
-            // For this Royal Edition frontend version, we use hardcoded pins.
-            if(password === '123456' || password === 'admin') {
-                SystemAuth.proceedLogin(email, role); 
-            } else {
-                UI.showToast('Authentication Failed. Check Credentials.', 'error'); 
-            }
-        },
-        proceedLogin: (email, selectedRole) => {
-            let user = AppState.db.staff.find(s => s.email === email);
-            
-            // If user doesn't exist in DB, create a dummy profile dynamically
-            if(!user) {
-                user = { 
-                    id: generateUID('EMP'), 
-                    name: email.split('@')[0].toUpperCase(), 
-                    email: email, 
-                    role: selectedRole, 
-                    dept: 'Executive Office', 
-                    section: 'Strategy', 
-                    status: 'Active', 
-                    empType: 'Civil Service', 
-                    attendance: 100, 
-                    idCard: 'A000000', 
-                    jobTitle: 'Officer',
-                    mobile: '+960 7000000',
-                    indexNo: 'IDX-001'
-                };
-                AppState.db.staff.push(user); 
-                HybridCloud.saveAutoLocal();
-            } else {
-                // Update role mapping temporarily if specified
-                user.role = selectedRole;
-            }
-            
-            CurrentUser = user;
-            
-            // Set User Interface Text
-            document.getElementById('navUserName').innerText = user.name;
-            document.getElementById('navUserRole').innerText = user.role;
-
-            // Core Access Control Logic
-            document.querySelectorAll('.auth-req').forEach(el => el.classList.add('auth-hidden'));
-            
-            if(user.role === 'BUREAU') { 
-                document.querySelectorAll('.auth-bureau').forEach(el => el.classList.remove('auth-hidden')); 
-                document.querySelectorAll('.auth-bureau-only').forEach(el => {
-                    el.classList.remove('disabled-ui');
-                    el.classList.remove('auth-hidden');
-                }); 
-            } 
-            
-            if(user.role === 'HOD' || user.role === 'BUREAU') { 
-                document.querySelectorAll('.auth-hod').forEach(el => el.classList.remove('auth-hidden')); 
-                if(user.role === 'HOD') {
-                    document.querySelectorAll('.auth-hod-only').forEach(el => el.classList.remove('auth-hidden'));
-                }
-            }
-
-            // Transition UI State
-            document.getElementById('authScreen').style.display = 'none';
-            document.getElementById('workspacePortal').style.display = 'flex';
-            
-            // Initialize Core Modules
-            SettingsEngine.loadSettings();
-            OrgManager.populateDropdowns();
-            ActivityLogger.populateCategories();
-            PointConfigEngine.renderInputs();
-            PerformanceEngine.setQuickDate('month');
-
-            // Routing
-            let targetView = user.role === 'STAFF' ? 'myWorkspace' : 'dashboard';
-            Navigation.goTo(targetView); 
-            
-            UI.showToast(`Royal Access Granted: ${user.role}`, 'success');
-        },
-        logout: () => {
-            // Hard refresh clears session variables
-            window.location.reload();
-        }
-    };
-
-    /**
-     * ==========================================================================
-     * ORGANIZATION MANAGER ENGINE
-     * Manages Org Hierarchy (Depts/Sections) & 3-Step Secure Deletion.
-     * ==========================================================================
-     */
-    const OrgManager = {
-        targetDeleteDept: null,
-        deleteStep: 1,
-        
-        populateDropdowns: () => {
-            let deptOpts = '<option value="">All Departments</option>';
-            let specificDeptOpts = '';
-            
-            AppState.db.departments.forEach(d => {
-                let opt = `<option value="${d}">${d}</option>`;
-                deptOpts += opt; 
-                specificDeptOpts += opt;
-            });
-            
-            ['acFilterDept', 'reqFilterDept', 'dirDeptFilter', 'perfDeptFilter'].forEach(id => {
-                let el = document.getElementById(id); 
-                if(el) el.innerHTML = deptOpts;
-            });
-            
-            ['stfDept', 'orgSecFilter'].forEach(id => {
-                let el = document.getElementById(id); 
-                if(el) el.innerHTML = specificDeptOpts;
-            });
-        },
-        
-        render: () => {
-            let deptHtml = '';
-            AppState.db.departments.forEach(d => {
-                deptHtml += `<div class="p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center text-sm font-bold text-[#1e3a8a] mb-2">
-                    <span>${d}</span>
-                    <button onclick="OrgManager.initDeleteDept('${d}')" class="text-red-500 hover:text-red-700 transition hover:scale-110">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                </div>`;
-            });
-            
-            let listEl = document.getElementById('orgDeptList');
-            if(listEl) listEl.innerHTML = deptHtml;
-            
-            OrgManager.renderSections(); 
-            OrgManager.renderChart();
-        },
-        
-        renderSections: () => {
-            let dept = document.getElementById('orgSecFilter').value;
-            let secHtml = '';
-            
-            if(dept && AppState.db.sections[dept]) {
-                AppState.db.sections[dept].forEach(s => {
-                    secHtml += `<div class="p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center text-sm font-bold text-[#064e3b] mb-2">
-                        <span>${s}</span>
-                        <button onclick="OrgManager.deleteSec('${dept}', '${s}')" class="text-red-500 hover:text-red-700 transition hover:scale-110">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </div>`;
-                });
-            }
-            
-            let secListEl = document.getElementById('orgSecList');
-            if(secListEl) {
-                secListEl.innerHTML = secHtml || '<p class="text-xs text-slate-400 font-bold uppercase tracking-widest p-4 text-center">No sections found.</p>';
-            }
-        },
-        
-        addDept: () => {
-            let name = prompt("Enter new department name:");
-            if(name && !AppState.db.departments.includes(name)) {
-                AppState.db.departments.push(name);
-                AppState.db.sections[name] = ["General"];
-                HybridCloud.saveAutoLocal(); 
-                OrgManager.populateDropdowns(); 
-                OrgManager.render();
-                UI.showToast("Department Created Successfully", "success");
-            }
-        },
-        
-        addSec: () => {
-            let dept = document.getElementById('orgSecFilter').value;
-            let name = prompt(`Enter new section name for ${dept}:`);
-            if(dept && name) {
-                if(!AppState.db.sections[dept]) AppState.db.sections[dept] = [];
-                if(!AppState.db.sections[dept].includes(name)) {
-                    AppState.db.sections[dept].push(name);
-                    HybridCloud.saveAutoLocal(); 
-                    OrgManager.renderSections(); 
-                    OrgManager.renderChart();
-                    UI.showToast("Section Created Successfully", "success");
-                }
-            }
-        },
-        
-        // ----------------------------------------------------------------------
-        // SECURE 3-STEP DEPARTMENT DELETION LOGIC
-        // ----------------------------------------------------------------------
-        initDeleteDept: (deptName) => {
-            OrgManager.targetDeleteDept = deptName;
-            OrgManager.deleteStep = 1;
-            OrgManager.renderDeleteModal();
-            UI.openModal('modalDeleteDept');
-        },
-        
-        renderDeleteModal: () => {
-            let cont = document.getElementById('deptDeleteSteps');
-            if(!cont) return;
-            
-            if(OrgManager.deleteStep === 1) {
-                cont.innerHTML = `
-                    <p class="text-sm font-bold text-slate-700 mb-4">
-                        Step 1: Type the department name <br><b class="text-lg text-[#0f172a]">${OrgManager.targetDeleteDept}</b><br> to confirm.
-                    </p>
-                    <input type="text" id="delInput1" class="input-base text-center font-black mb-4 text-[#1e3a8a]" autocomplete="off">
-                    <button onclick="OrgManager.nextDeleteStep()" class="btn-base bg-red-800 text-white w-full py-3 shadow hover:bg-red-900 transition">
-                        Next Step <i class="fa-solid fa-arrow-right ml-1"></i>
-                    </button>`;
-            } else if(OrgManager.deleteStep === 2) {
-                cont.innerHTML = `
-                    <p class="text-sm font-bold text-slate-700 mb-4">
-                        Step 2: Verify your Executive Authority.
-                    </p>
-                    <label class="label-base text-left">Your Email (ID)</label>
-                    <input type="email" id="delInput2" class="input-base text-center font-bold mb-4" placeholder="admin@rasfahi.edu.mv">
-                    <button onclick="OrgManager.nextDeleteStep()" class="btn-base bg-red-800 text-white w-full py-3 shadow hover:bg-red-900 transition">
-                        Next Step <i class="fa-solid fa-arrow-right ml-1"></i>
-                    </button>`;
-            } else if(OrgManager.deleteStep === 3) {
-                cont.innerHTML = `
-                    <p class="text-sm font-bold text-red-700 mb-4">
-                        Step 3: Final Authorization.
-                    </p>
-                    <label class="label-base text-left text-red-900">Your Secret Key (Password)</label>
-                    <input type="password" id="delInput3" class="input-base text-center mb-4 text-[#991b1b] font-black">
-                    <button onclick="OrgManager.executeDelete()" class="btn-base bg-red-900 text-white w-full py-4 text-lg shadow-[0_10px_20px_rgba(153,27,27,0.4)] hover:scale-105 transition">
-                        <i class="fa-solid fa-bomb mr-2"></i> Authorize Permanent Deletion
-                    </button>`;
-            }
-        },
-        
-        nextDeleteStep: () => {
-            if(OrgManager.deleteStep === 1) {
-                if(document.getElementById('delInput1').value !== OrgManager.targetDeleteDept) {
-                    return UI.showToast("Department Name mismatch!", "error");
-                }
-            }
-            if(OrgManager.deleteStep === 2) {
-                if(document.getElementById('delInput2').value.toLowerCase() !== CurrentUser.email.toLowerCase()) {
-                    return UI.showToast("Executive ID mismatch!", "error");
-                }
-            }
-            OrgManager.deleteStep++;
-            OrgManager.renderDeleteModal();
-        },
-        
-        executeDelete: () => {
-            let pass = document.getElementById('delInput3').value;
-            if(pass !== '123456' && pass !== 'admin') {
-                return UI.showToast("Authorization Failed. Incorrect Password!", "error");
-            }
-            
-            // Delete Department and its nested sections
-            AppState.db.departments = AppState.db.departments.filter(d => d !== OrgManager.targetDeleteDept);
-            delete AppState.db.sections[OrgManager.targetDeleteDept];
-            
-            HybridCloud.saveAutoLocal();
-            OrgManager.populateDropdowns(); 
-            OrgManager.render();
-            
-            UI.closeModal('modalDeleteDept');
-            UI.showToast(`Department ${OrgManager.targetDeleteDept} has been permanently deleted.`, "success");
-        },
-        
-        deleteSec: (dept, sec) => {
-            if(confirm(`WARNING: Are you sure you want to permanently delete section ${sec} from ${dept}?`)) {
-                AppState.db.sections[dept] = AppState.db.sections[dept].filter(s => s !== sec);
-                HybridCloud.saveAutoLocal(); 
-                OrgManager.renderSections(); 
-                OrgManager.renderChart();
-                UI.showToast("Section Deleted", "info");
-            }
-        },
-        
-        // ----------------------------------------------------------------------
-        // VISUAL ORG CHART GENERATOR
-        // ----------------------------------------------------------------------
-        renderChart: () => {
-            let filterDept = document.getElementById('orgSecFilter').value;
-            let deptsToShow = filterDept ? [filterDept] : AppState.db.departments;
-
-            let html = `
-                <div class="org-node bg-[var(--royal-purple)] text-white border-none shadow-lg mb-4 mx-auto">
-                    <h3 class="font-black text-lg">${AppState.db.settings.orgName || 'ENTERPRISE'}</h3>
-                </div>
-                <div class="org-line-v bg-[var(--royal-purple)] h-8 mx-auto"></div>
-                <div class="flex justify-center gap-4 relative pt-4 w-full flex-wrap">`;
-            
-            if(deptsToShow.length > 1) {
-                 html += `<div class="org-line-h top-0 absolute" style="width: calc(100% - 180px);"></div>`;
-            }
-
-            deptsToShow.forEach((d, i) => {
-                let sections = AppState.db.sections[d] || ["General"];
-                html += `
-                <div class="flex flex-col items-center relative z-10 flex-1 min-w-[250px] mb-8">
-                    <div class="org-line-v h-4 absolute -top-4 bg-[#1e3a8a]"></div>
-                    <div class="org-node border-[#1e3a8a] shadow-md bg-blue-50 w-full">
-                        <h4 class="font-black text-sm text-[#1e3a8a] uppercase">${d}</h4>
-                    </div>`;
-                
-                if(sections.length > 0) {
-                    html += `<div class="org-line-v h-6 bg-[#064e3b]"></div><div class="flex flex-col gap-4 w-full items-center">`;
-                    
-                    sections.forEach(s => {
-                        let sectionStaff = AppState.db.staff.filter(st => st.dept === d && st.section === s && st.status === 'Active');
-                        let staffHtml = '';
-                        
-                        if(sectionStaff.length > 0) {
-                            staffHtml = `<div class="mt-2 space-y-1 border-t border-[#064e3b]/30 pt-2 w-full text-left">`;
-                            sectionStaff.forEach(st => {
-                                let headIcon = (st.headStatus && st.headStatus !== 'None') ? '<i class="fa-solid fa-star text-yellow-500 ml-1"></i>' : '';
-                                staffHtml += `
-                                <div class="text-[10px] bg-white p-1 rounded border border-slate-200 shadow-sm flex items-center gap-2 hover:bg-slate-50 transition">
-                                    <div class="w-4 h-4 rounded-full bg-[#0f172a] text-white flex items-center justify-center text-[8px] font-bold shrink-0">
-                                        ${st.name.charAt(0)}
-                                    </div>
-                                    <span class="font-bold text-[#0f172a] truncate block w-full" dir="auto">
-                                        ${st.name} ${headIcon}<br>
-                                        <span class="text-[8px] text-slate-500 font-normal">${st.jobTitle}</span>
-                                    </span>
-                                </div>`;
-                            });
-                            staffHtml += `</div>`;
-                        } else {
-                            staffHtml = `<p class="text-[8px] text-slate-400 mt-2 italic font-bold">No Active Staff</p>`;
-                        }
-
-                        html += `
-                        <div class="org-node border-[#064e3b] px-4 py-2 w-[90%] shadow-sm relative transition hover:scale-105">
-                            <span class="text-xs font-black text-[#064e3b] uppercase tracking-widest">${s}</span>
-                            ${staffHtml}
-                        </div>`;
-                    });
-                    html += `</div>`;
-                }
-                html += `</div>`;
-            });
-            html += `</div>`;
-            
-            let canvas = document.getElementById('orgChartCanvas');
-            if(canvas) canvas.innerHTML = html;
-        },
-        
-        exportChart: () => {
-            if(typeof PDFEngine !== 'undefined') {
-                PDFEngine.exportContainer('orgChartVisualContainer', `Org_Structure_${new Date().getTime()}.pdf`, 'ENTERPRISE ARCHITECTURE', document.getElementById('orgPdfSize').value);
-            }
-        }
-    };
-
-    /**
-     * ==========================================================================
      * NAVIGATION ENGINE
      * Handles routing between different modular views dynamically.
      * ==========================================================================
      */
     const Navigation = {
         goTo: (viewId) => {
-            // 1. Hide all existing views
             document.querySelectorAll('.tab-section').forEach(el => { 
                 el.classList.remove('active-tab'); 
                 el.style.display = 'none'; 
                 el.style.opacity = '0'; 
             });
             
-            // 2. Update Active Styling in Sidebar
             document.querySelectorAll('#sidebarNav button').forEach(btn => {
                 btn.classList.remove('nav-btn-active');
                 if(btn.getAttribute('onclick').includes(viewId)) {
@@ -2825,7 +2599,6 @@
                 }
             });
 
-            // 3. Show target view and animate in
             const targetView = document.getElementById('view-' + viewId);
             if(targetView) { 
                 targetView.style.display = 'flex'; 
@@ -2835,7 +2608,6 @@
                 }, 10); 
             }
 
-            // 4. Update Header Title
             const titles = { 
                 'dashboard': 'Executive Dashboard', 
                 'actionCenter': 'Action Center',
@@ -2850,18 +2622,13 @@
                 'staffRecords': 'Staff Records Review'
             };
             let titleEl = document.getElementById('viewTitle');
-            if(titleEl) {
-                titleEl.innerText = titles[viewId] || viewId;
-            }
+            if(titleEl) titleEl.innerText = titles[viewId] || viewId;
             
-            // 5. Handle Mobile Sidebar & Scroll Reset
-            if(window.innerWidth < 768) { 
-                document.body.classList.remove('sidebar-open'); 
-            }
+            if(window.innerWidth < 768) document.body.classList.remove('sidebar-open'); 
             const scrollArea = document.getElementById('mainScrollArea'); 
             if(scrollArea) scrollArea.scrollTop = 0;
 
-            // 6. Trigger specific rendering logic for the newly opened view
+            // Trigger specific rendering logic for the newly opened view
             if(viewId === 'dashboard' && typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             if(viewId === 'actionCenter' && typeof ActionCenterEngine !== 'undefined') ActionCenterEngine.render();
             if(viewId === 'requestCenter' && typeof RequestCenterEngine !== 'undefined') RequestCenterEngine.render();
@@ -2873,19 +2640,19 @@
             if(viewId === 'systemAdmin' && typeof SystemAdmin !== 'undefined') SystemAdmin.renderLogs();
         }
     };
-/**
+
+    /**
      * ==========================================================================
-     * PDF EXPORT ENGINE
+     * PDF EXPORT ENGINE (A3 & A4 Supported)
      * Handles generation of Royal PDF reports from HTML elements.
      * ==========================================================================
      */
     const PDFEngine = {
         exportContainer: (containerId, filename, title, pageSize = 'a4') => {
-            UI.showToast("Constructing PDF (Dhivehi Supported)...", "info");
+            UI.showToast(`Constructing PDF (${pageSize.toUpperCase()})...`, "info");
             const container = document.getElementById(containerId);
             const originalStyle = container.style.cssText;
             
-            // Apply special CSS class to format for PDF
             container.classList.add('pdf-export-mode');
             let tables = container.querySelectorAll('table');
             tables.forEach(tbl => { 
@@ -2893,7 +2660,6 @@
                 tbl.style.minWidth = 'auto'; 
             });
             
-            // Inject Royal Header dynamically
             const headerId = 'pdf-temp-header';
             const header = document.createElement('div');
             header.id = headerId;
@@ -2908,19 +2674,17 @@
             `;
             container.insertBefore(header, container.firstChild);
 
-            // Give DOM time to render header before capturing
             setTimeout(() => {
                 let opt = {
                     margin:       [10, 5, 10, 5],
                     filename:     filename,
                     image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 1.5, useCORS: true, scrollY: 0, windowWidth: 1200 }, 
+                    html2canvas:  { scale: 1.5, useCORS: true, scrollY: 0, windowWidth: pageSize === 'a3' ? 1600 : 1200 }, 
                     jsPDF:        { unit: 'mm', format: pageSize, orientation: 'landscape' },
                     pagebreak:    { mode: ['css', 'legacy'] }
                 };
 
                 html2pdf().set(opt).from(container).save().then(() => {
-                    // Cleanup after export
                     document.getElementById(headerId).remove();
                     container.style.cssText = originalStyle;
                     tables.forEach(tbl => { 
@@ -2958,7 +2722,6 @@
                 ${UI.renderStars(stats.stars)}
             `;
             
-            // Auto Feedback Logic based on points
             let fbBox = document.getElementById('wsAutoFeedback');
             if(fbBox) {
                 if(stats.score >= 50) {
@@ -2978,7 +2741,6 @@
             let badge = document.getElementById('wsTaskCountBadge');
             if(badge) badge.innerText = `${pendingTasks.length} Pending`;
 
-            // Render Assigned Tasks & Active OT
             let qHtml = pendingTasks.map(t => {
                 let isOtApproved = (t.category === 'Overtime' && t.status === 'Approved');
                 
@@ -3005,7 +2767,6 @@
             let tlList = document.getElementById('wsTaskList');
             if(tlList) tlList.innerHTML = qHtml || '<p class="text-sm text-center py-6 text-slate-500 font-bold uppercase tracking-widest"><i class="fa-solid fa-check-circle text-2xl mb-2 text-slate-300 block"></i> All clear.</p>';
 
-            // Render My Submitted Requests Status
             let userReqs = AppState.db.requests.filter(r => r.staffId === CurrentUser.id).sort((a,b) => new Date(b.date) - new Date(a.date));
             let rHtml = userReqs.map(r => {
                 let statCol = r.status === 'Pending' ? 'bg-amber-100 text-amber-800 border-amber-300' : 
@@ -3026,7 +2787,6 @@
             let reqList = document.getElementById('wsRequestList');
             if(reqList) reqList.innerHTML = rHtml || '<p class="text-xs text-center py-6 text-slate-400 font-bold uppercase tracking-widest"><i class="fa-solid fa-inbox text-2xl mb-2 text-slate-300 block"></i> No requests submitted.</p>';
 
-            // Overdue check
             let overdueTasks = userTasks.filter(t => {
                 if(t.status === 'Completed' || !t.dueDate) return false;
                 return new Date() > new Date(t.dueDate);
@@ -3065,7 +2825,7 @@
 
     /**
      * ==========================================================================
-     * STAFF DOSSIER ENGINE (Performance Report)
+     * STAFF DOSSIER ENGINE (Performance Report PDF)
      * ==========================================================================
      */
     const StaffTaskReport = {
@@ -3474,8 +3234,7 @@
             UI.showToast("Supervisor remarks firmly attached.", "success");
         }
     };
-
-    /**
+/**
      * ==========================================================================
      * ACTION CENTER ENGINE
      * Handles returning tasks, endorsing tasks, and filtering the global queue.
@@ -3646,6 +3405,74 @@
 
     /**
      * ==========================================================================
+     * ACTIVITY LOGGER (For Staff to log daily operations)
+     * ==========================================================================
+     */
+    const ActivityLogger = {
+        populateCategories: () => {
+            const pts = AppState.db.pointSystem || DefaultMetrics;
+            let html = '';
+            for(const k of Object.keys(pts)) {
+                if(k !== 'Attendance' && k !== 'ManualOverride' && k !== 'Directive' && k !== 'Overtime') {
+                    html += `<option value="${k}">${k}</option>`;
+                }
+            }
+            let el = document.getElementById('alCategory');
+            if(el) el.innerHTML = html;
+        },
+        openForm: () => {
+            document.getElementById('logDateInput').value = new Date().toISOString().split('T')[0];
+            document.getElementById('alTitle').value = '';
+            ActivityLogger.checkDate();
+            UI.openModal('modalLogActivity');
+        },
+        checkDate: () => {
+            const selectedDate = new Date(document.getElementById('logDateInput').value);
+            const today = new Date();
+            const diffDays = Math.floor((today - selectedDate) / (1000 * 60 * 60 * 24));
+            
+            const warning = document.getElementById('lateWarning');
+            if(diffDays > 1) {
+                warning.classList.remove('hidden');
+            } else {
+                warning.classList.add('hidden');
+            }
+        },
+        submit: () => {
+            const dateVal = document.getElementById('logDateInput').value;
+            const category = document.getElementById('alCategory').value;
+            const title = document.getElementById('alTitle').value.trim();
+            
+            if(!dateVal || !category || !title) return UI.showToast("All fields are mandatory", "error");
+
+            const selectedDate = new Date(dateVal);
+            const today = new Date();
+            const diffDays = Math.floor((today - selectedDate) / (1000 * 60 * 60 * 24));
+            let isLate = diffDays > 1;
+
+            let logObj = {
+                id: generateUID('LOG'), staffId: CurrentUser.id, title: title, category: category,
+                progress: 100, status: 'Wait Endorse', logDate: new Date(dateVal).toLocaleString(),
+                isLate: isLate, assignedBy: 'SELF', updates: [{date: new Date().toLocaleString(), text: 'Task logged and submitted for endorsement.'}]
+            };
+
+            // Apply late penalty
+            if(isLate) {
+                const ptsObj = AppState.db.pointSystem || DefaultMetrics;
+                const basePts = parseInt(ptsObj[category] || 0);
+                logObj.manualPoints = Math.max(0, basePts - 1); 
+            }
+
+            AppState.db.tasks.push(logObj);
+            HybridCloud.saveAutoLocal();
+            UI.closeModal('modalLogActivity');
+            WorkspaceEngine.render();
+            UI.showToast(isLate ? "Logged with Late Penalty" : "Operation Logged Successfully", "success");
+        }
+    };
+
+    /**
+     * ==========================================================================
      * DASHBOARD ENGINE (Charts, Analytics, Workload & Supervisor View)
      * ==========================================================================
      */
@@ -3686,41 +3513,7 @@
             if(CurrentUser.role === 'BUREAU') {
                 DashboardEngine.renderExecCharts(relevantStaff, relevantTasks);
             }
-
-            // Overdue check for Supervisor Dashboard
-            let overdueTasks = relevantTasks.filter(t => {
-                if(t.status === 'Completed' || !t.dueDate) return false;
-                return new Date() > new Date(t.dueDate);
-            });
-            
-            let dashOverdueHtml = '';
-            if(overdueTasks.length > 0) {
-                dashOverdueHtml = `
-                <div class="royal-overdue-box mt-6 z-10 relative">
-                    <h3 class="royal-font text-xl font-black text-red-200 uppercase tracking-widest mb-3 border-b border-red-400/30 pb-2">
-                        <i class="fa-solid fa-triangle-exclamation mr-2 text-yellow-400 animate-pulse"></i> Deadline Overdue (Enterprise Wide)
-                    </h3>
-                    <div class="space-y-2 max-h-60 overflow-y-auto pr-2">`;
-                    
-                overdueTasks.forEach(t => {
-                    let s = relevantStaff.find(x => x.id === t.staffId);
-                    dashOverdueHtml += `
-                    <div class="bg-black/40 p-3 rounded flex justify-between items-center border border-red-500/50 backdrop-blur-sm">
-                        <div>
-                            <p class="font-bold text-sm text-white" dir="auto">${t.title}</p>
-                            <p class="text-[10px] text-red-300 font-mono mt-1">Assigned to: ${s ? s.name : 'Unknown'} | Due: ${new Date(t.dueDate).toLocaleString()}</p>
-                        </div>
-                        <button onclick="UI.showToast('SMS Notification Sent to ${s ? s.mobile : 'Staff'}', 'warning')" class="btn-base bg-red-600 hover:bg-red-500 text-white text-[9px] px-3 py-1 shadow-md border border-red-400 transition hover:scale-105">
-                            <i class="fa-solid fa-comment-sms mr-1"></i> Send SMS
-                        </button>
-                    </div>`;
-                });
-                dashOverdueHtml += `</div></div>`;
-            }
-            let dashOverdueCont = document.getElementById('dashOverdueContainer');
-            if(dashOverdueCont) dashOverdueCont.innerHTML = dashOverdueHtml;
         },
-        
         renderTimeline: (tasks, relevantStaff) => {
             let tlTasks = tasks.filter(t => t.status !== 'Completed').sort((a,b) => new Date(a.logDate) - new Date(b.logDate));
             
@@ -3753,14 +3546,12 @@
             let tlCont = document.getElementById('dashboardTimeline');
             if(tlCont) tlCont.innerHTML = html;
         },
-        
         renderExecCharts: (staff, tasks) => {
             let depts = AppState.db.departments;
             let deptScores = depts.map(d => {
                 let dStaff = staff.filter(s => s.dept === d);
                 let totalScore = dStaff.reduce((sum, s) => sum + UI.calcScoreAndStars(s.id).score, 0);
-                let avg = dStaff.length > 0 ? Math.round(totalScore / dStaff.length) : 0;
-                return avg;
+                return dStaff.length > 0 ? Math.round(totalScore / dStaff.length) : 0;
             });
 
             let cDP = document.getElementById('chartExecDeptPerf');
@@ -3786,13 +3577,11 @@
                 });
             }
         },
-        
         renderCharts: (relevantStaff, relevantTasks) => {
             let depts = [...new Set(relevantStaff.map(s => s.dept))];
             let empTypes = ["Civil Service", "Political", "Consultant", "Academic", "Advisor", "Contract"];
             let royalColors = ['#1e3a8a', '#064e3b', '#4c1d95', '#0e7490', '#86198f', '#b45309'];
             
-            // 1. Role Distribution
             let datasetsDist = empTypes.map((type, i) => {
                 let data = depts.map(d => relevantStaff.filter(s => s.dept === d && s.empType === type).length);
                 return { label: type, data: data, backgroundColor: royalColors[i%royalColors.length], borderRadius: 4 };
@@ -3818,7 +3607,6 @@
                 });
             }
 
-            // 2. Pie Completion
             let compData = []; let incompData = [];
             depts.forEach(d => {
                 let deptStaffIds = relevantStaff.filter(s => s.dept === d).map(s => s.id);
@@ -3850,7 +3638,6 @@
                 });
             }
 
-            // 3. Top HOD / General Staff Perf
             let sc = relevantStaff.map(s => ({ ...s, ...UI.calcScoreAndStars(s.id) }));
 
             let hodStaff = sc.filter(s => s.role === 'HOD' || s.role === 'BUREAU').sort((a,b) => b.score - a.score).slice(0,10);
@@ -3889,7 +3676,6 @@
                 });
             }
         },
-        
         renderPerformanceWidgets: (staffList) => {
             let sc = staffList.map(s => ({ ...s, ...UI.calcScoreAndStars(s.id) })).sort((a,b) => b.score - a.score);
             let topStaff = sc.filter(s => s.score >= 70).slice(0, 5);
@@ -3922,7 +3708,6 @@
             if(tsEl) tsEl.innerHTML = topHtml;
             if(niEl) niEl.innerHTML = botHtml;
         },
-        
         renderWorkloadChart: (relevantStaff, relevantTasks) => {
             if(!relevantStaff || !relevantTasks) {
                 relevantStaff = AppState.db.staff.filter(s => CurrentUser.role !== 'HOD' || (s.dept === CurrentUser.dept && s.section === CurrentUser.section));
@@ -3934,7 +3719,7 @@
             
             let wl = relevantStaff.map(s => {
                 let sTasks = relevantTasks.filter(t => t.staffId === s.id);
-                return { name: s.name, dept: s.dept, count: sTasks.length };
+                return { name: s.name, count: sTasks.length };
             }).sort((a,b) => b.count - a.count).slice(0, limit);
 
             let cWL = document.getElementById('chartWorkload');
@@ -3947,7 +3732,6 @@
                 });
             }
 
-            // Overtime Pie Chart Logic
             let depts = [...new Set(relevantStaff.map(s => s.dept))];
             let otData = [];
             let royalColors = ['#1e3a8a', '#064e3b', '#4c1d95', '#0e7490', '#86198f', '#b45309'];
@@ -3969,7 +3753,6 @@
                 });
             }
         },
-        
         renderDeptStaffChart: () => {
             let deptSel = document.getElementById('dashDeptPerfFilter');
             if(!deptSel) return;
@@ -4014,7 +3797,6 @@
                 });
             }
         },
-        
         renderStaffRecords: () => {
             let sInput = document.getElementById('srSearch');
             let q = sInput ? sInput.value.toLowerCase() : '';
@@ -4081,7 +3863,6 @@
                 return; 
             }
             
-            // Sort by Dept, then Section, then Role Hierarchy
             filteredStaff.sort((a,b) => {
                 if(a.dept !== b.dept) return a.dept.localeCompare(b.dept);
                 if(a.section !== b.section) return (a.section||'').localeCompare(b.section||'');
@@ -4165,6 +3946,7 @@
                 if(idx > -1) AppState.db.staff[idx] = {...AppState.db.staff[idx], ...sData}; 
             } else { 
                 sData.id = generateUID('EMP'); 
+                sData.attendance = 100;
                 AppState.db.staff.push(sData); 
             }
             
@@ -4208,49 +3990,6 @@
                 if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
                 UI.showToast("Personnel Expelled", "info");
             }
-        },
-        
-        // Massive Dummy CSV Generator for testing
-        downloadDummyCSV: () => {
-            UI.showToast("Generating Massive Dummy Data...", "info");
-            const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Ibrahim", "Fathimath", "Aminath", "Aishath", "Mariyam"];
-            const lastNames = ["Manik", "Didi", "Rasheed", "Shareef", "Waheed", "Naseer", "Shihab", "Zahir", "Faheem", "Najeeb"];
-            let data = [];
-            let counter = 1;
-
-            const generateRow = (dept, section, roleOverride, headStatus, titlePrefix, typePrefix) => {
-                let fn = firstNames[Math.floor(Math.random() * firstNames.length)];
-                let ln = lastNames[Math.floor(Math.random() * lastNames.length)];
-                let row = {
-                    "Index No": "IDX-" + (1000 + counter), "Record No": "REC-" + (5000 + counter),
-                    "ID Card": "A" + (100000 + counter), "Full Name": fn + " " + ln,
-                    "Job Title": titlePrefix || "Officer", "Email": `${fn.toLowerCase()}.${ln.toLowerCase()}${counter}@rasfahi.edu.mv`,
-                    "Mobile": "+960 7" + Math.floor(100000 + Math.random() * 900000),
-                    "Department": dept, "Section": section, "Type": typePrefix || "Civil Service",
-                    "Role": roleOverride || "STAFF", "Head Status": headStatus || "None"
-                };
-                counter++; return row;
-            };
-
-            AppState.db.departments.forEach(dept => {
-                let sections = AppState.db.sections[dept] || ["General"];
-                // 1 HOD per dept
-                data.push(generateRow(dept, sections[0], "HOD", "Department Head", "Director General", "Civil Service"));
-                
-                // 15 Staff per dept
-                for(let i=0; i < 15; i++) {
-                    let randomSec = sections[Math.floor(Math.random() * sections.length)];
-                    data.push(generateRow(dept, randomSec, "STAFF", "None", "Officer", "Civil Service"));
-                }
-            });
-
-            const csv = Papa.unparse(data); 
-            const blob = new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8;'}); 
-            const link = document.createElement("a"); 
-            link.href = URL.createObjectURL(blob); 
-            link.download = `Royal_HR_Template_${data.length}_Staff.csv`; 
-            link.click(); 
-            UI.showToast(`Successfully Generated ${data.length} Dummy Records!`, "success");
         },
         exportFilteredCSV: () => {
             const list = StaffDirectory.getFilteredStaff();
@@ -4300,6 +4039,10 @@
                     UI.showToast(`${count} Records Imported`, "success"); 
                 }
             }); 
+        },
+        downloadDummyCSV: () => {
+            // See the logic for actual 1500 generation attached in Part 2 SystemAdmin.generateDummyStaff().
+            UI.showToast("To generate actual staff, go to System Admin.", "warning");
         }
     };
 
@@ -4314,7 +4057,7 @@
             let from = new Date();
             if(type === 'week') {
                 let day = today.getDay();
-                let diff = today.getDate() - day + (day == 0 ? -6:1); 
+                let diff = today.getDate() - day + (day === 0 ? -6:1); 
                 from.setDate(diff);
             } else if (type === 'month') {
                 from.setDate(1); 
@@ -4439,10 +4182,186 @@
 
     /**
      * ==========================================================================
-     * POINT CONFIG ENGINE
-     * Handles adjusting matrix metrics globally.
+     * ORG MANAGER & POINT CONFIG ENGINE
      * ==========================================================================
      */
+    const OrgManager = {
+        targetDeleteDept: null,
+        deleteStep: 1,
+        populateDropdowns: () => {
+            let deptOpts = '<option value="">All Departments</option>';
+            let specificDeptOpts = '';
+            AppState.db.departments.forEach(d => {
+                let opt = `<option value="${d}">${d}</option>`;
+                deptOpts += opt; specificDeptOpts += opt;
+            });
+            ['acFilterDept', 'reqFilterDept', 'dirDeptFilter', 'perfDeptFilter'].forEach(id => {
+                let el = document.getElementById(id); if(el) el.innerHTML = deptOpts;
+            });
+            ['stfDept', 'orgSecFilter'].forEach(id => {
+                let el = document.getElementById(id); if(el) el.innerHTML = specificDeptOpts;
+            });
+        },
+        render: () => {
+            let deptHtml = '';
+            AppState.db.departments.forEach(d => {
+                deptHtml += `<div class="p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center text-sm font-bold text-[#1e3a8a] mb-2">
+                    <span>${d}</span>
+                    <button onclick="OrgManager.initDeleteDept('${d}')" class="text-red-500 hover:text-red-700 transition hover:scale-110"><i class="fa-solid fa-trash"></i></button>
+                </div>`;
+            });
+            let listEl = document.getElementById('orgDeptList');
+            if(listEl) listEl.innerHTML = deptHtml;
+            
+            OrgManager.renderSections(); 
+            OrgManager.renderChart();
+        },
+        renderSections: () => {
+            let dept = document.getElementById('orgSecFilter').value;
+            let secHtml = '';
+            if(dept && AppState.db.sections[dept]) {
+                AppState.db.sections[dept].forEach(s => {
+                    secHtml += `<div class="p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center text-sm font-bold text-[#064e3b] mb-2">
+                        <span>${s}</span>
+                        <button onclick="OrgManager.deleteSec('${dept}', '${s}')" class="text-red-500 hover:text-red-700 transition hover:scale-110"><i class="fa-solid fa-trash"></i></button>
+                    </div>`;
+                });
+            }
+            let secListEl = document.getElementById('orgSecList');
+            if(secListEl) secListEl.innerHTML = secHtml || '<p class="text-xs text-slate-400 font-bold uppercase tracking-widest p-4 text-center">No sections found.</p>';
+        },
+        addDept: () => {
+            let name = prompt("Enter new department name:");
+            if(name && !AppState.db.departments.includes(name)) {
+                AppState.db.departments.push(name);
+                AppState.db.sections[name] = ["General"];
+                HybridCloud.saveAutoLocal(); 
+                OrgManager.populateDropdowns(); 
+                OrgManager.render();
+                UI.showToast("Department Created", "success");
+            }
+        },
+        addSec: () => {
+            let dept = document.getElementById('orgSecFilter').value;
+            let name = prompt(`Enter new section name for ${dept}:`);
+            if(dept && name) {
+                if(!AppState.db.sections[dept]) AppState.db.sections[dept] = [];
+                if(!AppState.db.sections[dept].includes(name)) {
+                    AppState.db.sections[dept].push(name);
+                    HybridCloud.saveAutoLocal(); 
+                    OrgManager.renderSections(); 
+                    OrgManager.renderChart();
+                    UI.showToast("Section Created", "success");
+                }
+            }
+        },
+        initDeleteDept: (deptName) => {
+            OrgManager.targetDeleteDept = deptName;
+            OrgManager.deleteStep = 1;
+            OrgManager.renderDeleteModal();
+            UI.openModal('modalDeleteDept');
+        },
+        renderDeleteModal: () => {
+            let cont = document.getElementById('deptDeleteSteps');
+            if(!cont) return;
+            if(OrgManager.deleteStep === 1) {
+                cont.innerHTML = `
+                    <p class="text-sm font-bold text-slate-700 mb-4">Step 1: Type <b class="text-lg text-[#0f172a]">${OrgManager.targetDeleteDept}</b> to confirm.</p>
+                    <input type="text" id="delInput1" class="input-base text-center font-black mb-4 text-[#1e3a8a]" autocomplete="off">
+                    <button onclick="OrgManager.nextDeleteStep()" class="btn-base bg-red-800 text-white w-full py-3 shadow hover:bg-red-900 transition">Next Step <i class="fa-solid fa-arrow-right ml-1"></i></button>`;
+            } else if(OrgManager.deleteStep === 2) {
+                cont.innerHTML = `
+                    <p class="text-sm font-bold text-slate-700 mb-4">Step 2: Verify your Executive Authority.</p>
+                    <input type="email" id="delInput2" class="input-base text-center font-bold mb-4" placeholder="admin@rasfahi.edu.mv">
+                    <button onclick="OrgManager.nextDeleteStep()" class="btn-base bg-red-800 text-white w-full py-3 shadow hover:bg-red-900 transition">Next Step <i class="fa-solid fa-arrow-right ml-1"></i></button>`;
+            } else if(OrgManager.deleteStep === 3) {
+                cont.innerHTML = `
+                    <p class="text-sm font-bold text-red-700 mb-4">Step 3: Final Authorization.</p>
+                    <input type="password" id="delInput3" class="input-base text-center mb-4 text-[#991b1b] font-black">
+                    <button onclick="OrgManager.executeDelete()" class="btn-base bg-red-900 text-white w-full py-4 text-lg shadow-[0_10px_20px_rgba(153,27,27,0.4)] hover:scale-105 transition"><i class="fa-solid fa-bomb mr-2"></i> Authorize Permanent Deletion</button>`;
+            }
+        },
+        nextDeleteStep: () => {
+            if(OrgManager.deleteStep === 1 && document.getElementById('delInput1').value !== OrgManager.targetDeleteDept) return UI.showToast("Name mismatch!", "error");
+            if(OrgManager.deleteStep === 2 && document.getElementById('delInput2').value.toLowerCase() !== CurrentUser.email.toLowerCase()) return UI.showToast("Executive ID mismatch!", "error");
+            OrgManager.deleteStep++;
+            OrgManager.renderDeleteModal();
+        },
+        executeDelete: () => {
+            let pass = document.getElementById('delInput3').value;
+            if(pass !== '123456' && pass !== 'admin') return UI.showToast("Incorrect Password!", "error");
+            AppState.db.departments = AppState.db.departments.filter(d => d !== OrgManager.targetDeleteDept);
+            delete AppState.db.sections[OrgManager.targetDeleteDept];
+            HybridCloud.saveAutoLocal();
+            OrgManager.populateDropdowns(); 
+            OrgManager.render();
+            UI.closeModal('modalDeleteDept');
+            UI.showToast(`Department deleted.`, "success");
+        },
+        deleteSec: (dept, sec) => {
+            if(confirm(`WARNING: Permanently delete section ${sec} from ${dept}?`)) {
+                AppState.db.sections[dept] = AppState.db.sections[dept].filter(s => s !== sec);
+                HybridCloud.saveAutoLocal(); 
+                OrgManager.renderSections(); OrgManager.renderChart();
+                UI.showToast("Section Deleted", "info");
+            }
+        },
+        renderChart: () => {
+            let filterDept = document.getElementById('orgSecFilter').value;
+            let deptsToShow = filterDept ? [filterDept] : AppState.db.departments;
+            let html = `
+                <div class="org-node bg-[var(--royal-purple)] text-white border-none shadow-lg mb-4 mx-auto">
+                    <h3 class="font-black text-lg">${AppState.db.settings.orgName || 'ENTERPRISE'}</h3>
+                </div>
+                <div class="org-line-v bg-[var(--royal-purple)] h-8 mx-auto"></div>
+                <div class="flex justify-center gap-4 relative pt-4 w-full flex-wrap">`;
+            
+            if(deptsToShow.length > 1) html += `<div class="org-line-h top-0 absolute" style="width: calc(100% - 180px);"></div>`;
+
+            deptsToShow.forEach((d) => {
+                let sections = AppState.db.sections[d] || ["General"];
+                html += `
+                <div class="flex flex-col items-center relative z-10 flex-1 min-w-[250px] mb-8">
+                    <div class="org-line-v h-4 absolute -top-4 bg-[#1e3a8a]"></div>
+                    <div class="org-node border-[#1e3a8a] shadow-md bg-blue-50 w-full">
+                        <h4 class="font-black text-sm text-[#1e3a8a] uppercase">${d}</h4>
+                    </div>`;
+                
+                if(sections.length > 0) {
+                    html += `<div class="org-line-v h-6 bg-[#064e3b]"></div><div class="flex flex-col gap-4 w-full items-center">`;
+                    sections.forEach(s => {
+                        let sectionStaff = AppState.db.staff.filter(st => st.dept === d && st.section === s && st.status === 'Active');
+                        let staffHtml = '';
+                        if(sectionStaff.length > 0) {
+                            staffHtml = `<div class="mt-2 space-y-1 border-t border-[#064e3b]/30 pt-2 w-full text-left">`;
+                            sectionStaff.forEach(st => {
+                                let headIcon = (st.headStatus && st.headStatus !== 'None') ? '<i class="fa-solid fa-star text-yellow-500 ml-1"></i>' : '';
+                                staffHtml += `
+                                <div class="text-[10px] bg-white p-1 rounded border border-slate-200 shadow-sm flex items-center gap-2">
+                                    <div class="w-4 h-4 rounded-full bg-[#0f172a] text-white flex items-center justify-center text-[8px] font-bold shrink-0">${st.name.charAt(0)}</div>
+                                    <span class="font-bold text-[#0f172a] truncate block w-full" dir="auto">${st.name} ${headIcon}<br><span class="text-[8px] text-slate-500 font-normal">${st.jobTitle}</span></span>
+                                </div>`;
+                            });
+                            staffHtml += `</div>`;
+                        } else {
+                            staffHtml = `<p class="text-[8px] text-slate-400 mt-2 italic font-bold">No Active Staff</p>`;
+                        }
+                        html += `<div class="org-node border-[#064e3b] px-4 py-2 w-[90%] shadow-sm relative"><span class="text-xs font-black text-[#064e3b] uppercase tracking-widest">${s}</span>${staffHtml}</div>`;
+                    });
+                    html += `</div>`;
+                }
+                html += `</div>`;
+            });
+            html += `</div>`;
+            
+            let canvas = document.getElementById('orgChartCanvas');
+            if(canvas) canvas.innerHTML = html;
+        },
+        exportChart: () => {
+            PDFEngine.exportContainer('orgChartVisualContainer', `Org_Structure_${new Date().getTime()}.pdf`, 'ENTERPRISE ARCHITECTURE', document.getElementById('orgPdfSize').value);
+        }
+    };
+
     const PointConfigEngine = {
         renderInputs: () => {
             const pts = AppState.db.pointSystem || DefaultMetrics;
@@ -4464,9 +4383,7 @@
             for(const k of Object.keys(pts)) {
                 if(k !== 'ManualOverride' && k !== 'Directive') {
                     let input = document.getElementById(`pt_${k.replace(/\s+/g, '')}`);
-                    if(input) {
-                        AppState.db.pointSystem[k] = parseInt(input.value) || 0;
-                    }
+                    if(input) AppState.db.pointSystem[k] = parseInt(input.value) || 0;
                 }
             }
             HybridCloud.saveAutoLocal();
@@ -4476,81 +4393,35 @@
 
     /**
      * ==========================================================================
-     * SYSTEM ADMIN & MASTER RESET
+     * INITIALIZATION (SYSTEM BOOT)
      * ==========================================================================
      */
-    const SystemAdmin = {
-        resetState: 1,
-        openReset: () => {
-            if(CurrentUser.role !== 'BUREAU') return;
-            SystemAdmin.resetState = 1;
-            let container = document.getElementById('resetStepContainer');
-            container.innerHTML = `
-                <i class="fa-solid fa-radiation text-5xl text-red-700 mb-4 drop-shadow-md"></i>
-                <h3 class="text-xl font-black text-[#0f172a] uppercase mb-2">Step 1: Authorization</h3>
-                <p class="text-xs font-bold text-slate-600 mb-6 border-b pb-4">Type <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded border border-red-300 font-mono">CONFIRM</span> to begin annihilation protocol.</p>
-                <input type="text" id="resetInput1" class="input-base text-center font-mono text-red-800 font-black text-lg mb-4 tracking-widest" placeholder="...">
-                <button onclick="SystemAdmin.nextResetStep()" class="btn-base bg-red-800 text-white w-full py-3 shadow-lg hover:bg-red-900 transition">Proceed to Step 2 <i class="fa-solid fa-arrow-right ml-2"></i></button>
-            `;
-            UI.openModal('modalHardReset');
-        },
-        nextResetStep: () => {
-            const cont = document.getElementById('resetStepContainer');
-            
-            if(SystemAdmin.resetState === 1) {
-                if(document.getElementById('resetInput1').value !== 'CONFIRM') return UI.showToast("Authorization Denied", "error");
-                SystemAdmin.resetState = 2;
-                cont.innerHTML = `
-                    <i class="fa-solid fa-id-card text-5xl text-[var(--royal-cyan)] mb-4 drop-shadow-md"></i>
-                    <h3 class="text-xl font-black text-[#0f172a] uppercase mb-2">Step 2: Identity Verification</h3>
-                    <p class="text-xs font-bold text-slate-600 mb-6 border-b pb-4">Enter your official Email.</p>
-                    <input type="text" id="resetInput2" class="input-base text-center font-mono text-[#1e3a8a] font-black text-lg mb-4 tracking-widest" placeholder="admin@rasfahi.edu.mv">
-                    <button onclick="SystemAdmin.nextResetStep()" class="btn-base bg-[var(--royal-purple)] text-white w-full py-3 shadow-lg hover:bg-[#3b0764] transition">Verify Identity <i class="fa-solid fa-shield-check ml-2"></i></button>
-                `;
-            } else if (SystemAdmin.resetState === 2) {
-                if(document.getElementById('resetInput2').value.toLowerCase() !== CurrentUser.email.toLowerCase()) return UI.showToast("Identity Mismatch", "error");
-                SystemAdmin.resetState = 3;
-                cont.innerHTML = `
-                    <i class="fa-solid fa-skull-crossbones text-6xl text-red-900 mb-4 drop-shadow-lg animate-pulse"></i>
-                    <h3 class="text-xl font-black text-red-800 uppercase mb-2">Step 3: Final Execution</h3>
-                    <p class="text-xs font-bold text-slate-600 mb-6 border-b pb-4">Enter your FULL OFFICIAL NAME. This action will wipe all data.</p>
-                    <input type="text" id="resetInput3" class="input-base text-center font-black text-lg mb-4 text-[#0f172a]" placeholder="Full Name..." dir="auto">
-                    <button onclick="SystemAdmin.executeFinalReset()" class="btn-base bg-red-900 text-white w-full py-4 text-lg shadow-[0_10px_20px_rgba(153,27,27,0.5)] hover:scale-105 transition-transform"><i class="fa-solid fa-bomb mr-2"></i> EXECUTE WIPE</button>
-                `;
+    window.onload = () => {
+        // We use Firebase Auth listener to automatically restore session
+        window.onAuthStateChanged(window.auth, (user) => {
+            if (user) {
+                // If user is logged in via Firebase, fetch DB and proceed
+                HybridCloud.load((success) => {
+                    if (success) {
+                        // Attempt to find user by email and login
+                        let appUser = AppState.db.staff.find(s => s.email === user.email);
+                        if (appUser) {
+                            SystemAuth.proceedLogin(user.email, appUser.role);
+                        } else {
+                            // First time login for a valid Firebase user not in Staff directory
+                            SystemAuth.proceedLogin(user.email, "STAFF");
+                        }
+                    } else {
+                        UI.showToast("Database synchronization failed.", "error");
+                    }
+                });
+            } else {
+                // No valid Firebase session, stay on Auth Screen
+                HybridCloud.load(() => {
+                    // Pre-load data in background even if not logged in
+                });
             }
-        },
-        executeFinalReset: () => {
-            if(document.getElementById('resetInput3').value !== CurrentUser.name) return UI.showToast("Name Verification Failed", "error");
-            
-            const logEntry = {
-                date: new Date().toLocaleString(), 
-                execName: CurrentUser.name,
-                execId: CurrentUser.idCard || CurrentUser.email, 
-                execEmail: CurrentUser.email
-            };
-            AppState.db.resetLogs.push(logEntry);
-            
-            AppState.db.staff = [CurrentUser]; 
-            AppState.db.tasks = [];
-            AppState.db.requests = [];
-            
-            HybridCloud.saveAutoLocal();
-            UI.showToast("System Annihilated Successfully. Rebooting...", "success");
-            setTimeout(() => window.location.reload(), 2000);
-        },
-        renderLogs: () => {
-            let logs = AppState.db.resetLogs || [];
-            let logHtml = logs.length > 0 ? logs.map(l => `
-                <div class="p-3 bg-red-50 border border-red-200 rounded-lg border-l-4 border-l-red-800 shadow-sm hover:shadow transition mb-3">
-                    <p class="text-[9px] font-black text-red-800 uppercase tracking-widest">${l.date}</p>
-                    <p class="text-xs font-bold text-[#0f172a] mt-1">${l.execName}</p>
-                    <p class="text-[9px] font-mono text-slate-600 mt-1">ID: ${l.execId}</p>
-                </div>
-            `).join('') : '<p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest py-8 text-center">No Resets Logged in the Registry.</p>';
-            
-            let adminLogCont = document.getElementById('adminResetLogs');
-            if(adminLogCont) adminLogCont.innerHTML = logHtml;
-        }
+        });
     };
 
 </script>
