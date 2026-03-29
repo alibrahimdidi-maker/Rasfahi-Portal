@@ -2245,18 +2245,12 @@
 
     const generateUID = (prefix) => prefix + '-' + Math.floor(Math.random() * 900000 + 100000);
 
-/**
-     * ==========================================================================
-     * CLOUD-ONLY STORAGE ENGINE (FIREBASE DIRECT SYNC - ADVANCED)
-     * Includes Safety Locks to prevent accidental wipes & chunks data to avoid 1MB limit.
-     * ==========================================================================
-     */
-    let saveTimeout = null; 
-    let isSystemReady = false; // ޑޭޓާ ފޮހެވުނަ ނުދިނުމަށް ބޭނުންކުރާ ސޭފްޓީ ލޮކް
+let saveTimeout = null; 
+    let isSystemReady = false; 
 
     const HybridCloud = {
         saveAutoLocal: () => { 
-            if (!isSystemReady) return; // ކްލައުޑުން ލޯޑު ނުވަނީސް އޮޅިގެން ސޭވްވިޔަ ނުދިނުން
+            if (!isSystemReady) return; 
             
             let ind = document.getElementById('autoSaveInd'); 
             if(ind) { 
@@ -2270,16 +2264,18 @@
                     if (window.db) {
                         const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
                         
-                        // 1MB ލިމިޓުން ސަލާމަތްވުމަށްޓަކައި ޑޭޓާ 3 ބަޔަކަށް ބަހާލައިގެން ފޮނުވުން
-                        const coreData = JSON.stringify({ ...AppState.db, staff: [], tasks: [] });
-                        const staffData = JSON.stringify(AppState.db.staff);
-                        const taskData = JSON.stringify(AppState.db.tasks);
+                        // 1MB ލިމިޓުން ސަލާމަތްވުމަށްޓަކައި ޑޭޓާ 4 ބަޔަކަށް ބަހާލުން (requests ވެސް ވަކިކޮށްފައި)
+                        const coreData = JSON.stringify({ ...AppState.db, staff: [], tasks: [], requests: [] });
+                        const staffData = JSON.stringify(AppState.db.staff || []);
+                        const taskData = JSON.stringify(AppState.db.tasks || []);
+                        const reqData = JSON.stringify(AppState.db.requests || []);
 
-                        // Promise.all ބޭނުންކޮށްގެން ހުރިހާ ބައެއް އެއްފަހަރާ (ޕެރެލަލްކޮށް) ކްލައުޑަށް އެޅުން
+                        // Promise.all ބޭނުންކޮށްގެން ހުރިހާ ބައެއް އެއްފަހަރާ ކްލައުޑަށް އެޅުން
                         await Promise.all([
                             setDoc(window.doc(window.db, "systemState", "core"), { data: coreData }, { merge: true }),
                             setDoc(window.doc(window.db, "systemState", "staff"), { data: staffData }, { merge: true }),
-                            setDoc(window.doc(window.db, "systemState", "tasks"), { data: taskData }, { merge: true })
+                            setDoc(window.doc(window.db, "systemState", "tasks"), { data: taskData }, { merge: true }),
+                            setDoc(window.doc(window.db, "systemState", "requests"), { data: reqData }, { merge: true })
                         ]);
                         
                         if(ind) {
@@ -2304,22 +2300,32 @@
                     let loadedDb = { staff: [], tasks: [], requests: [], resetLogs: [], departments: [], sections: {}, pointSystem: {}, settings: {} };
                     let hasData = false;
 
+                    // ޑޭޓާ Overwrite ވިޔަ ނުދިނުމަށްޓަކައި ވަގުތީގޮތުން ޑޭޓާ ރައްކާކުރާނެ ތަންތަން
+                    let tempStaff = null;
+                    let tempTasks = null;
+                    let tempReqs = null;
+
                     snap.forEach((doc) => { 
                         if(doc.data().data) {
                             hasData = true;
                             let parsed = JSON.parse(doc.data().data);
-                            // ކްލައުޑުން އަންނަ ބައިތައް އެއްކޮށްލުން
-                            if(doc.id === "core") loadedDb = { ...loadedDb, ...parsed };
-                            if(doc.id === "staff") loadedDb.staff = parsed;
-                            if(doc.id === "tasks") loadedDb.tasks = parsed;
-                            if(doc.id === "mainPortal") {
-                                // ކުރީގެ ޑޭޓާއެއް އިންނަމަ އެވެސް ގެނައުން
+                            
+                            // ޑޭޓާތައް ވަކިވަކިން ނެގުން
+                            if(doc.id === "core" || doc.id === "mainPortal") {
                                 loadedDb = { ...loadedDb, ...parsed };
                             }
+                            if(doc.id === "staff") tempStaff = parsed;
+                            if(doc.id === "tasks") tempTasks = parsed;
+                            if(doc.id === "requests") tempReqs = parsed;
                         }
                     });
 
                     if(hasData) { 
+                        // ހުރިހާ ޑޭޓާއެއް ލޯޑުވުމަށްފަހު، އަސްލު ޑޭޓާ އެޓޭޗްކުރުން (މިހެން ހެދުމުން ފޮހެވޭ މައްސަލަ ޙައްލުވާނެ)
+                        if(tempStaff) loadedDb.staff = tempStaff;
+                        if(tempTasks) loadedDb.tasks = tempTasks;
+                        if(tempReqs) loadedDb.requests = tempReqs;
+
                         AppState.db = loadedDb;
                         isSystemReady = true; // ލޮކް ހުޅުވުން
                         return callback(true); 
