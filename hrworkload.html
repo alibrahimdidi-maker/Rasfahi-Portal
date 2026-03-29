@@ -2246,33 +2246,41 @@
 
 /**
      * ==========================================================================
-     * CLOUD-ONLY STORAGE ENGINE (FIREBASE DIRECT SYNC)
-     * Strictly pushes data to Firebase. LocalStorage is fully disabled.
+     * CLOUD-ONLY STORAGE ENGINE (FIREBASE DIRECT SYNC - ADVANCED)
+     * Includes Safety Locks to prevent accidental wipes & chunks data to avoid 1MB limit.
      * ==========================================================================
      */
-    let saveTimeout = null; // ޑޭޓާ ފޮނުވުން އޮމާންކުރުމަށް ބޭނުންކުރާ ޓައިމަރ
+    let saveTimeout = null; 
+    let isSystemReady = false; // ޑޭޓާ ފޮހެވުނަ ނުދިނުމަށް ބޭނުންކުރާ ސޭފްޓީ ލޮކް
 
     const HybridCloud = {
         saveAutoLocal: () => { 
-            // 1. އޮޓޯ ސޭވް އިންޑިކޭޓަރ ދެއްކުން (ލޯޑުވާކަން އެންގުމަށް)
+            if (!isSystemReady) return; // ކްލައުޑުން ލޯޑު ނުވަނީސް އޮޅިގެން ސޭވްވިޔަ ނުދިނުން
+            
             let ind = document.getElementById('autoSaveInd'); 
             if(ind) { 
                 ind.classList.remove('hidden'); 
                 ind.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing to Cloud...';
             }
 
-            // 2. ލޯކަލް ސްޓޯރޭޖް ކަނޑާލައި، ސީދާ ކްލައުޑަށް ފޮނުވުން (Debounce އާއެކު)
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(async () => {
                 try { 
                     if (window.db) {
-                        const docRef = window.doc(window.db, "systemState", "mainPortal");
-                        const dataString = JSON.stringify(AppState.db);
-                        
                         const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-                        await setDoc(docRef, { data: dataString }, { merge: true });
                         
-                        // ސޭވްވުމުން އިންޑިކޭޓަރ ފެހި ކުލައަށް ބަދަލުކޮށްލުން
+                        // 1MB ލިމިޓުން ސަލާމަތްވުމަށްޓަކައި ޑޭޓާ 3 ބަޔަކަށް ބަހާލައިގެން ފޮނުވުން
+                        const coreData = JSON.stringify({ ...AppState.db, staff: [], tasks: [] });
+                        const staffData = JSON.stringify(AppState.db.staff);
+                        const taskData = JSON.stringify(AppState.db.tasks);
+
+                        // Promise.all ބޭނުންކޮށްގެން ހުރިހާ ބައެއް އެއްފަހަރާ (ޕެރެލަލްކޮށް) ކްލައުޑަށް އެޅުން
+                        await Promise.all([
+                            setDoc(window.doc(window.db, "systemState", "core"), { data: coreData }, { merge: true }),
+                            setDoc(window.doc(window.db, "systemState", "staff"), { data: staffData }, { merge: true }),
+                            setDoc(window.doc(window.db, "systemState", "tasks"), { data: taskData }, { merge: true })
+                        ]);
+                        
                         if(ind) {
                             ind.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Cloud Synced';
                             setTimeout(() => { ind.classList.add('hidden'); }, 2500); 
@@ -2280,48 +2288,47 @@
                     }
                 } catch(e) { 
                     console.error("Firebase Cloud Save Error:", e); 
-                    if(ind) {
-                        ind.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i> Sync Failed';
-                    }
+                    if(ind) ind.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i> Sync Failed';
                 } 
-            }, 800); // 800ms ގެ ތެރޭގައި އަންނަ ހުރިހާ ސޭވްތަކެއް އެއްކޮށްލާފައި އެއްފަހަރާ ފޮނުވާނީ
+            }, 1000); 
         },
         saveLocalManual: (type) => { 
             HybridCloud.saveAutoLocal(); 
-            UI.showToast(`Cloud Synchronization Initiated (${type})`, "info"); 
+            UI.showToast(`Cloud Synchronization Initiated`, "info"); 
         },
         load: async (callback) => {
             try { 
-                let cloudData = null;
-
-                // ހަމައެކަނި ފަޔަރބޭސްއިން ޑޭޓާ ގެނައުން (ބްރައުޒަރ ހިސްޓްރީއަކަށް ނުބަލާނެ)
                 if (window.db) {
-                    const docSnap = await window.getDocs(window.collection(window.db, "systemState"));
-                    docSnap.forEach((doc) => { 
-                        if(doc.id === "mainPortal") cloudData = doc.data().data; 
-                    });
-                }
+                    const snap = await window.getDocs(window.collection(window.db, "systemState"));
+                    let loadedDb = { staff: [], tasks: [], requests: [], resetLogs: [], departments: [], sections: {}, pointSystem: {}, settings: {} };
+                    let hasData = false;
 
-                if(cloudData) { 
-                    const parsedData = JSON.parse(cloudData);
-                    
-                    // ސިސްޓަމްގެ ހުރިހާ ބައިތަކަށް ކްލައުޑް ޑޭޓާ އެޅުން
-                    AppState.db.staff = parsedData.staff || [];
-                    AppState.db.tasks = parsedData.tasks || [];
-                    AppState.db.requests = parsedData.requests || [];
-                    AppState.db.resetLogs = parsedData.resetLogs || [];
-                    AppState.db.departments = (parsedData.departments && parsedData.departments.length > 0) ? parsedData.departments : ["Executive Office", "Human Resources", "Finance", "Information Technology"];
-                    AppState.db.sections = (parsedData.sections && Object.keys(parsedData.sections).length > 0) ? parsedData.sections : { "Executive Office": ["Strategy", "Legal"], "Human Resources": ["Recruitment", "Welfare"], "Finance": ["Treasury"], "Information Technology": ["Infrastructure", "Development"] };
-                    AppState.db.pointSystem = (parsedData.pointSystem && Object.keys(parsedData.pointSystem).length > 0) ? parsedData.pointSystem : DefaultMetrics;
-                    AppState.db.settings = parsedData.settings || { orgName: 'Rasfahi Enterprise HR', orgAddress: 'Maldives', orgLogo: '' };
-                    
-                    callback(true); 
-                } else { 
-                    // ކްލައުޑްގައި ޑޭޓާ ނެތްނަމަ ހުސްކޮށް ފެށުން
-                    callback(false); 
+                    snap.forEach((doc) => { 
+                        if(doc.data().data) {
+                            hasData = true;
+                            let parsed = JSON.parse(doc.data().data);
+                            // ކްލައުޑުން އަންނަ ބައިތައް އެއްކޮށްލުން
+                            if(doc.id === "core") loadedDb = { ...loadedDb, ...parsed };
+                            if(doc.id === "staff") loadedDb.staff = parsed;
+                            if(doc.id === "tasks") loadedDb.tasks = parsed;
+                            if(doc.id === "mainPortal") {
+                                // ކުރީގެ ޑޭޓާއެއް އިންނަމަ އެވެސް ގެނައުން
+                                loadedDb = { ...loadedDb, ...parsed };
+                            }
+                        }
+                    });
+
+                    if(hasData) { 
+                        AppState.db = loadedDb;
+                        isSystemReady = true; // ލޮކް ހުޅުވުން
+                        return callback(true); 
+                    }
                 }
+                isSystemReady = true; // އައު ސިސްޓަމެއްނަމަ ލޮކް ހުޅުވުން
+                callback(false); 
             } catch(e) { 
                 console.error("Cloud Load Error:", e);
+                isSystemReady = true; 
                 callback(false); 
             }
         }
