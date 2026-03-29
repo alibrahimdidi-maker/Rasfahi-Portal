@@ -1134,8 +1134,15 @@
                                         <i class="fa-solid fa-code-pull-request mr-2"></i> Submit Request / Overtime
                                     </button>
                                 </div>
+                                
+                                <!-- Google Connect Button -->
+                                <div class="mt-4 pt-3 border-t border-slate-200">
+                                    <p class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-2">Google Integrations</p>
+                                    <button onclick="GoogleSyncEngine.authenticate()" id="btnGoogleConnect" class="w-full btn-base bg-white text-slate-700 border border-slate-300 py-3 shadow hover:bg-slate-50 transition">
+                                        <i class="fa-brands fa-google text-red-500 mr-2"></i> Connect Google Calendar
+                                    </button>
+                                </div>
                             </div>
-                        </div>
                         
                         <!-- Right Column: Tasks & OT Status -->
                         <div class="lg:col-span-2 flex flex-col gap-6">
@@ -4673,6 +4680,146 @@
             }
         });
     }
+    /**
+     * ==========================================================================
+     * GOOGLE WORKSPACE SYNC ENGINE
+     * Handles pushing deadlines to Google Calendar and assignments to Google Tasks.
+     * ==========================================================================
+     */
+    const GoogleSyncEngine = {
+        CLIENT_ID: '996941404131-t62e4s9r9ta7abi0hns37utf35rnfum9.apps.googleusercontent.com',
+        SCOPES: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks',
+        tokenClient: null,
+        accessToken: null,
+
+        init: () => {
+            if(typeof google !== 'undefined') {
+                GoogleSyncEngine.tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: GoogleSyncEngine.CLIENT_ID,
+                    scope: GoogleSyncEngine.SCOPES,
+                    callback: (tokenResponse) => {
+                        if (tokenResponse && tokenResponse.access_token) {
+                            GoogleSyncEngine.accessToken = tokenResponse.access_token;
+                            // ލޯކަލް ސްޓޯރޭޖްގައި ޓޯކަން ސޭވްކޮށްލުން (ސެޝަން ދެމެހެއްޓުމަށް)
+                            sessionStorage.setItem('google_sync_token', GoogleSyncEngine.accessToken);
+                            UI.showToast("Google Workspace Connected Successfully!", "success");
+                            
+                            // ބަޓަންގެ ސިފަ ބަދަލުކޮށްލުން
+                            let btn = document.getElementById('btnGoogleConnect');
+                            if(btn) {
+                                btn.innerHTML = '<i class="fa-solid fa-check text-emerald-500 mr-2"></i> Google Connected';
+                                btn.classList.add('bg-emerald-50', 'border-emerald-200');
+                                btn.disabled = true;
+                            }
+                        }
+                    }
+                });
+                
+                // ކުރިން ލޮގިންވެފައި އިންތޯ ބެލުން
+                let savedToken = sessionStorage.getItem('google_sync_token');
+                if(savedToken) {
+                    GoogleSyncEngine.accessToken = savedToken;
+                    let btn = document.getElementById('btnGoogleConnect');
+                    if(btn) {
+                        btn.innerHTML = '<i class="fa-solid fa-check text-emerald-500 mr-2"></i> Google Connected';
+                        btn.classList.add('bg-emerald-50', 'border-emerald-200');
+                        btn.disabled = true;
+                    }
+                }
+            }
+        },
+
+        authenticate: () => {
+            if(!GoogleSyncEngine.tokenClient) {
+                UI.showToast("Google Services not fully loaded yet. Please try again.", "warning");
+                return;
+            }
+            // ޕޮޕްއަޕް ހުޅުވައި ހުއްދައަށް އެދުން
+            GoogleSyncEngine.tokenClient.requestAccessToken();
+        },
+
+        // API އަށް ކޯލް ކުރާ މައި ފަންކްޝަން
+        apiCall: async (url, method, body = null) => {
+            if(!GoogleSyncEngine.accessToken) return null;
+            try {
+                let options = {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${GoogleSyncEngine.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                };
+                if(body) options.body = JSON.stringify(body);
+                
+                const response = await fetch(url, options);
+                if(response.ok) return await response.json();
+                console.error("Google API Error:", await response.text());
+                return null;
+            } catch (error) {
+                console.error("Network Error:", error);
+                return null;
+            }
+        },
+
+        // 1. ކަލަންޑަރަށް ޑެޑްލައިން ފޮނުވުން
+        pushToCalendar: async (taskTitle, dueDateIso, description) => {
+            if(!GoogleSyncEngine.accessToken) return false;
+            
+            // ޑެޑްލައިންގެ 1 ގަޑިއިރު ކުރިން ފެށޭ ގޮތަށް އިވެންޓް ހެދުން (މުއްދަތު ދެއްކުމަށް)
+            let end = new Date(dueDateIso);
+            let start = new Date(end.getTime() - (60 * 60 * 1000)); 
+
+            const event = {
+                summary: `🚨 DEADLINE: ${taskTitle}`,
+                description: `System Auto-Generated Deadline\n\nTask Details: ${description}\n\nAssigned via Rasfahi HR Portal.`,
+                start: { dateTime: start.toISOString(), timeZone: 'Asia/Colombo' }, // ރާއްޖޭގެ ޓައިމްޒޯން (+5)
+                end: { dateTime: end.toISOString(), timeZone: 'Asia/Colombo' },
+                reminders: {
+                    useDefault: false,
+                    overrides: [
+                        { method: 'popup', minutes: 60 },     // 1 ގަޑިއިރު ކުރިން ނޮޓިފިކޭޝަން
+                        { method: 'email', minutes: 24 * 60 } // 1 ދުވަސް ކުރިން އީމެއިލް
+                    ]
+                }
+            };
+
+            const res = await GoogleSyncEngine.apiCall('https://www.googleapis.com/calendar/v3/calendars/primary/events', 'POST', event);
+            return res ? true : false;
+        },
+
+        // 2. ގޫގްލް ޓާސްކްސް އަށް ޑެއިލީ ލިސްޓް ފޮނުވުން
+        pushToTasks: async (taskTitle, dueDateIso, notes) => {
+            if(!GoogleSyncEngine.accessToken) return false;
+            
+            // ފުރަތަމަ 'Rasfahi HR' ކިޔާ ޓާސްކް ލިސްޓެއް އިންތޯ ބެލުން
+            let lists = await GoogleSyncEngine.apiCall('https://tasks.googleapis.com/tasks/v1/users/@me/lists', 'GET');
+            let listId = '@default';
+            
+            if(lists && lists.items) {
+                let hrList = lists.items.find(l => l.title === 'Rasfahi HR System');
+                if(hrList) {
+                    listId = hrList.id;
+                } else {
+                    // ލިސްޓެއް ނެތްނަމަ އައު ލިސްޓެއް ހެދުން
+                    let newList = await GoogleSyncEngine.apiCall('https://tasks.googleapis.com/tasks/v1/users/@me/lists', 'POST', { title: 'Rasfahi HR System' });
+                    if(newList) listId = newList.id;
+                }
+            }
+
+            // އެ ލިސްޓަށް ޓާސްކް އިތުރުކުރުން
+            const task = {
+                title: taskTitle,
+                notes: notes,
+                due: new Date(dueDateIso).toISOString()
+            };
+
+            const res = await GoogleSyncEngine.apiCall(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks`, 'POST', task);
+            return res ? true : false;
+        }
+    };
+    
+    // ސިސްޓަމް ލޯޑުވާއިރު ގޫގްލް ސިންކް ތައްޔާރުކުރުން
+    setTimeout(() => { GoogleSyncEngine.init(); }, 2000);
 </script>
 </body>
 </html>
