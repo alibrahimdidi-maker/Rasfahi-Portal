@@ -2244,50 +2244,57 @@
 
     const generateUID = (prefix) => prefix + '-' + Math.floor(Math.random() * 900000 + 100000);
 
-   /**
+/**
      * ==========================================================================
-     * FIREBASE CLOUD STORAGE ENGINE (ROBUST BATCH SYNC)
-     * Manages saving and retrieving ALL system data to maintain persistent state.
+     * CLOUD-ONLY STORAGE ENGINE (FIREBASE DIRECT SYNC)
+     * Strictly pushes data to Firebase. LocalStorage is fully disabled.
      * ==========================================================================
      */
+    let saveTimeout = null; // ޑޭޓާ ފޮނުވުން އޮމާންކުރުމަށް ބޭނުންކުރާ ޓައިމަރ
+
     const HybridCloud = {
-        saveAutoLocal: async () => { 
-            try { 
-                // 1. ފުރަތަމަ ލޯކަލްކޮށް (ބްރައުޒަރަށް) ސޭވްކުރުން (އަވަސްކުރުމަށް އަދި އޮފްލައިން ބެކަޕްއަކަށް)
-                localStorage.setItem('rasfahi_hr_royal_full_v4', JSON.stringify(AppState.db)); 
-                
-                // 2. އޮޓޯ ސޭވް އިންޑިކޭޓަރ ދެއްކުން
-                let ind = document.getElementById('autoSaveInd'); 
-                if(ind) { 
-                    ind.classList.remove('hidden'); 
-                    setTimeout(() => { ind.classList.add('hidden'); }, 2500); 
-                }
+        saveAutoLocal: () => { 
+            // 1. އޮޓޯ ސޭވް އިންޑިކޭޓަރ ދެއްކުން (ލޯޑުވާކަން އެންގުމަށް)
+            let ind = document.getElementById('autoSaveInd'); 
+            if(ind) { 
+                ind.classList.remove('hidden'); 
+                ind.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing to Cloud...';
+            }
 
-                // 3. ފަޔަރބޭސްއަށް ފޮނުވުން (Cloud Sync)
-                if (window.db) {
-                    const docRef = window.doc(window.db, "systemState", "mainPortal");
-                    
-                    // މުވައްޒަފުންގެ ލިސްޓު ބޮޑުވެދާނެތީ، ހުރިހާ ޑޭޓާއެއް އެއްކޮށް String އަކަށް ބަދަލުކޮށްފައި ފޮނުވުން
-                    const dataString = JSON.stringify(AppState.db);
-                    
-                    // setDoc ބޭނުންކުރުމުން ފައިލް ނެތިއްޔާ ހަދާފައި، އިންނަމަ އަޕްޑޭޓްކޮށްލާނެ (addDoc/updateDoc ގެ މައްސަލަ ޙައްލުވާނެ)
-                    const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-                    await setDoc(docRef, { data: dataString }, { merge: true });
-                }
-
-            } catch(e) { 
-                console.error("Firebase Cloud Save Error:", e); 
-            } 
+            // 2. ލޯކަލް ސްޓޯރޭޖް ކަނޑާލައި، ސީދާ ކްލައުޑަށް ފޮނުވުން (Debounce އާއެކު)
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                try { 
+                    if (window.db) {
+                        const docRef = window.doc(window.db, "systemState", "mainPortal");
+                        const dataString = JSON.stringify(AppState.db);
+                        
+                        const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                        await setDoc(docRef, { data: dataString }, { merge: true });
+                        
+                        // ސޭވްވުމުން އިންޑިކޭޓަރ ފެހި ކުލައަށް ބަދަލުކޮށްލުން
+                        if(ind) {
+                            ind.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Cloud Synced';
+                            setTimeout(() => { ind.classList.add('hidden'); }, 2500); 
+                        }
+                    }
+                } catch(e) { 
+                    console.error("Firebase Cloud Save Error:", e); 
+                    if(ind) {
+                        ind.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i> Sync Failed';
+                    }
+                } 
+            }, 800); // 800ms ގެ ތެރޭގައި އަންނަ ހުރިހާ ސޭވްތަކެއް އެއްކޮށްލާފައި އެއްފަހަރާ ފޮނުވާނީ
         },
         saveLocalManual: (type) => { 
             HybridCloud.saveAutoLocal(); 
-            UI.showToast(`Cloud Synchronization Complete (${type})`, "success"); 
+            UI.showToast(`Cloud Synchronization Initiated (${type})`, "info"); 
         },
         load: async (callback) => {
             try { 
                 let cloudData = null;
 
-                // ފަޔަރބޭސްއިން ޑޭޓާ ގެނައުމަށް މަސައްކަތްކުރުން
+                // ހަމައެކަނި ފަޔަރބޭސްއިން ޑޭޓާ ގެނައުން (ބްރައުޒަރ ހިސްޓްރީއަކަށް ނުބަލާނެ)
                 if (window.db) {
                     const docSnap = await window.getDocs(window.collection(window.db, "systemState"));
                     docSnap.forEach((doc) => { 
@@ -2295,13 +2302,10 @@
                     });
                 }
 
-                // ފަޔަރބޭސްއިން ޑޭޓާ ނުލިބިއްޖެނަމަ، ލޯކަލް ސްޓޯރޭޖުން ނެގުން
-                const d = cloudData || localStorage.getItem('rasfahi_hr_royal_full_v4'); 
-                
-                if(d) { 
-                    const parsedData = JSON.parse(d);
+                if(cloudData) { 
+                    const parsedData = JSON.parse(cloudData);
                     
-                    // ސިސްޓަމްގެ ހުރިހާ ބައިތަކަށް ޑޭޓާ އެޅުން
+                    // ސިސްޓަމްގެ ހުރިހާ ބައިތަކަށް ކްލައުޑް ޑޭޓާ އެޅުން
                     AppState.db.staff = parsedData.staff || [];
                     AppState.db.tasks = parsedData.tasks || [];
                     AppState.db.requests = parsedData.requests || [];
@@ -2313,20 +2317,12 @@
                     
                     callback(true); 
                 } else { 
+                    // ކްލައުޑްގައި ޑޭޓާ ނެތްނަމަ ހުސްކޮށް ފެށުން
                     callback(false); 
                 }
             } catch(e) { 
                 console.error("Cloud Load Error:", e);
-                
-                // ފަޔަރބޭސް އެރަރ އެއް އަރައިފިނަމަ، ލޯކަލް ޑޭޓާއިން ލޯޑުކުރޭތޯ ބެލުން
-                const backupD = localStorage.getItem('rasfahi_hr_royal_full_v4');
-                if (backupD) {
-                    const parsedData = JSON.parse(backupD);
-                    AppState.db.staff = parsedData.staff || [];
-                    callback(true);
-                } else {
-                    callback(false); 
-                }
+                callback(false); 
             }
         }
     };
