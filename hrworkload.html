@@ -2405,22 +2405,35 @@ let saveTimeout = null;
                 UI.showToast(errorMsg, 'error'); 
             }
         },
-        proceedLogin: (email, selectedRole) => {
+proceedLogin: (email, selectedRole) => {
             let user = AppState.db.staff.find(s => s.email === email);
             
+            // ކޮންމެ HOD އެއްގެ އީމެއިލް އާއި އޭނާގެ ޑިޕާޓްމެންޓް ގުޅުވުން (މިތަނަށް ބޭނުންވަރަކަށް އިތުރުކުރެވޭނެ)
+            const hodDepartments = {
+                "admin.hod@rasfahi.edu.mv": "Administration",
+                "academic.hod@rasfahi.edu.mv": "Academic Affairs",
+                "hr.hod@rasfahi.edu.mv": "Human Resources",
+                "finance.hod@rasfahi.edu.mv": "Finance"
+            };
+            
+            // އީމެއިލްއާ ގުޅޭ ޑިޕާޓްމެންޓެއް އިންތޯ ބެލުން. ނެތްނަމަ އާންމު ޑިޕާޓްމެންޓެއް ދިނުން.
+            let assignedDept = hodDepartments[email] || 'General';
+
             if(!user) {
-                // އީމެއިލްއިން ނަން ނެގުމަށް ކުޑަ ބަދަލެއް ގެނެވިފައި (މިސާލަކަށް: ali.011265 އިން 'ALI' ނެގުން)
+                // އީމެއިލްއިން ނަން ނެގުމަށް ކުޑަ ބަދަލެއް ގެނެވިފައި
                 let extractName = email.split('@')[0].split('.')[0].toUpperCase();
                 
                 user = { 
                     id: generateUID('EMP'), name: extractName, email: email, role: selectedRole, 
-                    dept: 'Executive Office', section: 'Strategy', status: 'Active', empType: 'Civil Service', 
+                    dept: assignedDept, section: 'General', status: 'Active', empType: 'Civil Service', 
                     attendance: 100, idCard: 'A000000', jobTitle: 'Officer', mobile: '+960 7000000', indexNo: 'IDX-001'
                 };
                 AppState.db.staff.push(user); 
                 HybridCloud.saveAutoLocal();
             } else {
                 user.role = selectedRole;
+                // ކުރިން އިން ޔޫޒަރެއް ނަމަވެސް، މަތީގައިވާ ލިސްޓުގައި އީމެއިލް އިންނަމަ ޑިޕާޓްމެންޓް އަޕްޑޭޓްކުރުން
+                if(hodDepartments[email]) user.dept = assignedDept;
             }
             
             CurrentUser = user;
@@ -2454,14 +2467,15 @@ let saveTimeout = null;
             PointConfigEngine.renderInputs();
             PerformanceEngine.setQuickDate('month');
 
-            let targetView = 'myWorkspace';
+   let targetView = 'myWorkspace';
             if (user.role === 'BUREAU') targetView = 'dashboard';
             else if (user.role === 'HOD') targetView = 'actionCenter';
             
             Navigation.goTo(targetView); 
             UI.showToast(`Royal Access Granted: ${user.role}`, 'success');
         },
-        logout: async () => {
+        // ފޮހެވުނު ލައިން މިއިނީއެވެ:
+        logout: async () => { 
             try {
                 await window.signOut(window.auth);
             } catch(e) {
