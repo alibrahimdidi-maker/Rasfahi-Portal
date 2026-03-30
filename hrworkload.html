@@ -2408,18 +2408,27 @@ let saveTimeout = null;
 proceedLogin: (email, selectedRole) => {
             let user = AppState.db.staff.find(s => s.email === email);
             
-            // 1. މީގެ ތެރެއަށް ފަޔަރބޭސްގައި ހެދި އަސްލު އީމެއިލްތައް (ހުސް ކުޑަ އަކުރުން) ލައްވާ!
+            // 1. HOD އީމެއިލްތައް
             const hodDepartments = {
                 "admin.hod@rasfahi.edu.mv": "Administration",
                 "academic.hod@rasfahi.edu.mv": "Academic Affairs",
-                "humanresources.hod@rasfahi.com": "Human Resources", // <-- ތިޔަ ހެއްދެވި އައު އީމެއިލް
+                "humanresources.hod@rasfahi.com": "Human Resources",
                 "finance.hod@rasfahi.edu.mv": "Finance"
             };
+
+            // 2. އެގްޒެކްޓިވް (BUREAU) އީމެއިލްތައް (މިތަނަށް އެގްޒެކްޓިވް އީމެއިލްތައް ލައްވާ)
+            const bureauEmails = [
+                "exec.bureau@rasfahi.edu.mv", 
+                "admin@rasfahi.edu.mv"
+            ];
             
             let assignedDept = hodDepartments[email] || 'General';
 
-            // 2. މިއީ HOD ލިސްޓުގައި އިން އީމެއިލްއެއްނަމަ، އޮޓޯއިން ރޯލް 'HOD' އަށް ބަދަލުކުރުން
-            if(hodDepartments[email]) {
+            // 3. އީމެއިލްއަށް ބަލައި ރޯލް (Role) އޮޓޯއިން ބަދަލުކުރުން
+            if(bureauEmails.includes(email)) {
+                selectedRole = 'BUREAU';
+                assignedDept = 'Executive Office'; // އެގްޒެކްޓިވްގެ ޑިޕާޓްމެންޓް
+            } else if(hodDepartments[email]) {
                 selectedRole = 'HOD';
             }
 
@@ -2428,19 +2437,16 @@ proceedLogin: (email, selectedRole) => {
                 
                 user = { 
                     id: generateUID('EMP'), name: extractName, email: email, role: selectedRole, 
-                    dept: assignedDept, section: 'General', status: 'Active', empType: 'Civil Service', 
-                    attendance: 100, idCard: 'A000000', jobTitle: 'Head of Department', mobile: '+960 7000000', indexNo: 'IDX-001'
+                    dept: assignedDept, section: 'Strategy', status: 'Active', empType: 'Civil Service', 
+                    attendance: 100, idCard: 'A000000', jobTitle: selectedRole === 'BUREAU' ? 'Executive Director' : 'Head of Department', mobile: '+960 7000000', indexNo: 'IDX-001'
                 };
                 AppState.db.staff.push(user); 
                 HybridCloud.saveAutoLocal();
             } else {
                 user.role = selectedRole;
-                if(hodDepartments[email]) user.dept = assignedDept;
+                if(hodDepartments[email] || bureauEmails.includes(email)) user.dept = assignedDept;
             }
             
-            CurrentUser = user;
-            
-            // ... (މީގެ ތިރީގައި އިންނަ ބައިތައް ހަމަ ކުރިންވެސް އިން ގޮތަށް ބައިންދަވާށެވެ) ...
             CurrentUser = user;
             
             document.getElementById('navUserName').innerText = user.name;
