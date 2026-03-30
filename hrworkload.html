@@ -3679,7 +3679,29 @@ submitAssignedTask: async () => {
         approve: (id) => { 
             let t = AppState.db.tasks.find(x => x.id === id); 
             if(t) { 
-                t.status = 'Completed'; t.progress = 100; 
+                t.status = 'Completed'; 
+                t.progress = 100; 
+
+                // --- ޕޮއިންޓް ދޭ އިންޖީނު (މުޅިން އަލަށް އިތުރުކުރެވުނު ބައި) ---
+                let s = AppState.db.staff.find(x => x.id === t.staffId);
+                if (s) {
+                    // ޓާސްކްގެ ކެޓަގަރީއަށް ކަނޑައެޅިފައިވާ ޕޮއިންޓް ހޯދުން
+                    // (Point Config އިން ބަދަލުކުރާ މިންވަރަށް އޮޓޯއިން ޕޮއިންޓް ނަގާނެ)
+                    let pts = AppState.db.pointSystem[t.category] || 0;
+                    
+                    // މުވައްޒަފުގެ ޕްރޮފައިލްގައި ޕޮއިންޓް ގުނާނެ ބައި ނެތްނަމަ އުފެއްދުން
+                    if (typeof s.points === 'undefined') s.points = 0;
+                    if (!s.metrics) s.metrics = {};
+
+                    // މުވައްޒަފުގެ ޖުމްލަ ޕޮއިންޓަށް އަދަދު އެއްކުރުން
+                    s.points += pts;
+
+                    // ޑޭޝްބޯޑުގެ ޗާޓުތަކަށް އެރުވުމަށްޓަކައި، އެ ކެޓަގަރީއެއް ނިންމި އަދަދު ގުނުން
+                    if (!s.metrics[t.category]) s.metrics[t.category] = 0;
+                    s.metrics[t.category] += 1;
+                }
+                // --------------------------------------------------------
+
                 HybridCloud.saveAutoLocal(); 
                 UI.showToast(`Operation Approved. Points Awarded.`, "success"); 
                 ActionCenterEngine.renderList();
