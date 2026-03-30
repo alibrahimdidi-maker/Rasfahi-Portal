@@ -3676,34 +3676,44 @@ submitAssignedTask: async () => {
             }).join('');
             document.getElementById('acPrintTableBody').innerHTML = tableHtml;
         },
-        approve: (id) => { 
+approve: (id) => { 
             let t = AppState.db.tasks.find(x => x.id === id); 
             if(t) { 
                 t.status = 'Completed'; 
                 t.progress = 100; 
 
-                // --- ޕޮއިންޓް ދޭ އިންޖީނު (މުޅިން އަލަށް އިތުރުކުރެވުނު ބައި) ---
+                // --- އެޑްވާންސް ޕޮއިންޓް އިންޖީނު ---
                 let s = AppState.db.staff.find(x => x.id === t.staffId);
+                let awardedPts = 0; // ދެވުނު ޕޮއިންޓް ރެކޯޑުކުރަން
+
                 if (s) {
-                    // ޓާސްކްގެ ކެޓަގަރީއަށް ކަނޑައެޅިފައިވާ ޕޮއިންޓް ހޯދުން
-                    // (Point Config އިން ބަދަލުކުރާ މިންވަރަށް އޮޓޯއިން ޕޮއިންޓް ނަގާނެ)
-                    let pts = AppState.db.pointSystem[t.category] || 0;
+                    let taskCat = t.category || "";
                     
-                    // މުވައްޒަފުގެ ޕްރޮފައިލްގައި ޕޮއިންޓް ގުނާނެ ބައި ނެތްނަމަ އުފެއްދުން
-                    if (typeof s.points === 'undefined') s.points = 0;
+                    // 1. ކެޓަގަރީގެ ނަން ދިމާވޭތޯ ބެލުން (Case Insensitive ކޮށް)
+                    let matchedKey = Object.keys(AppState.db.pointSystem).find(k => k.toLowerCase() === taskCat.toLowerCase());
+                    
+                    // 2. ޕޮއިންޓް ނަންބަރަކަށް ބަދަލުކުރުން (parseInt ބޭނުންކޮށްގެން)
+                    if (matchedKey) {
+                        awardedPts = parseInt(AppState.db.pointSystem[matchedKey]) || 0;
+                    }
+
+                    // 3. މުވައްޒަފުގެ ޕޮއިންޓް ގޮޅި ސާފުކުރުން
+                    if (typeof s.points === 'undefined' || isNaN(s.points)) s.points = 0;
                     if (!s.metrics) s.metrics = {};
 
-                    // މުވައްޒަފުގެ ޖުމްލަ ޕޮއިންޓަށް އަދަދު އެއްކުރުން
-                    s.points += pts;
+                    // 4. ސީދާ ނަންބަރު އެއްކުރުން (Math Addition)
+                    s.points = parseInt(s.points) + awardedPts;
 
-                    // ޑޭޝްބޯޑުގެ ޗާޓުތަކަށް އެރުވުމަށްޓަކައި، އެ ކެޓަގަރީއެއް ނިންމި އަދަދު ގުނުން
-                    if (!s.metrics[t.category]) s.metrics[t.category] = 0;
-                    s.metrics[t.category] += 1;
+                    if (!s.metrics[taskCat]) s.metrics[taskCat] = 0;
+                    s.metrics[taskCat] += 1;
+
+                    // މައްސަލަ ހޯދުމަށް ކޮންސޯލްއަށް ލޮގްކުރުން (F12 އިން ފެންނާނެ)
+                    console.log(`[Point System] Awarded ${awardedPts} points to ${s.name} for '${taskCat}'. Total Points: ${s.points}`);
                 }
                 // --------------------------------------------------------
 
                 HybridCloud.saveAutoLocal(); 
-                UI.showToast(`Operation Approved. Points Awarded.`, "success"); 
+                UI.showToast(`Operation Approved. +${awardedPts} Points Awarded!`, "success"); 
                 ActionCenterEngine.renderList();
                 if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             } 
