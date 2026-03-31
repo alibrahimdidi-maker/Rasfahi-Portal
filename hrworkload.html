@@ -2735,7 +2735,7 @@ proceedLogin: (email, selectedRole) => {
                 setTimeout(() => t.remove(), 400); 
             }, 3500);
         },
-        getStatusColor: (status, progress, isLate) => {
+getStatusColor: (status, progress, isLate) => {
             if(isLate && status !== 'Completed') return '#991b1b'; 
             if(status === 'Parked') return '#b45309'; 
             if(status === 'Wait Endorse') return '#4c1d95'; 
@@ -2759,15 +2759,20 @@ proceedLogin: (email, selectedRole) => {
             let userTasks = AppState.db.tasks.filter(x => x.staffId === id);
             let attTasks = userTasks;
 
+            // --- އައު ތާރީޚު ފިލްޓަރ ކުރާ ލޮޖިކް (ޑްރޮޕްޑައުން އިން މަސް ނެގީމާ މަސައްކަތްކުރާނެ ގޮތް) ---
             if (fromDate && toDate) {
+                let fDate = new Date(fromDate);
+                let tDate = new Date(toDate);
+                tDate.setHours(23, 59, 59, 999);
+
                 attTasks = userTasks.filter(t => {
                     if(!t.logDate) return false;
-                    let logD = t.logDate.split(' ')[0]; 
-                    return (logD >= fromDate && logD <= toDate);
+                    let taskDate = new Date(t.logDate); 
+                    return (taskDate >= fDate && taskDate <= tDate);
                 });
             }
 
-            let uniqueDates = new Set(attTasks.map(t => t.logDate.split(' ')[0])).size;
+            let uniqueDates = new Set(attTasks.map(t => new Date(t.logDate).toLocaleDateString())).size;
             let divisor = 22; 
             
             if(fromDate && toDate) {
@@ -2777,34 +2782,40 @@ proceedLogin: (email, selectedRole) => {
             }
 
             let attPercentage = Math.min(100, Math.round((uniqueDates / Math.max(1, divisor)) * 100));
-            // Apply dummy attendance if available for realistic testing
-            if(s.attendance && attTasks.length === 0) attPercentage = s.attendance; 
+            if(s.attendance && attTasks.length === 0 && !fromDate) attPercentage = s.attendance; 
 
             let completedTasks = attTasks.filter(x => x.status === 'Completed');
             let totalScore = 0; 
             let breakdown = {}; 
             const ptsObj = AppState.db.pointSystem || DefaultMetrics;
 
+            // 1. އެޓެންޑެންސް ޕޮއިންޓް (ޕަސެންޓޭޖަށް ބިނާކޮށް)
             if(attPercentage > 0 && ptsObj['Attendance']) {
                 let attPts = Math.round((attPercentage / 100) * parseInt(ptsObj['Attendance']));
                 totalScore += attPts;
-                breakdown['Attendance'] = attPts;
             }
 
+            // 2. އެހެނިހެން ޓާސްކްތަކުގެ ޕޮއިންޓާއި ޓޭބަލްއަށް އަރާނެ ކައުންޓް
             completedTasks.forEach(t => {
                 let cat = t.category || 'Daily Routine';
-                let pts = t.manualPoints !== undefined ? t.manualPoints : parseInt(ptsObj[cat] || 0);
+                let matchedKey = Object.keys(ptsObj).find(k => k.toLowerCase() === cat.toLowerCase()) || cat;
+                
+                let pts = t.manualPoints !== undefined ? t.manualPoints : parseInt(ptsObj[matchedKey] || 0);
                 totalScore += pts; 
-                breakdown[cat] = (breakdown[cat] || 0) + pts;
+                
+                // ޓޭބަލްއަށް ދައްކަން ޕޮއިންޓްގެ ބަދަލުގައި ޓާސްކް ނިންމި އަދަދު ގުނުން
+                breakdown[matchedKey] = (breakdown[matchedKey] || 0) + 1; 
             });
             
-            let starScore = Math.min(totalScore, 100);
-            let stars = starScore === 0 ? 0 : Math.max(1, Math.round((starScore / 100) * 5));
+            // 3. ޕޮއިންޓަށް ބިނާކޮށް ތަރި ދިނުން
+            let stars = totalScore >= 100 ? 5 : totalScore >= 75 ? 4 : totalScore >= 50 ? 3 : totalScore >= 25 ? 2 : 1;
+            if(totalScore === 0) stars = 0;
             
             return { score: totalScore, stars: stars, breakdown: breakdown, att: attPercentage };
         }
     };
-/**
+
+    /**
      * ==========================================================================
      * SETTINGS ENGINE
      * Manages global variables like Organization Name, Address, and Logo.
