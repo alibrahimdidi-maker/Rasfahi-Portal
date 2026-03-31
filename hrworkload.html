@@ -3518,7 +3518,7 @@ getStatusColor: (status, progress, isLate) => {
         }
     };
 
-    /**
+/**
      * ==========================================================================
      * TASK & DIRECTIVE ENGINE
      * Handles assigning tasks, updating progress, and linking documents.
@@ -3532,58 +3532,105 @@ getStatusColor: (status, progress, isLate) => {
                 if(CurrentUser.role === 'HOD' && (s.dept !== CurrentUser.dept || s.section !== CurrentUser.section)) return;
                 if(s.status === 'Active') staffOpts += `<option value="${s.id}">${s.name} (${s.jobTitle} - ${s.dept})</option>`;
             });
-            document.getElementById('atStaff').innerHTML = staffOpts;
+            document.getElementById('assignStaff').innerHTML = staffOpts;
             
-            let daysOpts = '<option value="">Select Days...</option>';
-            for(let i=1; i<=90; i++) { daysOpts += `<option value="${i}">${i} Days</option>`; }
-            document.getElementById('atDueDays').innerHTML = daysOpts;
-
-            document.getElementById('atTitle').value = '';
-            document.getElementById('atDueDate').value = '';
-            document.getElementById('atInstructions').value = '';
+            // ފޯމު ސާފުކުރުން
+            document.getElementById('assignTitle').value = '';
+            document.getElementById('assignDetails').value = '';
+            document.getElementById('assignDate').value = '';
+            document.getElementById('assignTime').value = '';
+            document.getElementById('assignDriveLink').value = '';
+            for(let i=1; i<=10; i++) {
+                let fi = document.getElementById('assignFile'+i);
+                if(fi) fi.value = '';
+            }
+            
             UI.openModal('modalAssignTask');
         },
-        calcDueDate: () => {
-            let days = parseInt(document.getElementById('atDueDays').value);
-            if(!isNaN(days)) {
-                let d = new Date();
-                d.setDate(d.getDate() + days);
-                let tzOffset = d.getTimezoneOffset() * 60000;
-                let localISOTime = (new Date(d - tzOffset)).toISOString().slice(0,16);
-                document.getElementById('atDueDate').value = localISOTime;
-            }
-        },
-submitAssignedTask: async () => {
-            const staffId = document.getElementById('atStaff').value;
-            const title = document.getElementById('atTitle').value.trim();
-            const dueDate = document.getElementById('atDueDate').value; 
-            const inst = document.getElementById('atInstructions').value.trim();
+        submitTask: async () => {
+            let staffId = document.getElementById('assignStaff').value;
+            let title = document.getElementById('assignTitle').value.trim();
+            let date = document.getElementById('assignDate').value;
+            let time = document.getElementById('assignTime').value; // އައު ޓައިމް ގޮޅި
+            let details = document.getElementById('assignDetails').value.trim();
+            let driveLink = document.getElementById('assignDriveLink').value.trim();
             
-            if(!staffId || !title || !dueDate) return UI.showToast("Staff, Title, and Due Date are required", "error");
-            
+            if(!title || !staffId || !date) return UI.showToast("Staff, Title, and Deadline Date are required", "error");
+
+            // ގަޑިއެއް ޖަހާފައި އިންނަމަ ގަޑިއާއެކު، ނޫންނަމަ ހަމައެކަނި ތާރީޚު
+            let fullDeadline = time ? `${date}T${time}` : `${date}T23:59`; // Google Calendar އަށް ފަސޭހަވާނެ ފޯމެޓަކަށް (ISO)
+
             let now = new Date();
             let dateStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
 
-            AppState.db.tasks.push({ 
-                id: generateUID('DIR'), staffId: staffId, title: title, category: 'Directive', 
-                progress: 0, status: 'In Progress', logDate: dateStr, dueDate: dueDate,
-                instructions: inst, isLate: false, smsSent: false, assignedBy: CurrentUser.role, 
+            let newTask = { 
+                id: generateUID('DIR'), 
+                staffId: staffId, 
+                title: title, 
+                category: 'Directive', 
+                progress: 0, 
+                status: 'In Progress', 
+                logDate: dateStr, 
+                dueDate: fullDeadline,
+                instructions: details, 
+                isLate: false, 
+                smsSent: false, 
+                assignedBy: CurrentUser.role, 
+                driveLink: driveLink,
+                attachments: [],
                 updates: [{date: new Date().toLocaleString(), text: `Task officially assigned by ${CurrentUser.role}.`}]
-            });
-            
+            };
+
+            UI.showToast("Assigning Task & Uploading files... Please wait.", "info");
+
+            // 1 އިން 10 އަށް ފައިލް ޗެކްކުރުން
+            let filesToProcess = [];
+            for(let i=1; i<=10; i++) {
+                let fileInput = document.getElementById('assignFile' + i);
+                if(fileInput && fileInput.files.length > 0) {
+                    let file = fileInput.files[0];
+                    if(file.size > 10485760) {
+                        return UI.showToast(`Attachment ${i} exceeds the 10MB limit! Please use Drive link.`, "error");
+                    }
+                    filesToProcess.push(file);
+                }
+            }
+
+            // ފައިލް Base64 އަށް ބަދަލުކުރުން
+            const readFileAsBase64 = (file) => {
+                return new Promise((resolve, reject) => {
+                    let reader = new FileReader();
+                    reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            // ފައިލްތައް ސޭވްކުރުން
+            if(filesToProcess.length > 0) {
+                try {
+                    let attachedFiles = await Promise.all(filesToProcess.map(f => readFileAsBase64(f)));
+                    newTask.attachments = attachedFiles;
+                } catch (error) {
+                    return UI.showToast("Error processing attached files.", "error");
+                }
+            }
+
+            AppState.db.tasks.push(newTask);
             HybridCloud.saveAutoLocal(); 
             UI.closeModal('modalAssignTask'); 
+            
             if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             if(typeof ActionCenterEngine !== 'undefined') ActionCenterEngine.renderList();
             UI.showToast("Directive Dispatched Successfully", "success");
 
             // ގޫގްލް ކަލަންޑަރ އަދި ޓާސްކްސް އަށް ފޮނުވުން (ކަނެކްޓް ކޮށްފައިވާނަމަ)
-            if(GoogleSyncEngine && GoogleSyncEngine.accessToken) {
+            if(typeof GoogleSyncEngine !== 'undefined' && GoogleSyncEngine.accessToken) {
                 UI.showToast("Syncing with Google Workspace...", "info");
                 // ޑެޑްލައިން ކަލަންޑަރަށް ފޮނުވުން
-                await GoogleSyncEngine.pushToCalendar(title, dueDate, inst);
+                await GoogleSyncEngine.pushToCalendar(title, fullDeadline, details);
                 // ޓާސްކް ލިސްޓަށް ފޮނުވުން
-                await GoogleSyncEngine.pushToTasks(title, dueDate, inst);
+                await GoogleSyncEngine.pushToTasks(title, fullDeadline, details);
                 UI.showToast("Pushed to Google Calendar & Tasks!", "success");
             }
         },
