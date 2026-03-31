@@ -2355,12 +2355,47 @@
 let saveTimeout = null; 
     let isSystemReady = false; 
 
+/**
+     * ==========================================================================
+     * HYBRID CLOUD ENGINE (Real-time Sync & Offline Mode Support)
+     * Handles Local Storage, Firebase Sync, and Network Online/Offline states.
+     * ==========================================================================
+     */
     const HybridCloud = {
+        isOnline: navigator.onLine,
+        hasPendingSync: false,
+
+        initNetworkListeners: () => {
+            window.addEventListener('offline', () => {
+                HybridCloud.isOnline = false;
+                UI.showToast("Connection Lost! Working Offline. Data saving to browser.", "error");
+            });
+
+            window.addEventListener('online', () => {
+                HybridCloud.isOnline = true;
+                if (HybridCloud.hasPendingSync) {
+                    UI.showToast("Connection Restored! Synchronizing data to Cloud...", "info");
+                    HybridCloud.saveAutoLocal(); // އިންޓަނެޓް ލިބުމުން އޮޓޯއިން ޕެންޑިންގ ޑޭޓާ ފޮނުވާނެ
+                } else {
+                    UI.showToast("Internet Connection Restored.", "success");
+                }
+            });
+        },
+
         saveAutoLocal: () => { 
             // ލޮކް ނުހުޅުވެނީސް ސޭވްވުން އެއްކޮށް މަނާކުރުން (ޑޭޓާ ފޮހެވުނަ ނުދިނުމަށް)
             if (!isSystemReady) {
                 console.warn("Safety Lock Active: Prevented accidental data wipe.");
                 return; 
+            }
+
+            // 1. އޮންލައިން ވިޔަސް އޮފްލައިން ވިޔަސް ލޯކަލް ސްޓޯރޭޖަށް ވަގުތުން ސޭވްކުރާނެ
+            localStorage.setItem('rasfahi_hr_db', JSON.stringify(AppState.db));
+
+            // 2. އޮފްލައިން ނަމަ ކްލައުޑަށް ފޮނުވުން މަޑުޖައްސާލާފައި މާކްކުރާނެ
+            if (!HybridCloud.isOnline) {
+                HybridCloud.hasPendingSync = true;
+                return;
             }
             
             let ind = document.getElementById('autoSaveInd'); 
@@ -2387,41 +2422,61 @@ let saveTimeout = null;
                             setDoc(window.doc(window.db, "systemState", "requests"), { data: reqData })
                         ]);
                         
+                        HybridCloud.hasPendingSync = false; // ސިންކް ކާމިޔާބުވުމުން ޕެންޑިންގ މާކް ފޮހެލާނެ
+                        
                         if(ind) {
-                            ind.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Cloud Synced';
+                            ind.innerHTML = '<i class="fa-solid fa-cloud-check text-emerald-500"></i> Cloud Synced';
                             setTimeout(() => { ind.classList.add('hidden'); }, 2500); 
                         }
                     }
                 } catch(e) { 
                     console.error("Firebase Cloud Save Error:", e); 
+                    HybridCloud.hasPendingSync = true; // ފެއިލްވެއްޖެނަމަ ފަހުން އަނެއްކާ ޓްރައިކުރަން މާކްކުރާނެ
                     if(ind) ind.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i> Sync Failed';
+                    UI.showToast("Cloud Sync Failed. Working Offline.", "error");
                 } 
-            }, 1500); // UI ރެންޑަރ ވުމުގެ ކުރިން ސޭވްވިޔަ ނުދިނުމަށް ވަގުތުކޮޅެއް އިތުރުކޮށްފައި
+            }, 1500); 
         },
+
         saveLocalManual: (type) => { 
-            if(!isSystemReady) return UI.showToast("Cannot save. Cloud connection error.", "error");
+            if(!isSystemReady) return UI.showToast("Cannot save. System is currently locked.", "error");
+            if(!HybridCloud.isOnline) return UI.showToast("You are offline. Data is securely saved to browser.", "warning");
+            
             HybridCloud.saveAutoLocal(); 
             UI.showToast(`Cloud Synchronization Initiated`, "info"); 
         },
+
         load: async (callback) => {
+            // ފުރަތަމަ ލޯކަލް ޑޭޓާ ލޯޑުކުރާނެ (އަވަސް ކުރުމަށް)
+            let localData = localStorage.getItem('rasfahi_hr_db');
+            if (localData) {
+                try {
+                    AppState.db = { ...AppState.db, ...JSON.parse(localData) };
+                } catch(e) { console.error("Local DB Parse Error"); }
+            }
+
+            // އިންޓަނެޓް ނެތްނަމަ ލޯކަލް ޑޭޓާއާއެކު ސިސްޓަމް ހުޅުވާނެ
+            if(!HybridCloud.isOnline) {
+                console.log("Offline Mode: Loading from Local Storage.");
+                setTimeout(() => { isSystemReady = true; }, 2000);
+                if(callback) callback(true);
+                return;
+            }
+
             try { 
                 if (window.db) {
                     const snap = await window.getDocs(window.collection(window.db, "systemState"));
                     let loadedDb = { staff: [], tasks: [], requests: [], resetLogs: [], departments: [], sections: {}, pointSystem: {}, settings: {} };
                     let hasData = false;
 
-                    let tempStaff = null;
-                    let tempTasks = null;
-                    let tempReqs = null;
+                    let tempStaff = null; let tempTasks = null; let tempReqs = null;
 
                     snap.forEach((doc) => { 
                         if(doc.data() && doc.data().data) {
                             hasData = true;
                             let parsed = JSON.parse(doc.data().data);
                             
-                            if(doc.id === "core" || doc.id === "mainPortal") {
-                                loadedDb = { ...loadedDb, ...parsed };
-                            }
+                            if(doc.id === "core" || doc.id === "mainPortal") loadedDb = { ...loadedDb, ...parsed };
                             if(doc.id === "staff") tempStaff = parsed;
                             if(doc.id === "tasks") tempTasks = parsed;
                             if(doc.id === "requests") tempReqs = parsed;
@@ -2433,12 +2488,12 @@ let saveTimeout = null;
                         if(tempTasks !== null) loadedDb.tasks = tempTasks;
                         if(tempReqs !== null) loadedDb.requests = tempReqs;
 
-                        // AppState.db އެއްކޮށް ރިޕްލޭސް ކުރުމުގެ ބަދަލުގައި އެއްކޮށްލުން (Deep Merge)
                         AppState.db = { ...AppState.db, ...loadedDb };
                         
-                        console.log("Cloud Database Loaded Successfully.");
+                        // ކްލައުޑުން ލޯޑުކުރި ޑޭޓާ ލޯކަލްއަށް އަޕްޑޭޓްކޮށްލާނެ
+                        localStorage.setItem('rasfahi_hr_db', JSON.stringify(AppState.db));
                         
-                        // މުހިންމު ބަދަލު: ޑޭޓާ ލޯޑުވުމަށްފަހު 2 ސިކުންތު ފަހުން ލޮކް ހުޅުވުން (ލޯޑުވާގޮތަށް އޮޓޯ ސޭވްވިޔަ ނުދިނުމަށް)
+                        console.log("Cloud Database Loaded Successfully.");
                         setTimeout(() => { isSystemReady = true; }, 2000); 
                         return callback(true); 
                     }
@@ -2448,13 +2503,15 @@ let saveTimeout = null;
                 callback(false); 
             } catch(e) { 
                 console.error("CRITICAL ERROR: Cloud Load Failed. System locked.", e);
-                // އެންމެ މުހިންމު ބަދަލު: އެރަރ އެއް އަރައިފިނަމަ ލޮކް ނުހުޅުވުން!
                 isSystemReady = false; 
-                alert("Database connection error! Saving is disabled to prevent data loss. Please refresh the page.");
+                alert("Database connection error! Saving is disabled to prevent data loss. Please check your internet and refresh the page.");
                 callback(false); 
             }
         }
     };
+
+    // ސިސްޓަމް ބޫޓްވާއިރު ނެޓްވޯކް ލިސްނަރތައް އެކްޓިވޭޓް ކުރުން
+    HybridCloud.initNetworkListeners();
     const SystemAuth = {
         login: async (e) => {
             if(e) e.preventDefault();
