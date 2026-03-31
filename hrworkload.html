@@ -3624,8 +3624,6 @@ submitAssignedTask: async () => {
      */
     const ActionCenterEngine = {
         activeReturnId: null,
-        filteredTasks: [], // މުހިންމު ބަދަލު: އެކްސެލް އަށް ފޮނުވަން ޑޭޓާ ރައްކާކުރާނެ ގޮޅިއެއް
-
         populateFilters: () => {
             let sOpts = '<option value="">All Staff</option>';
             AppState.db.staff.forEach(s => {
@@ -3635,16 +3633,14 @@ submitAssignedTask: async () => {
             let fStaff = document.getElementById('acFilterStaff');
             if(fStaff) fStaff.innerHTML = sOpts;
         },
-
         render: () => {
             ActionCenterEngine.populateFilters();
             ActionCenterEngine.renderList();
         },
-
         renderList: () => {
-            let stat = document.getElementById('acFilterStatus') ? document.getElementById('acFilterStatus').value : 'All';
-            let dept = document.getElementById('acFilterDept') ? document.getElementById('acFilterDept').value : '';
-            let stf = document.getElementById('acFilterStaff') ? document.getElementById('acFilterStaff').value : '';
+            let stat = document.getElementById('acFilterStatus').value;
+            let dept = document.getElementById('acFilterDept').value;
+            let stf = document.getElementById('acFilterStaff').value;
 
             let tasks = AppState.db.tasks.filter(t => {
                 let s = AppState.db.staff.find(x => x.id === t.staffId);
@@ -3663,9 +3659,6 @@ submitAssignedTask: async () => {
                 
                 return matchStat && matchDept && matchStf;
             });
-
-            // މުހިންމު ބަދަލު: އެކްސެލްއަށް ނަގަން ފިލްޓަރ ކުރި ޑޭޓާ ސޭވްކުރުން
-            ActionCenterEngine.filteredTasks = tasks;
 
             let wt = AppState.db.tasks.filter(t => {
                 let s = AppState.db.staff.find(x => x.id === t.staffId);
@@ -3701,51 +3694,57 @@ submitAssignedTask: async () => {
                     `;
                 }
 
-                // ކާޑުތައް ކުރަހާ ބައި (ކުރިން އުނިވެފައި އިން ބައި)
-                return `
-                <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition">
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <span class="text-[10px] font-black text-[#1e3a8a] bg-blue-50 px-2 py-0.5 rounded uppercase tracking-widest border border-blue-100">${t.category || 'Task'}</span>
-                            <span class="text-[9px] text-slate-400 font-bold ml-2">${t.logDate ? t.logDate.split(' ')[0] : ''}</span>
-                        </div>
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white shadow-sm" style="background-color: ${UI.getStatusColor(t.status, t.progress, t.isLate)}">${t.status}</span>
-                    </div>
-                    <h3 class="font-black text-[#0f172a] text-sm mb-1 leading-tight" dir="auto">${t.title}</h3>
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-6 h-6 rounded-full bg-[#064e3b] text-white flex items-center justify-center text-[10px] font-bold shadow-sm">${s ? s.name.charAt(0) : '?'}</div>
-                        <div class="leading-none">
-                            <p class="text-[10px] font-bold text-slate-700" dir="auto">${s ? s.name : 'Unknown'}</p>
-                            <p class="text-[8px] text-slate-400 font-mono mt-0.5">${s ? s.dept + ' - ' + (s.section || 'Gen') : ''}</p>
-                        </div>
-                    </div>
-                    ${actBtns}
-                    ${modifyBtns}
-                </div>`;
-            }).join('') : '<div class="col-span-full text-center py-10"><p class="text-slate-400 text-xs font-bold uppercase tracking-widest">No active operations in queue.</p></div>';
+                let pColor = UI.getStatusColor(t.status, t.progress, t.isLate);
+                let cardClass = "action-card";
+                if(t.status === 'Wait Endorse') cardClass += " endorse";
+                if(t.status === 'Returned') cardClass += " returned";
+                if(t.category && t.category.toLowerCase().includes('daily')) cardClass += " attendance";
 
+                let linkHtml = t.driveLink ? `<a href="${t.driveLink}" target="_blank" class="text-[9px] text-blue-600 underline mt-1 block font-bold"><i class="fa-brands fa-google-drive mr-1"></i> View Attached Document</a>` : '';
+
+                return `
+                <div class="${cardClass} hover:shadow-md transition">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-mono text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border shadow-sm"><i class="fa-solid fa-clock text-[var(--royal-cyan)] mr-1"></i> ${t.logDate}</span>
+                        <span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded inline-block text-white shadow-sm" style="background-color: ${pColor}">${t.status}</span>
+                    </div>
+                    <div>
+                        <span class="font-black text-xs text-[#0f172a] block" dir="auto">${s ? s.name : 'Unknown'}</span>
+                        <span class="text-[9px] font-bold uppercase tracking-widest text-slate-500">${s ? s.dept + ' (' + s.section + ')' : ''}</span>
+                    </div>
+                    <div class="mt-2 bg-slate-50 p-2 border border-slate-100 rounded flex-1">
+                        <span class="font-bold text-sm text-[#1e3a8a] block mb-1" dir="auto">${t.title}</span>
+                        <span class="bg-white border border-slate-200 text-[#0f172a] px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block shadow-sm">${t.category}</span>
+                        ${linkHtml}
+                    </div>
+                    <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mt-2 shrink-0">
+                        <div class="h-full rounded-full transition-all" style="width:${t.progress || 0}%; background-color:${pColor}"></div>
+                    </div>
+                    <div class="mt-auto shrink-0">
+                        ${actBtns}
+                        ${modifyBtns}
+                    </div>
+                </div>`;
+            }).join('') : `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center p-12 text-slate-400 text-sm font-bold uppercase tracking-widest border-2 border-dashed border-slate-300 bg-slate-50 rounded-xl"><i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300 block"></i> No matching operational records.</div>`;
+            
             let grid = document.getElementById('acCardGrid');
             if(grid) grid.innerHTML = html;
 
-            // މުހިންމު ބަދަލު: ޕީޑީއެފް އަށް ނަގަން ބޭނުންވާ ޓޭބަލް ތައްޔާރުކުރުން (މިބައި ނެތީމަ ޕީޑީއެފް ހުސްކޮށް އައީ)
             let tableHtml = tasks.map(t => {
                 let s = AppState.db.staff.find(x => x.id === t.staffId);
                 return `<tr>
-                    <td class="border border-slate-300 p-2 text-xs">${t.logDate || ''}</td>
-                    <td class="border border-slate-300 p-2 text-xs font-bold" dir="auto">${s ? s.name : 'Unknown'}</td>
-                    <td class="border border-slate-300 p-2 text-xs">${s ? s.dept + ' - ' + (s.section || 'General') : ''}</td>
-                    <td class="border border-slate-300 p-2 text-xs font-bold text-[#1e3a8a]">${t.category || ''}</td>
-                    <td class="border border-slate-300 p-2 text-xs" dir="auto">${t.title || ''}</td>
-                    <td class="border border-slate-300 p-2 text-xs">${t.status || ''}</td>
-                    <td class="border border-slate-300 p-2 text-xs font-bold text-center">${t.progress || 0}%</td>
+                    <td>${t.logDate}</td>
+                    <td dir="auto">${s ? s.name : 'Unknown'}</td>
+                    <td>${s ? s.dept + ' - ' + s.section : ''}</td>
+                    <td>${t.category}</td>
+                    <td dir="auto">${t.title}</td>
+                    <td>${t.status}</td>
+                    <td>${t.progress}%</td>
                 </tr>`;
             }).join('');
-            
-            let ptb = document.getElementById('acPrintTableBody');
-            if(ptb) ptb.innerHTML = tableHtml;
+            document.getElementById('acPrintTableBody').innerHTML = tableHtml;
         },
-
-        approve: (id) => { 
+approve: (id) => { 
             let t = AppState.db.tasks.find(x => x.id === id); 
             if(t) { 
                 t.status = 'Completed'; 
@@ -3756,44 +3755,51 @@ submitAssignedTask: async () => {
                 
                 if (s) {
                     let taskCat = t.category || "";
+                    
+                    // --- އައު ލޮޖިކް: ޑެއިލީ ރޫޓީން ނަމަ އެޓެންޑެންސްއަށް ބަދަލުކުރުން ---
                     if (taskCat.toLowerCase() === 'daily routine') {
                         taskCat = 'Attendance';
                     }
                     
+                    // 1. ކެޓަގަރީގެ ނަން ދިމާވޭތޯ ބެލުން
                     let matchedKey = Object.keys(AppState.db.pointSystem).find(k => k.toLowerCase() === taskCat.toLowerCase());
                     
+                    // 2. ޕޮއިންޓް ނަންބަރަކަށް ބަދަލުކުރުން
                     if (matchedKey) {
                         awardedPts = parseInt(AppState.db.pointSystem[matchedKey]) || 0;
                     }
 
+                    // 3. މުވައްޒަފުގެ ޕޮއިންޓް ގޮޅި ސާފުކުރުން
                     if (typeof s.points === 'undefined' || isNaN(s.points)) s.points = 0;
                     if (!s.metrics) s.metrics = {};
 
+                    // 4. ސީދާ ނަންބަރު އެއްކުރުން
                     s.points = parseInt(s.points) + awardedPts;
 
                     if (!s.metrics[taskCat]) s.metrics[taskCat] = 0;
                     s.metrics[taskCat] += 1;
                 }
+                // --------------------------------------------------------
 
                 HybridCloud.saveAutoLocal(); 
                 UI.showToast(`Approved! +${awardedPts} Points added to ${t.category === 'Daily Routine' ? 'Attendance' : t.category}`, "success"); 
                 
+                // --- ރިއަލް-ޓައިމް އަޕްޑޭޓް ކުރުމަށް ފަންކްޝަންތައް ރީފްރެޝް ކުރުން ---
                 ActionCenterEngine.renderList();
                 if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
                 if(typeof PerformanceEngine !== 'undefined') PerformanceEngine.render();
                 
+                // މުވައްޒަފުގެ ޕްރޮފައިލް މޯޑަލް ހުޅުވިފައި އިންނަމަ، އެވެސް ވަގުތުން ރީފްރެޝް ކުރުން
                 if(typeof StaffTaskReport !== 'undefined' && StaffTaskReport.activeStaffId === s.id) {
                     StaffTaskReport.open(s.id); 
                 }
             } 
         },
-
         openReturnModal: (id) => {
             ActionCenterEngine.activeReturnId = id;
             document.getElementById('rtReason').selectedIndex = 0;
             UI.openModal('modalReturnTask');
         },
-
         submitReturn: () => {
             let t = AppState.db.tasks.find(x => x.id === ActionCenterEngine.activeReturnId); 
             let reason = document.getElementById('rtReason').value;
@@ -3809,8 +3815,7 @@ submitAssignedTask: async () => {
                 if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             } 
         },
-
-        deleteTask: (id) => {
+       deleteTask: (id) => {
             if(confirm("AUTHORIZATION REQUIRED: Permanently wipe this task from the registry?")) {
                 AppState.db.tasks = AppState.db.tasks.filter(t => t.id !== id);
                 HybridCloud.saveAutoLocal(); 
@@ -3818,107 +3823,9 @@ submitAssignedTask: async () => {
                 if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
                 UI.showToast("Task Obliterated", "success");
             }
-        },
-
-       // --- އައު ރިޕޯޓް އެކްސްޕޯޓް ފަންކްޝަންތައް (PDF & EXCEL ފިކްސް) ---
-        exportPDF: () => {
-            let tasks = ActionCenterEngine.filteredTasks || [];
-            if(tasks.length === 0) return UI.showToast("No data available to generate PDF!", "error");
-
-            UI.showToast("Generating Action Center PDF... Please wait.", "info");
-
-            // 1. ޕީޑީއެފް އަށް ނަގަން ބޭނުންވާ ޓޭބަލްގެ ރޯތައް ތައްޔާރުކުރުން
-            let tableRows = tasks.map(t => {
-                let s = AppState.db.staff.find(x => x.id === t.staffId);
-                return `
-                <tr>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px;">${t.logDate ? t.logDate.split(' ')[0] : ''}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: bold;">${s ? s.name : 'Unknown'}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px;">${s ? s.dept : ''}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px; font-weight: bold; color: #1e3a8a;">${t.category || ''}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px;" dir="auto">${t.title || ''}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px;">${t.status || ''}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px; text-align: center; font-weight: bold;">${t.progress || 0}%</td>
-                </tr>`;
-            }).join('');
-
-            // 2. ޕީޑީއެފްގެ މުޅި ޑިޒައިން ވަކިން ފަރުމާކުރުން
-            let fullHtml = `
-            <div style="padding: 30px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                <h2 style="text-align: center; color: #0f172a; margin-bottom: 5px; font-size: 22px;">RASFAHI ENTERPRISE HR</h2>
-                <h4 style="text-align: center; color: #1e3a8a; margin-top: 0; margin-bottom: 30px; font-size: 14px; letter-spacing: 1px;">ACTION CENTER REGISTRY</h4>
-                <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                    <thead>
-                        <tr style="background-color: #f8fafc; border-bottom: 2px solid #cbd5e1;">
-                            <th style="padding: 12px 10px; font-size: 12px; color: #334155;">Date</th>
-                            <th style="padding: 12px 10px; font-size: 12px; color: #334155;">Staff Name</th>
-                            <th style="padding: 12px 10px; font-size: 12px; color: #334155;">Department</th>
-                            <th style="padding: 12px 10px; font-size: 12px; color: #334155;">Category</th>
-                            <th style="padding: 12px 10px; font-size: 12px; color: #334155;">Task Description</th>
-                            <th style="padding: 12px 10px; font-size: 12px; color: #334155;">Status</th>
-                            <th style="padding: 12px 10px; font-size: 12px; color: #334155; text-align: center;">Progress</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tableRows}
-                    </tbody>
-                </table>
-            </div>
-            `;
-
-            let sizeSel = document.getElementById('acPdfSize');
-            let pdfSize = sizeSel ? sizeSel.value : 'a4';
-
-            var opt = {
-              margin:       0.5,
-              filename:     `Action_Center_Report_${new Date().getTime()}.pdf`,
-              image:        { type: 'jpeg', quality: 0.98 },
-              html2canvas:  { scale: 2 }, 
-              jsPDF:        { unit: 'in', format: pdfSize, orientation: 'landscape' } 
-            };
-
-            // ޕީޑީއެފް ޖެނެރޭޓްކޮށް ޑައުންލޯޑްކުރުން
-            html2pdf().set(opt).from(fullHtml).save().then(() => {
-                UI.showToast("PDF Exported Successfully!", "success");
-            });
-        },
-
-        exportExcel: () => {
-            let tasksToExport = ActionCenterEngine.filteredTasks || [];
-            
-            if(tasksToExport.length === 0) {
-                return UI.showToast("No data available to export to Excel", "warning");
-            }
-
-            // 1. އެކްސެލް (CSV) ފައިލް އަމިއްލައަށް ކޯޑުން ތައްޔާރުކުރުން (އެއްވެސް ލައިބްރަރީއަކާ ނުލައި)
-            let csvContent = "Date,Staff Name,Department,Section,Task Category,Description,Status,Progress\n";
-            
-            tasksToExport.forEach(t => {
-                let s = AppState.db.staff.find(x => x.id === t.staffId);
-                let date = t.logDate ? t.logDate.split(' ')[0] : '';
-                let name = s ? s.name : 'Unknown';
-                let dept = s ? s.dept : '';
-                let sec = s ? (s.section || 'General') : '';
-                let cat = t.category || '';
-                let title = (t.title || '').replace(/"/g, '""'); // ކޯޓޭޝަން މާކް ހުރިނަމަ ފިކްސް ކުރުން
-                let stat = t.status || '';
-                let prog = (t.progress || 0) + '%';
-                
-                csvContent += `"${date}","${name}","${dept}","${sec}","${cat}","${title}","${stat}","${prog}"\n`;
-            });
-
-            // 2. ފައިލް ޑައުންލޯޑް ކުރުން
-            const blob = new Blob(["\uFEFF" + csvContent], {type: 'text/csv;charset=utf-8;'}); 
-            const link = document.createElement("a"); 
-            link.href = URL.createObjectURL(blob); 
-            link.download = `Action_Center_Data_${new Date().getTime()}.csv`; 
-            document.body.appendChild(link); // ލިންކް އެކްޓިވޭޓް ކުރުން
-            link.click(); 
-            document.body.removeChild(link);
-            
-            UI.showToast("Excel Report Downloaded Successfully!", "success"); 
         }
     };
+
     /**
      * ==========================================================================
      * ACTIVITY LOGGER (For Staff to log daily operations)
