@@ -4397,8 +4397,7 @@ approve: (id) => {
             UI.showToast("To generate actual staff, go to System Admin.", "warning");
         }
     };
-
-    /**
+/**
      * ==========================================================================
      * PERFORMANCE ENGINE (Performance Matrix & Rankings)
      * ==========================================================================
@@ -4445,7 +4444,7 @@ approve: (id) => {
                 cat.innerHTML = catOptions;
             }
 
-let headers = `
+            let headers = `
                 <th class="px-2 py-3 text-left min-w-[140px] border-b-2 border-[var(--royal-purple)] leading-tight">Identity &<br>Placement</th>
                 <th class="px-1 py-3 text-center w-12 border-l border-slate-200 border-b-2 border-[var(--royal-purple)] leading-tight">Att %</th>
             `;
@@ -4453,7 +4452,6 @@ let headers = `
             for(const [k,v] of Object.entries(ptsObj)) { 
                 if(k !== 'ManualOverride' && k !== 'Directive') {
                     let bg = categoryFilter === k ? 'bg-blue-50' : '';
-                    // ބަހުގެ މެދުގައިވާ ހުސްޖާގަ (space) ގެ ބަދަލުގައި <br> ލައިގެން 2 ފޮޅުވަތަށް ބަހާލުން
                     let splitName = k.replace(' ', '<br>'); 
                     headers += `
                     <th class="px-1 py-2 text-center align-top border-b-2 border-[var(--royal-purple)] w-16 leading-tight ${bg}" title="${k}">
@@ -4472,7 +4470,16 @@ let headers = `
                 return (!deptFilter || st.dept === deptFilter);
             });
 
-            let sc = filtered.map(s => ({ ...s, ...UI.calcScoreAndStars(s.id, fromDate, toDate) }));
+            // މުހިންމު ބަދަލު: ޑޭޓާބޭސްގައި ހުރި s.points އަދި s.metrics ސީދާ ސްކްރީނަށް ނެގުން
+            let sc = filtered.map(s => {
+                let calc = UI.calcScoreAndStars ? UI.calcScoreAndStars(s.id, fromDate, toDate) : {score:0, breakdown:{}};
+                return { 
+                    ...s, 
+                    ...calc,
+                    score: s.points !== undefined ? parseInt(s.points) : (calc.score || 0),
+                    breakdown: s.metrics ? { ...(calc.breakdown || {}), ...s.metrics } : (calc.breakdown || {})
+                };
+            });
             
             if(bandFilter) {
                 if(bandFilter === 'Zero') {
@@ -4497,7 +4504,6 @@ let headers = `
                 let rankBadge = i < 3 && !deptFilter && !bandFilter ? `<span class="bg-[var(--royal-cyan)] text-white px-2 py-0.5 rounded text-[8px] font-black uppercase shadow-sm ml-2"><i class="fa-solid fa-trophy mr-1"></i> Top ${i+1}</span>` : '';
                 let perfConf = UI.getPerfLevelConfig(s.score);
 
-                // ޓޭބަލް ބޮޑީގެ ޖާގަ (padding) ވެސް ކުޑަކުރެވިފައި
                 let row = `
                 <tr class="cursor-pointer hover:bg-slate-50 transition border-b border-slate-100" onclick="StaffTaskReport.open('${s.id}')">
                     <td class="px-2 py-2">
@@ -4509,7 +4515,7 @@ let headers = `
                             </div>
                         </div>
                     </td>
-                    <td class="px-1 py-2 text-center text-sm font-black border-l border-slate-200 text-[#1e3a8a]">${s.att}%</td>`;
+                    <td class="px-1 py-2 text-center text-sm font-black border-l border-slate-200 text-[#1e3a8a]">${s.att || 100}%</td>`;
                     
                 for(const k of Object.keys(ptsObj)) { 
                     if(k !== 'ManualOverride' && k !== 'Directive') {
@@ -4532,8 +4538,26 @@ let headers = `
             
             let pTB = document.getElementById('perfTableBody');
             if(pTB) pTB.innerHTML = html;
-        } // ފަންކްޝަން ނިމޭ ބްރެކެޓް
-    }; // އޮބްޖެކްޓް ނިމޭ ބްރެކެޓް
+        },
+        exportPDF: () => {
+            var element = document.getElementById('perfTableBody') ? document.getElementById('perfTableBody').closest('table') : document.getElementById('table-container'); 
+            if(!element) {
+                UI.showToast("Table data not found for PDF export!", "error");
+                return;
+            }
+            UI.showToast("Generating PDF Report... Please wait.", "info");
+            var opt = {
+              margin:       0.5,
+              filename:     `Performance_Matrix_A3_${new Date().getTime()}.pdf`,
+              image:        { type: 'jpeg', quality: 0.98 },
+              html2canvas:  { scale: 2, useCORS: true }, 
+              jsPDF:        { unit: 'in', format: 'a3', orientation: 'landscape' } 
+            };
+            html2pdf().set(opt).from(element).save().then(() => {
+                UI.showToast("PDF Exported Successfully!", "success");
+            });
+        }
+    };
 
     const OrgManager = {
         targetDeleteDept: null,
@@ -4747,18 +4771,14 @@ let headers = `
      * ==========================================================================
      */
     window.onload = () => {
-        // We use Firebase Auth listener to automatically restore session
         window.onAuthStateChanged(window.auth, (user) => {
             if (user) {
-                // If user is logged in via Firebase, fetch DB and proceed
                 HybridCloud.load((success) => {
                     if (success) {
-                        // Attempt to find user by email and login
                         let appUser = AppState.db.staff.find(s => s.email === user.email);
                         if (appUser) {
                             SystemAuth.proceedLogin(user.email, appUser.role);
                         } else {
-                            // First time login for a valid Firebase user not in Staff directory
                             SystemAuth.proceedLogin(user.email, "STAFF");
                         }
                     } else {
@@ -4766,20 +4786,18 @@ let headers = `
                     }
                 });
             } else {
-                // No valid Firebase session, stay on Auth Screen
                 HybridCloud.load(() => {
-                    // Pre-load data in background even if not logged in
                 });
             }
         });
     };
-// ==========================================================================
+
+    // ==========================================================================
     // MASS DUMMY DATA GENERATOR (3000 EMPLOYEES) & DOWNLOADER
     // ==========================================================================
     function downloadDummyCSV() {
         UI.showToast("Generating 3000 Staff Records... Please wait.", "info");
 
-        // ތަފާތު ނަންތަކާއި ޑިޕާޓްމަންޓްތައް (ރެންޑަމްކޮށް ނެގުމަށް)
         const firstNames = ['Ali', 'Ahmed', 'Hassan', 'Hussain', 'Mariyam', 'Aishath', 'Fathimath', 'Aminath', 'Mohamed', 'Ibrahim', 'Khadheeja', 'Moosa'];
         const lastNames = ['Didi', 'Manik', 'Zahir', 'Rasheed', 'Naseer', 'Waheed', 'Nazeer', 'Haleem', 'Saeed', 'Majeed'];
         const depts = ['Executive Office', 'Finance', 'Academic Affairs', 'Student Services', 'Information Technology', 'Human Resources', 'Facilities'];
@@ -4787,24 +4805,21 @@ let headers = `
         const roles = ['STAFF', 'HOD', 'BUREAU'];
         const jobs = ['Officer', 'Director', 'Manager', 'Coordinator', 'Assistant', 'Lecturer', 'Senior Officer'];
 
-        // ފައިލްގެ ކޮލަމްތަކުގެ ނަންތައް (Header)
         let csvContent = "Index No,Name,ID Card,Email,Mobile,Job Title,Department,Employee Type,Role,Status\n";
 
-        // 3000 މުވައްޒަފުންގެ މަޢުލޫމާތު އުފެއްދުން
         for(let i = 1; i <= 3000; i++) {
             const fname = firstNames[Math.floor(Math.random() * firstNames.length)];
             const lname = lastNames[Math.floor(Math.random() * lastNames.length)];
             const name = `${fname} ${lname}`.toUpperCase();
             
-            const idCard = `A${Math.floor(100000 + Math.random() * 900000)}`; // ރެންޑަމް އައިޑީ ކާޑު
-            const email = `${fname.toLowerCase()}.${idCard.substring(1)}@rasfahi.edu.mv`; // ފޯމެޓް: name.idnumber@rasfahi.edu.mv
+            const idCard = `A${Math.floor(100000 + Math.random() * 900000)}`; 
+            const email = `${fname.toLowerCase()}.${idCard.substring(1)}@rasfahi.edu.mv`; 
             const mobile = `+960 ${Math.floor(7000000 + Math.random() * 999999)}`;
             
             const dept = depts[Math.floor(Math.random() * depts.length)];
             const job = jobs[Math.floor(Math.random() * jobs.length)];
             const type = empTypes[Math.floor(Math.random() * empTypes.length)];
             
-            // ލީޑަރޝިޕް ރޯލްތައް ބެހިފައި އިންނާނެ ނިސްބަތް (ގިނައިން ތިބޭނީ ސްޓާފުން)
             let role = 'STAFF';
             if (i % 60 === 0) role = 'BUREAU';
             else if (i % 25 === 0) role = 'HOD';
@@ -4812,11 +4827,9 @@ let headers = `
             const status = 'Active';
             const indexNo = `IDX-${i.toString().padStart(4, '0')}`;
 
-            // ކޮމާ (,) އިން ވަކިކޮށްފައިވާ ޑޭޓާ ރޯ އެއް ހެދުން
             csvContent += `${indexNo},${name},${idCard},${email},${mobile},${job},${dept},${type},${role},${status}\n`;
         }
 
-        // CSV ފައިލް ބްރައުޒަރ މެދުވެރިކޮށް ޑައުންލޯޑް ކުރުން
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
@@ -4829,6 +4842,7 @@ let headers = `
         
         UI.showToast('Dummy file with 3000 staff downloaded successfully!', 'success');
     }
+
     // ==========================================================================
     // MASS DATA IMPORTER (CSV TO SYSTEM DB)
     // ==========================================================================
@@ -4838,7 +4852,6 @@ let headers = `
 
         UI.showToast("Reading CSV file... Please wait.", "info");
 
-        // PapaParse ބޭނުންކޮށްގެން ފައިލް ކިޔުން
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
@@ -4852,7 +4865,6 @@ let headers = `
 
                 let importedStaff = [];
                 
-                // ފައިލްގައިވާ ކޮންމެ މީހެއްގެ މަޢުލޫމާތު ސިސްޓަމް ފޯމެޓަށް ބަދަލުކުރުން
                 data.forEach(row => {
                     let staffObj = {
                         id: generateUID('EMP'),
@@ -4866,27 +4878,23 @@ let headers = `
                         empType: row['Employee Type'] || '',
                         role: row['Role'] || 'STAFF',
                         status: row['Status'] || 'Active',
-                        attendance: 100 // Default attendance
+                        attendance: 100 
                     };
                     importedStaff.push(staffObj);
                 });
 
-                // ސިސްޓަމްގެ ޑޭޓާބޭސްއަށް އަލަށް ލީ މީހުން އިތުރުކުރުން
                 AppState.db.staff = AppState.db.staff.concat(importedStaff);
                 
-                // ކްލައުޑަށް (ފަޔަރބޭސްއަށް) އަދި ލޯކަލްކޮށް ސޭވްކުރުން
                 if (typeof HybridCloud !== 'undefined') {
                     HybridCloud.saveAutoLocal();
                 }
 
                 UI.showToast(`Successfully imported ${importedStaff.length} staff records!`, "success");
                 
-                // ސިސްޓަމްގެ UI އަޕްޑޭޓްކުރުން (މުވައްޒަފުންގެ ލިސްޓު އާކުރުން)
                 if (typeof StaffDirectory !== 'undefined' && StaffDirectory.render) {
                     StaffDirectory.render();
                 }
 
-                // އަލުން ފައިލް ލެވޭގޮތަށް އިންޕުޓް ހުސްކޮށްލުން
                 event.target.value = '';
             },
             error: function(err) {
@@ -4895,6 +4903,7 @@ let headers = `
             }
         });
     }
+
     /**
      * ==========================================================================
      * GOOGLE WORKSPACE SYNC ENGINE
@@ -4915,11 +4924,9 @@ let headers = `
                     callback: (tokenResponse) => {
                         if (tokenResponse && tokenResponse.access_token) {
                             GoogleSyncEngine.accessToken = tokenResponse.access_token;
-                            // ލޯކަލް ސްޓޯރޭޖްގައި ޓޯކަން ސޭވްކޮށްލުން (ސެޝަން ދެމެހެއްޓުމަށް)
                             sessionStorage.setItem('google_sync_token', GoogleSyncEngine.accessToken);
                             UI.showToast("Google Workspace Connected Successfully!", "success");
                             
-                            // ބަޓަންގެ ސިފަ ބަދަލުކޮށްލުން
                             let btn = document.getElementById('btnGoogleConnect');
                             if(btn) {
                                 btn.innerHTML = '<i class="fa-solid fa-check text-emerald-500 mr-2"></i> Google Connected';
@@ -4930,7 +4937,6 @@ let headers = `
                     }
                 });
                 
-                // ކުރިން ލޮގިންވެފައި އިންތޯ ބެލުން
                 let savedToken = sessionStorage.getItem('google_sync_token');
                 if(savedToken) {
                     GoogleSyncEngine.accessToken = savedToken;
@@ -4949,11 +4955,9 @@ let headers = `
                 UI.showToast("Google Services not fully loaded yet. Please try again.", "warning");
                 return;
             }
-            // ޕޮޕްއަޕް ހުޅުވައި ހުއްދައަށް އެދުން
             GoogleSyncEngine.tokenClient.requestAccessToken();
         },
 
-        // API އަށް ކޯލް ކުރާ މައި ފަންކްޝަން
         apiCall: async (url, method, body = null) => {
             if(!GoogleSyncEngine.accessToken) return null;
             try {
@@ -4976,24 +4980,22 @@ let headers = `
             }
         },
 
-        // 1. ކަލަންޑަރަށް ޑެޑްލައިން ފޮނުވުން
         pushToCalendar: async (taskTitle, dueDateIso, description) => {
             if(!GoogleSyncEngine.accessToken) return false;
             
-            // ޑެޑްލައިންގެ 1 ގަޑިއިރު ކުރިން ފެށޭ ގޮތަށް އިވެންޓް ހެދުން (މުއްދަތު ދެއްކުމަށް)
             let end = new Date(dueDateIso);
             let start = new Date(end.getTime() - (60 * 60 * 1000)); 
 
             const event = {
                 summary: `🚨 DEADLINE: ${taskTitle}`,
                 description: `System Auto-Generated Deadline\n\nTask Details: ${description}\n\nAssigned via Rasfahi HR Portal.`,
-                start: { dateTime: start.toISOString(), timeZone: 'Asia/Colombo' }, // ރާއްޖޭގެ ޓައިމްޒޯން (+5)
+                start: { dateTime: start.toISOString(), timeZone: 'Asia/Colombo' }, 
                 end: { dateTime: end.toISOString(), timeZone: 'Asia/Colombo' },
                 reminders: {
                     useDefault: false,
                     overrides: [
-                        { method: 'popup', minutes: 60 },     // 1 ގަޑިއިރު ކުރިން ނޮޓިފިކޭޝަން
-                        { method: 'email', minutes: 24 * 60 } // 1 ދުވަސް ކުރިން އީމެއިލް
+                        { method: 'popup', minutes: 60 },     
+                        { method: 'email', minutes: 24 * 60 } 
                     ]
                 }
             };
@@ -5002,11 +5004,9 @@ let headers = `
             return res ? true : false;
         },
 
-        // 2. ގޫގްލް ޓާސްކްސް އަށް ޑެއިލީ ލިސްޓް ފޮނުވުން
         pushToTasks: async (taskTitle, dueDateIso, notes) => {
             if(!GoogleSyncEngine.accessToken) return false;
             
-            // ފުރަތަމަ 'Rasfahi HR' ކިޔާ ޓާސްކް ލިސްޓެއް އިންތޯ ބެލުން
             let lists = await GoogleSyncEngine.apiCall('https://tasks.googleapis.com/tasks/v1/users/@me/lists', 'GET');
             let listId = '@default';
             
@@ -5015,13 +5015,11 @@ let headers = `
                 if(hrList) {
                     listId = hrList.id;
                 } else {
-                    // ލިސްޓެއް ނެތްނަމަ އައު ލިސްޓެއް ހެދުން
                     let newList = await GoogleSyncEngine.apiCall('https://tasks.googleapis.com/tasks/v1/users/@me/lists', 'POST', { title: 'Rasfahi HR System' });
                     if(newList) listId = newList.id;
                 }
             }
 
-            // އެ ލިސްޓަށް ޓާސްކް އިތުރުކުރުން
             const task = {
                 title: taskTitle,
                 notes: notes,
@@ -5033,29 +5031,8 @@ let headers = `
         }
     };
     
-    // ސިސްޓަމް ލޯޑުވާއިރު ގޫގްލް ސިންކް ތައްޔާރުކުރުން
     setTimeout(() => { GoogleSyncEngine.init(); }, 2000);
-    var opt = {
-  margin:       10,
-  filename:     'Performance_Matrix.pdf',
-  image:        { type: 'jpeg', quality: 0.98 },
-  html2canvas:  { scale: 1.5 }, // ސްކޭލް ކުޑަކޮށްލުން
-  jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' } // މުހިންމު ބަދަލު: ލޭންޑްސްކޭޕްއަށް ހެދުން
-};
-    // ޕީޑީއެފް އަށް ނަގަން ބޭނުންވާ ޓޭބަލް ނުވަތަ ޑިވް ސެލެކްޓްކުރުން
-// ނޯޓު: 'table-container' ގެ ބަދަލުގައި ތިޔަބޭފުޅާގެ ޓޭބަލް އިންނަ ޑިވްގެ އަސްލު އައިޑީ ޖައްސަވާށެވެ.
-var element = document.getElementById('table-container'); 
 
-var opt = {
-  margin:       0.5,
-  filename:     'Performance_Matrix_A3.pdf',
-  image:        { type: 'jpeg', quality: 0.98 },
-  html2canvas:  { scale: 2, useCORS: true }, // ސްކޭލް 2 ގައި ބެހެއްޓުމުން އަކުރުތައް ސާފުވާނެއެވެ
-  jsPDF:        { unit: 'in', format: 'a3', orientation: 'landscape' } // ސީދާ A3 އަދި Landscape އަށް ސެޓްކުރުން
-};
-
-// ޕީޑީއެފް ޖެނެރޭޓްކޮށް ޑައުންލޯޑްކުރުން
-html2pdf().set(opt).from(element).save();
 </script>
 </body>
 </html>
