@@ -3682,17 +3682,21 @@ approve: (id) => {
                 t.status = 'Completed'; 
                 t.progress = 100; 
 
-                // --- އެޑްވާންސް ޕޮއިންޓް އިންޖީނު ---
                 let s = AppState.db.staff.find(x => x.id === t.staffId);
-                let awardedPts = 0; // ދެވުނު ޕޮއިންޓް ރެކޯޑުކުރަން
-
+                let awardedPts = 0; 
+                
                 if (s) {
                     let taskCat = t.category || "";
                     
-                    // 1. ކެޓަގަރީގެ ނަން ދިމާވޭތޯ ބެލުން (Case Insensitive ކޮށް)
+                    // --- އައު ލޮޖިކް: ޑެއިލީ ރޫޓީން ނަމަ އެޓެންޑެންސްއަށް ބަދަލުކުރުން ---
+                    if (taskCat.toLowerCase() === 'daily routine') {
+                        taskCat = 'Attendance';
+                    }
+                    
+                    // 1. ކެޓަގަރީގެ ނަން ދިމާވޭތޯ ބެލުން
                     let matchedKey = Object.keys(AppState.db.pointSystem).find(k => k.toLowerCase() === taskCat.toLowerCase());
                     
-                    // 2. ޕޮއިންޓް ނަންބަރަކަށް ބަދަލުކުރުން (parseInt ބޭނުންކޮށްގެން)
+                    // 2. ޕޮއިންޓް ނަންބަރަކަށް ބަދަލުކުރުން
                     if (matchedKey) {
                         awardedPts = parseInt(AppState.db.pointSystem[matchedKey]) || 0;
                     }
@@ -3701,21 +3705,26 @@ approve: (id) => {
                     if (typeof s.points === 'undefined' || isNaN(s.points)) s.points = 0;
                     if (!s.metrics) s.metrics = {};
 
-                    // 4. ސީދާ ނަންބަރު އެއްކުރުން (Math Addition)
+                    // 4. ސީދާ ނަންބަރު އެއްކުރުން
                     s.points = parseInt(s.points) + awardedPts;
 
                     if (!s.metrics[taskCat]) s.metrics[taskCat] = 0;
                     s.metrics[taskCat] += 1;
-
-                    // މައްސަލަ ހޯދުމަށް ކޮންސޯލްއަށް ލޮގްކުރުން (F12 އިން ފެންނާނެ)
-                    console.log(`[Point System] Awarded ${awardedPts} points to ${s.name} for '${taskCat}'. Total Points: ${s.points}`);
                 }
                 // --------------------------------------------------------
 
                 HybridCloud.saveAutoLocal(); 
-                UI.showToast(`Operation Approved. +${awardedPts} Points Awarded!`, "success"); 
+                UI.showToast(`Approved! +${awardedPts} Points added to ${t.category === 'Daily Routine' ? 'Attendance' : t.category}`, "success"); 
+                
+                // --- ރިއަލް-ޓައިމް އަޕްޑޭޓް ކުރުމަށް ފަންކްޝަންތައް ރީފްރެޝް ކުރުން ---
                 ActionCenterEngine.renderList();
                 if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
+                if(typeof PerformanceEngine !== 'undefined') PerformanceEngine.render();
+                
+                // މުވައްޒަފުގެ ޕްރޮފައިލް މޯޑަލް ހުޅުވިފައި އިންނަމަ، އެވެސް ވަގުތުން ރީފްރެޝް ކުރުން
+                if(typeof StaffTaskReport !== 'undefined' && StaffTaskReport.activeStaffId === s.id) {
+                    StaffTaskReport.open(s.id); 
+                }
             } 
         },
         openReturnModal: (id) => {
@@ -3738,7 +3747,7 @@ approve: (id) => {
                 if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             } 
         },
-        deleteTask: (id) => {
+       deleteTask: (id) => {
             if(confirm("AUTHORIZATION REQUIRED: Permanently wipe this task from the registry?")) {
                 AppState.db.tasks = AppState.db.tasks.filter(t => t.id !== id);
                 HybridCloud.saveAutoLocal(); 
