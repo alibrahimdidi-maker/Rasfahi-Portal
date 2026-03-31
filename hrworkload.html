@@ -3211,10 +3211,11 @@ getStatusColor: (status, progress, isLate) => {
             RequestCenterEngine.toggleOtFields();
             UI.openModal('modalStaffRequest');
         },
-submitRequest: () => {
+        submitRequest: async () => {
             const type = document.getElementById('reqType').value;
             const sub = document.getElementById('reqSubject').value.trim();
             const det = document.getElementById('reqDetails').value.trim();
+            const driveLink = document.getElementById('reqDriveLink').value.trim();
             
             // ނޮޓިފިކޭޝަން ފޮނުވާނެ ގޮތް ޑްރޮޕްޑައުން އިން ނެގުން
             let notifyDropdown = document.getElementById('notifyMethod'); 
@@ -3223,8 +3224,16 @@ submitRequest: () => {
             if(!sub || !det) return UI.showToast("Subject and Details are required", "error");
 
             let reqObj = {
-                id: generateUID('REQ'), staffId: CurrentUser.id, type: type, subject: sub,
-                details: det, status: 'Pending', date: new Date().toLocaleString(), remarks: ''
+                id: generateUID('REQ'), 
+                staffId: CurrentUser.id, 
+                type: type, 
+                subject: sub,
+                details: det, 
+                status: 'Pending', 
+                date: new Date().toLocaleString(), 
+                remarks: '',
+                driveLink: driveLink,
+                attachments: [] 
             };
 
             if(type === 'Overtime') {
@@ -3241,17 +3250,60 @@ submitRequest: () => {
                 });
             }
 
+            UI.showToast("Processing request & files... Please wait.", "info");
+
+            // ފައިލްތައް ނަގައި، ސައިޒު ޗެކްކުރުން
+            let filesToProcess = [];
+            for(let i=1; i<=5; i++) {
+                let fileInput = document.getElementById('reqFile' + i);
+                if(fileInput && fileInput.files.length > 0) {
+                    let file = fileInput.files[0];
+                    if(file.size > 10485760) {
+                        return UI.showToast(`Attachment ${i} exceeds the 10MB limit! Please use Google Drive for large files.`, "error");
+                    }
+                    filesToProcess.push(file);
+                }
+            }
+
+            const readFileAsBase64 = (file) => {
+                return new Promise((resolve, reject) => {
+                    let reader = new FileReader();
+                    reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            if(filesToProcess.length > 0) {
+                try {
+                    let attachedFiles = await Promise.all(filesToProcess.map(f => readFileAsBase64(f)));
+                    reqObj.attachments = attachedFiles;
+                } catch (error) {
+                    return UI.showToast("Error processing attached files.", "error");
+                }
+            }
+
             AppState.db.requests.push(reqObj);
             HybridCloud.saveAutoLocal();
+            
             UI.closeModal('modalStaffRequest');
             UI.showToast("Request submitted to Supervisor", "success");
             WorkspaceEngine.render();
 
+            // ފޯމު ސާފުކޮށްލުން
+            document.getElementById('reqSubject').value = '';
+            document.getElementById('reqDetails').value = '';
+            if(document.getElementById('reqDriveLink')) document.getElementById('reqDriveLink').value = '';
+            if(document.getElementById('reqOtHours')) document.getElementById('reqOtHours').value = '';
+            for(let i=1; i<=5; i++) {
+                if(document.getElementById('reqFile'+i)) document.getElementById('reqFile'+i).value = '';
+            }
+
             // =========================================================
             // ސުޕަވައިޒަރަށް ނޮޓިފިކޭޝަން ފޮނުވާ ބައި (APP REDIRECTIONS)
             // =========================================================
-            const SUPERVISOR_PHONE = "9607791550"; // ސުޕަވައިޒަރުގެ ފޯނު ނަންބަރު މިތަނަށް ލައްވާ (960 އާއެކު)
-            const SUPERVISOR_EMAIL = "alibrahimdidi@gmail.com"; // ސުޕަވައިޒަރުގެ އީމެއިލް މިތަނަށް ލައްވާ
+            const SUPERVISOR_PHONE = "9607791550"; 
+            const SUPERVISOR_EMAIL = "alibrahimdidi@gmail.com"; 
 
             let message = `*New ${type} Request*\nSubmitted by: ${CurrentUser.name}\nSubject: ${sub}\nPlease check the HR Portal to approve/reject.`;
 
@@ -3297,7 +3349,6 @@ submitRequest: () => {
                 let s = AppState.db.staff.find(x => x.id === r.staffId);
                 if(!s) return false;
                 
-                // ބަދަލު ގެނެވިފައިވާ ލައިން (1)
                 if(CurrentUser.role === 'HOD' && s.dept !== CurrentUser.dept) return false;
                 
                 let matchType = typeF === 'All' ? true : r.type === typeF;
@@ -3312,7 +3363,6 @@ submitRequest: () => {
                 let s = AppState.db.staff.find(x => x.id === r.staffId);
                 if(!s) return false;
                 
-                // ބަދަލު ގެނެވިފައިވާ ލައިން (2)
                 if(CurrentUser.role === 'HOD' && s.dept !== CurrentUser.dept) return false;
                 
                 return r.status === 'Pending';
@@ -3334,6 +3384,27 @@ submitRequest: () => {
                 let sCol = r.status === 'Pending' ? '#b45309' : r.status === 'Approved' ? '#064e3b' : r.status === 'Rejected' ? '#991b1b' : '#0f172a';
                 let otInfo = r.type === 'Overtime' ? `<div class="bg-amber-100 text-amber-900 p-2 rounded text-[10px] font-bold mt-2 border border-amber-200 shadow-sm"><i class="fa-solid fa-clock mr-1"></i> Target: ${r.otDate} | Hrs: ${r.otHours}</div>` : '';
                 
+                // އެޓޭޗްމެންޓްތަކާއި ލިންކުތައް ކާޑުން ފެންނަގޮތް ހެދުން
+                let attachmentsHtml = '';
+                if(r.attachments && r.attachments.length > 0) {
+                    attachmentsHtml += `<div class="mt-2 flex flex-wrap gap-1">`;
+                    r.attachments.forEach((file, index) => {
+                        let icon = 'fa-file';
+                        if(file.type.includes('image')) icon = 'fa-file-image text-blue-500';
+                        else if(file.type.includes('pdf')) icon = 'fa-file-pdf text-red-500';
+                        else if(file.type.includes('word') || file.name.endsWith('.doc') || file.name.endsWith('.docx')) icon = 'fa-file-word text-blue-700';
+                        else if(file.type.includes('excel') || file.type.includes('spreadsheet') || file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) icon = 'fa-file-excel text-green-600';
+                        
+                        attachmentsHtml += `<a href="${file.data}" download="${file.name}" class="inline-flex items-center bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] px-2 py-1 rounded border border-slate-300 transition" title="${file.name}"><i class="fa-solid ${icon} mr-1"></i> File ${index+1}</a>`;
+                    });
+                    attachmentsHtml += `</div>`;
+                }
+                
+                let driveLinkHtml = '';
+                if(r.driveLink) {
+                    driveLinkHtml = `<div class="mt-2"><a href="${r.driveLink}" target="_blank" class="inline-flex items-center text-[10px] text-blue-600 hover:text-blue-800 font-bold underline"><i class="fa-brands fa-google-drive mr-1"></i> Open Google Drive Link</a></div>`;
+                }
+                
                 let actBtns = r.status === 'Pending' ? `
                     <div class="mt-4 pt-3 border-t border-slate-200 no-print">
                         <button onclick="RequestCenterEngine.openDecisionModal('${r.id}')" class="btn-base btn-royal w-full text-[10px] py-2 transition hover:scale-[1.02]"><i class="fa-solid fa-scale-balanced mr-1"></i> Process Request</button>
@@ -3354,6 +3425,8 @@ submitRequest: () => {
                         <span class="font-bold text-sm text-[#1e3a8a] block" dir="auto">${r.subject}</span>
                         <span class="text-xs text-slate-600 mt-1 block" dir="auto">${r.details}</span>
                     </div>
+                    ${attachmentsHtml}
+                    ${driveLinkHtml}
                     ${otInfo}
                     <div class="text-[8px] text-slate-400 font-bold mt-3 uppercase tracking-widest"><i class="fa-solid fa-calendar mr-1"></i> ${r.date}</div>
                     ${actBtns}
@@ -3376,7 +3449,8 @@ submitRequest: () => {
                     <td>${r.status}</td>
                 </tr>`;
             }).join('');
-            document.getElementById('reqPrintTableBody').innerHTML = tableHtml;
+            let tableBody = document.getElementById('reqPrintTableBody');
+            if(tableBody) tableBody.innerHTML = tableHtml;
         },
         openDecisionModal: (id) => {
             RequestCenterEngine.activeReqId = id;
