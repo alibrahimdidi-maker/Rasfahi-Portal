@@ -3679,7 +3679,13 @@ getStatusColor: (status, progress, isLate) => {
                 UI.showToast("Pushed to Google Calendar & Tasks!", "success");
             }
         },
-const TaskEngine = {
+/**
+     * ==========================================================================
+     * TASK & DIRECTIVE ENGINE
+     * Handles assigning tasks, updating progress, and linking documents.
+     * ==========================================================================
+     */
+    const TaskEngine = {
         activeTaskId: null,
         
         // --- އައު ފަންކްޝަންތައް (Sub-tasks އެޑްކުރުމަށް) ---
@@ -3755,15 +3761,19 @@ const TaskEngine = {
             if(totalWeight !== 100) return UI.showToast("Total weight of instructions must be exactly 100%", "error");
 
             let subTasks = [];
+            let detailsTextArray = []; // ކަލަންޑަރަށް ފޮނުވަން ޓެކްސްޓް ތައްޔާރުކުރުން
             document.querySelectorAll('.subtask-row').forEach(row => {
                 let desc = row.querySelector('.st-desc').value.trim();
                 let weight = parseFloat(row.querySelector('.st-weight').value) || 0;
                 if(desc && weight > 0) {
                     subTasks.push({ desc: desc, weight: weight, done: false });
+                    detailsTextArray.push(`- ${desc} (${weight}%)`);
                 }
             });
 
             if(subTasks.length === 0) return UI.showToast("Please provide at least one instruction.", "error");
+            
+            let combinedDetails = detailsTextArray.join('\n');
 
             let fullDeadline = time ? `${date}T${time}` : `${date}T23:59`;
             let now = new Date();
@@ -3778,7 +3788,7 @@ const TaskEngine = {
                 status: 'In Progress', 
                 logDate: dateStr, 
                 dueDate: fullDeadline,
-                subTasks: subTasks, // އައު އެރޭ (Array)
+                subTasks: subTasks, 
                 isLate: false, 
                 smsSent: false, 
                 assignedBy: CurrentUser.role, 
@@ -3824,6 +3834,14 @@ const TaskEngine = {
             if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             if(typeof ActionCenterEngine !== 'undefined') ActionCenterEngine.renderList();
             UI.showToast("Directive Dispatched Successfully", "success");
+
+            // ގޫގްލް ކަލަންޑަރ އަދި ޓާސްކްސް އަށް ފޮނުވުން
+            if(typeof GoogleSyncEngine !== 'undefined' && GoogleSyncEngine.accessToken) {
+                UI.showToast("Syncing with Google Workspace...", "info");
+                await GoogleSyncEngine.pushToCalendar(title, fullDeadline, combinedDetails);
+                await GoogleSyncEngine.pushToTasks(title, fullDeadline, combinedDetails);
+                UI.showToast("Pushed to Google Calendar & Tasks!", "success");
+            }
         },
 
         openUpdateModal: (id) => {
@@ -3837,7 +3855,6 @@ const TaskEngine = {
             document.getElementById('tuDriveLink').value = t.driveLink || '';
             document.getElementById('tuNotifyMethod').selectedIndex = 0;
 
-            // Sub-tasks ރެންޑަރ ކުރުން (ޓިކް ކުރެވޭ ގޮތަށް)
             let subTasksHtml = '';
             if(t.subTasks && t.subTasks.length > 0) {
                 t.subTasks.forEach((st, index) => {
@@ -3945,7 +3962,7 @@ const TaskEngine = {
             UI.showToast("Supervisor remarks firmly attached.", "success");
         },
         
-quickComplete: (id) => {
+        quickComplete: (id) => {
             let t = AppState.db.tasks.find(x => x.id === id);
             if(t) {
                 t.progress = 100;
@@ -3958,13 +3975,7 @@ quickComplete: (id) => {
                 UI.showToast("Task completed and points awarded.", "success");
             }
         }
-    }; // <-- TaskEngine ނިމުނީ
-
-    /**
-     * ==========================================================================
-     * ACTIVITY LOGGER (For Staff to log daily operations)
-     * ==========================================================================
-     */
+    };
     const ActivityLogger = {
         populateCategories: () => {
             const pts = AppState.db.pointSystem || DefaultMetrics;
