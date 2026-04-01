@@ -3679,6 +3679,153 @@ getStatusColor: (status, progress, isLate) => {
                 UI.showToast("Pushed to Google Calendar & Tasks!", "success");
             }
         },
+const TaskEngine = {
+        activeTaskId: null,
+        
+        // --- އައު ފަންކްޝަންތައް (Sub-tasks އެޑްކުރުމަށް) ---
+        addSubTaskInput: (desc = '', weight = '') => {
+            const list = document.getElementById('assignSubTasksList');
+            const id = 'st_' + Date.now() + Math.random().toString(36).substr(2, 5);
+            const html = `
+                <div class="flex gap-2 items-center subtask-row bg-white p-2 rounded border border-slate-200 shadow-sm" id="${id}">
+                    <input type="text" class="input-base flex-1 text-xs st-desc font-bold text-[#0f172a]" placeholder="Instruction detail..." value="${desc}" dir="auto">
+                    <div class="relative w-24 shrink-0">
+                        <input type="number" class="input-base text-xs font-black text-[#0e7490] text-center pr-5 st-weight" placeholder="%" value="${weight}" min="1" max="100" oninput="TaskEngine.calcWeights()">
+                        <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-[10px] text-slate-400 font-bold">%</span>
+                    </div>
+                    <button type="button" onclick="document.getElementById('${id}').remove(); TaskEngine.calcWeights();" class="text-red-500 hover:text-red-700 px-2 transition bg-red-50 rounded h-full py-2 border border-red-100"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `;
+            list.insertAdjacentHTML('beforeend', html);
+        },
+        calcWeights: () => {
+            let total = 0;
+            document.querySelectorAll('.st-weight').forEach(el => total += (parseFloat(el.value) || 0));
+            let totalEl = document.getElementById('assignWeightTotal');
+            let errEl = document.getElementById('assignWeightError');
+            if(totalEl) {
+                totalEl.innerText = `Total: ${total}%`;
+                if(total === 100) {
+                    totalEl.className = 'text-xs font-black text-emerald-600';
+                    errEl.classList.add('hidden');
+                } else {
+                    totalEl.className = 'text-xs font-black text-red-600';
+                    errEl.classList.remove('hidden');
+                }
+            }
+            return total;
+        },
+
+        openAssignModal: () => {
+            let staffOpts = '<option value="">Select Personnel...</option>';
+            AppState.db.staff.forEach(s => {
+                if(CurrentUser.role === 'HOD' && (s.dept !== CurrentUser.dept || s.section !== CurrentUser.section)) return;
+                if(s.status === 'Active') staffOpts += `<option value="${s.id}">${s.name} (${s.jobTitle} - ${s.dept})</option>`;
+            });
+            document.getElementById('assignStaff').innerHTML = staffOpts;
+            
+            document.getElementById('assignTitle').value = '';
+            document.getElementById('assignDate').value = '';
+            document.getElementById('assignTime').value = '';
+            document.getElementById('assignDriveLink').value = '';
+            for(let i=1; i<=10; i++) {
+                let fi = document.getElementById('assignFile'+i);
+                if(fi) fi.value = '';
+            }
+            
+            // Sub-task ލިސްޓު ސާފުކޮށް ފުރަތަމަ ގޮޅި ގެނައުން
+            document.getElementById('assignSubTasksList').innerHTML = '';
+            TaskEngine.addSubTaskInput('Task Completed', '100');
+            TaskEngine.calcWeights();
+
+            UI.openModal('modalAssignTask');
+        },
+
+        submitTask: async () => {
+            let staffId = document.getElementById('assignStaff').value;
+            let title = document.getElementById('assignTitle').value.trim();
+            let date = document.getElementById('assignDate').value;
+            let time = document.getElementById('assignTime').value; 
+            let driveLink = document.getElementById('assignDriveLink').value.trim();
+            
+            if(!title || !staffId || !date) return UI.showToast("Staff, Title, and Deadline Date are required", "error");
+
+            // Sub-tasks ނަގައި ޗެކްކުރުން
+            let totalWeight = TaskEngine.calcWeights();
+            if(totalWeight !== 100) return UI.showToast("Total weight of instructions must be exactly 100%", "error");
+
+            let subTasks = [];
+            document.querySelectorAll('.subtask-row').forEach(row => {
+                let desc = row.querySelector('.st-desc').value.trim();
+                let weight = parseFloat(row.querySelector('.st-weight').value) || 0;
+                if(desc && weight > 0) {
+                    subTasks.push({ desc: desc, weight: weight, done: false });
+                }
+            });
+
+            if(subTasks.length === 0) return UI.showToast("Please provide at least one instruction.", "error");
+
+            let fullDeadline = time ? `${date}T${time}` : `${date}T23:59`;
+            let now = new Date();
+            let dateStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+
+            let newTask = { 
+                id: generateUID('DIR'), 
+                staffId: staffId, 
+                title: title, 
+                category: 'Directive', 
+                progress: 0, 
+                status: 'In Progress', 
+                logDate: dateStr, 
+                dueDate: fullDeadline,
+                subTasks: subTasks, // އައު އެރޭ (Array)
+                isLate: false, 
+                smsSent: false, 
+                assignedBy: CurrentUser.role, 
+                driveLink: driveLink,
+                attachments: [],
+                updates: [{date: new Date().toLocaleString(), text: `Task officially assigned by ${CurrentUser.role} with ${subTasks.length} instructions.`}]
+            };
+
+            UI.showToast("Assigning Task & Uploading files... Please wait.", "info");
+
+            let filesToProcess = [];
+            for(let i=1; i<=10; i++) {
+                let fileInput = document.getElementById('assignFile' + i);
+                if(fileInput && fileInput.files.length > 0) {
+                    let file = fileInput.files[0];
+                    if(file.size > 10485760) return UI.showToast(`Attachment ${i} exceeds the 10MB limit!`, "error");
+                    filesToProcess.push(file);
+                }
+            }
+
+            const readFileAsBase64 = (file) => {
+                return new Promise((resolve, reject) => {
+                    let reader = new FileReader();
+                    reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            if(filesToProcess.length > 0) {
+                try {
+                    let attachedFiles = await Promise.all(filesToProcess.map(f => readFileAsBase64(f)));
+                    newTask.attachments = attachedFiles;
+                } catch (error) {
+                    return UI.showToast("Error processing attached files.", "error");
+                }
+            }
+
+            AppState.db.tasks.push(newTask);
+            HybridCloud.saveAutoLocal(); 
+            UI.closeModal('modalAssignTask'); 
+            
+            if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
+            if(typeof ActionCenterEngine !== 'undefined') ActionCenterEngine.renderList();
+            UI.showToast("Directive Dispatched Successfully", "success");
+        },
+
         openUpdateModal: (id) => {
             TaskEngine.activeTaskId = id;
             let t = AppState.db.tasks.find(x => x.id === id);
@@ -3689,6 +3836,27 @@ getStatusColor: (status, progress, isLate) => {
             document.getElementById('tuNotes').value = '';
             document.getElementById('tuDriveLink').value = t.driveLink || '';
             document.getElementById('tuNotifyMethod').selectedIndex = 0;
+
+            // Sub-tasks ރެންޑަރ ކުރުން (ޓިކް ކުރެވޭ ގޮތަށް)
+            let subTasksHtml = '';
+            if(t.subTasks && t.subTasks.length > 0) {
+                t.subTasks.forEach((st, index) => {
+                    let isChecked = st.done ? 'checked' : '';
+                    let txtClass = st.done ? 'text-slate-400 line-through' : 'text-[#0f172a]';
+                    subTasksHtml += `
+                        <label class="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded shadow-sm cursor-pointer hover:bg-slate-50 transition">
+                            <input type="checkbox" class="mt-1 w-4 h-4 text-[#064e3b] rounded focus:ring-[#064e3b]" ${isChecked} onchange="TaskEngine.toggleSubTask(${index}, this.checked)">
+                            <div class="flex-1">
+                                <span class="font-bold text-sm block ${txtClass}" id="st_lbl_${index}" dir="auto">${st.desc}</span>
+                            </div>
+                            <span class="text-[10px] font-black text-[#0e7490] bg-cyan-50 px-2 py-1 rounded border border-cyan-100">${st.weight}%</span>
+                        </label>
+                    `;
+                });
+            } else {
+                subTasksHtml = `<p class="text-xs text-slate-500 font-bold italic">No sub-instructions. Use comments to update.</p>`;
+            }
+            document.getElementById('tuSubTasksDisplay').innerHTML = subTasksHtml;
             
             let logHtml = (t.updates || []).map(u => `
                 <div class="mb-2 p-2 bg-slate-100 border border-slate-200 rounded text-[10px] shadow-sm">
@@ -3705,22 +3873,23 @@ getStatusColor: (status, progress, isLate) => {
             }
             UI.openModal('modalTaskUpdate');
         },
-        updateSlider: (val) => {
-            document.getElementById('tuProgressVal').innerText = val + '%';
-        },
-        quickComplete: (id) => {
-            let t = AppState.db.tasks.find(x => x.id === id);
-            if(t) {
-                t.progress = 100;
-                t.status = 'Completed'; 
-                if(!t.updates) t.updates = [];
-                t.updates.push({ date: new Date().toLocaleString(), text: `OT Task Marked as Completed by Staff.` });
-                HybridCloud.saveAutoLocal();
-                WorkspaceEngine.render();
-                if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
-                UI.showToast("Task completed and points awarded.", "success");
+
+        toggleSubTask: (index, isChecked) => {
+            let t = AppState.db.tasks.find(x => x.id === TaskEngine.activeTaskId);
+            if(t && t.subTasks) {
+                t.subTasks[index].done = isChecked;
+                let lbl = document.getElementById(`st_lbl_${index}`);
+                if(lbl) lbl.className = isChecked ? 'font-bold text-sm block text-slate-400 line-through' : 'font-bold text-sm block text-[#0f172a]';
+                
+                let prog = 0;
+                t.subTasks.forEach(st => { if(st.done) prog += parseFloat(st.weight); });
+                prog = Math.round(prog);
+                
+                document.getElementById('tuProgress').value = prog;
+                document.getElementById('tuProgressVal').innerText = prog + '%';
             }
         },
+
         submitUpdate: () => {
             let t = AppState.db.tasks.find(x => x.id === TaskEngine.activeTaskId);
             let prog = parseInt(document.getElementById('tuProgress').value);
@@ -3736,7 +3905,7 @@ getStatusColor: (status, progress, isLate) => {
             
             let now = new Date();
             let dateStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
-            let updateText = `Progress adjusted to ${prog}%. `;
+            let updateText = `Progress dynamically calculated to ${prog}%. `;
             
             if(notes) updateText += `Staff Remarks: ${notes}. `;
             if(link) updateText += `<br><span class="bg-blue-50 px-2 py-1 rounded inline-block mt-1 border border-blue-200">Link Attached: <a href="${link}" target="_blank" class="text-blue-700 font-bold underline"><i class="fa-brands fa-google-drive mr-1"></i> View Document</a></span>`;
@@ -3753,11 +3922,13 @@ getStatusColor: (status, progress, isLate) => {
 
             HybridCloud.saveAutoLocal();
             UI.closeModal('modalTaskUpdate');
-            WorkspaceEngine.render();
+            
+            if(typeof WorkspaceEngine !== 'undefined') WorkspaceEngine.render();
             if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             if(typeof ActionCenterEngine !== 'undefined') ActionCenterEngine.renderList();
             UI.showToast("Progress successfully documented.", "success");
         },
+
         submitSupervisorComment: () => {
             let t = AppState.db.tasks.find(x => x.id === TaskEngine.activeTaskId);
             let notes = document.getElementById('tuSupervisorNotes').value.trim();
@@ -3770,11 +3941,94 @@ getStatusColor: (status, progress, isLate) => {
             UI.closeModal('modalTaskUpdate');
             if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             if(typeof ActionCenterEngine !== 'undefined') ActionCenterEngine.renderList();
-            WorkspaceEngine.render();
+            if(typeof WorkspaceEngine !== 'undefined') WorkspaceEngine.render();
             UI.showToast("Supervisor remarks firmly attached.", "success");
+        },
+        
+quickComplete: (id) => {
+            let t = AppState.db.tasks.find(x => x.id === id);
+            if(t) {
+                t.progress = 100;
+                t.status = 'Completed'; 
+                if(!t.updates) t.updates = [];
+                t.updates.push({ date: new Date().toLocaleString(), text: `OT Task Marked as Completed by Staff.` });
+                HybridCloud.saveAutoLocal();
+                if(typeof WorkspaceEngine !== 'undefined') WorkspaceEngine.render();
+                if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
+                UI.showToast("Task completed and points awarded.", "success");
+            }
+        }
+    }; // <-- TaskEngine ނިމުނީ
+
+    /**
+     * ==========================================================================
+     * ACTIVITY LOGGER (For Staff to log daily operations)
+     * ==========================================================================
+     */
+    const ActivityLogger = {
+        populateCategories: () => {
+            const pts = AppState.db.pointSystem || DefaultMetrics;
+            let html = '';
+            for(const k of Object.keys(pts)) {
+                if(k !== 'Attendance' && k !== 'ManualOverride' && k !== 'Directive' && k !== 'Overtime') {
+                    html += `<option value="${k}">${k}</option>`;
+                }
+            }
+            let el = document.getElementById('alCategory');
+            if(el) el.innerHTML = html;
+        },
+        openForm: () => {
+            document.getElementById('logDateInput').value = new Date().toISOString().split('T')[0];
+            document.getElementById('alTitle').value = '';
+            ActivityLogger.checkDate();
+            UI.openModal('modalLogActivity');
+        },
+        checkDate: () => {
+            const selectedDate = new Date(document.getElementById('logDateInput').value);
+            const today = new Date();
+            const diffDays = Math.floor((today - selectedDate) / (1000 * 60 * 60 * 24));
+            
+            const warning = document.getElementById('lateWarning');
+            if(diffDays > 1) {
+                warning.classList.remove('hidden');
+            } else {
+                warning.classList.add('hidden');
+            }
+        },
+        submit: () => {
+            const dateVal = document.getElementById('logDateInput').value;
+            const category = document.getElementById('alCategory').value;
+            const title = document.getElementById('alTitle').value.trim();
+            
+            if(!dateVal || !category || !title) return UI.showToast("All fields are mandatory", "error");
+
+            const selectedDate = new Date(dateVal);
+            const today = new Date();
+            const diffDays = Math.floor((today - selectedDate) / (1000 * 60 * 60 * 24));
+            let isLate = diffDays > 1;
+
+            let logObj = {
+                id: generateUID('LOG'), staffId: CurrentUser.id, title: title, category: category,
+                progress: 100, status: 'Wait Endorse', logDate: new Date(dateVal).toLocaleString(),
+                isLate: isLate, assignedBy: 'SELF', updates: [{date: new Date().toLocaleString(), text: 'Task logged and submitted for endorsement.'}]
+            };
+
+            // Apply late penalty
+            if(isLate) {
+                const ptsObj = AppState.db.pointSystem || DefaultMetrics;
+                const basePts = parseInt(ptsObj[category] || 0);
+                logObj.manualPoints = Math.max(0, basePts - 1); 
+            }
+
+            AppState.db.tasks.push(logObj);
+            HybridCloud.saveAutoLocal();
+            UI.closeModal('modalLogActivity');
+            if(typeof WorkspaceEngine !== 'undefined') WorkspaceEngine.render();
+            UI.showToast(isLate ? "Logged with Late Penalty" : "Operation Logged Successfully", "success");
         }
     };
-/**
+
+    /**
      * ==========================================================================
      * ACTION CENTER ENGINE
      * Handles returning tasks, endorsing tasks, and filtering the global queue.
