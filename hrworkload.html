@@ -3391,7 +3391,7 @@
         }
     };
 
-    const TaskEngine = {
+const TaskEngine = {
         activeTaskId: null,
         
         addSubTaskInput: (desc = '', weight = '') => {
@@ -3427,13 +3427,25 @@
             return total;
         },
 
+        toggleAllStaff: (isChecked) => {
+            document.querySelectorAll('.assign-staff-cb').forEach(cb => cb.checked = isChecked);
+        },
+
         openAssignModal: () => {
-            let staffOpts = '<option value="">Select Personnel...</option>';
+            let staffHtml = '';
             AppState.db.staff.forEach(s => {
                 if(CurrentUser.role === 'HOD' && (s.dept !== CurrentUser.dept || s.section !== CurrentUser.section)) return;
-                if(s.status === 'Active') staffOpts += `<option value="${s.id}">${s.name} (${s.jobTitle} - ${s.dept})</option>`;
+                if(s.status === 'Active') {
+                    staffHtml += `
+                    <label class="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded cursor-pointer border border-transparent hover:border-slate-200 transition">
+                        <input type="checkbox" value="${s.id}" class="assign-staff-cb w-4 h-4 text-[#1e3a8a] rounded border-slate-300 focus:ring-[#1e3a8a]">
+                        <span class="text-xs font-bold text-[#0f172a]" dir="auto">${s.name} <span class="text-[9px] text-slate-500">(${s.jobTitle} - ${s.dept})</span></span>
+                    </label>`;
+                }
             });
-            document.getElementById('assignStaff').innerHTML = staffOpts;
+            document.getElementById('assignStaffList').innerHTML = staffHtml;
+            let selectAllBtn = document.getElementById('selectAllStaffToggle');
+            if(selectAllBtn) selectAllBtn.checked = false;
             
             document.getElementById('assignTitle').value = '';
             document.getElementById('assignDate').value = '';
@@ -3452,13 +3464,15 @@
         },
 
         submitTask: async () => {
-            let staffId = document.getElementById('assignStaff').value;
+            let selectedStaffIds = [];
+            document.querySelectorAll('.assign-staff-cb:checked').forEach(cb => selectedStaffIds.push(cb.value));
+
             let title = document.getElementById('assignTitle').value.trim();
             let date = document.getElementById('assignDate').value;
             let time = document.getElementById('assignTime').value; 
             let driveLink = document.getElementById('assignDriveLink').value.trim();
             
-            if(!title || !staffId || !date) return UI.showToast("Staff, Title, and Deadline Date are required", "error");
+            if(!title || selectedStaffIds.length === 0 || !date) return UI.showToast("Staff, Title, and Deadline Date are required", "error");
 
             let totalWeight = TaskEngine.calcWeights();
             if(totalWeight !== 100) return UI.showToast("Total weight of instructions must be exactly 100%", "error");
@@ -3477,30 +3491,11 @@
             if(subTasks.length === 0) return UI.showToast("Please provide at least one instruction.", "error");
             
             let combinedDetails = detailsTextArray.join('\n');
-
             let fullDeadline = time ? `${date}T${time}` : `${date}T23:59`;
             let now = new Date();
             let dateStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
 
-            let newTask = { 
-                id: generateUID('DIR'), 
-                staffId: staffId, 
-                title: title, 
-                category: 'Directive', 
-                progress: 0, 
-                status: 'In Progress', 
-                logDate: dateStr, 
-                dueDate: fullDeadline,
-                subTasks: subTasks, 
-                isLate: false, 
-                smsSent: false, 
-                assignedBy: CurrentUser.role, 
-                driveLink: driveLink,
-                attachments: [],
-                updates: [{date: new Date().toLocaleString(), text: `Task officially assigned by ${CurrentUser.role} with ${subTasks.length} instructions.`}]
-            };
-
-            UI.showToast("Assigning Task & Uploading files... Please wait.", "info");
+            UI.showToast(`Assigning Task to ${selectedStaffIds.length} personnel...`, "info");
 
             let filesToProcess = [];
             for(let i=1; i<=10; i++) {
@@ -3521,22 +3516,43 @@
                 });
             };
 
+            let attachedFiles = [];
             if(filesToProcess.length > 0) {
                 try {
-                    let attachedFiles = await Promise.all(filesToProcess.map(f => readFileAsBase64(f)));
-                    newTask.attachments = attachedFiles;
+                    attachedFiles = await Promise.all(filesToProcess.map(f => readFileAsBase64(f)));
                 } catch (error) {
                     return UI.showToast("Error processing attached files.", "error");
                 }
             }
 
-            AppState.db.tasks.push(newTask);
+            // Loop through all selected staff and create an individual task for each
+            selectedStaffIds.forEach(staffId => {
+                let newTask = { 
+                    id: generateUID('DIR'), 
+                    staffId: staffId, 
+                    title: title, 
+                    category: 'Directive', 
+                    progress: 0, 
+                    status: 'In Progress', 
+                    logDate: dateStr, 
+                    dueDate: fullDeadline,
+                    subTasks: JSON.parse(JSON.stringify(subTasks)), // Deep copy so checking one doesn't check all
+                    isLate: false, 
+                    smsSent: false, 
+                    assignedBy: CurrentUser.role, 
+                    driveLink: driveLink,
+                    attachments: attachedFiles,
+                    updates: [{date: new Date().toLocaleString(), text: `Task officially assigned by ${CurrentUser.role} with ${subTasks.length} instructions.`}]
+                };
+                AppState.db.tasks.push(newTask);
+            });
+
             HybridCloud.saveAutoLocal(); 
             UI.closeModal('modalAssignTask'); 
             
             if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             if(typeof ActionCenterEngine !== 'undefined') ActionCenterEngine.renderList();
-            UI.showToast("Directive Dispatched Successfully", "success");
+            UI.showToast(`Directive Dispatched to ${selectedStaffIds.length} Staff Successfully`, "success");
 
             if(typeof GoogleSyncEngine !== 'undefined' && GoogleSyncEngine.accessToken) {
                 UI.showToast("Syncing with Google Workspace...", "info");
@@ -3635,10 +3651,6 @@
             if(prog === 100) { t.status = 'Wait Endorse'; } 
             else if (prog > 0) { t.status = 'In Progress'; }
             
-            if(method !== 'System Only') {
-                UI.showToast(`Drafted ${method} Notification to Head of Department.`, "info");
-            }
-
             HybridCloud.saveAutoLocal();
             UI.closeModal('modalTaskUpdate');
             
@@ -3646,6 +3658,26 @@
             if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             if(typeof ActionCenterEngine !== 'undefined') ActionCenterEngine.renderList();
             UI.showToast("Progress successfully documented.", "success");
+
+            if(method !== 'System Only') {
+                const SUPERVISOR_PHONE = "9607791550"; 
+                const SUPERVISOR_EMAIL = "alibrahimdidi@gmail.com"; 
+
+                let message = `*Task Progress Update*\nStaff: ${CurrentUser.name}\nTask: ${t.title}\nProgress: ${prog}%\nNotes: ${notes || 'No remarks'}`;
+
+                if (method === 'WhatsApp') {
+                    window.open(`https://wa.me/${SUPERVISOR_PHONE}?text=${encodeURIComponent(message)}`, '_blank');
+                } 
+                else if (method === 'Viber') {
+                    window.open(`viber://chat?number=${SUPERVISOR_PHONE}&draft=${encodeURIComponent(message)}`, '_blank');
+                }
+                else if (method === 'Telegram') {
+                    window.open(`https://t.me/+${SUPERVISOR_PHONE}?text=${encodeURIComponent(message)}`, '_blank');
+                } 
+                else if (method === 'Email') {
+                    window.location.href = `mailto:${SUPERVISOR_EMAIL}?subject=${encodeURIComponent('Task Update: ' + t.title)}&body=${encodeURIComponent(message)}`;
+                }
+            }
         },
 
         submitSupervisorComment: () => {
@@ -3678,7 +3710,6 @@
             }
         }
     };
-
     const ActivityLogger = {
         populateCategories: () => {
             const pts = AppState.db.pointSystem || DefaultMetrics;
