@@ -2910,6 +2910,86 @@ const firebaseConfig = {
             window.showToast("PDF Downloaded.", "success");
         }, 500); 
     };
+    // ==========================================================================
+// REAL-TIME HYBRID SYNC ENGINE
+// Handles offline caching, debounced cloud syncing, and unsaved warnings
+// ==========================================================================
+window.RealTimeSyncEngine = {
+    syncTimeout: null,
+    hasPendingChanges: false,
+    isSyncing: false,
+
+    // މި ފަންކްޝަން ކޯލް ކުރާނީ ޑޭޓާއަށް ބަދަލެއް އަންނަ ކޮންމެ ފަހަރަކުއެވެ.
+    triggerChange: () => {
+        window.RealTimeSyncEngine.hasPendingChanges = true;
+        
+        // 1. އިންޓަނެޓް ހުއްޓަސް ނެތަސް، އެންމެ ފުރަތަމަ ވަގުތުން ލޯކަލް ބްރައުޒަރަށް ސޭވްކުރާނެ (ސޭފްޓީއަށް)
+        window.saveLocal(true); 
+
+        // 2. ކްލައުޑަށް ފޮނުވުން މަޑުޖައްސާލާނީ 2 ސިކުންތަށެވެ. (ފަޔަރބޭސްއަށް މާބާރަށް ރިކުއެސްޓް ނުފޮނުވުމަށް)
+        clearTimeout(window.RealTimeSyncEngine.syncTimeout);
+        window.RealTimeSyncEngine.syncTimeout = setTimeout(() => {
+            window.RealTimeSyncEngine.pushToCloud();
+        }, 2000);
+    },
+
+    pushToCloud: async () => {
+        // އިންޓަނެޓް ނެތްނަމަ ކްލައުޑަށް ފޮނުވުން ކެންސަލް ކުރާނެ
+        if (!navigator.onLine) {
+            window.setSyncStatus('offline');
+            return; 
+        }
+        
+        if (!window.RealTimeSyncEngine.hasPendingChanges || window.RealTimeSyncEngine.isSyncing) return;
+
+        window.RealTimeSyncEngine.isSyncing = true;
+        window.setSyncStatus('syncing');
+
+        try {
+            // ތިޔަ ކޯޑުގައި ކުރިންވެސް އިން saveToServer ފަންކްޝަން ބޭނުންކޮށްގެން ކްލައުޑަށް ފޮނުވުން
+            await window.saveToServer(true); 
+            
+            // ކާމިޔާބުކަމާއެކު ސޭވްވުމުން ޕެންޑިންގ ޑޭޓާ ނެތްކަމަށް ކަނޑައެޅުން
+            window.RealTimeSyncEngine.hasPendingChanges = false;
+            window.setSyncStatus('success');
+        } catch (error) {
+            console.error("Auto-sync failed:", error);
+            window.setSyncStatus('offline');
+        } finally {
+            window.RealTimeSyncEngine.isSyncing = false;
+        }
+    },
+
+    initListeners: () => {
+        // އިންޓަނެޓް ކަނޑައިގެން ގޮސްފަ އަލުން ގުޅޭއިރު ޕެންޑިންގ ޑޭޓާ ހުރިނަމަ އޮޓޯއިން ސޭވްކުރުން
+        window.addEventListener('online', () => {
+            window.showToast("Internet restored! Syncing pending changes...", "info");
+            if (window.RealTimeSyncEngine.hasPendingChanges) {
+                window.RealTimeSyncEngine.pushToCloud();
+            } else {
+                window.setSyncStatus('success');
+            }
+        });
+
+        // އިންޓަނެޓް ކެނޑުމުން ޔޫސަރަށް އެންގުން
+        window.addEventListener('offline', () => {
+            window.showToast("Connection lost. Working locally. Changes are safe.", "warning");
+            window.setSyncStatus('offline');
+        });
+
+        // ޓެބް ނުވަތަ ބްރައުޒަރ ކްލޯޒް ކުރަން އުޅޭއިރު، ސޭވް ނުވާ ޑޭޓާ ހުރިނަމަ ވޯނިންގ ދިނުން
+        window.addEventListener('beforeunload', (e) => {
+            if (window.RealTimeSyncEngine.hasPendingChanges) {
+                const confirmationMessage = "You have unsaved changes! If you leave now, your recent work might not be saved to the cloud.";
+                (e || window.event).returnValue = confirmationMessage;
+                return confirmationMessage;
+            }
+        });
+    }
+};
+
+// ޕޭޖް ލޯޑުވާއިރު މި އިންޖިން ސްޓާރޓް ކުރުން
+window.RealTimeSyncEngine.initListeners();
 </script>
 </body>
 </html>
