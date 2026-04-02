@@ -2374,34 +2374,25 @@
             });
         },
         saveAutoLocal: () => { 
-            // ލޮކް ނުހުޅުވެނީސް ސޭވްވުން އެއްކޮށް މަނާކުރުން (ޑޭޓާ ފޮހެވުނަ ނުދިނުމަށް)
             if (!isSystemReady) {
                 console.warn("Safety Lock Active: Prevented accidental data wipe.");
                 return; 
             }
-
-            // 1. އޮންލައިން ވިޔަސް އޮފްލައިން ވިޔަސް ލޯކަލް ސްޓޯރޭޖަށް ވަގުތުން ސޭވްކުރާނެ
             localStorage.setItem('rasfahi_hr_db', JSON.stringify(AppState.db));
-
-            // 2. އޮފްލައިން ނަމަ ކްލައުޑަށް ފޮނުވުން މަޑުޖައްސާލާފައި މާކްކުރާނެ
             if (!HybridCloud.isOnline) {
                 HybridCloud.hasPendingSync = true;
                 return;
             }
-            
             let ind = document.getElementById('autoSaveInd'); 
             if(ind) { 
                 ind.classList.remove('hidden'); 
                 ind.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing to Cloud...';
             }
-
             clearTimeout(saveTimeout);
-            HybridCloud.hasPendingSync = true; // <-- މިއީ އަލަށް އިތުރުކުރި ލައިން
             saveTimeout = setTimeout(async () => {
                 try { 
                     if (window.db) {
                         const { setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-                        
                         const coreData = JSON.stringify({ ...AppState.db, staff: [], tasks: [], requests: [] });
                         const staffData = JSON.stringify(AppState.db.staff || []);
                         const taskData = JSON.stringify(AppState.db.tasks || []);
@@ -2414,8 +2405,7 @@
                             setDoc(window.doc(window.db, "systemState", "requests"), { data: reqData })
                         ]);
                         
-                        HybridCloud.hasPendingSync = false; // ސިންކް ކާމިޔާބުވުމުން ޕެންޑިންގ މާކް ފޮހެލާނެ
-                        
+                        HybridCloud.hasPendingSync = false; 
                         if(ind) {
                             ind.innerHTML = '<i class="fa-solid fa-cloud-check text-emerald-500"></i> Cloud Synced';
                             setTimeout(() => { ind.classList.add('hidden'); }, 2500); 
@@ -2423,7 +2413,7 @@
                     }
                 } catch(e) { 
                     console.error("Firebase Cloud Save Error:", e); 
-                    HybridCloud.hasPendingSync = true; // ފެއިލްވެއްޖެނަމަ ފަހުން އަނެއްކާ ޓްރައިކުރަން މާކްކުރާނެ
+                    HybridCloud.hasPendingSync = true; 
                     if(ind) ind.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500"></i> Sync Failed';
                     UI.showToast("Cloud Sync Failed. Working Offline.", "error");
                 } 
@@ -2492,16 +2482,6 @@
     };
 
     HybridCloud.initNetworkListeners();
-
-    // ބްރައުޒަރ ނުވަތަ ޓެބް ކްލޯޒްކުރާއިރު ސޭވްނުވެ ހުރިނަމަ އިންޒާރުދިނުން
-    window.addEventListener('beforeunload', function (e) {
-        // ސޭވްނުވެ ޕެންޑިންގގައި އިންނަމަ ނުވަތަ އިންޓަނެޓް ނެތި ލޯކަލްގައި ސޭވްވެފައި ހުރިނަމަ
-        if (HybridCloud.hasPendingSync || !HybridCloud.isOnline) {
-            e.preventDefault();
-            // ކްރޯމް އަދި އެޖް ފަދަ ބްރައުޒަރތަކުން އަމިއްލައަށް އިންޒާރުގެ މެސެޖު ނެރެދޭނެއެވެ.
-            e.returnValue = 'ކްލައުޑަށް ސޭވްނުވެ ހުރި ޑޭޓާ އެބަހުރި. ބްރައުޒަރ ކްލޯޒްކުރަން ބޭނުންތޯ؟';
-        }
-    });
 
     const SystemAuth = {
         login: async (e) => {
@@ -3659,6 +3639,10 @@
             if(prog === 100) { t.status = 'Wait Endorse'; } 
             else if (prog > 0) { t.status = 'In Progress'; }
             
+            if(method !== 'System Only') {
+                UI.showToast(`Drafted ${method} Notification to Head of Department.`, "info");
+            }
+
             HybridCloud.saveAutoLocal();
             UI.closeModal('modalTaskUpdate');
             
@@ -3666,30 +3650,39 @@
             if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
             if(typeof ActionCenterEngine !== 'undefined') ActionCenterEngine.renderList();
             UI.showToast("Progress successfully documented.", "success");
-
-            // =========================================================
-            // ސުޕަވައިޒަރަށް ނޮޓިފިކޭޝަން ފޮނުވާ ބައި (APP REDIRECTIONS)
-            // =========================================================
-            if(method !== 'System Only') {
-                const SUPERVISOR_PHONE = "9607791550"; 
-                const SUPERVISOR_EMAIL = "alibrahimdidi@gmail.com"; 
-
-                let message = `*Task Progress Update*\nStaff: ${CurrentUser.name}\nTask: ${t.title}\nProgress: ${prog}%\nNotes: ${notes || 'No remarks'}`;
-
-                if (method === 'WhatsApp') {
-                    window.open(`https://wa.me/${SUPERVISOR_PHONE}?text=${encodeURIComponent(message)}`, '_blank');
-                } 
-                else if (method === 'Viber') {
-                    window.open(`viber://chat?number=${SUPERVISOR_PHONE}&draft=${encodeURIComponent(message)}`, '_blank');
-                }
-                else if (method === 'Telegram') {
-                    window.open(`https://t.me/+${SUPERVISOR_PHONE}?text=${encodeURIComponent(message)}`, '_blank');
-                } 
-                else if (method === 'Email') {
-                    window.location.href = `mailto:${SUPERVISOR_EMAIL}?subject=${encodeURIComponent('Task Update: ' + t.title)}&body=${encodeURIComponent(message)}`;
-                }
-            }
         },
+
+        submitSupervisorComment: () => {
+            let t = AppState.db.tasks.find(x => x.id === TaskEngine.activeTaskId);
+            let notes = document.getElementById('tuSupervisorNotes').value.trim();
+            if(!notes) return UI.showToast("Comment cannot be empty", "error");
+            
+            if(!t.updates) t.updates = [];
+            t.updates.push({ date: new Date().toLocaleString(), text: `<b><i class="fa-solid fa-user-tie text-[#1e3a8a] mr-1"></i> Supervisor Comment:</b> ${notes}` });
+            
+            HybridCloud.saveAutoLocal();
+            UI.closeModal('modalTaskUpdate');
+            if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
+            if(typeof ActionCenterEngine !== 'undefined') ActionCenterEngine.renderList();
+            if(typeof WorkspaceEngine !== 'undefined') WorkspaceEngine.render();
+            UI.showToast("Supervisor remarks firmly attached.", "success");
+        },
+        
+        quickComplete: (id) => {
+            let t = AppState.db.tasks.find(x => x.id === id);
+            if(t) {
+                t.progress = 100;
+                t.status = 'Completed'; 
+                if(!t.updates) t.updates = [];
+                t.updates.push({ date: new Date().toLocaleString(), text: `OT Task Marked as Completed by Staff.` });
+                HybridCloud.saveAutoLocal();
+                if(typeof WorkspaceEngine !== 'undefined') WorkspaceEngine.render();
+                if(typeof DashboardEngine !== 'undefined') DashboardEngine.render();
+                UI.showToast("Task completed and points awarded.", "success");
+            }
+        }
+    };
+
     const ActivityLogger = {
         populateCategories: () => {
             const pts = AppState.db.pointSystem || DefaultMetrics;
