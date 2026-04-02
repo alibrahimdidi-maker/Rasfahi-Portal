@@ -1,1 +1,2995 @@
+<!DOCTYPE html>
+<html lang="dv" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Workload Portal</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
+    <script>
+        // Disable Right Click to prevent easy source code inspection
+        document.addEventListener('contextmenu', e => e.preventDefault()); 
+        
+        // Disable common developer tools keyboard shortcuts
+        document.addEventListener('keydown', e => {
+            if (e.key === 'F12') e.preventDefault();
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) e.preventDefault();
+            if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's' || e.key === 'P' || e.key === 'p')) e.preventDefault();
+        });
+        
+        // Disable drag-to-copy for text and images
+        document.addEventListener('dragstart', e => e.preventDefault()); 
+    </script>
+
+    <style>
+        /* Import Royal Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;600;800&display=swap');
+        
+        /* CSS Variables for University Theme */
+        :root { 
+            --royal-green: #004d40; 
+            --gold: #d4af37; 
+            --royal-blue: #0d47a1; 
+            --royal-purple: #4a148c; 
+            --bg-light: #f8fafc;
+            --text-dark: #1e293b;
+        }
+        
+        /* Anti-Selection CSS Rules */
+        body { 
+            background: var(--bg-light); 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            overflow-x: hidden;
+            -webkit-user-select: none; 
+            -moz-user-select: none; 
+            -ms-user-select: none; 
+            user-select: none; 
+        }
+        
+        input, textarea, select, .ts-control, .ts-dropdown {
+            -webkit-user-select: auto; 
+            -moz-user-select: auto; 
+            -ms-user-select: auto; 
+            user-select: auto;
+        }
+
+        .clickable-name {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            display: inline-block;
+        }
+        .clickable-name:hover {
+            color: var(--royal-blue);
+            text-decoration: underline;
+            text-decoration-color: var(--gold);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
+            transform: scale(1.02);
+            background-color: #f0f9ff;
+            padding: 0 4px;
+            border-radius: 4px;
+        }
+
+        .bg-gradient-royal { background: linear-gradient(135deg, var(--royal-green), var(--royal-blue), var(--royal-purple)); }
+        
+        .btn-gold { 
+            background: linear-gradient(45deg, #bf953f, #fcf6ba, #b38728); 
+            color: black; 
+            font-weight: 800; 
+            border: 1px solid rgba(0,0,0,0.1); 
+            transition: all 0.3s ease; 
+            cursor: pointer; 
+        }
+        .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+
+        .btn-royal-blue {
+            background: linear-gradient(135deg, #0d47a1, #1976d2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(13, 71, 161, 0.3);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-royal-blue:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(13, 71, 161, 0.5);
+            background: linear-gradient(135deg, #1565c0, #1e88e5);
+            animation: royalShimmerBlue 1.5s infinite alternate;
+        }
+
+        .btn-royal-green {
+            background: linear-gradient(135deg, #004d40, #00695c);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 77, 64, 0.3);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-royal-green:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 77, 64, 0.5);
+            background: linear-gradient(135deg, #00695c, #00796b);
+            animation: royalShimmerGreen 1.5s infinite alternate;
+        }
+
+        @keyframes royalShimmerBlue {
+            0% { filter: drop-shadow(0 0 2px rgba(25, 118, 210, 0.5)); }
+            100% { filter: drop-shadow(0 0 10px rgba(25, 118, 210, 0.9)); }
+        }
+        @keyframes royalShimmerGreen {
+            0% { filter: drop-shadow(0 0 2px rgba(0, 105, 92, 0.5)); }
+            100% { filter: drop-shadow(0 0 10px rgba(0, 105, 92, 0.9)); }
+        }
+        
+        .btn-disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border: none; }
+        
+        .card { background: white; border-radius: 12px; border-top: 5px solid var(--royal-green); box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        
+        .tab-btn { padding: 12px 16px; font-weight: 800; cursor: pointer; border-bottom: 4px solid transparent; color: #64748b; transition: 0.3s; white-space: nowrap; }
+        .tab-btn.active { border-bottom: 4px solid var(--royal-green); color: var(--royal-green); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; } 
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 50; align-items: center; justify-content: center; padding: 10px; }
+        .modal-content { background: white; width: 100%; max-width: 1100px; max-height: 95vh; overflow-y: auto; border-radius: 15px; border-top: 8px solid var(--royal-green); }
+        
+        /* Specific Print Frames */
+        #report-frame { display: none; width: 210mm; min-height: 297mm; background: white; position: fixed; left: -9999px; box-sizing: border-box; padding: 0; }
+        .pdf-border-outer { border: 10px solid var(--royal-green); padding: 4px; box-sizing: border-box; height: 100%; width: 100%; background: white; }
+        .pdf-border-inner { border: 4px solid var(--royal-blue); padding: 15mm; box-sizing: border-box; height: 100%; width: 100%; background: white; }
+        
+        /* Master Data Print Framework (For Native Print Dialog) */
+        #master-print-frame { display: none; background: white; width: 100%; min-height: 100vh; position: absolute; top: 0; left: 0; z-index: 99999; padding: 20mm; box-sizing: border-box; }
+        .print-royal-header { text-align: center; border-bottom: 4px double var(--royal-green); padding-bottom: 15px; margin-bottom: 20px; }
+        .print-royal-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 900; color: var(--royal-green); text-transform: uppercase; letter-spacing: 2px; }
+        .print-royal-subtitle { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 800; color: var(--royal-blue); text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
+        .print-filter-badge { display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #334155; margin: 2px; }
+        .print-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        .print-table th, .print-table td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; }
+        .print-table th { background-color: #f8fafc; font-weight: bold; color: var(--royal-green); text-transform: uppercase; font-size: 9px; }
+        .print-table tr:nth-child(even) { background-color: #f8fafc; }
+
+        #loader { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center; }
+        
+        .pulse-green { height: 10px; width: 10px; background-color: #4ade80; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.7); } 70% { box-shadow: 0 0 0 6px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+        
+        .pulse-orange { height: 10px; width: 10px; background-color: #f97316; border-radius: 50%; display: inline-block; animation: pulseOr 2s infinite; }
+        @keyframes pulseOr { 0% { box-shadow: 0 0 0 0 rgba(249,115,22,0.7); } 70% { box-shadow: 0 0 0 6px rgba(249,115,22,0); } 100% { box-shadow: 0 0 0 0 rgba(249,115,22,0); } }
+
+        .ts-control { border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.5rem; font-size: 0.75rem; background-color: white; }
+        .tom-select-assign .ts-control { padding: 0.25rem; font-size: 9px; min-height: 28px; }
+        .ts-dropdown { font-size: 10px; border-radius: 0.5rem; overflow: hidden; }
+        .ts-wrapper.disabled .ts-control { background-color: #f3f4f6; opacity: 0.7; cursor: not-allowed; }
+
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #1e293b; color: #fff; padding: 14px 24px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideIn 0.3s ease-out forwards; display: flex; align-items: center; gap: 10px; min-width: 250px; }
+        .toast.success { border-left: 5px solid #4ade80; }
+        .toast.warning { border-left: 5px solid #f97316; }
+        .toast.info { border-left: 5px solid #3b82f6; }
+        .toast.error { border-left: 5px solid #ef4444; }
+        
+        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateX(120%); } }
+
+        @media print {
+            body.is-printing > :not(#report-frame) { display: none !important; }
+            body.is-printing { background: white; }
+            #report-frame { display: block !important; position: relative !important; left: 0 !important; top: 0 !important; width: 100% !important; margin: 0 !important; }
+            
+            body.is-printing-master > :not(#master-print-frame) { display: none !important; }
+            body.is-printing-master { background: white; }
+            #master-print-frame { display: block !important; }
+            #master-print-frame table { page-break-inside: auto; }
+            #master-print-frame tr { page-break-inside: avoid; page-break-after: auto; }
+            #master-print-frame thead { display: table-header-group; }
+            
+            .pdf-border-outer { border: 2px solid black !important; padding: 10px !important; }
+            .pdf-border-inner { border: 1px solid black !important; padding: 20px !important; }
+            .modal-overlay { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div id="loader">
+    <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-royal-green mb-4"></div>
+    <p class="font-bold text-royal-green uppercase tracking-widest text-sm text-center px-4" id="loader-text">Loading...</p>
+</div>
+
+<div id="login-screen" class="min-h-screen bg-gradient-royal flex flex-col items-center justify-center p-4 relative">
+    <div class="absolute bottom-4 text-center opacity-50 hover:opacity-100 transition-opacity cursor-default z-10">
+        <p class="text-[9px] font-bold uppercase tracking-widest text-gold mb-0.5">Designed & Developed by</p>
+        <p class="text-xs font-black tracking-wider text-white mb-1">Ali Ibrahim Didi <span class="text-gray-300 font-bold text-[10px] tracking-normal">| +960 7791550</span></p>
+        <p class="text-[8px] font-bold text-gray-400 tracking-widest uppercase">Copyright © RASFAHI<br>Reg No: MED.03.IP.CR.26.EW5889</p>
+    </div>
+    
+    <div class="bg-white p-6 md:p-10 rounded-2xl shadow-2xl w-full max-w-md text-center border-t-8 border-gold">
+        <h1 class="text-2xl md:text-3xl font-black text-[#004d40] uppercase tracking-tighter mb-2">Workload Portal</h1>
+        <p class="text-[10px] md:text-xs text-gray-500 font-bold mb-8 uppercase tracking-widest">Authorized Access Only</p>
+        
+        <div class="space-y-4 text-left">
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Role (Auto-Detected)</label>
+                <select id="login-role" disabled class="w-full p-3 border-2 border-gray-200 bg-gray-50 rounded-lg font-bold text-sm outline-none text-gray-600 cursor-not-allowed"></select>
+                <p class="text-[8px] text-gray-400 mt-1">Your role is automatically selected based on your email address.</p>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Email Address</label>
+                <input type="email" id="login-email" class="w-full p-3 border-2 border-gray-200 rounded-lg font-bold text-sm outline-none focus:border-gold" placeholder="admin.ksl@domain.com" oninput="window.detectFacultyFromEmail()">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Password</label>
+                <input type="password" id="login-password" class="w-full p-3 border-2 border-gray-200 rounded-lg font-bold text-sm outline-none focus:border-gold" placeholder="••••••••">
+            </div>
+            <button onclick="window.handleLogin()" class="btn-gold w-full py-4 rounded-xl mt-4 uppercase tracking-widest text-sm shadow-lg">Secure Login</button>
+        </div>
+    </div>
+</div>
+
+<div id="app-screen" style="display: none;">
+    <header class="bg-gradient-royal p-4 md:p-8 text-white text-center shadow-lg relative">
+        <div class="hidden md:block absolute top-4 left-6 text-left opacity-60 hover:opacity-100 transition-opacity cursor-default z-20">
+            <p class="text-[9px] font-bold uppercase tracking-widest text-gold mb-0.5">Designed & Developed by</p>
+            <p class="text-xs font-black tracking-wider text-white mb-1">Ali Ibrahim Didi <span class="text-gray-300 font-bold text-[10px] tracking-normal">| +960 7791550</span></p>
+            <div class="bg-black/30 inline-block px-2 py-0.5 rounded border border-white/10">
+                <p class="text-[8px] font-bold text-gray-300 tracking-widest uppercase">© RASFAHI (Reg No: MED.03.IP.CR.26.EW5889)</p>
+            </div>
+        </div>
+        <div class="absolute top-4 right-4 md:top-6 md:right-8 flex flex-col items-end gap-2 z-10">
+            <div id="sync-status" class="bg-white/20 px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 transition-all">
+                <span id="cloud-pulse" class="pulse-green"></span> 
+                <span id="cloud-txt">Connected</span> | 👤 <span id="user-badge" class="text-gold uppercase"></span>
+            </div>
+            <button onclick="window.handleLogout()" class="text-[10px] uppercase font-bold text-red-300 hover:text-white transition">Logout &rarr;</button>
+        </div>
+
+        <h1 class="text-xl md:text-4xl font-black uppercase tracking-tighter mb-4 mt-12 md:mt-0">Executive Workload & Analytics</h1>
+        
+        <div id="header-stats" class="flex justify-center gap-2 md:gap-4 flex-wrap max-w-4xl mx-auto">
+            <div class="bg-red-600/90 px-3 py-2 md:px-4 md:py-2 rounded-xl shadow-inner flex items-center gap-2">
+                <span class="text-lg md:text-2xl">⚠️</span>
+                <div class="text-left"><p class="text-[8px] md:text-[9px] uppercase font-bold text-red-200">Unassigned</p><h3 id="hdr-unassigned" class="text-base md:text-xl font-black">0</h3></div>
+            </div>
+            <div class="bg-orange-500/90 px-3 py-2 md:px-4 md:py-2 rounded-xl shadow-inner flex items-center gap-2">
+                <span class="text-lg md:text-2xl">⏳</span>
+                <div class="text-left"><p class="text-[8px] md:text-[9px] uppercase font-bold text-orange-200">Idle Staff</p><h3 id="hdr-idle" class="text-base md:text-xl font-black">0</h3></div>
+            </div>
+            <div class="bg-purple-600/90 px-3 py-2 md:px-4 md:py-2 rounded-xl shadow-inner flex items-center gap-2">
+                <span class="text-lg md:text-2xl">📈</span>
+                <div class="text-left"><p class="text-[8px] md:text-[9px] uppercase font-bold text-purple-200">Overloaded</p><h3 id="hdr-overload" class="text-base md:text-xl font-black">0</h3></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-2 md:px-4 py-6 md:py-8">
+        
+        <div id="lecturer-dashboard" class="hidden card p-8 md:p-12 text-center max-w-xl mx-auto border-t-8 border-royal-blue shadow-xl">
+            <div class="text-4xl mb-4">📄</div>
+            <h2 class="text-lg md:text-xl font-black text-[#004d40] uppercase tracking-wider mb-2">Lecturer Workload Portal</h2>
+            <p class="text-xs text-gray-500 mb-8 font-bold">Please select your name from the dropdown below to view your assigned modules and download your official workload slip.</p>
+            <select id="lecturerSelectStandalone" class="w-full text-sm md:text-base cursor-pointer">
+                <option value="">-- Search & Select Your Name --</option>
+            </select>
+        </div>
+
+        <div id="main-dashboard-controls">
+            <div class="card p-4 md:p-5 mb-6 md:mb-8 bg-gray-50 flex flex-col xl:flex-row justify-between items-center gap-4 border-l-4 border-royal-blue shadow-sm">
+                
+                <div class="flex flex-wrap justify-center gap-2 items-center">
+                    <button onclick="window.generateDummies('lect')" class="btn-gold px-3 py-1.5 rounded shadow text-[9px] md:text-[10px]">1. Get Sample Lecturers File</button>
+                    <button onclick="window.generateDummies('mod')" class="btn-gold px-3 py-1.5 rounded shadow text-[9px] md:text-[10px]">2. Get Sample Modules File</button>
+                    
+                    <label class="ml-2 text-[9px] md:text-[10px] font-bold bg-white border-2 border-dashed border-blue-400 text-blue-800 px-3 py-1.5 rounded cursor-pointer hover:bg-blue-50 transition">
+                        ☁️ UPLOAD LECTURERS <input type="file" accept=".csv" onchange="window.importData('lecturers', event)" class="hidden">
+                    </label>
+                    <label class="text-[9px] md:text-[10px] font-bold bg-white border-2 border-dashed border-purple-400 text-purple-800 px-3 py-1.5 rounded cursor-pointer hover:bg-purple-50 transition">
+                        ☁️ UPLOAD MODULES <input type="file" multiple accept=".csv" onchange="window.importData('modules', event)" class="hidden">
+                    </label>
+                </div>
+
+                <div class="flex flex-col gap-2 w-full xl:w-auto">
+                    <div class="flex gap-2 justify-center xl:justify-end">
+                        <button onclick="window.saveLocal(false)" class="btn-royal-blue px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2">
+                            💾 Save to Local Browser
+                        </button>
+                        <button onclick="window.saveToServer()" class="btn-royal-green px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2">
+                            ☁️ Push Work to Cloud
+                        </button>
+                    </div>
+                    <div class="flex gap-2 justify-center xl:justify-end mt-1">
+                        <button onclick="window.exportLocalCSV('backup')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-[9px] font-bold transition flex items-center gap-1 shadow-sm" title="Download the latest data saved in your browser">
+                            📥 Export Local Backup
+                        </button>
+                        <button onclick="window.exportCloudCSV()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-[9px] font-bold transition flex items-center gap-1 shadow-sm" title="Download the actual live data from the University Server">
+                            ☁️ Export Cloud CSV
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="admin-controls" class="hidden card p-4 mb-6 bg-red-50 border-t-4 border-red-600 flex-col lg:flex-row justify-between items-center gap-4">
+                <div>
+                    <h3 class="font-black text-red-800 uppercase text-xs">Academic Affairs (Global Admin)</h3>
+                    <p class="text-[9px] text-red-600 font-bold">Full authorization enabled. Manage master imports or reset system.</p>
+                </div>
+                <div class="flex gap-2 flex-wrap justify-center items-center">
+                    <label class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2 rounded shadow text-[9px] cursor-pointer transition uppercase">
+                        📤 Import Master CSV <input type="file" accept=".csv" onchange="window.importMasterCSV(event)" class="hidden">
+                    </label>
+                    <button onclick="window.masterReset()" class="bg-red-700 hover:bg-red-800 text-white font-bold px-4 py-2 rounded shadow text-[9px] transition uppercase ml-2">
+                        🚨 Master Reset System
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-center border-b mb-4 md:mb-6 gap-2 md:gap-8 overflow-x-auto px-2">
+                <div class="tab-btn active text-[10px] md:text-sm" onclick="window.switchTab('matrix')">📋 Assignment Matrix</div>
+                <div class="tab-btn text-[10px] md:text-sm" onclick="window.switchTab('staff')">👨‍🏫 Staff Targets</div>
+                <div class="tab-btn text-[10px] md:text-sm" onclick="window.switchTab('analytics')">📊 Analytics & Stats</div>
+                <div class="tab-btn text-[10px] md:text-sm" onclick="window.switchTab('lectdata')">👨‍💼 Lecturers Data</div>
+                <div class="tab-btn text-[10px] md:text-sm" onclick="window.switchTab('moddata')">📚 Modules Data</div>
+            </div>
+
+            <div id="tab-matrix" class="tab-content active">
+                <div id="admin-faculty-filters" class="hidden flex-wrap justify-center gap-1.5 p-3 bg-gray-100 rounded-xl mb-4 shadow-inner border border-gray-200">
+                </div>
+
+                <div class="card overflow-hidden">
+                    <div class="p-3 bg-gray-50 border-b flex flex-col lg:flex-row justify-between items-center gap-3">
+                        <select id="facView" onchange="window.triggerAllRenders();" class="w-full lg:w-auto p-2 border rounded-lg text-xs font-bold text-royal-green outline-none focus:border-gold"></select>
+                        <div class="flex flex-col md:flex-row gap-2 w-full lg:w-auto">
+                            <select id="hrSelect" class="flex-1 min-w-[250px]">
+                                <option value="">-- Check Lecturer Workload --</option>
+                            </select>
+                            <input type="text" id="mSearch" placeholder="Search Module/Faculty Code..." class="p-2 border rounded-lg text-[10px] md:text-xs outline-none focus:border-gold flex-1 shadow-sm" onkeyup="window.renderMatrix()">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto max-h-[650px] pb-24">
+                        <table class="w-full text-left text-[9px] md:text-xs min-w-[900px]">
+                            <thead class="sticky top-0 bg-[#004d40] text-white z-10 shadow">
+                                <tr>
+                                    <th class="p-2 whitespace-nowrap">Status</th>
+                                    <th class="p-2">Campus/Prog</th>
+                                    <th class="p-2">Module Details</th>
+                                    <th class="p-2 text-center">WCH</th>
+                                    <th class="p-2">Faculty</th>
+                                    <th class="p-2 text-center w-[250px]">Assign Lecturer (Global Search)</th>
+                                    <th class="p-2">Sync Mode</th>
+                                    <th id="th-actions" class="p-2 text-center hidden">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="matrix-body" class="divide-y bg-white">
+                                <tr><td colspan="8" class="p-10 text-center text-gray-400 font-bold italic">Loading Data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-staff" class="tab-content">
+                <div class="card overflow-hidden p-4">
+                    <h2 class="font-black text-royal-green uppercase mb-4 text-xs">Staff Workload Targets</h2>
+                    <p class="text-[9px] text-gray-500 mb-4 font-bold">Hint: Click on any staff name to view their full workload slip and print it.</p>
+                    <div class="overflow-x-auto max-h-[600px]">
+                        <table class="w-full text-left text-[10px] md:text-xs min-w-[800px]">
+                            <thead class="sticky top-0 bg-gray-100 text-gray-600 uppercase shadow-sm">
+                                <tr>
+                                    <th class="p-2">Lecturer Name & ID</th>
+                                    <th class="p-2">Faculty</th>
+                                    <th class="p-2">Category & Type</th>
+                                    <th class="p-2 text-center">Assigned Target (Hrs)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staff-target-body" class="divide-y bg-white">
+                                <tr><td colspan="4" class="p-10 text-center text-gray-400 font-bold italic">Loading Data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-analytics" class="tab-content">
+                <div class="card p-4 mb-6">
+                    <h3 class="text-xs font-black uppercase text-royal-green mb-2 tracking-wide">FACULTY WIDE WORKLOAD (PERIODS)</h3>
+                    <div class="h-64 md:h-80"><canvas id="facultyChart"></canvas></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                    <div class="card p-4">
+                        <h3 class="text-xs font-black uppercase text-royal-blue mb-2">Faculty Wide Academic Focus</h3>
+                        <div class="h-48 md:h-56"><canvas id="focusChart"></canvas></div>
+                    </div>
+                    <div class="card p-4">
+                        <h3 class="text-xs font-black uppercase text-royal-purple mb-2">Lecturer Deployment Source by Faculty</h3>
+                        <div class="h-48 md:h-56"><canvas id="assignmentDetailsChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="mb-6 mt-6">
+                    <h3 class="text-xs font-black uppercase text-royal-blue mb-3 border-b-2 border-gray-200 pb-1">Faculty Module Assignment Analytics</h3>
+                    <div id="faculty-cards-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6"></div>
+                    <div id="summary-table-container" class="mb-6"></div>
+                </div>
+                <p class="text-[9px] text-gray-500 mb-2 font-bold px-2">Hint: Click on any staff name below to instantly view and print their workload slip.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div class="card p-4 border-t-4 border-orange-500 bg-orange-50/30">
+                        <h3 class="text-[10px] font-black uppercase text-orange-600 mb-2 border-b pb-1">Idle Lecturers (0 Hrs)</h3>
+                        <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-idle"></div>
+                    </div>
+                    <div class="card p-4 border-t-4 border-blue-500 bg-blue-50/30">
+                        <h3 class="text-[10px] font-black uppercase text-blue-600 mb-2 border-b pb-1">FT Underloaded (< Target)</h3>
+                        <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-ft-under"></div>
+                    </div>
+                    <div class="card p-4 border-t-4 border-purple-600 bg-purple-50/30">
+                        <h3 class="text-[10px] font-black uppercase text-purple-700 mb-2 border-b pb-1">FT Overloaded (> Target)</h3>
+                        <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-ft-over"></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="card p-4 border-t-4 border-green-500 bg-green-50/30">
+                        <h3 class="text-[10px] font-black uppercase text-green-700 mb-2 border-b pb-1">FT Load Met (== Target)</h3>
+                        <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-ft-met"></div>
+                    </div>
+                    <div class="card p-4 border-t-4 border-teal-500 bg-teal-50/30">
+                        <h3 class="text-[10px] font-black uppercase text-teal-700 mb-2 border-b pb-1">PT Load Met (>= Target)</h3>
+                        <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-pt-met"></div>
+                    </div>
+                    <div class="card p-4 border-t-4 border-yellow-500 bg-yellow-50/30">
+                        <h3 class="text-[10px] font-black uppercase text-yellow-700 mb-2 border-b pb-1">PT Underloaded (< Target)</h3>
+                        <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-pt-under"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="tab-lectdata" class="tab-content">
+                <div class="card overflow-hidden p-4">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                        <h2 class="font-black text-royal-green uppercase text-sm">Lecturers Master Data</h2>
+                        <div class="flex gap-2 flex-wrap">
+                            <button onclick="window.exportLecturersCSV()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded text-[10px] font-bold shadow-sm transition">📥 Export CSV</button>
+                            <button onclick="window.printMasterReport('lecturers')" class="bg-gray-800 hover:bg-black text-white px-3 py-2 rounded text-[10px] font-bold shadow-sm transition">🖨️ Print / PDF Report</button>
+                            <button onclick="window.openAddLecturerModal()" class="btn-royal-blue px-3 py-2 rounded text-[10px] font-bold shadow-sm">+ Add New Lecturer</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4 flex flex-wrap gap-2 items-center text-[10px]">
+                        <input type="text" id="lectSearch" onkeyup="window.renderLectDataTab()" placeholder="🔍 Global Search (Name, ID, Phone...)" class="p-2 border rounded outline-none focus:border-gold flex-grow min-w-[200px]">
+                        <select id="lect-filter-fac" onchange="window.renderLectDataTab()" class="p-2 border rounded outline-none focus:border-gold max-w-[150px]">
+                            <option value="">All Faculties</option>
+                        </select>
+                        <select id="lect-filter-cat" onchange="window.renderLectDataTab()" class="p-2 border rounded outline-none focus:border-gold max-w-[150px]">
+                            <option value="">All Categories</option>
+                        </select>
+                        <select id="lect-filter-type" onchange="window.renderLectDataTab()" class="p-2 border rounded outline-none focus:border-gold max-w-[150px]">
+                            <option value="">All Types</option>
+                        </select>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[600px]">
+                        <table class="w-full text-left text-[10px] md:text-xs min-w-[800px]">
+                            <thead class="sticky top-0 bg-[#004d40] text-white uppercase shadow-sm font-bold text-[9px]">
+                                <tr>
+                                    <th class="p-2">Kulliyyah / Centre</th>
+                                    <th class="p-2">Lecturer ID</th>
+                                    <th class="p-2">Lecturer Name</th>
+                                    <th class="p-2">Lecturer Category</th>
+                                    <th class="p-2">Lecturer Type</th>
+                                    <th class="p-2">Mobile Number</th>
+                                    <th class="p-2 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lectdata-body" class="divide-y bg-white">
+                                <tr><td colspan="7" class="p-10 text-center text-gray-400 font-bold italic">Loading Data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-moddata" class="tab-content">
+                <div class="card overflow-hidden p-4">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                        <h2 class="font-black text-royal-green uppercase text-sm">Modules Master Data</h2>
+                        <div class="flex gap-2 flex-wrap">
+                            <button onclick="window.exportModulesCSV()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded text-[10px] font-bold shadow-sm transition">📥 Export CSV</button>
+                            <button onclick="window.printMasterReport('modules')" class="bg-gray-800 hover:bg-black text-white px-3 py-2 rounded text-[10px] font-bold shadow-sm transition">🖨️ Print / PDF Report</button>
+                            <button onclick="window.openAddModuleModal()" class="btn-royal-blue px-3 py-2 rounded text-[10px] font-bold shadow-sm">+ Add New Module</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2 items-center text-[10px]">
+                        <input type="text" id="modSearch" onkeyup="window.renderModDataTab()" placeholder="🔍 Global Search (Code, Name...)" class="p-2 border rounded outline-none focus:border-gold col-span-2 md:col-span-1 lg:col-span-2">
+                        
+                        <select id="mod-filter-fac" onchange="window.renderModDataTab()" class="p-2 border rounded outline-none focus:border-gold">
+                            <option value="">All Faculties</option>
+                        </select>
+                        <select id="mod-filter-campus" onchange="window.renderModDataTab()" class="p-2 border rounded outline-none focus:border-gold">
+                            <option value="">All Campuses</option>
+                        </select>
+                        <select id="mod-filter-modality" onchange="window.renderModDataTab()" class="p-2 border rounded outline-none focus:border-gold">
+                            <option value="">All Modalities</option>
+                        </select>
+                        <select id="mod-filter-medium" onchange="window.renderModDataTab()" class="p-2 border rounded outline-none focus:border-gold">
+                            <option value="">All Mediums</option>
+                        </select>
+                        <select id="mod-filter-status" onchange="window.renderModDataTab()" class="p-2 border rounded outline-none focus:border-gold">
+                            <option value="">All Statuses</option>
+                        </select>
+                        <select id="mod-filter-session" onchange="window.renderModDataTab()" class="p-2 border rounded outline-none focus:border-gold">
+                            <option value="">All Sessions</option>
+                        </select>
+                        <select id="mod-filter-prog" onchange="window.renderModDataTab()" class="p-2 border rounded outline-none focus:border-gold">
+                            <option value="">All Programs</option>
+                        </select>
+                        <select id="mod-filter-batch" onchange="window.renderModDataTab()" class="p-2 border rounded outline-none focus:border-gold">
+                            <option value="">All Batches</option>
+                        </select>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[600px]">
+                        <table class="w-full text-left text-[10px] md:text-xs min-w-[1200px]">
+                            <thead class="sticky top-0 bg-[#004d40] text-white uppercase shadow-sm font-bold text-[9px]">
+                                <tr>
+                                    <th class="p-2">Session</th>
+                                    <th class="p-2 min-w-[120px]">Program Name</th>
+                                    <th class="p-2">Offered Batch</th>
+                                    <th class="p-2">Parent Kulliyya</th>
+                                    <th class="p-2">Medium</th>
+                                    <th class="p-2">Combined Batch</th>
+                                    <th class="p-2">Status</th>
+                                    <th class="p-2">Campus</th>
+                                    <th class="p-2 min-w-[150px]">Module Name</th>
+                                    <th class="p-2">Modality</th>
+                                    <th class="p-2">Module Code</th>
+                                    <th class="p-2 text-center">Students</th>
+                                    <th class="p-2 text-center">WCH</th>
+                                    <th class="p-2 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="moddata-body" class="divide-y bg-white">
+                                <tr><td colspan="14" class="p-10 text-center text-gray-400 font-bold italic">Loading Data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<div id="add-lecturer-modal" class="modal-overlay">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl transform transition-all border-t-8 border-royal-blue">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 id="lecturer-modal-title" class="text-lg font-black text-[#004d40] uppercase">Add New Lecturer</h2>
+            <button onclick="window.closeAddLecturerModal()" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none">&times;</button>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Kulliyyah / Centre</label>
+                <select id="add-lect-fac" class="w-full p-2 border rounded text-xs outline-none focus:border-gold"></select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Lecturer ID</label>
+                <input type="text" id="add-lect-id" class="w-full p-2 border rounded text-xs outline-none focus:border-gold" placeholder="E.g. A123456">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Lecturer Name</label>
+                <input type="text" id="add-lect-name" class="w-full p-2 border rounded text-xs outline-none focus:border-gold" placeholder="E.g. Dr. Ahmed Ali">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Lecturer Category</label>
+                <select id="add-lect-cat" class="w-full p-2 border rounded text-xs outline-none focus:border-gold">
+                    <option value="Teaching Focused">Teaching Focused</option>
+                    <option value="Research Focused">Research Focused</option>
+                    <option value="Dean">Dean</option>
+                    <option value="Part-time">Part-time</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Lecturer Type</label>
+                <select id="add-lect-type" class="w-full p-2 border rounded text-xs outline-none focus:border-gold">
+                    <option value="Full-time">Full-time</option>
+                    <option value="Part-time">Part-time</option>
+                    <option value="Visiting">Visiting</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Mobile Number</label>
+                <input type="text" id="add-lect-mobile" class="w-full p-2 border rounded text-xs outline-none focus:border-gold" placeholder="E.g. 7791550">
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-2 border-t pt-4">
+            <button onclick="window.closeAddLecturerModal()" class="px-4 py-2 bg-gray-300 rounded font-bold text-[10px]">Cancel</button>
+            <button onclick="window.saveNewLecturer()" class="btn-royal-blue px-4 py-2 rounded font-bold text-[10px]">💾 Save Lecturer</button>
+        </div>
+    </div>
+</div>
+
+<div id="add-module-modal" class="modal-overlay">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-3xl shadow-2xl transform transition-all border-t-8 border-royal-green">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 id="module-modal-title" class="text-lg font-black text-[#004d40] uppercase">Add New Module</h2>
+            <button onclick="window.closeAddModuleModal()" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none">&times;</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Module Code</label>
+                <input type="text" id="add-mod-code" class="w-full p-2 border rounded text-xs outline-none focus:border-gold" placeholder="E.g. ENG101">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Module Name</label>
+                <input type="text" id="add-mod-name" class="w-full p-2 border rounded text-xs outline-none focus:border-gold" placeholder="E.g. Academic English">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Parent Kulliyya</label>
+                <select id="add-mod-fac" class="w-full p-2 border rounded text-xs outline-none focus:border-gold"></select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Program Name</label>
+                <input type="text" id="add-mod-prog" class="w-full p-2 border rounded text-xs outline-none focus:border-gold" placeholder="E.g. Bachelor of Arts">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Session</label>
+                <select id="add-mod-session" class="w-full p-2 border rounded text-xs outline-none focus:border-gold">
+                    <option value="Morning">Morning</option>
+                    <option value="Evening">Evening</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Offered Batch</label>
+                <input type="text" id="add-mod-batch" class="w-full p-2 border rounded text-xs outline-none focus:border-gold" placeholder="E.g. Batch 1">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Combined Batch</label>
+                <input type="text" id="add-mod-comb" class="w-full p-2 border rounded text-xs outline-none focus:border-gold" placeholder="Leave empty if individual">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Campus</label>
+                <select id="add-mod-campus" class="w-full p-2 border rounded text-xs outline-none focus:border-gold">
+                    <option value="Male'">Male'</option>
+                    <option value="Hulhumale">Hulhumale</option>
+                    <option value="Addu City">Addu City</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Modality</label>
+                <select id="add-mod-modality" class="w-full p-2 border rounded text-xs outline-none focus:border-gold">
+                    <option value="Face to Face">Face to Face</option>
+                    <option value="Online">Online</option>
+                    <option value="Blended">Blended</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Medium of Instruction</label>
+                <select id="add-mod-medium" class="w-full p-2 border rounded text-xs outline-none focus:border-gold">
+                    <option value="English">English</option>
+                    <option value="Dhivehi">Dhivehi</option>
+                    <option value="Arabic">Arabic</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">No of Students</label>
+                <input type="number" id="add-mod-students" class="w-full p-2 border rounded text-xs outline-none focus:border-gold" placeholder="0">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Weekly Contact Hours (WCH)</label>
+                <input type="number" id="add-mod-wch" class="w-full p-2 border rounded text-xs outline-none focus:border-gold" placeholder="E.g. 3">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Offered Status</label>
+                <select id="add-mod-status" class="w-full p-2 border rounded text-xs outline-none focus:border-gold">
+                    <option value="New">New</option>
+                    <option value="Existing">Existing</option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-2 border-t pt-4">
+            <button onclick="window.closeAddModuleModal()" class="px-4 py-2 bg-gray-300 rounded font-bold text-[10px]">Cancel</button>
+            <button onclick="window.saveNewModule()" class="btn-royal-green px-4 py-2 rounded font-bold text-[10px]">💾 Save Module</button>
+        </div>
+    </div>
+</div>
+
+<div id="hr-modal" class="modal-overlay">
+    <div class="modal-content flex flex-col">
+        <div class="p-3 md:p-4 border-b flex justify-between items-center bg-gray-50">
+            <h2 class="text-base md:text-lg font-black text-[#004d40] uppercase">Workload Review</h2>
+            <button onclick="window.closeHRView()" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none" title="Close Window">&times;</button>
+        </div>
+        <div class="p-3 md:p-4 flex-1">
+            <div id="hr-meta" class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 bg-blue-50 p-3 md:p-4 rounded-lg mb-4 border-l-4 border-royal-blue text-[9px] md:text-[10px]"></div>
+            <h3 class="font-bold text-gray-700 uppercase mb-2 text-[9px] md:text-[10px] tracking-widest">Assigned Modules Breakdown (All Faculties)</h3>
+            <div class="overflow-x-auto border rounded-lg">
+                <table class="w-full text-left text-[9px] md:text-[10px] border-collapse min-w-[600px]">
+                    <thead class="bg-gray-100 text-gray-600 uppercase">
+                        <tr>
+                            <th class="p-2 border-b">Code & Name</th>
+                            <th class="p-2 border-b">Owning Faculty</th>
+                            <th class="p-2 border-b">Program & Batch</th>
+                            <th class="p-2 border-b text-center">Students</th>
+                            <th class="p-2 border-b text-center">Mode</th>
+                            <th class="p-2 border-b text-right">Net Hrs</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hr-table-body" class="divide-y"></tbody>
+                    <tfoot class="bg-gray-50 font-black text-[10px] md:text-xs">
+                        <tr>
+                            <td colspan="5" class="p-3 text-right uppercase">Total Calculated Workload:</td>
+                            <td id="hr-total" class="p-3 text-right text-purple-700">0.0</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        <div class="p-3 border-t bg-gray-50 flex flex-wrap justify-end gap-2 md:gap-3 items-center">
+            <button onclick="window.closeHRView()" class="px-4 py-2 bg-gray-300 rounded-lg font-bold text-[9px] md:text-[10px] hover:bg-gray-400 transition mr-auto">Close</button>
+            
+            <button onclick="window.printOfficialDocument()" class="bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-lg text-[9px] md:text-[10px] font-bold transition flex items-center gap-1 shadow-lg">
+                🖨️ Print Slip
+            </button>
+            
+            <button onclick="window.downloadOfficialPDF()" class="btn-gold px-4 py-2 rounded-lg text-[9px] md:text-[10px] shadow-lg flex items-center gap-1">
+                📄 Download PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="report-frame">
+    <div class="pdf-border-outer">
+        <div class="pdf-border-inner">
+            <div class="text-center mb-4">
+                <h1 class="text-3xl font-black uppercase text-[#004d40]" style="font-family: 'Playfair Display', serif;">Statement of Academic Workload</h1>
+                <p class="text-gold font-bold tracking-[4px] mt-1 text-[8px]">OFFICIAL PRESIDENTIAL RECORD</p>
+                <div class="h-1 bg-[#004d40] w-full mt-2 mb-1"></div>
+                <div class="h-px bg-[#0d47a1] w-full mb-4"></div>
+            </div>
+            <div id="rep-header" class="border border-gray-300 p-3 bg-gray-50 grid grid-cols-2 gap-2 text-[9px] mb-4 shadow-sm rounded"></div>
+            <table class="w-full border-collapse border-2 border-gray-400 text-[8px] mb-4">
+                <thead>
+                    <tr class="bg-gray-100 uppercase font-bold text-[#004d40]">
+                        <th class="border border-gray-400 p-2 text-left">Module Details</th>
+                        <th class="border border-gray-400 p-2 text-center">Faculty</th>
+                        <th class="border border-gray-400 p-2 text-center">Campus / Intake</th>
+                        <th class="border border-gray-400 p-2 text-center">Students / Session</th>
+                        <th class="border border-gray-400 p-2 text-center">Modality</th>
+                        <th class="border border-gray-400 p-2 text-right">WCH</th>
+                    </tr>
+                </thead>
+                <tbody id="rep-rows"></tbody>
+                <tfoot class="bg-gray-50">
+                    <tr class="font-black text-xs">
+                        <td colspan="5" class="p-2 text-right uppercase text-[#0d47a1]">Total Workload (WCH):</td>
+                        <td id="rep-total" class="p-2 text-right text-purple-900 underline">0.0</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <div class="mt-20 flex justify-between px-10 text-[8px] font-black uppercase text-gray-700">
+                <div class="text-center"><div class="w-32 border-t-2 border-gray-800 mb-1"></div><p>Administrative Dean</p></div>
+                <div class="text-center"><div class="w-32 border-t-2 border-gray-800 mb-1"></div><p>Human Resources Dept.</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="master-print-frame">
+    <div class="print-royal-header">
+        <h1 class="print-royal-title">Official Master Data Report</h1>
+        <h2 id="print-report-subtitle" class="print-royal-subtitle"></h2>
+        <div id="print-filter-info" class="mt-4 flex flex-wrap justify-center gap-2 text-[10px] text-gray-700"></div>
+    </div>
+    <table class="print-table">
+        <thead id="print-table-head"></thead>
+        <tbody id="print-table-body"></tbody>
+    </table>
+    <div class="mt-10 text-center text-[8px] text-gray-500 italic">
+        Generated by Presidential Executive Workload Portal | Date: <span id="print-date"></span>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBpbegNLw1PZbE0BEx9CtKMC9cawyL6Ik4",
+  authDomain: "workload-portal.firebaseapp.com",
+  databaseURL: "https://workload-portal-default-rtdb.firebaseio.com",
+  projectId: "workload-portal",
+  storageBucket: "workload-portal.firebasestorage.app",
+  messagingSenderId: "76088077154",
+  appId: "1:76088077154:web:fe2b5e4e86c3b554e21a3b",
+  measurementId: "G-EG5NDPEZL4"
+};
+
+    let app, auth, dbCloud;
+    let localDB = { lecturers: [], modules: [], assignments: {} };
+    let charts = { faculty: null, focus: null, assignmentDetails: null }; 
+    let currentLecturerId = null;
+    let activeRole = 'ALL';
+    
+    // CRUD State 
+    window.currentEditLecturerId = null;
+    window.currentEditModuleId = null;
+
+    const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
+
+    window.globalLecturerOptions = [];
+    window.globalLecturerOptgroups = [];
+
+    let idleTimeout;
+    const IDLE_TIME_MS = 30 * 60 * 1000; 
+
+    function resetIdleTimer() {
+        clearTimeout(idleTimeout);
+        idleTimeout = setTimeout(() => {
+            if (navigator.onLine && activeRole) {
+                window.showToast("System idle for 30 mins. Auto-syncing to cloud...", "info");
+                window.saveToServer(true); 
+            }
+        }, IDLE_TIME_MS);
+    }
+
+    window.addEventListener('mousemove', resetIdleTimer);
+    window.addEventListener('keydown', resetIdleTimer);
+    window.addEventListener('click', resetIdleTimer);
+    window.addEventListener('scroll', resetIdleTimer);
+
+    window.showToast = (msg, type = 'info') => {
+        const container = document.getElementById('toast-container');
+        if(!container) return;
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : (type === 'error' ? '❌' : 'ℹ️'));
+        toast.innerHTML = `<span>${icon}</span> <span>${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'fadeOut 0.3s ease-out forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    };
+
+    window.makeSafeId = (id) => {
+        if (!id) return `UNKNOWN-${Math.floor(Math.random()*100000)}`;
+        return String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
+    };
+
+    const getNormalizedPrefix = (email) => {
+        if (!email || !email.includes('@')) return "";
+        return email.split('@')[0].toLowerCase().replace(/[\.\-_]/g, ' ');
+    };
+
+    const validateRoleEmail = (role, email) => {
+        const prefix = getNormalizedPrefix(email);
+        if (role === 'ALL') {
+            for (const f of FACULTIES) {
+                if (new RegExp(`\\b${f.toLowerCase()}\\b`).test(prefix)) return false; 
+            }
+            if (prefix.includes('lecturer')) return false;
+            return true;
+        } else if (role === 'LECTURER') {
+            return prefix.includes('lecturer');
+        } else {
+            return new RegExp(`\\b${role.toLowerCase()}\\b`).test(prefix);
+        }
+    };
+
+    const getRoleFromEmail = (email) => {
+        if (!email || !email.includes('@')) return 'ALL';
+        const prefix = getNormalizedPrefix(email);
+        if (prefix.includes('lecturer')) return 'LECTURER';
+        for (let f of FACULTIES) {
+            if (new RegExp(`\\b${f.toLowerCase()}\\b`).test(prefix)) return f;
+        }
+        return 'ALL';
+    };
+
+    window.saveLocal = (silent = false) => {
+        try {
+            localStorage.setItem('wl_modules', JSON.stringify(localDB.modules));
+            localStorage.setItem('wl_lecturers', JSON.stringify(localDB.lecturers));
+            localStorage.setItem('wl_assignments', JSON.stringify(localDB.assignments));
+            if (!silent) window.showToast("Progress successfully saved to Local Browser.", "success");
+        } catch (e) {
+            if(!silent) window.showToast("Warning: Local browser storage is full.", "warning");
+        }
+    };
+
+    const loadLocalCache = () => {
+        try {
+            const m = localStorage.getItem('wl_modules');
+            const l = localStorage.getItem('wl_lecturers');
+            const a = localStorage.getItem('wl_assignments');
+            
+            if (m) localDB.modules = JSON.parse(m);
+            if (l) localDB.lecturers = JSON.parse(l);
+            if (a) localDB.assignments = JSON.parse(a);
+            
+        } catch(e) { 
+            console.error("Cache read error", e); 
+        }
+    };
+
+    const buildDropdowns = () => {
+        let options = `<option value="ALL">Academic Affairs (Global Admin)</option>`;
+        options += `<option value="LECTURER">Lecturer Access (Slip View)</option>`;
+        FACULTIES.forEach(f => options += `<option value="${f}">Faculty of ${f}</option>`);
+        document.getElementById('login-role').innerHTML = options;
+        
+        let viewOptions = `<option value="ALL">View All Faculties (Global View)</option>`;
+        FACULTIES.forEach(f => viewOptions += `<option value="${f}">View Faculty of ${f}</option>`);
+        document.getElementById('facView').innerHTML = viewOptions;
+
+        // Form Modal Dropdowns Setup
+        let modalFacOpts = '<option value="">-- Select Faculty --</option>';
+        FACULTIES.forEach(f => modalFacOpts += `<option value="${f}">${f}</option>`);
+        document.getElementById('add-lect-fac').innerHTML = modalFacOpts;
+        document.getElementById('add-mod-fac').innerHTML = modalFacOpts;
+    };
+    
+    // Initialize standard dropdowns immediately
+    buildDropdowns();
+
+    try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        dbCloud = getFirestore(app);
+    } catch (e) {
+        console.error("Firebase Init Error:", e);
+        document.getElementById('cloud-pulse').style.background = "red";
+        document.getElementById('cloud-pulse').style.animation = "none";
+        document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
+    }
+
+    window.detectFacultyFromEmail = () => {
+        const email = document.getElementById('login-email').value;
+        document.getElementById('login-role').value = getRoleFromEmail(email);
+    };
+
+    window.triggerAllRenders = () => {
+        window.renderMatrix(); 
+        window.renderStaffTargets(); 
+        window.updateAnalytics(); 
+        window.populateDynamicFilters();
+        window.renderLectDataTab(); 
+        window.renderModDataTab();
+    };
+
+    window.populateFacultyFilters = () => {
+        const container = document.getElementById('admin-faculty-filters');
+        if (!container) return;
+        
+        if (activeRole !== 'ALL') {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'flex';
+        let html = `<button onclick="document.getElementById('facView').value='ALL'; window.triggerAllRenders();" class="px-4 py-2 bg-gray-800 text-white font-bold text-[10px] rounded-lg hover:bg-gray-700 transition shadow-sm">VIEW ALL</button>`;
+        
+        FACULTIES.forEach(f => {
+            html += `<button onclick="document.getElementById('facView').value='${f}'; window.triggerAllRenders();" class="px-4 py-2 bg-[#0d47a1] text-white font-bold text-[10px] rounded-lg hover:bg-blue-800 transition shadow-sm">${f}</button>`;
+        });
+        
+        container.innerHTML = html;
+    };
+
+    window.populateDynamicFilters = () => {
+        const uniqueValues = (arr, keys) => {
+            const set = new Set();
+            arr.forEach(item => {
+                let val = window.getSafeVal(item, keys);
+                if(val && String(val).trim() !== '') set.add(String(val).trim());
+            });
+            return Array.from(set).sort();
+        };
+
+        const populateSelect = (id, optionsArr, defaultLabel) => {
+            const el = document.getElementById(id);
+            if(!el) return;
+            const currentVal = el.value;
+            let html = `<option value="">${defaultLabel}</option>`;
+            optionsArr.forEach(opt => {
+                html += `<option value="${opt}">${opt}</option>`;
+            });
+            el.innerHTML = html;
+            if(optionsArr.includes(currentVal)) el.value = currentVal;
+        };
+
+        const lFacs = activeRole === 'ALL' ? FACULTIES : [activeRole];
+        populateSelect('lect-filter-fac', lFacs, "All Faculties");
+        populateSelect('lect-filter-cat', uniqueValues(localDB.lecturers, ['LecturerCategory', 'Category']), "All Categories");
+        populateSelect('lect-filter-type', uniqueValues(localDB.lecturers, ['LecturerType', 'Type']), "All Types");
+
+        populateSelect('mod-filter-fac', lFacs, "All Faculties");
+        populateSelect('mod-filter-campus', uniqueValues(localDB.modules, ['MALE', 'Campus']), "All Campuses");
+        populateSelect('mod-filter-modality', uniqueValues(localDB.modules, ['Modality']), "All Modalities");
+        populateSelect('mod-filter-medium', uniqueValues(localDB.modules, ['MediumofInstruction', 'Medium']), "All Mediums");
+        populateSelect('mod-filter-status', uniqueValues(localDB.modules, ['OfferedStatus', 'Status']), "All Statuses");
+        populateSelect('mod-filter-session', uniqueValues(localDB.modules, ['Session']), "All Sessions");
+        populateSelect('mod-filter-prog', uniqueValues(localDB.modules, ['ProgramName']), "All Programs");
+        populateSelect('mod-filter-batch', uniqueValues(localDB.modules, ['OfferedBatch']), "All Batches");
+    };
+
+    if (auth) {
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                activeRole = getRoleFromEmail(user.email);
+                
+                if (!validateRoleEmail(activeRole, user.email)) {
+                    alert("[ސެކިއުރިޓީ ބްލޮކް]: ރޯލް އަދި އީމެއިލް ދިމައެއްނުވޭ. ލޮގްއައުޓް ކުރެވެނީ.");
+                    await signOut(auth);
+                    localStorage.removeItem('userRole');
+                    location.reload();
+                    return;
+                }
+
+                localStorage.setItem('userRole', activeRole);
+                document.getElementById('user-badge').innerText = activeRole;
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app-screen').style.display = 'block';
+                document.getElementById('facView').disabled = false;
+                
+                if (activeRole === 'LECTURER') {
+                    document.getElementById('main-dashboard-controls').style.display = 'none';
+                    document.getElementById('header-stats').style.display = 'none';
+                    document.getElementById('lecturer-dashboard').style.display = 'block';
+                } else {
+                    document.getElementById('main-dashboard-controls').style.display = 'block';
+                    document.getElementById('header-stats').style.display = 'flex';
+                    document.getElementById('lecturer-dashboard').style.display = 'none';
+                    if (activeRole === 'ALL') {
+                        document.getElementById('admin-controls').style.display = 'flex';
+                        document.getElementById('th-actions').style.display = 'table-cell';
+                    }
+                }
+                
+                window.populateFacultyFilters(); 
+                loadCloudData(); 
+                resetIdleTimer(); 
+            } else {
+                document.getElementById('app-screen').style.display = 'none';
+                document.getElementById('login-screen').style.display = 'flex';
+            }
+        });
+    }
+
+    async function loadCloudData() {
+        document.getElementById('loader').style.display = 'flex';
+        document.getElementById('loader-text').innerText = "Syncing from Cloud...";
+        try {
+            if (!navigator.onLine) throw new Error("Offline");
+            
+            const lectSnap = await getDocs(collection(dbCloud, "lecturers"));
+            localDB.lecturers = lectSnap.docs.map(doc => doc.data());
+            
+            const modSnap = await getDocs(collection(dbCloud, "modules"));
+            localDB.modules = modSnap.docs.map(doc => doc.data());
+            
+            const assSnap = await getDocs(collection(dbCloud, "assignments"));
+            assSnap.docs.forEach(doc => { localDB.assignments[doc.id] = doc.data(); });
+            
+            window.saveLocal(true); 
+            window.showToast("Live data fetched from Cloud successfully.", "success");
+            
+        } catch (error) {
+            console.log("Falling back to local cache.", error);
+            loadLocalCache();
+            window.showToast("Working Offline. Loaded data from Local Browser.", "warning");
+            document.getElementById('cloud-pulse').style.background = "red";
+            document.getElementById('cloud-pulse').style.animation = "none";
+            document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
+        } finally {
+            try {
+                window.populateLecturerDropdown();
+                window.triggerAllRenders();
+            } catch (err) {
+                console.error("UI Render Crash:", err);
+                alert("ޑޭޓާ ޑިސްޕްލޭ ކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެ (UI Crash)!\n\nއެރަރ: " + err.message);
+            }
+            document.getElementById('loader').style.display = 'none';
+        }
+    }
+
+    window.handleLogin = async () => {
+        if (!auth) return alert("Firebase Auth not initialized.");
+        const role = document.getElementById('login-role').value;
+        const email = document.getElementById('login-email').value.toLowerCase().trim();
+        const pass = document.getElementById('login-password').value.trim();
+        
+        if (!validateRoleEmail(role, email)) {
+            if (role === 'ALL') alert(`[ސެކިއުރިޓީ ބްލޮކް]:\nފެކަލްޓީ މެއިލް އަކުން ގްލޯބަލް އެޑްމިންއަކަށް ނުވަދެވޭނެ!`);
+            else alert(`[ސެކިއުރިޓީ ބްލޮކް]:\nމި މެއިލްއަކީ ފެކަލްޓީ އޮފް ${role} ގެ މެއިލްއެއް ނޫން!`);
+            return; 
+        }
+
+        document.getElementById('loader').style.display = 'flex';
+        document.getElementById('loader-text').innerText = "Authenticating with Firebase...";
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
+            localStorage.setItem('userRole', role);
+        } catch (error) {
+            document.getElementById('loader').style.display = 'none';
+            alert(`[ފަޔަރބޭސް އެރަރ]: ${error.code}\n\nސަބަބު: އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި ނުވަތަ ކަނެކްޝަން މައްސަލައެއް.`);
+        }
+    };
+
+    window.handleLogout = async () => {
+        if (auth) await signOut(auth);
+        localStorage.removeItem('userRole');
+        location.reload();
+    };
+
+    const setSyncStatus = (status) => {
+        const txt = document.getElementById('cloud-txt');
+        const pulse = document.getElementById('cloud-pulse');
+        
+        if(status === 'syncing') {
+            txt.innerText = "Syncing to Cloud...";
+            pulse.className = "pulse-orange";
+        } else if (status === 'success') {
+            txt.innerText = "Connected & Synced";
+            pulse.className = "pulse-green";
+            pulse.style.background = "";
+            pulse.style.animation = "";
+        } else {
+            txt.innerText = "Offline (Local Mode)";
+            pulse.className = "pulse-orange";
+            pulse.style.background = "red";
+            pulse.style.animation = "none";
+        }
+    };
+
+    window.switchTab = (tabId) => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+        
+        if (tabId === 'analytics') window.updateAnalytics();
+        if (tabId === 'staff') window.renderStaffTargets();
+        if (tabId === 'matrix') window.renderMatrix();
+        if (tabId === 'lectdata') window.renderLectDataTab();
+        if (tabId === 'moddata') window.renderModDataTab();
+    };
+
+    window.getSafeVal = (row, possibleKeys) => {
+        if (!row || typeof row !== 'object') return '';
+        for (let key of Object.keys(row)) {
+            let cleanKey = String(key).toLowerCase().replace(/[\s\n\r\.\-\_]/g, '');
+            for (let pk of possibleKeys) {
+                if (cleanKey.includes(String(pk).toLowerCase().replace(/[\s\n\r\.\-\_]/g, ''))) return row[key] || '';
+            }
+        }
+        return '';
+    };
+
+    window.getFaculty = (row) => {
+        if (!row || typeof row !== 'object') return 'UNKNOWN';
+        const raw = window.getSafeVal(row, ['Kulliyyah', 'ParentKulliyya', 'Faculty', 'Centre']);
+        if (!raw || raw.trim() === '') return 'UNKNOWN';
+        const matched = FACULTIES.find(f => String(raw).toUpperCase().includes(String(f).toUpperCase()));
+        return matched || String(raw).trim();
+    };
+    
+    window.getSafeCampus = (row) => {
+        const campusSpecific = window.getSafeVal(row, ['Campus', 'MALE', 'Male']);
+        if(campusSpecific) return campusSpecific;
+
+        const keys = Object.keys(row);
+        return keys.length > 2 ? (row[keys[2]] || 'MALE') : 'MALE';
+    };
+
+    window.getDefaultTarget = (l) => {
+        if (l.custom_target) return parseInt(l.custom_target); 
+        
+        const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
+        const focusStr = String(window.getSafeVal(l, ['LecturerCategory', 'Category', 'AcademicFocus', 'Focus']) || '').toLowerCase();
+        
+        if (focusStr.includes('dean')) return 1;
+        if (typeStr.includes('part') || typeStr === 'pt' || focusStr.includes('part')) return 9;
+        if (focusStr.includes('research') || focusStr === 'res') return 9;
+        
+        return 15; 
+    };
+
+    window.updateStaffTarget = (safeId, val) => {
+        let lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === safeId);
+        if(lect) {
+            lect.custom_target = parseInt(val);
+            window.saveLocal(true);
+            window.updateAnalytics();
+            window.showToast(`Staff target updated to ${val} hrs. Auto-saved locally.`, "success");
+        }
+    };
+
+    window.generateDummies = (type) => {
+        let rows = [];
+        if (type === 'lect') {
+            const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Hussain", "Fathimath", "Aminath", "Aishath"];
+            const lastNames = ["Zahir", "Nazeer", "Moosa", "Ibrahim", "Saeed", "Muna", "Sama", "Rashid"];
+
+            FACULTIES.forEach(fac => {
+                const addFakePerson = (cat, typeStr) => {
+                    const fName = firstNames[Math.floor(Math.random() * firstNames.length)];
+                    const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
+                    const prefix = (typeStr === "Full-time" && Math.random() > 0.7) ? "Dr. " : "";
+                    const fakeID = "A" + Math.floor(100000 + Math.random() * 900000);
+                    const fakePhone = (Math.random() > 0.5 ? "7" : "9") + Math.floor(100000 + Math.random() * 900000);
+                    
+                    rows.push({
+                        "Kulliyyah / Centre": fac,
+                        "Lecturer ID": fakeID,
+                        "Lecturer Name": prefix + fName + " " + lName,
+                        "Lecturer Category": cat,
+                        "Lecturer Type": typeStr,
+                        "Mobile Number": fakePhone
+                    });
+                };
+
+                addFakePerson("Dean", "Full-time");
+                for(let i=0; i<30; i++) addFakePerson("Teaching Focused", "Full-time");
+                for(let i=0; i<5; i++) addFakePerson("Research Focused", "Full-time");
+                for(let i=0; i<15; i++) addFakePerson("Part-time", "Part-time");
+            });
+
+            downloadCSV(rows, "Lecturer_Workload_Master_Data.csv");
+            window.showToast("Dummy Lecturers Generated.", "success");
+
+        } else {
+            const campuses = ["Male'", "Hulhumale", "Addu City"];
+            const genericSubjects = ["Mathematics", "Science", "History", "Literature", "Programming"];
+            
+            for(let i=1; i<=1000; i++) {
+                const fac = FACULTIES[Math.floor(Math.random() * FACULTIES.length)];
+                const isCombined = Math.random() > 0.8;
+                const combStr = isCombined ? ("Batch " + Math.floor(Math.random()*5+1) + ", Batch " + Math.floor(Math.random()*5+5)) : "";
+                
+                const subj = genericSubjects[Math.floor(Math.random() * genericSubjects.length)];
+                const fakeModuleName = `${subj} (MNQF L${Math.floor(Math.random() * 3 + 5)})`;
+                const fakeModuleCode = subj.substring(0,3).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+                const wch = [2, 3, 4][Math.floor(Math.random() * 3)];
+
+                rows.push({
+                    "Session": Math.random() > 0.5 ? "Morning" : "Evening",
+                    "Program Name": "Generic Dummy Program",
+                    "Offered Batch": "Batch " + Math.floor(Math.random()*10 + 1),
+                    "Parent Kulliyya": fac,
+                    "Medium of Instruction": "English",
+                    "Combined Batch": combStr,
+                    "Offered Status": "New",
+                    "Campus": campuses[Math.floor(Math.random() * campuses.length)],
+                    "Module Name": fakeModuleName,
+                    "Modality": Math.random() > 0.7 ? "Online" : "Face to Face",
+                    "Module Code": fakeModuleCode,
+                    "No of Students": Math.floor(Math.random()*40 + 10),
+                    "Weekly Contact Hours": String(wch)
+                });
+            }
+            downloadCSV(rows, "Academic_Affairs_Master_Workload.csv");
+            window.showToast("Dummy Modules Generated.", "success");
+        }
+    };
+    
+    function downloadCSV(data, filename) {
+        const csv = Papa.unparse(data);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+    }
+
+    window.importData = async (type, event) => {
+        const files = event.target.files;
+        if (files.length === 0) return;
+        
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loader-text');
+        
+        loader.style.display = 'flex';
+        loaderText.innerText = "Reading Local File...";
+        await new Promise(r => setTimeout(r, 50)); 
+        
+        try {
+            let tempData = [];
+            let docIdKey = type === 'lecturers' ? ['LecturerID', 'NationalID'] : ['ModuleCode', 'Code'];
+
+            for (let file of files) {
+                const data = await new Promise((resolve, reject) => {
+                    Papa.parse(file, { header: true, skipEmptyLines: true, complete: (res) => resolve(res.data), error: (err) => reject(err) });
+                });
+                const validData = data.filter(x => { 
+                    const keys = Object.keys(x);
+                    if(keys.length === 0) return false;
+                    const val = x[keys[0]]; 
+                    return val && String(val).trim() !== '' && !String(val).includes('#REF!') && !String(val).includes('Campuses'); 
+                });
+                tempData = tempData.concat(validData);
+            }
+
+            if (tempData.length === 0) throw new Error("No valid data found in the CSV.");
+
+            let existingMap = new Map(localDB[type].map(x => [window.makeSafeId(window.getSafeVal(x, docIdKey)), x]));
+
+            tempData.forEach(x => {
+                let id = window.makeSafeId(window.getSafeVal(x, docIdKey));
+                if(id) {
+                    let existing = existingMap.get(id);
+                    if(type === 'lecturers' && existing && existing.custom_target) {
+                        x.custom_target = existing.custom_target;
+                    }
+                    if (activeRole !== 'ALL') {
+                        if (type === 'modules') {
+                             x['Parent Kulliyya'] = activeRole;
+                        } else if (type === 'lecturers') {
+                             x['Kulliyyah / Centre'] = activeRole;
+                        }
+                    }
+                    existingMap.set(id, x); 
+                }
+            });
+
+            localDB[type] = Array.from(existingMap.values());
+            
+            window.saveLocal(true);
+            
+            try {
+                window.populateLecturerDropdown(); 
+                window.triggerAllRenders();
+            } catch (err) {
+                console.error("UI Render Crash during Import:", err);
+                alert("Upload Note (UI Crash): " + err.message);
+            }
+
+            loader.style.display = 'none';
+            event.target.value = ''; 
+            window.showToast(`${type} merged securely to Local Browser successfully.`, "success");
+
+            if (!dbCloud || !navigator.onLine) {
+                setSyncStatus('offline'); return; 
+            }
+
+            window.runBackgroundCloudSync(type, tempData, docIdKey);
+
+        } catch (err) {
+            console.error(err); alert("Upload Note: " + err.message);
+            loader.style.display = 'none'; event.target.value = ''; 
+        }
+    };
+
+    window.runBackgroundCloudSync = async (type, tempData, docIdKey) => {
+        setSyncStatus('syncing');
+        try {
+            const CHUNK_SIZE = 100;
+            let totalCount = 0;
+            for (let i = 0; i < tempData.length; i += CHUNK_SIZE) {
+                const chunk = tempData.slice(i, i + CHUNK_SIZE);
+                const batch = writeBatch(dbCloud);
+                let hasWrites = false;
+                
+                chunk.forEach(item => {
+                    let rawId = window.getSafeVal(item, docIdKey);
+                    if (rawId && String(rawId).trim() !== '') {
+                        let safeId = window.makeSafeId(rawId);
+                        batch.set(doc(dbCloud, type, safeId), item, { merge: true });
+                        totalCount++; hasWrites = true;
+                    }
+                });
+                
+                if (hasWrites) {
+                    await batch.commit();
+                    await new Promise(r => setTimeout(r, 50)); 
+                }
+            }
+            setSyncStatus('success');
+        } catch(error) {
+            console.error("Background sync failed", error);
+            setSyncStatus('offline');
+            window.showToast("Cloud sync failed. Progress safely backed up locally.", "warning");
+        }
+    };
+
+    window.populateLecturerDropdown = () => {
+        const select1 = document.getElementById('hrSelect');
+        const select2 = document.getElementById('lecturerSelectStandalone');
+        
+        if (window.tsHr) { window.tsHr.destroy(); window.tsHr = null; }
+        if (window.tsLect) { window.tsLect.destroy(); window.tsLect = null; }
+
+        window.globalLecturerOptions = [];
+        window.globalLecturerOptgroups = [];
+
+        let dynamicFaculties = new Set(FACULTIES);
+        
+        localDB.lecturers.forEach(l => {
+            const fac = window.getFaculty(l);
+            if (fac && !dynamicFaculties.has(fac)) {
+                dynamicFaculties.add(fac);
+            }
+        });
+        
+        dynamicFaculties.forEach(f => {
+            window.globalLecturerOptgroups.push({ value: f, label: `Faculty of ${f}` });
+        });
+
+        localDB.lecturers.forEach(l => {
+            const rawId = window.getSafeVal(l, ['LecturerID', 'NationalID']);
+            const id = window.makeSafeId(rawId);
+            const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
+            const phone = window.getSafeVal(l, ['Mobile', 'Phone', 'Contact']) || 'N/A';
+            const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
+            const empType = (typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting')) ? 'PT' : 'FT';
+            const fac = window.getFaculty(l);
+
+            if (id && name) {
+                window.globalLecturerOptions.push({
+                    value: id,
+                    text: `[${empType}] ${name} [ID: ${rawId} | 📞 ${phone}]`,
+                    optgroup: fac
+                });
+            }
+        });
+
+        const defaultTomSelectConfig = {
+            create: false,
+            placeholder: "🔍 Search Name, ID, Phone...",
+            options: window.globalLecturerOptions,
+            optgroups: window.globalLecturerOptgroups,
+            optgroupField: 'optgroup',
+            valueField: 'value',
+            labelField: 'text',
+            searchField: ['text'],
+            maxOptions: 50,
+            render: {
+                optgroup_header: function(data, escape) {
+                    return '<div class="font-bold text-royal-green px-2 py-1 bg-gray-100">' + escape(data.label) + '</div>';
+                }
+            }
+        };
+
+        if (select1) {
+            select1.innerHTML = '<option value="">-- Check Lecturer Workload --</option>';
+            window.tsHr = new TomSelect(select1, defaultTomSelectConfig);
+            window.tsHr.on('change', val => window.openHRView(val));
+        }
+        
+        if (select2) {
+            select2.innerHTML = '<option value="">-- Search & Select Your Name --</option>';
+            window.tsLect = new TomSelect(select2, defaultTomSelectConfig);
+            window.tsLect.on('change', val => window.openHRView(val));
+        }
+    };
+
+    window.renderStaffTargets = () => {
+        const tbody = document.getElementById('staff-target-body');
+        if(!tbody) return;
+        const viewFilter = document.getElementById('facView').value;
+        let html = '';
+        
+        if (localDB.lecturers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-10 text-center text-gray-400 font-bold italic">No Staff Data found.</td></tr>';
+            return;
+        }
+
+        localDB.lecturers.forEach(l => {
+            const fac = window.getFaculty(l); 
+            
+            if (viewFilter === 'ALL' || String(fac).includes(viewFilter)) {
+                const safeId = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
+                const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
+                const cat = window.getSafeVal(l, ['LecturerCategory', 'Category']);
+                const type = window.getSafeVal(l, ['LecturerType', 'Type']);
+                const target = window.getDefaultTarget(l);
+                
+                const canEdit = (activeRole === 'ALL' || String(fac).includes(activeRole));
+                const disableAttr = canEdit ? '' : 'disabled';
+                
+                let opts = '';
+                for(let i=1; i<=25; i++) {
+                    opts += `<option value="${i}" ${target === i ? 'selected' : ''}>${i} Hours</option>`;
+                }
+                
+                html += `
+                <tr class="border-b hover:bg-gray-50 transition">
+                    <td class="p-2 font-bold">
+                        <span class="clickable-name" title="Click to view full workload slip" onclick="window.openHRView('${safeId}')">${name}</span> 
+                        <br><span class="text-[9px] text-gray-500 font-mono">${window.getSafeVal(l, ['LecturerID', 'NationalID'])}</span>
+                    </td>
+                    <td class="p-2 text-[10px] text-gray-600 font-bold">${fac}</td>
+                    <td class="p-2 text-[10px]">${cat} <br><span class="text-blue-600 font-bold">${type}</span></td>
+                    <td class="p-2 text-center">
+                        <select onchange="window.updateStaffTarget('${safeId}', this.value)" ${disableAttr} class="p-1.5 border rounded border-gray-300 outline-none focus:border-royal-green text-[10px] font-black text-royal-green cursor-pointer ${canEdit?'bg-white':'bg-gray-100 opacity-60'}">
+                            ${opts}
+                        </select>
+                    </td>
+                </tr>
+                `;
+            }
+        });
+        tbody.innerHTML = html || '<tr><td colspan="4" class="p-4 text-center text-gray-400">No staff found for this faculty.</td></tr>';
+    };
+
+    window.renderMatrix = () => {
+        const tbody = document.getElementById('matrix-body');
+        const searchQ = document.getElementById('mSearch').value.toLowerCase();
+        const viewFilter = document.getElementById('facView').value;
+        
+        if (window.tsMatrix && window.tsMatrix.length > 0) {
+            window.tsMatrix.forEach(ts => ts.destroy());
+        }
+        window.tsMatrix = [];
+
+        if (localDB.modules.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="p-10 text-center text-gray-400 font-bold italic">No modules found. Please upload data.</td></tr>';
+            return;
+        }
+
+        let finalHTML = ''; 
+
+        localDB.modules.forEach(m => {
+            const mFac = window.getFaculty(m);
+            const mName = window.getSafeVal(m, ['ModuleName', 'ModuleTitle']);
+            const mCode = window.getSafeVal(m, ['ModuleCode']);
+            const combinedData = window.getSafeVal(m, ['CombinedBatch']);
+            
+            const matchesSearch = (
+                String(mName).toLowerCase().includes(searchQ) || 
+                String(mCode).toLowerCase().includes(searchQ) || 
+                String(mFac).toLowerCase().includes(searchQ)
+            );
+
+            if ((viewFilter === 'ALL' || String(mFac).includes(viewFilter)) && matchesSearch) {
+                
+                let safeMCode = window.makeSafeId(mCode);
+                let autoMode = (combinedData && String(combinedData).trim() !== '') ? 'Combined' : 'Individual';
+                const assignment = localDB.assignments[safeMCode] || { id: '', mode: autoMode };
+                const isAssigned = assignment.id && assignment.id !== '';
+                
+                const campus = window.getSafeCampus(m);
+                const program = window.getSafeVal(m, ['ProgramName']);
+                
+                let wch = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']));
+                if (isNaN(wch)) wch = 0;
+
+                let batch = window.getSafeVal(m, ['OfferedBatch']);
+                if (combinedData) batch += ` <br><span class="text-[8px] text-purple-600 font-bold">(+ ${combinedData})</span>`;
+
+                const statusBadge = isAssigned 
+                    ? `<span class="bg-green-100 text-green-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm">Assigned</span>` 
+                    : `<span class="bg-red-100 text-red-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm animate-pulse">Unassigned</span>`;
+
+                const canEdit = (activeRole === 'ALL' || String(mFac).includes(activeRole));
+                const disableAttr = canEdit ? '' : 'disabled';
+                const selectStyle = canEdit ? '' : 'disabled';
+                const lockIcon = canEdit ? '' : '🔒 ';
+                
+                const adminAction = activeRole === 'ALL' ? `<td class="p-2 align-middle text-center"><button onclick="window.deleteModuleRow('${safeMCode}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Module">🗑️</button></td>` : '';
+                
+                const isModeCombined = assignment.mode === 'Combined' ? 'selected' : '';
+                const isModeIndiv = assignment.mode === 'Individual' ? 'selected' : '';
+
+                finalHTML += `
+                <tr id="row-${safeMCode}" class="hover:bg-blue-50 border-b border-gray-100 transition ${!isAssigned ? 'bg-red-50/10' : ''}">
+                    <td class="p-2 align-middle status-cell">${statusBadge}</td>
+                    <td class="p-2 align-middle leading-tight"><b>${campus}</b><br><span class="text-[8px] md:text-[9px] text-gray-500">${program}</span></td>
+                    <td class="p-2 align-middle leading-tight"><b class="text-royal-blue text-[9px] md:text-[10px]">${mName}</b><br><code class="text-[9px] bg-gray-100 px-1 rounded">${mCode}</code><br><span class="text-[8px] text-gray-500">Batch: ${batch}</span></td>
+                    <td class="p-2 align-middle text-center font-black text-sm">${wch}</td>
+                    <td class="p-2 align-middle text-[8px] md:text-[9px] font-bold text-gray-600">${mFac}</td>
+                    <td class="p-2 align-middle">
+                        <div class="flex items-center gap-1 relative w-[250px]">
+                            <select data-mcode="${safeMCode}" data-assigned="${assignment.id}" ${disableAttr} class="w-full tom-select-assign ${selectStyle}" title="${canEdit ? 'Assign Lecturer' : 'Locked'}">
+                            </select>
+                            ${!canEdit ? `<span class="absolute right-8 text-[10px] pointer-events-none">${lockIcon}</span>` : ''}
+                            <button onclick="window.checkAssignedWorkload('${safeMCode}')" title="View Workload Slip" class="btn-check-workload ml-1 p-1.5 bg-gray-100 hover:bg-blue-100 rounded text-blue-600 ${!isAssigned ? 'opacity-50 cursor-not-allowed' : ''}">🔍</button>
+                        </div>
+                    </td>
+                    <td class="p-2 align-middle relative">
+                        <select onchange="window.updateAssignmentMode('${safeMCode}', this.value)" ${disableAttr} class="p-1 border rounded w-full text-[8px] outline-none focus:border-gold">
+                            <option value="Individual" ${isModeIndiv}>Individual</option>
+                            <option value="Combined" ${isModeCombined}>Combined</option>
+                        </select>
+                    </td>
+                    ${adminAction}
+                </tr>`;
+            }
+        });
+        
+        tbody.innerHTML = finalHTML; 
+
+        document.querySelectorAll('.tom-select-assign').forEach(el => {
+            const mCode = el.dataset.mcode;
+            const assignedId = el.dataset.assigned;
+            
+            const ts = new TomSelect(el, {
+                create: false,
+                placeholder: "🔍 Assign Lecturer...",
+                dropdownParent: 'body',
+                options: window.globalLecturerOptions,
+                optgroups: window.globalLecturerOptgroups,
+                optgroupField: 'optgroup',
+                valueField: 'value',
+                labelField: 'text',
+                searchField: ['text'],
+                maxOptions: 50,
+                render: {
+                    optgroup_header: function(data, escape) {
+                        return '<div class="font-bold text-royal-green px-2 py-1 bg-gray-100">' + escape(data.label) + '</div>';
+                    }
+                }
+            });
+            
+            if (assignedId && assignedId !== '') {
+                ts.setValue(assignedId, true); 
+            }
+
+            ts.on('change', function(value) {
+                if (value !== undefined) window.assignLecturer(mCode, value);
+            });
+            window.tsMatrix.push(ts);
+        });
+    };
+
+    window.assignLecturer = (mCode, lectId) => {
+        const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
+        const mFac = window.getFaculty(m);
+        
+        if (activeRole !== 'ALL' && !String(mFac).includes(activeRole)) {
+            alert("🔒 Unauthorized Action: You can only modify assignments for your own Faculty.");
+            return;
+        }
+
+        if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { mode: 'Individual' };
+        localDB.assignments[mCode].id = lectId;
+        
+        window.saveLocal(true);
+        window.showToast("Lecturer assigned. Local state auto-saved.", "info");
+        
+        const row = document.getElementById(`row-${mCode}`);
+        if(row) {
+            const isAssigned = lectId && lectId !== '';
+            const badgeTd = row.querySelector('.status-cell');
+            if(badgeTd) {
+                badgeTd.innerHTML = isAssigned 
+                    ? `<span class="bg-green-100 text-green-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm">Assigned</span>` 
+                    : `<span class="bg-red-100 text-red-700 px-1 py-0.5 rounded text-[8px] font-bold block text-center shadow-sm animate-pulse">Unassigned</span>`;
+            }
+            if(isAssigned) row.classList.remove('bg-red-50/10');
+            else row.classList.add('bg-red-50/10');
+            
+            const btnCheck = row.querySelector('.btn-check-workload');
+            if(btnCheck) {
+                if(isAssigned) btnCheck.classList.remove('opacity-50', 'cursor-not-allowed');
+                else btnCheck.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        window.updateAnalytics();
+    };
+
+    window.updateAssignmentMode = (mCode, mode) => {
+        const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
+        const mFac = window.getFaculty(m);
+        if (activeRole !== 'ALL' && !String(mFac).includes(activeRole)) return;
+
+        if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { id: '' };
+        localDB.assignments[mCode].mode = mode;
+        
+        window.saveLocal(true);
+        window.showToast(`Sync mode updated to ${mode}. Auto-saved.`, "info");
+        window.updateAnalytics();
+    };
+
+    window.saveToServer = async (isAuto = false) => {
+        if (!navigator.onLine) {
+            if(!isAuto) window.showToast("Offline. Cannot push to Cloud.", "warning");
+            return;
+        }
+        if(!isAuto) setSyncStatus('syncing');
+
+        try {
+            let validAssignments = [];
+            Object.keys(localDB.assignments).forEach(mCode => {
+                const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === mCode);
+                if (m) {
+                    const mFac = window.getFaculty(m);
+                    if (activeRole === 'ALL' || String(mFac).includes(activeRole)) {
+                        validAssignments.push({ code: mCode, data: localDB.assignments[mCode] });
+                    }
+                }
+            });
+
+            if(validAssignments.length === 0) {
+                if(!isAuto) window.showToast("No assignments to push.", "info");
+                setSyncStatus('success'); return;
+            }
+
+            const CHUNK_SIZE = 100;
+            let totalSaved = 0;
+
+            for (let i = 0; i < validAssignments.length; i += CHUNK_SIZE) {
+                const chunk = validAssignments.slice(i, i + CHUNK_SIZE);
+                const batch = writeBatch(dbCloud);
+                chunk.forEach(item => {
+                    batch.set(doc(dbCloud, "assignments", item.code), item.data, { merge: true });
+                    totalSaved++;
+                });
+                await batch.commit(); 
+                await new Promise(r => setTimeout(r, 50));
+            }
+            
+            const lectBatch = writeBatch(dbCloud);
+            localDB.lecturers.filter(l => l.custom_target).forEach(l => {
+                lectBatch.set(doc(dbCloud, "lecturers", window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']))), { custom_target: l.custom_target }, { merge: true });
+            });
+            await lectBatch.commit();
+            
+            setSyncStatus('success');
+            if(!isAuto) window.showToast(`✅ Successfully synced ${totalSaved} assignments to Server!`, "success");
+        } catch (error) {
+            console.error("Save error", error);
+            setSyncStatus('offline');
+            if(!isAuto) window.showToast("Cloud sync failed.", "warning");
+        }
+    };
+
+    window.deleteModuleRow = async (mCode) => {
+        if (activeRole !== 'ALL') return alert("Unauthorized Action.");
+        if (confirm(`Are you sure you want to permanently delete module [${mCode}]?`)) {
+            localDB.modules = localDB.modules.filter(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])) !== mCode);
+            delete localDB.assignments[mCode];
+            window.saveLocal(true);
+            
+            if (dbCloud) {
+                try {
+                    await deleteDoc(doc(dbCloud, "modules", mCode));
+                    await deleteDoc(doc(dbCloud, "assignments", mCode));
+                } catch(e) { console.error("Cloud delete error", e); }
+            }
+            window.triggerAllRenders();
+            window.showToast("Module deleted successfully.", "success");
+        }
+    };
+
+    window.deleteLecturerRow = async (lId) => {
+        if (activeRole !== 'ALL') return alert("Unauthorized Action.");
+        if (confirm(`Are you sure you want to permanently delete Lecturer [${lId}]?`)) {
+            localDB.lecturers = localDB.lecturers.filter(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) !== lId);
+            window.saveLocal(true);
+            
+            if (dbCloud) {
+                try {
+                    await deleteDoc(doc(dbCloud, "lecturers", lId));
+                } catch(e) { console.error("Cloud delete error", e); }
+            }
+            window.populateLecturerDropdown(); window.triggerAllRenders();
+            window.showToast("Lecturer deleted successfully.", "success");
+        }
+    };
+
+    // --- CRUD FUNCTIONS FOR LECTURERS ---
+    window.openAddLecturerModal = () => {
+        window.currentEditLecturerId = null;
+        document.getElementById('lecturer-modal-title').innerText = "Add New Lecturer";
+        
+        document.getElementById('add-lect-fac').value = '';
+        document.getElementById('add-lect-id').value = '';
+        document.getElementById('add-lect-name').value = '';
+        document.getElementById('add-lect-cat').value = 'Teaching Focused';
+        document.getElementById('add-lect-type').value = 'Full-time';
+        document.getElementById('add-lect-mobile').value = '';
+        
+        document.getElementById('add-lecturer-modal').style.display = 'flex';
+    };
+
+    window.openEditLecturerModal = (safeId) => {
+        const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === safeId);
+        if(!lect) return;
+        
+        window.currentEditLecturerId = safeId;
+        document.getElementById('lecturer-modal-title').innerText = "Edit Lecturer";
+        
+        document.getElementById('add-lect-fac').value = window.getFaculty(lect);
+        document.getElementById('add-lect-id').value = window.getSafeVal(lect, ['LecturerID', 'NationalID']);
+        document.getElementById('add-lect-name').value = window.getSafeVal(lect, ['LecturerName', 'FullName']);
+        document.getElementById('add-lect-cat').value = window.getSafeVal(lect, ['LecturerCategory', 'Category']) || 'Teaching Focused';
+        document.getElementById('add-lect-type').value = window.getSafeVal(lect, ['LecturerType', 'Type']) || 'Full-time';
+        document.getElementById('add-lect-mobile').value = window.getSafeVal(lect, ['MobileNumber', 'Mobile', 'Phone']) || '';
+
+        document.getElementById('add-lecturer-modal').style.display = 'flex';
+    };
+
+    window.closeAddLecturerModal = () => {
+        document.getElementById('add-lecturer-modal').style.display = 'none';
+        window.currentEditLecturerId = null;
+    };
+
+    window.saveNewLecturer = async () => {
+        const fac = document.getElementById('add-lect-fac').value;
+        const id = document.getElementById('add-lect-id').value.trim();
+        const name = document.getElementById('add-lect-name').value.trim();
+        const cat = document.getElementById('add-lect-cat').value;
+        const type = document.getElementById('add-lect-type').value;
+        const mobile = document.getElementById('add-lect-mobile').value.trim();
+
+        if(!fac || !id || !name) return alert("Faculty, Lecturer ID, and Name are required!");
+
+        const safeId = window.makeSafeId(id);
+        const newData = {
+            "Kulliyyah / Centre": fac,
+            "Lecturer ID": id,
+            "Lecturer Name": name,
+            "Lecturer Category": cat,
+            "Lecturer Type": type,
+            "Mobile Number": mobile
+        };
+
+        if (window.currentEditLecturerId) {
+            // Updating existing
+            const index = localDB.lecturers.findIndex(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === window.currentEditLecturerId);
+            if (index > -1) {
+                if(localDB.lecturers[index].custom_target) newData.custom_target = localDB.lecturers[index].custom_target;
+                localDB.lecturers[index] = { ...localDB.lecturers[index], ...newData };
+            }
+        } else {
+            // Adding new
+            if (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === safeId)) {
+                return alert("A lecturer with this ID already exists!");
+            }
+            localDB.lecturers.push(newData);
+        }
+
+        window.saveLocal(true);
+        if(dbCloud && navigator.onLine) {
+            try {
+                await setDoc(doc(dbCloud, "lecturers", safeId), newData, { merge: true });
+            } catch(e) { console.error("Cloud save failed", e); }
+        }
+
+        window.closeAddLecturerModal();
+        window.populateLecturerDropdown();
+        window.triggerAllRenders();
+        window.showToast(window.currentEditLecturerId ? "Lecturer Updated Successfully" : "Lecturer Added Successfully", "success");
+    };
+
+    // --- CRUD FUNCTIONS FOR MODULES ---
+    window.openAddModuleModal = () => {
+        window.currentEditModuleId = null;
+        document.getElementById('module-modal-title').innerText = "Add New Module";
+        
+        document.getElementById('add-mod-code').value = '';
+        document.getElementById('add-mod-name').value = '';
+        document.getElementById('add-mod-fac').value = '';
+        document.getElementById('add-mod-prog').value = '';
+        document.getElementById('add-mod-session').value = 'Morning';
+        document.getElementById('add-mod-batch').value = '';
+        document.getElementById('add-mod-comb').value = '';
+        document.getElementById('add-mod-campus').value = "Male'";
+        document.getElementById('add-mod-modality').value = 'Face to Face';
+        document.getElementById('add-mod-medium').value = 'English';
+        document.getElementById('add-mod-students').value = '';
+        document.getElementById('add-mod-wch').value = '';
+        document.getElementById('add-mod-status').value = 'New';
+        
+        document.getElementById('add-module-modal').style.display = 'flex';
+    };
+
+    window.openEditModuleModal = (safeCode) => {
+        const mod = localDB.modules.find(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])) === safeCode);
+        if(!mod) return;
+        
+        window.currentEditModuleId = safeCode;
+        document.getElementById('module-modal-title').innerText = "Edit Module";
+        
+        document.getElementById('add-mod-code').value = window.getSafeVal(mod, ['ModuleCode']);
+        document.getElementById('add-mod-name').value = window.getSafeVal(mod, ['ModuleName', 'ModuleTitle']);
+        document.getElementById('add-mod-fac').value = window.getFaculty(mod);
+        document.getElementById('add-mod-prog').value = window.getSafeVal(mod, ['ProgramName']);
+        document.getElementById('add-mod-session').value = window.getSafeVal(mod, ['Session']) || 'Morning';
+        document.getElementById('add-mod-batch').value = window.getSafeVal(mod, ['OfferedBatch']);
+        document.getElementById('add-mod-comb').value = window.getSafeVal(mod, ['CombinedBatch']);
+        document.getElementById('add-mod-campus').value = window.getSafeCampus(mod);
+        document.getElementById('add-mod-modality').value = window.getSafeVal(mod, ['Modality']) || 'Face to Face';
+        document.getElementById('add-mod-medium').value = window.getSafeVal(mod, ['MediumofInstruction', 'Medium']) || 'English';
+        document.getElementById('add-mod-students').value = window.getSafeVal(mod, ['NoofStudents']);
+        document.getElementById('add-mod-wch').value = window.getSafeVal(mod, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']);
+        document.getElementById('add-mod-status').value = window.getSafeVal(mod, ['OfferedStatus']) || 'New';
+        
+        document.getElementById('add-module-modal').style.display = 'flex';
+    };
+
+    window.closeAddModuleModal = () => {
+        document.getElementById('add-module-modal').style.display = 'none';
+        window.currentEditModuleId = null;
+    };
+
+    window.saveNewModule = async () => {
+        const code = document.getElementById('add-mod-code').value.trim();
+        const name = document.getElementById('add-mod-name').value.trim();
+        const fac = document.getElementById('add-mod-fac').value;
+        const prog = document.getElementById('add-mod-prog').value.trim();
+        const session = document.getElementById('add-mod-session').value;
+        const batch = document.getElementById('add-mod-batch').value.trim();
+        const comb = document.getElementById('add-mod-comb').value.trim();
+        const campus = document.getElementById('add-mod-campus').value;
+        const modality = document.getElementById('add-mod-modality').value;
+        const medium = document.getElementById('add-mod-medium').value;
+        const students = document.getElementById('add-mod-students').value;
+        const wch = document.getElementById('add-mod-wch').value;
+        const status = document.getElementById('add-mod-status').value;
+
+        if(!code || !name || !fac) return alert("Module Code, Name, and Faculty are required!");
+
+        const safeCode = window.makeSafeId(code);
+        const newData = {
+            "Module Code": code,
+            "Module Name": name,
+            "Parent Kulliyya": fac,
+            "Program Name": prog,
+            "Session": session,
+            "Offered Batch": batch,
+            "Combined Batch": comb,
+            "Campus": campus,
+            "Modality": modality,
+            "Medium of Instruction": medium,
+            "No of Students": students,
+            "Weekly Contact Hours": wch,
+            "Offered Status": status
+        };
+
+        if (window.currentEditModuleId) {
+            const index = localDB.modules.findIndex(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])) === window.currentEditModuleId);
+            if (index > -1) {
+                localDB.modules[index] = { ...localDB.modules[index], ...newData };
+            }
+        } else {
+            if (localDB.modules.find(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])) === safeCode)) {
+                return alert("A module with this code already exists!");
+            }
+            localDB.modules.push(newData);
+        }
+
+        window.saveLocal(true);
+        if(dbCloud && navigator.onLine) {
+            try {
+                await setDoc(doc(dbCloud, "modules", safeCode), newData, { merge: true });
+            } catch(e) { console.error("Cloud save failed", e); }
+        }
+
+        window.closeAddModuleModal();
+        window.triggerAllRenders();
+        window.showToast(window.currentEditModuleId ? "Module Updated Successfully" : "Module Added Successfully", "success");
+    };
+
+
+    window.getFilteredLecturers = () => {
+        const globalFac = document.getElementById('facView').value;
+        const searchQ = (document.getElementById('lectSearch')?.value || '').toLowerCase();
+        const facFilter = document.getElementById('lect-filter-fac')?.value || '';
+        const catFilter = document.getElementById('lect-filter-cat')?.value || '';
+        const typeFilter = document.getElementById('lect-filter-type')?.value || '';
+
+        return localDB.lecturers.filter(l => {
+            const fac = window.getFaculty(l);
+            const id = window.getSafeVal(l, ['LecturerID', 'NationalID']);
+            const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
+            const cat = window.getSafeVal(l, ['LecturerCategory', 'Category']);
+            const type = window.getSafeVal(l, ['LecturerType', 'Type']);
+            const mobile = window.getSafeVal(l, ['MobileNumber', 'Mobile', 'Phone']);
+
+            if (globalFac !== 'ALL' && !String(fac).includes(globalFac)) return false;
+            if (facFilter && fac !== facFilter) return false;
+            if (catFilter && cat !== catFilter) return false;
+            if (typeFilter && type !== typeFilter) return false;
+            
+            if (searchQ) {
+                const combinedText = `${fac} ${id} ${name} ${cat} ${type} ${mobile}`.toLowerCase();
+                if (!combinedText.includes(searchQ)) return false;
+            }
+            return true;
+        });
+    };
+
+    window.getFilteredModules = () => {
+        const globalFac = document.getElementById('facView').value;
+        const searchQ = (document.getElementById('modSearch')?.value || '').toLowerCase();
+        const facFilter = document.getElementById('mod-filter-fac')?.value || '';
+        const campusFilter = document.getElementById('mod-filter-campus')?.value || '';
+        const modalityFilter = document.getElementById('mod-filter-modality')?.value || '';
+        const mediumFilter = document.getElementById('mod-filter-medium')?.value || '';
+        const statusFilter = document.getElementById('mod-filter-status')?.value || '';
+        const sessionFilter = document.getElementById('mod-filter-session')?.value || '';
+        const progFilter = document.getElementById('mod-filter-prog')?.value || '';
+        const batchFilter = document.getElementById('mod-filter-batch')?.value || '';
+
+        return localDB.modules.filter(m => {
+            const fac = window.getFaculty(m);
+            const mCode = window.getSafeVal(m, ['ModuleCode']);
+            const mName = window.getSafeVal(m, ['ModuleName', 'ModuleTitle']);
+            const session = window.getSafeVal(m, ['Session']);
+            const prog = window.getSafeVal(m, ['ProgramName']);
+            const batch = window.getSafeVal(m, ['OfferedBatch']);
+            const med = window.getSafeVal(m, ['MediumofInstruction', 'Medium']);
+            const status = window.getSafeVal(m, ['OfferedStatus']);
+            const campus = window.getSafeCampus(m);
+            const modality = window.getSafeVal(m, ['Modality']);
+
+            if (globalFac !== 'ALL' && !String(fac).includes(globalFac)) return false;
+            
+            if (facFilter && fac !== facFilter) return false;
+            if (campusFilter && campus !== campusFilter) return false;
+            if (modalityFilter && modality !== modalityFilter) return false;
+            if (mediumFilter && med !== mediumFilter) return false;
+            if (statusFilter && status !== statusFilter) return false;
+            if (sessionFilter && session !== sessionFilter) return false;
+            if (progFilter && prog !== progFilter) return false;
+            if (batchFilter && batch !== batchFilter) return false;
+
+            if (searchQ) {
+                const combinedText = `${fac} ${mCode} ${mName} ${session} ${prog} ${batch} ${med} ${status} ${campus} ${modality}`.toLowerCase();
+                if (!combinedText.includes(searchQ)) return false;
+            }
+            return true;
+        });
+    };
+
+    window.exportLecturersCSV = () => {
+        const data = window.getFilteredLecturers();
+        if(data.length === 0) return window.showToast("No data to export.", "warning");
+        downloadCSV(data, `Filtered_Lecturers_${new Date().getTime()}.csv`);
+        window.showToast("Lecturers CSV Exported.", "success");
+    };
+
+    window.exportModulesCSV = () => {
+        const data = window.getFilteredModules();
+        if(data.length === 0) return window.showToast("No data to export.", "warning");
+        downloadCSV(data, `Filtered_Modules_${new Date().getTime()}.csv`);
+        window.showToast("Modules CSV Exported.", "success");
+    };
+
+    window.exportLocalCSV = (type) => {
+        if(type === 'backup') {
+            downloadCSV(localDB.modules, `Full_Backup_Modules.csv`);
+            downloadCSV(localDB.lecturers, `Full_Backup_Lecturers.csv`);
+            window.showToast("Full Backup Exported.", "success");
+            return;
+        }
+    };
+    
+    window.exportCloudCSV = async () => {
+        window.showToast("Fetching live data from Cloud Server...", "info");
+        try {
+            const modSnap = await getDocs(collection(dbCloud, "modules"));
+            const lectSnap = await getDocs(collection(dbCloud, "lecturers"));
+            const assSnap = await getDocs(collection(dbCloud, "assignments"));
+            
+            let c_modules = modSnap.docs.map(d => d.data());
+            let c_lecturers = lectSnap.docs.map(d => d.data());
+            let c_assignments = {};
+            assSnap.docs.forEach(d => c_assignments[d.id] = d.data());
+            
+            if (activeRole !== 'ALL') {
+                c_modules = c_modules.filter(m => String(window.getFaculty(m)).includes(activeRole));
+            }
+            
+            const exportData = c_modules.map(m => {
+                const safeCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+                const assignment = c_assignments[safeCode] || {};
+                const lectId = assignment.id;
+                const lecturer = c_lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === lectId);
+                
+                return {
+                    ...m,
+                    "SYSTEM_ASSIGNED_LECTURER_ID": assignment.id || "UNASSIGNED",
+                    "SYSTEM_ASSIGNED_LECTURER_NAME": lecturer ? window.getSafeVal(lecturer, ['LecturerName', 'FullName']) : "UNASSIGNED",
+                    "SYSTEM_SYNC_MODE": assignment.mode || "Individual"
+                };
+            });
+            downloadCSV(exportData, `Cloud_Server_Workload_Export_${activeRole}.csv`);
+            window.showToast("Cloud CSV Exported Successfully.", "success");
+        } catch(e) {
+            console.error(e);
+            window.showToast("Cloud fetch failed. Check network.", "warning");
+        }
+    };
+
+    window.printMasterReport = (type) => {
+        const frame = document.getElementById('master-print-frame');
+        const thead = document.getElementById('print-table-head');
+        const tbody = document.getElementById('print-table-body');
+        const subtitle = document.getElementById('print-report-subtitle');
+        const filterInfo = document.getElementById('print-filter-info');
+        const dateSpan = document.getElementById('print-date');
+
+        dateSpan.innerText = new Date().toLocaleString();
+        
+        let badgesHtml = '';
+        let rowsHtml = '';
+        const addBadge = (label, val) => {
+            if(val && val !== '') badgesHtml += `<span class="print-filter-badge">${label}: <b>${val}</b></span>`;
+        };
+
+        if (type === 'lecturers') {
+            subtitle.innerText = "Lecturers Master Data Inquiry";
+            const data = window.getFilteredLecturers();
+            
+            addBadge("Faculty View", document.getElementById('facView').value);
+            addBadge("Search", document.getElementById('lectSearch').value);
+            addBadge("Filter Faculty", document.getElementById('lect-filter-fac').value);
+            addBadge("Category", document.getElementById('lect-filter-cat').value);
+            addBadge("Type", document.getElementById('lect-filter-type').value);
+            
+            thead.innerHTML = `<tr>
+                <th>Faculty</th><th>ID</th><th>Name</th><th>Category</th><th>Type</th><th>Mobile</th>
+            </tr>`;
+
+            data.forEach(l => {
+                rowsHtml += `<tr>
+                    <td>${window.getFaculty(l)}</td>
+                    <td>${window.getSafeVal(l, ['LecturerID', 'NationalID'])}</td>
+                    <td>${window.getSafeVal(l, ['LecturerName', 'FullName'])}</td>
+                    <td>${window.getSafeVal(l, ['LecturerCategory', 'Category'])}</td>
+                    <td>${window.getSafeVal(l, ['LecturerType', 'Type'])}</td>
+                    <td>${window.getSafeVal(l, ['MobileNumber', 'Mobile', 'Phone']) || '-'}</td>
+                </tr>`;
+            });
+        } else if (type === 'modules') {
+            subtitle.innerText = "Modules Master Data Inquiry";
+            const data = window.getFilteredModules();
+            
+            addBadge("Faculty View", document.getElementById('facView').value);
+            addBadge("Search", document.getElementById('modSearch').value);
+            addBadge("Filter Faculty", document.getElementById('mod-filter-fac').value);
+            addBadge("Campus", document.getElementById('mod-filter-campus').value);
+            addBadge("Modality", document.getElementById('mod-filter-modality').value);
+            addBadge("Medium", document.getElementById('mod-filter-medium').value);
+            addBadge("Status", document.getElementById('mod-filter-status').value);
+            addBadge("Session", document.getElementById('mod-filter-session').value);
+            addBadge("Program", document.getElementById('mod-filter-prog').value);
+            addBadge("Batch", document.getElementById('mod-filter-batch').value);
+
+            thead.innerHTML = `<tr>
+                <th>Faculty</th><th>Code</th><th>Name</th><th>Program</th><th>Batch</th><th>Campus</th><th>Modality</th><th>WCH</th>
+            </tr>`;
+
+            data.forEach(m => {
+                rowsHtml += `<tr>
+                    <td>${window.getFaculty(m)}</td>
+                    <td>${window.getSafeVal(m, ['ModuleCode'])}</td>
+                    <td>${window.getSafeVal(m, ['ModuleName', 'ModuleTitle'])}</td>
+                    <td>${window.getSafeVal(m, ['ProgramName'])}</td>
+                    <td>${window.getSafeVal(m, ['OfferedBatch'])}</td>
+                    <td>${window.getSafeCampus(m)}</td>
+                    <td>${window.getSafeVal(m, ['Modality'])}</td>
+                    <td>${window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']) || 0}</td>
+                </tr>`;
+            });
+        }
+
+        if(badgesHtml === '') badgesHtml = '<span class="print-filter-badge">Showing All Records</span>';
+        filterInfo.innerHTML = badgesHtml;
+        tbody.innerHTML = rowsHtml || '<tr><td colspan="10" class="text-center py-4">No records found for the applied filters.</td></tr>';
+
+        document.title = `Official_Report_${type.toUpperCase()}_${new Date().getTime()}`;
+        document.body.classList.add('is-printing-master');
+        
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('is-printing-master');
+            document.title = "Presidential Executive Workload Portal";
+        }, 300);
+    };
+
+    window.importMasterCSV = async (event) => {
+        if (activeRole !== 'ALL') return alert("Unauthorized Action.");
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loader-text');
+        
+        loader.style.display = 'flex';
+        loaderText.innerText = "Restoring Master Backup...";
+        await new Promise(r => setTimeout(r, 50));
+
+        Papa.parse(file, {
+            header: true, skipEmptyLines: true,
+            complete: async (res) => {
+                try {
+                    const data = res.data;
+                    const CHUNK_SIZE = 100;
+                    
+                    if (!dbCloud || !navigator.onLine) {
+                        window.showToast("Cannot restore Master to Cloud while offline.", "warning");
+                        loader.style.display = 'none'; return;
+                    }
+
+                    let moduleCount = 0;
+                    let assignmentCount = 0;
+
+                    let existingMap = new Map(localDB.modules.map(x => [window.makeSafeId(window.getSafeVal(x, ['ModuleCode', 'Code'])), x]));
+
+                    data.forEach(row => {
+                        let rawId = window.getSafeVal(row, ['ModuleCode', 'Code']);
+                        if(rawId && String(rawId).trim() !== '') {
+                            let safeId = window.makeSafeId(rawId);
+                            let moduleData = { ...row };
+                            delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID;
+                            delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME;
+                            delete moduleData.SYSTEM_SYNC_MODE;
+                            existingMap.set(safeId, moduleData); 
+                            
+                            let lectId = row['SYSTEM_ASSIGNED_LECTURER_ID'];
+                            let mode = row['SYSTEM_SYNC_MODE'] || 'Individual';
+                            if(lectId && lectId !== "UNASSIGNED") {
+                                localDB.assignments[safeId] = { id: lectId, mode: mode };
+                            }
+                        }
+                    });
+                    
+                    localDB.modules = Array.from(existingMap.values());
+                    window.saveLocal(true);
+                    
+                    window.populateLecturerDropdown(); window.triggerAllRenders();
+                    loader.style.display = 'none'; 
+
+                    setSyncStatus('syncing');
+
+                    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+                        const chunk = data.slice(i, i + CHUNK_SIZE);
+                        const batch = writeBatch(dbCloud);
+                        let hasWrites = false;
+
+                        chunk.forEach(row => {
+                            let rawId = window.getSafeVal(row, ['ModuleCode', 'Code']);
+                            if(rawId && String(rawId).trim() !== '') {
+                                let safeId = window.makeSafeId(rawId);
+                                let moduleData = { ...row };
+                                delete moduleData.SYSTEM_ASSIGNED_LECTURER_ID;
+                                delete moduleData.SYSTEM_ASSIGNED_LECTURER_NAME;
+                                delete moduleData.SYSTEM_SYNC_MODE;
+                                batch.set(doc(dbCloud, 'modules', safeId), moduleData, {merge: true});
+                                moduleCount++; hasWrites = true;
+
+                                let lectId = row['SYSTEM_ASSIGNED_LECTURER_ID'];
+                                let mode = row['SYSTEM_SYNC_MODE'] || 'Individual';
+                                if(lectId && lectId !== "UNASSIGNED") {
+                                    batch.set(doc(dbCloud, 'assignments', safeId), { id: lectId, mode: mode }, { merge: true });
+                                    assignmentCount++;
+                                }
+                            }
+                        });
+
+                        if(hasWrites) {
+                            await batch.commit();
+                            await new Promise(r => setTimeout(r, 50));
+                        }
+                    }
+                    setSyncStatus('success');
+                    window.showToast(`✅ Backup Restored!\nModules: ${moduleCount}\nAssignments: ${assignmentCount}`, "success");
+                } catch(err) {
+                    console.error("Master Restore Error", err);
+                    setSyncStatus('offline');
+                    window.showToast("Master Restore Failed.", "warning");
+                } finally {
+                    event.target.value = '';
+                }
+            }
+        });
+    };
+
+    window.masterReset = async () => {
+        if (activeRole !== 'ALL') return alert("Unauthorized Action.");
+        
+        const confirm1 = confirm("🚨 WARNING 🚨\nThis action will WIPE ALL DATA (Modules, Lecturers, and Assignments) from the cloud database.\n\nAre you sure you want to proceed?");
+        if(!confirm1) return;
+
+        const confirmCode = prompt("To execute MASTER RESET, please type 'CONFIRM RESET' below:");
+        if(confirmCode !== "CONFIRM RESET") {
+            window.showToast("Reset Aborted.", "info");
+            return;
+        }
+
+        const loader = document.getElementById('loader');
+        loader.style.display = 'flex';
+        document.getElementById('loader-text').innerText = "WIPING CLOUD DATABASE (Please wait)...";
+
+        try {
+            localStorage.clear(); 
+            
+            if(dbCloud) {
+                const collectionsToClear = ["modules", "lecturers", "assignments"];
+                let totalDeleted = 0;
+
+                for (const collName of collectionsToClear) {
+                    const snapshot = await getDocs(collection(dbCloud, collName));
+                    const docs = snapshot.docs;
+                    
+                    for (let i = 0; i < docs.length; i += 500) {
+                        const chunk = docs.slice(i, i + 500);
+                        const batch = writeBatch(dbCloud);
+                        
+                        chunk.forEach(d => {
+                            batch.delete(doc(dbCloud, collName, d.id));
+                            totalDeleted++;
+                        });
+                        
+                        await batch.commit();
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+                }
+                console.log(`Master Reset: Deleted ${totalDeleted} documents from cloud.`);
+            }
+
+            localDB = { lecturers: [], modules: [], assignments: {} };
+            
+            window.triggerAllRenders(); window.populateLecturerDropdown();
+            window.showToast("✅ FULL SYSTEM RESET SUCCESSFUL.", "success");
+
+        } catch(error) {
+            console.error("Reset Error", error);
+            alert("⚠️ Error during reset: " + error.message);
+        } finally {
+            loader.style.display = 'none';
+        }
+    };
+
+    window.checkAssignedWorkload = (mCode) => {
+        const assignment = localDB.assignments[mCode];
+        if (assignment && assignment.id) {
+            window.openHRView(assignment.id);
+        } else {
+            window.showToast("No lecturer assigned to this module yet.", "warning");
+        }
+    }
+
+    window.updateAnalytics = () => {
+        if (localDB.modules.length === 0 && localDB.lecturers.length === 0) return;
+        
+        const viewFilter = document.getElementById('facView').value;
+        let displayFaculties = FACULTIES;
+        if (viewFilter !== 'ALL') {
+            displayFaculties = FACULTIES.filter(f => String(f).includes(viewFilter));
+        }
+
+        let unassignedCount = 0;
+        let workloadData = {}; 
+        let facStats = {}; 
+        let focusStats = { "Teaching": 0, "Research": 0, "Part-Time": 0 };
+        let facDetailedStats = {};
+        
+        FACULTIES.forEach(f => {
+            facStats[f] = { pt: 0, ft: 0, unassigned: 0 };
+            facDetailedStats[f] = { 
+                offered: 0, assigned: 0, unassigned: 0, 
+                ftSame: 0, ptSame: 0, otherFac: 0,
+                ftSameWch: 0, ptSameWch: 0, otherFacWch: 0 
+            };
+        });
+
+        let seenCombinedCodes = new Set();
+        
+        localDB.modules.forEach(m => {
+            const rawMCode = window.getSafeVal(m, ['ModuleCode']);
+            const mCode = window.makeSafeId(rawMCode);
+            const mFac = window.getFaculty(m);
+            
+            if (!facDetailedStats[mFac]) {
+                facDetailedStats[mFac] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0, ftSameWch: 0, ptSameWch: 0, otherFacWch: 0 };
+            }
+            if (!facStats[mFac]) {
+                facStats[mFac] = { pt: 0, ft: 0, unassigned: 0 };
+            }
+
+            facDetailedStats[mFac].offered++;
+            
+            let rawWch = window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours']);
+            let wch = parseFloat(rawWch);
+            if (isNaN(wch)) wch = 0;
+
+            const assignment = localDB.assignments[mCode] || { id: '', mode: (window.getSafeVal(m, ['CombinedBatch']) ? 'Combined' : 'Individual') };
+            
+            if (!assignment.id || assignment.id === '') {
+                if (viewFilter === 'ALL' || String(mFac).includes(viewFilter)) {
+                    unassignedCount++;
+                }
+
+                facDetailedStats[mFac].unassigned++;
+                facStats[mFac].unassigned += wch; 
+            } else {
+                facDetailedStats[mFac].assigned++;
+                
+                let actualWch = wch;
+                if (assignment.mode === 'Combined') {
+                    if (seenCombinedCodes.has(mCode)) actualWch = 0;
+                    else seenCombinedCodes.add(mCode);
+                }
+
+                const assignedLect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
+                if (assignedLect) {
+                    const lFac = window.getFaculty(assignedLect);
+                    const typeStr = String(window.getSafeVal(assignedLect, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
+                    const isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
+                    
+                    if (isPartTime) facStats[mFac].pt += actualWch; 
+                    else facStats[mFac].ft += actualWch; 
+
+                    if (String(lFac).toUpperCase() === String(mFac).toUpperCase()) {
+                        if (isPartTime) {
+                            facDetailedStats[mFac].ptSame++;
+                            facDetailedStats[mFac].ptSameWch += actualWch;
+                        } else {
+                            facDetailedStats[mFac].ftSame++;
+                            facDetailedStats[mFac].ftSameWch += actualWch;
+                        }
+                    } else {
+                        facDetailedStats[mFac].otherFac++;
+                        facDetailedStats[mFac].otherFacWch += actualWch;
+                    }
+                } else {
+                    facStats[mFac].unassigned += actualWch;
+                    facDetailedStats[mFac].unassigned++; 
+                }
+            }
+        });
+
+        localDB.lecturers.forEach(l => {
+            const fac = window.getFaculty(l);
+            const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
+            const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
+            const focusStr = String(window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category', 'LecturerCategory']) || '').toLowerCase();
+            
+            let isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
+            let isResearch = focusStr.includes('research') || focusStr === 'res';
+            
+            workloadData[id] = { 
+                name: window.getSafeVal(l, ['LecturerName', 'FullName']), 
+                wch: 0, 
+                target: window.getDefaultTarget(l), 
+                isPartTime: isPartTime, 
+                isResearch: isResearch,
+                fac: fac 
+            };
+        });
+
+        seenCombinedCodes.clear();
+        localDB.modules.forEach(m => {
+            const rawMCode = window.getSafeVal(m, ['ModuleCode']);
+            const mCode = window.makeSafeId(rawMCode);
+            let wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours'])) || 0;
+            const assignment = localDB.assignments[mCode] || { id: '', mode: 'Individual' };
+
+            if (assignment.id && assignment.id !== '') {
+                let actualWch = wch;
+                if (assignment.mode === 'Combined') {
+                    if (seenCombinedCodes.has(mCode)) actualWch = 0;
+                    else seenCombinedCodes.add(mCode);
+                }
+                if (workloadData[assignment.id]) workloadData[assignment.id].wch += actualWch;
+            }
+        });
+
+        let htmlIdle = '', htmlFtUnder = '', htmlFtOver = '';
+        let htmlFtMet = '', htmlPtMet = '', htmlPtUnder = '';
+        let idleCount = 0, ftUnderCount = 0, ftOverCount = 0;
+        let ftMetCount = 0, ptMetCount = 0, ptUnderCount = 0;
+
+        Object.values(workloadData).forEach(data => {
+            if (viewFilter !== 'ALL' && !String(data.fac).includes(viewFilter)) return;
+
+            if (data.isPartTime) {
+                focusStats["Part-Time"] += data.wch;
+            } else {
+                if (data.isResearch) focusStats["Research"] += data.wch;
+                else focusStats["Teaching"] += data.wch;
+            }
+
+            const isIdle = data.wch === 0;
+            const typeBadge = `<span class="px-1.5 py-0.5 rounded text-[7px] font-bold text-white ${data.wch > data.target ? 'bg-purple-600' : (isIdle ? 'bg-orange-500' : 'bg-blue-500')}">${data.isPartTime ? 'PT' : 'FT'}</span>`;
+            const rwTag = `<span class="font-black text-[9px] bg-gray-200 px-1 rounded ml-1 text-gray-700">(RW: ${data.wch.toFixed(1)})</span>`;
+            
+            const listItem = `
+                <div class="flex justify-between items-center py-1.5 border-b border-gray-200 hover:bg-gray-50 transition">
+                    <div class="pr-2">
+                        <span class="font-bold text-gray-800 break-words clickable-name" title="Click to view full workload slip" onclick="window.openHRView('${Object.keys(workloadData).find(key => workloadData[key] === data)}')">${data.name}</span> ${rwTag}<br>
+                        <span class="text-[8px] md:text-[9px] text-gray-500">${data.fac} | Target: ${data.target}h ${typeBadge}</span>
+                    </div>
+                    <span class="font-black text-sm ${data.wch > data.target ? 'text-purple-600' : (isIdle ? 'text-orange-500' : 'text-blue-600')}">${data.wch.toFixed(1)}</span>
+                </div>
+            `;
+            
+            if (isIdle) { idleCount++; htmlIdle += listItem; } 
+            else if (!data.isPartTime) {
+                if (data.wch < data.target) { ftUnderCount++; htmlFtUnder += listItem; }
+                else if (data.wch > data.target) { ftOverCount++; htmlFtOver += listItem; }
+                else { ftMetCount++; htmlFtMet += listItem; }
+            } else { 
+                if (data.wch < data.target) { ptUnderCount++; htmlPtUnder += listItem; }
+                else { ptMetCount++; htmlPtMet += listItem; } 
+            }
+        });
+
+        document.getElementById('hdr-unassigned').innerText = unassignedCount;
+        document.getElementById('hdr-idle').innerText = idleCount;
+        document.getElementById('hdr-overload').innerText = ftOverCount;
+        
+        document.getElementById('list-idle').innerHTML = htmlIdle || '<p class="text-gray-400 p-2 text-[10px] italic">No idle lecturers.</p>';
+        document.getElementById('list-ft-under').innerHTML = htmlFtUnder || '<p class="text-gray-400 p-2 text-[10px] italic">No underloaded FT staff.</p>';
+        document.getElementById('list-ft-over').innerHTML = htmlFtOver || '<p class="text-gray-400 p-2 text-[10px] italic">No overloaded FT staff.</p>';
+        
+        document.getElementById('list-ft-met').innerHTML = htmlFtMet || '<p class="text-gray-400 p-2 text-[10px] italic">No FT staff met target.</p>';
+        document.getElementById('list-pt-met').innerHTML = htmlPtMet || '<p class="text-gray-400 p-2 text-[10px] italic">No PT staff met target.</p>';
+        document.getElementById('list-pt-under').innerHTML = htmlPtUnder || '<p class="text-gray-400 p-2 text-[10px] italic">No underloaded PT staff.</p>';
+
+        if (charts.faculty) charts.faculty.destroy();
+        if (charts.focus) charts.focus.destroy();
+        
+        charts.faculty = new Chart(document.getElementById('facultyChart'), {
+            type: 'bar',
+            data: {
+                labels: displayFaculties,
+                datasets: [
+                    { label: 'Unassigned (Periods)', backgroundColor: '#dc2626', data: displayFaculties.map(f => facStats[f] ? facStats[f].unassigned : 0) },
+                    { label: 'Part-Time (Periods)', backgroundColor: '#d4af37', data: displayFaculties.map(f => facStats[f] ? facStats[f].pt : 0) },
+                    { label: 'Full-Time (Periods)', backgroundColor: '#004d40', data: displayFaculties.map(f => facStats[f] ? facStats[f].ft : 0) }
+                ]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                scales: { 
+                    x: { stacked: true }, 
+                    y: { stacked: true, beginAtZero: true } 
+                },
+                plugins: {
+                    legend: { position: 'top' }
+                }
+            }
+        });
+
+        charts.focus = new Chart(document.getElementById('focusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Teaching (FT)', 'Research (FT)', 'Part-Time'],
+                datasets: [{
+                    data: [focusStats["Teaching"], focusStats["Research"], focusStats["Part-Time"]],
+                    backgroundColor: ['#0d47a1', '#4a148c', '#d4af37']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+        
+        const royalColors = [
+            'bg-[#004d40]', 'bg-[#0d47a1]', 'bg-[#4a148c]', 'bg-[#881337]',
+            'bg-[#1e3a8a]', 'bg-[#115e59]', 'bg-[#312e81]', 'bg-[#4c1d95]',
+            'bg-[#831843]', 'bg-[#14532d]'
+        ];
+
+        let cardsHtml = '';
+        displayFaculties.forEach((f, idx) => {
+            if (!facDetailedStats[f]) return;
+            const stats = facDetailedStats[f];
+            if(stats.offered > 0) {
+                const colorClass = royalColors[idx % royalColors.length];
+                cardsHtml += `
+                    <div class="${colorClass} text-white p-3 md:p-4 rounded-xl shadow-lg border-2 border-white/20 relative overflow-hidden transform transition hover:scale-105">
+                        <div class="absolute -right-4 -top-4 opacity-10 text-6xl">🏛️</div>
+                        <h4 class="text-[11px] md:text-xs font-black mb-2 border-b border-white/30 pb-1 tracking-widest uppercase">${f}</h4>
+                        <div class="grid grid-cols-1 gap-1.5 text-[10px] md:text-[11px] font-bold">
+                            <div class="flex justify-between items-center"><span class="opacity-80">Offered Modules:</span> <span class="bg-white/20 px-1.5 rounded">${stats.offered}</span></div>
+                            <div class="flex justify-between items-center text-green-300"><span class="opacity-80">Assigned:</span> <span class="bg-black/20 px-1.5 rounded">${stats.assigned}</span></div>
+                            <div class="flex justify-between items-center text-red-300"><span class="opacity-80">Unassigned:</span> <span class="bg-black/20 px-1.5 rounded">${stats.unassigned}</span></div>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        const cardsContainer = document.getElementById('faculty-cards-container');
+        if(cardsContainer) cardsContainer.innerHTML = cardsHtml || '<p class="text-[10px] text-gray-500 italic col-span-full">No module data available to generate cards.</p>';
+
+        let facSummaryHtml = `
+        <div class="bg-white rounded-lg shadow-md border-t-8 border-[#004d40] overflow-hidden mb-6">
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-sm font-black uppercase text-gray-800 tracking-wide">FACULTY WORKLOAD SUMMARY (PERIODS)</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-[#f8fafc] text-gray-600 uppercase font-black text-[10px]">
+                        <tr>
+                            <th class="p-4 py-3 border-b">FACULTY</th>
+                            <th class="p-4 py-3 border-b text-center">TOTAL PERIODS</th>
+                            <th class="p-4 py-3 border-b text-center text-green-600">ASSIGNED</th>
+                            <th class="p-4 py-3 border-b text-center text-red-600">UNASSIGNED</th>
+                            <th class="p-4 py-3 border-b text-center">% ASSIGNED</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y border-b font-bold text-gray-700">
+        `;
+        let grandTotal = 0, grandAssigned = 0, grandUnassigned = 0;
+
+        displayFaculties.forEach(f => {
+            if (!facStats[f]) return;
+            let fTotalWCH = facStats[f].unassigned + facStats[f].pt + facStats[f].ft;
+            let fAssignedWCH = facStats[f].pt + facStats[f].ft;
+            let fUnassignedWCH = facStats[f].unassigned;
+
+            if(fTotalWCH > 0) { 
+                let pct = Math.round((fAssignedWCH / fTotalWCH) * 100);
+                grandTotal += fTotalWCH;
+                grandAssigned += fAssignedWCH;
+                grandUnassigned += fUnassignedWCH;
+
+                facSummaryHtml += `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="p-4 py-3 text-gray-800">${f}</td>
+                    <td class="p-4 py-3 text-center text-gray-800">${fTotalWCH.toFixed(1)}</td>
+                    <td class="p-4 py-3 text-center text-green-600">${fAssignedWCH.toFixed(1)}</td>
+                    <td class="p-4 py-3 text-center text-red-600">${fUnassignedWCH.toFixed(1)}</td>
+                    <td class="p-4 py-3 text-center text-gray-600">${pct}%</td>
+                </tr>
+                `;
+            }
+        });
+
+        let grandPct = grandTotal > 0 ? Math.round((grandAssigned/grandTotal)*100) : 0;
+        facSummaryHtml += `
+                    </tbody>
+                    <tfoot class="bg-[#f8fafc] font-black text-xs text-gray-800">
+                        <tr>
+                            <td class="p-4 py-3">UNIVERSITY TOTAL</td>
+                            <td class="p-4 py-3 text-center">${grandTotal.toFixed(1)}</td>
+                            <td class="p-4 py-3 text-center text-green-700">${grandAssigned.toFixed(1)}</td>
+                            <td class="p-4 py-3 text-center text-red-700">${grandUnassigned.toFixed(1)}</td>
+                            <td class="p-4 py-3 text-center">${grandPct}%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        `;
+        const summaryContainer = document.getElementById('summary-table-container');
+        if (summaryContainer) summaryContainer.innerHTML = facSummaryHtml;
+
+        if (charts.assignmentDetails) charts.assignmentDetails.destroy();
+        charts.assignmentDetails = new Chart(document.getElementById('assignmentDetailsChart'), {
+            type: 'bar',
+            data: {
+                labels: displayFaculties,
+                datasets: [
+                    { label: 'Full-Time (Same Faculty) Periods', backgroundColor: '#0d47a1', data: displayFaculties.map(f => facDetailedStats[f] ? facDetailedStats[f].ftSameWch : 0) },
+                    { label: 'Part-Time (Same Faculty) Periods', backgroundColor: '#4a148c', data: displayFaculties.map(f => facDetailedStats[f] ? facDetailedStats[f].ptSameWch : 0) },
+                    { label: 'Other Faculties (Cross-Assigned) Periods', backgroundColor: '#004d40', data: displayFaculties.map(f => facDetailedStats[f] ? facDetailedStats[f].otherFacWch : 0) }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true }
+                },
+                plugins: {
+                    tooltip: { mode: 'index', intersect: false }
+                }
+            }
+        });
+    };
+
+    window.renderLectDataTab = () => {
+        const tbody = document.getElementById('lectdata-body');
+        if(!tbody) return;
+        
+        const data = window.getFilteredLecturers();
+        let html = '';
+        
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-400 font-bold italic">No Lecturers Master Data found for applied filters.</td></tr>';
+            return;
+        }
+
+        data.forEach(l => {
+            const fac = window.getFaculty(l);
+            const id = window.getSafeVal(l, ['LecturerID', 'NationalID']);
+            const safeId = window.makeSafeId(id);
+            const name = window.getSafeVal(l, ['LecturerName', 'FullName']);
+            const cat = window.getSafeVal(l, ['LecturerCategory', 'Category']);
+            const type = window.getSafeVal(l, ['LecturerType', 'Type']);
+            const mobile = window.getSafeVal(l, ['MobileNumber', 'Mobile', 'Phone']) || 'N/A';
+            
+            const adminAction = activeRole === 'ALL' ? `
+                <div class="flex gap-2 justify-center">
+                    <button onclick="window.openEditLecturerModal('${safeId}')" class="text-blue-500 hover:text-blue-700 font-bold text-lg" title="Edit Lecturer">✏️</button>
+                    <button onclick="window.deleteLecturerRow('${safeId}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Lecturer">🗑️</button>
+                </div>
+            ` : '';
+
+            html += `
+            <tr class="border-b hover:bg-gray-50 transition">
+                <td class="p-2 font-bold text-royal-green">${fac}</td>
+                <td class="p-2 font-mono">${id}</td>
+                <td class="p-2 font-bold">${name}</td>
+                <td class="p-2">${cat}</td>
+                <td class="p-2 font-bold text-royal-blue">${type}</td>
+                <td class="p-2">${mobile}</td>
+                <td class="p-2 text-center">${adminAction}</td>
+            </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    };
+
+    window.renderModDataTab = () => {
+        const tbody = document.getElementById('moddata-body');
+        if(!tbody) return;
+        
+        const data = window.getFilteredModules();
+        let html = '';
+        
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14" class="p-10 text-center text-gray-400 font-bold italic">No Modules Master Data found for applied filters.</td></tr>';
+            return;
+        }
+
+        data.forEach(m => {
+            const fac = window.getFaculty(m);
+            const mCode = window.getSafeVal(m, ['ModuleCode']);
+            const safeCode = window.makeSafeId(mCode);
+            const mName = window.getSafeVal(m, ['ModuleName', 'ModuleTitle']);
+            const session = window.getSafeVal(m, ['Session']);
+            const prog = window.getSafeVal(m, ['ProgramName']);
+            const batch = window.getSafeVal(m, ['OfferedBatch']);
+            const med = window.getSafeVal(m, ['MediumofInstruction', 'Medium']);
+            const comb = window.getSafeVal(m, ['CombinedBatch']);
+            const status = window.getSafeVal(m, ['OfferedStatus']);
+            const campus = window.getSafeCampus(m);
+            const modality = window.getSafeVal(m, ['Modality']);
+            const students = window.getSafeVal(m, ['NoofStudents']) || 0;
+            let wch = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']));
+            if(isNaN(wch)) wch = 0;
+            
+            const adminAction = activeRole === 'ALL' ? `
+                <div class="flex gap-2 justify-center">
+                    <button onclick="window.openEditModuleModal('${safeCode}')" class="text-blue-500 hover:text-blue-700 font-bold text-lg" title="Edit Module">✏️</button>
+                    <button onclick="window.deleteModuleRow('${safeCode}')" class="text-red-500 hover:text-red-700 font-bold text-lg" title="Delete Module">🗑️</button>
+                </div>
+            ` : '';
+
+            html += `
+            <tr class="border-b hover:bg-gray-50 transition">
+                <td class="p-2">${session}</td>
+                <td class="p-2 break-words max-w-[150px]">${prog}</td>
+                <td class="p-2">${batch}</td>
+                <td class="p-2 font-bold text-royal-green">${fac}</td>
+                <td class="p-2">${med}</td>
+                <td class="p-2 text-purple-600">${comb}</td>
+                <td class="p-2">${status}</td>
+                <td class="p-2 font-bold">${campus}</td>
+                <td class="p-2 break-words max-w-[150px] text-royal-blue font-bold">${mName}</td>
+                <td class="p-2">${modality}</td>
+                <td class="p-2 font-mono">${mCode}</td>
+                <td class="p-2 text-center">${students}</td>
+                <td class="p-2 text-center font-black">${wch}</td>
+                <td class="p-2 text-center">${adminAction}</td>
+            </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    };
+
+    window.openHRView = (id) => {
+        if (!id) return;
+        currentLecturerId = id;
+        
+        const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === id);
+        if(!lect) return;
+        
+        const mods = localDB.modules.filter(m => {
+            let safeMCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+            return localDB.assignments[safeMCode]?.id === id;
+        });
+
+        const lName = window.getSafeVal(lect, ['LecturerName', 'FullName']);
+        const lFac = window.getSafeVal(lect, ['Kulliyyah', 'Faculty']);
+        const lType = window.getSafeVal(lect, ['LecturerType', 'Type']);
+        const lFocus = window.getSafeVal(lect, ['AcademicFocus', 'Focus', 'LecturerCategory', 'Category']);
+
+        document.getElementById('hr-meta').innerHTML = `
+            <div><p class="text-[8px] md:text-[9px] text-gray-500 uppercase">Lecturer Name</p><p class="text-[10px] md:text-xs font-black text-royal-blue break-words">${lName}</p></div>
+            <div><p class="text-[8px] md:text-[9px] text-gray-500 uppercase">ID & Contact</p><p class="font-bold text-[9px] md:text-[10px] break-words">${id} | ${window.getSafeVal(lect, ['Mobile', 'MobileNumber'])}</p></div>
+            <div><p class="text-[8px] md:text-[9px] text-gray-500 uppercase">Faculty & Focus</p><p class="font-bold text-[9px] md:text-[10px]">${lFac} | ${lFocus}</p></div>
+            <div><p class="text-[8px] md:text-[9px] text-gray-500 uppercase">Employment</p><p class="font-bold text-[9px] md:text-[10px]">${lType}</p></div>
+        `;
+        document.getElementById('rep-header').innerHTML = `
+            <div class="space-y-1"><p class="text-xs font-black text-[#004d40] uppercase">${lName}</p><p><b>ID:</b> ${id}</p></div>
+            <div class="text-right space-y-1 text-[#0d47a1]"><p><b>Faculty:</b> ${lFac}</p><p><b>Focus:</b> ${lFocus} | <b>Type:</b> ${lType}</p></div>
+        `;
+
+        let totalHours = 0; let seenCodes = new Set(); let hrRows = ''; let pdfRows = '';
+        
+        mods.forEach(m => {
+            const rawMCode = window.getSafeVal(m, ['ModuleCode']);
+            const mCode = window.makeSafeId(rawMCode);
+            const mName = window.getSafeVal(m, ['ModuleName', 'ModuleTitle']);
+            const mFacName = window.getSafeVal(m, ['Kulliyyah', 'ParentKulliyya', 'Faculty']);
+            const combinedData = window.getSafeVal(m, ['CombinedBatch']);
+            
+            let autoMode = (combinedData && String(combinedData).trim() !== '') ? 'Combined' : 'Individual';
+            const config = localDB.assignments[mCode] || { mode: autoMode };
+            
+            let h = parseFloat(window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']));
+            if(isNaN(h)) h = 0;
+
+            let status = config.mode;
+            let rowStyle = "";
+            let batchInfo = window.getSafeVal(m, ['OfferedBatch']);
+            
+            if (combinedData) batchInfo += ` <span class="text-purple-600 font-bold text-[8px]">(+ ${combinedData})</span>`;
+            
+            if (config.mode === 'Combined') {
+                if (seenCodes.has(mCode)) { h = 0; status = 'Comb (Ded.)'; rowStyle = "color:#9ca3af; background-color:#f9fafb;"; }
+                else seenCodes.add(mCode);
+            }
+            totalHours += h;
+
+            hrRows += `
+                <tr style="${rowStyle}">
+                    <td class="p-2 border-b"><span class="font-mono text-[8px] md:text-[9px] font-bold bg-gray-100 px-1 rounded break-all">${rawMCode}</span><br>${mName}</td>
+                    <td class="p-2 border-b text-[8px] md:text-[9px] font-bold text-gray-600">${mFacName}</td>
+                    <td class="p-2 border-b text-[8px] md:text-[9px]">${window.getSafeVal(m, ['ProgramName'])}<br>${batchInfo}</td>
+                    <td class="p-2 border-b text-center text-[9px] md:text-[10px]">${window.getSafeVal(m, ['NoofStudents']) || 0}</td>
+                    <td class="p-2 border-b text-center"><span class="bg-gray-200 px-1.5 py-0.5 rounded text-[7px] uppercase font-bold">${status}</span></td>
+                    <td class="p-2 border-b text-right font-black text-xs md:text-sm">${h.toFixed(1)}</td>
+                </tr>`;
+                
+            pdfRows += `
+                <tr style="${rowStyle}">
+                    <td class="border border-gray-300 p-2 leading-tight"><b>${rawMCode}</b> - ${mName}<br><span class="text-[7px] text-gray-600">${batchInfo}</span></td>
+                    <td class="border border-gray-300 p-2 text-center text-[7px] font-bold">${mFacName}</td>
+                    <td class="border border-gray-300 p-2 text-center leading-tight">${window.getSafeCampus(m)}</td>
+                    <td class="border border-gray-300 p-2 text-center">${window.getSafeVal(m, ['NoofStudents']) || 0} Stud.</td>
+                    <td class="border border-gray-300 p-2 text-center text-[7px] font-bold uppercase">${window.getSafeVal(m, ['Modality'])}<br>(${status})</td>
+                    <td class="border border-gray-300 p-2 text-right font-black">${h.toFixed(1)}</td>
+                </tr>`;
+        });
+
+        document.getElementById('hr-table-body').innerHTML = hrRows;
+        document.getElementById('hr-total').innerText = totalHours.toFixed(1) + " HRS";
+        document.getElementById('rep-rows').innerHTML = pdfRows;
+        document.getElementById('rep-total').innerText = totalHours.toFixed(1) + " HRS";
+
+        document.getElementById('hr-modal').style.display = 'flex';
+    };
+
+    window.closeHRView = () => { 
+        document.getElementById('hr-modal').style.display = 'none'; 
+        currentLecturerId = null; 
+    };
+
+    window.printOfficialDocument = () => {
+        if (!currentLecturerId) return;
+        document.body.classList.add('is-printing');
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('is-printing');
+        }, 500);
+    };
+
+    window.downloadOfficialPDF = async () => {
+        if (!currentLecturerId) return;
+        const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === currentLecturerId);
+        
+        document.getElementById('hr-modal').style.display = 'none';
+        document.getElementById('loader').style.display = 'flex';
+        document.getElementById('loader-text').innerText = "Generating Royal Document...";
+        
+        const frame = document.getElementById('report-frame');
+        frame.style.display = 'block';
+        
+        setTimeout(async () => {
+            const canvas = await html2canvas(frame, { scale: 2, useCORS: true });
+            const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+            pdf.save(`Official_Workload_${window.getSafeVal(lect, ['LecturerName', 'FullName']).replace(/\s/g, '_')}.pdf`);
+            
+            frame.style.display = 'none';
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('hr-modal').style.display = 'flex';
+            window.showToast("PDF Downloaded.", "success");
+        }, 500); 
+    };
+    // ==========================================================================
+// REAL-TIME HYBRID SYNC ENGINE
+// Handles offline caching, debounced cloud syncing, and unsaved warnings
+// ==========================================================================
+window.RealTimeSyncEngine = {
+    syncTimeout: null,
+    hasPendingChanges: false,
+    isSyncing: false,
+
+    // މި ފަންކްޝަން ކޯލް ކުރާނީ ޑޭޓާއަށް ބަދަލެއް އަންނަ ކޮންމެ ފަހަރަކުއެވެ.
+    triggerChange: () => {
+        window.RealTimeSyncEngine.hasPendingChanges = true;
+        
+        // 1. އިންޓަނެޓް ހުއްޓަސް ނެތަސް، އެންމެ ފުރަތަމަ ވަގުތުން ލޯކަލް ބްރައުޒަރަށް ސޭވްކުރާނެ (ސޭފްޓީއަށް)
+        window.saveLocal(true); 
+
+        // 2. ކްލައުޑަށް ފޮނުވުން މަޑުޖައްސާލާނީ 2 ސިކުންތަށެވެ. (ފަޔަރބޭސްއަށް މާބާރަށް ރިކުއެސްޓް ނުފޮނުވުމަށް)
+        clearTimeout(window.RealTimeSyncEngine.syncTimeout);
+        window.RealTimeSyncEngine.syncTimeout = setTimeout(() => {
+            window.RealTimeSyncEngine.pushToCloud();
+        }, 2000);
+    },
+
+    pushToCloud: async () => {
+        // އިންޓަނެޓް ނެތްނަމަ ކްލައުޑަށް ފޮނުވުން ކެންސަލް ކުރާނެ
+        if (!navigator.onLine) {
+            window.setSyncStatus('offline');
+            return; 
+        }
+        
+        if (!window.RealTimeSyncEngine.hasPendingChanges || window.RealTimeSyncEngine.isSyncing) return;
+
+        window.RealTimeSyncEngine.isSyncing = true;
+        window.setSyncStatus('syncing');
+
+        try {
+            // ތިޔަ ކޯޑުގައި ކުރިންވެސް އިން saveToServer ފަންކްޝަން ބޭނުންކޮށްގެން ކްލައުޑަށް ފޮނުވުން
+            await window.saveToServer(true); 
+            
+            // ކާމިޔާބުކަމާއެކު ސޭވްވުމުން ޕެންޑިންގ ޑޭޓާ ނެތްކަމަށް ކަނޑައެޅުން
+            window.RealTimeSyncEngine.hasPendingChanges = false;
+            window.setSyncStatus('success');
+        } catch (error) {
+            console.error("Auto-sync failed:", error);
+            window.setSyncStatus('offline');
+        } finally {
+            window.RealTimeSyncEngine.isSyncing = false;
+        }
+    },
+
+    initListeners: () => {
+        // އިންޓަނެޓް ކަނޑައިގެން ގޮސްފަ އަލުން ގުޅޭއިރު ޕެންޑިންގ ޑޭޓާ ހުރިނަމަ އޮޓޯއިން ސޭވްކުރުން
+        window.addEventListener('online', () => {
+            window.showToast("Internet restored! Syncing pending changes...", "info");
+            if (window.RealTimeSyncEngine.hasPendingChanges) {
+                window.RealTimeSyncEngine.pushToCloud();
+            } else {
+                window.setSyncStatus('success');
+            }
+        });
+
+        // އިންޓަނެޓް ކެނޑުމުން ޔޫސަރަށް އެންގުން
+        window.addEventListener('offline', () => {
+            window.showToast("Connection lost. Working locally. Changes are safe.", "warning");
+            window.setSyncStatus('offline');
+        });
+
+        // ޓެބް ނުވަތަ ބްރައުޒަރ ކްލޯޒް ކުރަން އުޅޭއިރު، ސޭވް ނުވާ ޑޭޓާ ހުރިނަމަ ވޯނިންގ ދިނުން
+        window.addEventListener('beforeunload', (e) => {
+            if (window.RealTimeSyncEngine.hasPendingChanges) {
+                const confirmationMessage = "You have unsaved changes! If you leave now, your recent work might not be saved to the cloud.";
+                (e || window.event).returnValue = confirmationMessage;
+                return confirmationMessage;
+            }
+        });
+    }
+};
+
+// ޕޭޖް ލޯޑުވާއިރު މި އިންޖިން ސްޓާރޓް ކުރުން
+window.RealTimeSyncEngine.initListeners();
+</script>
+</body>
+</html>
