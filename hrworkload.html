@@ -4176,9 +4176,22 @@ const TaskEngine = {
                 });
             }
         },
-        renderPerformanceWidgets: (staffList) => {
-            let sc = staffList.map(s => ({ ...s, ...UI.calcScoreAndStars(s.id) })).sort((a,b) => b.score - a.score);
-            let topStaff = sc.filter(s => s.score >= 70).slice(0, 20);
+renderPerformanceWidgets: (staffList) => {
+            // 1. މިހާރު ހިނގަމުންދާ މަސް ހޯދުން
+            let d = new Date();
+            let y = d.getFullYear();
+            let m = String(d.getMonth() + 1).padStart(2, '0');
+            let fromDate = `${y}-${m}-01`;
+            let toDate = `${y}-${m}-31`;
+
+            // 2. ހަމައެކަނި މި މަހުގެ ޕޮއިންޓް ގުނުން
+            let sc = staffList.map(s => {
+                let stats = UI.calcScoreAndStars(s.id, fromDate, toDate); 
+                return { ...s, score: stats.score, stars: stats.stars };
+            });
+
+            // 3. Elite Performers ލިސްޓް (ގިނަ ޕޮއިންޓް ލިބޭ މީހުން މައްޗަށް)
+            let topStaff = sc.filter(s => s.score > 0).sort((a,b) => b.score - a.score).slice(0, 20);
             let topHtml = topStaff.length > 0 ? topStaff.map(s => `
                 <div class="flex justify-between items-center bg-emerald-50 p-2 rounded border border-emerald-200 mb-2 shadow-sm hover:shadow transition cursor-pointer" onclick="StaffTaskReport.open('${s.id}')">
                     <div class="flex items-center gap-2">
@@ -4190,9 +4203,10 @@ const TaskEngine = {
                         <span class="text-xs font-black text-[#0f172a] bg-white px-2 py-0.5 rounded shadow-sm">${s.score} PTS</span>
                     </div>
                 </div>
-            `).join('') : '<p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest p-4">No top performers yet.</p>';
+            `).join('') : '<p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest p-4">No top performers yet this month.</p>';
             
-            let botStaff = sc.filter(s => s.score < 40 && s.score > 0).slice(0, 20); 
+            // 4. Requires Improvement ލިސްޓް (މަދު ޕޮއިންޓް ލިބޭ މީހުން މައްޗަށް)
+            let botStaff = sc.filter(s => s.score < 40 && s.score > 0).sort((a,b) => a.score - b.score).slice(0, 20); 
             let botHtml = botStaff.length > 0 ? botStaff.map(s => `
                 <div class="flex justify-between items-center bg-red-50 p-2 rounded border border-red-200 mb-2 shadow-sm hover:shadow transition cursor-pointer" onclick="StaffTaskReport.open('${s.id}')">
                     <div class="flex items-center gap-2">
