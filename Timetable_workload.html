@@ -1188,29 +1188,45 @@
 
     const getNormalizedPrefix = (email) => {
         if (!email || !email.includes('@')) return "";
-        return email.split('@')[0].toLowerCase().replace(/[\.\-_]/g, ' ');
+        return email.split('@')[0].toLowerCase().trim();
     };
 
     const validateRoleEmail = (role, email) => {
         const prefix = getNormalizedPrefix(email);
+        
         if (role === 'ALL') {
-            for (const f of FACULTIES) { if (new RegExp(`\\b${f.toLowerCase()}\\b`).test(prefix)) return false; }
-            if (prefix.includes('lecturer') || prefix.includes('student') || prefix.includes('exam')) return false;
+            return prefix === 'academic.affairs';
+        } else if (role === 'EXAM') {
+            return prefix === 'examinations';
+        } else if (FACULTIES.includes(role)) {
+            return prefix === role.toLowerCase();
+        } else if (role === 'STUDENT') {
+            return /^ium\d+$/.test(prefix);
+        } else if (role === 'LECTURER') {
+            if (prefix === 'academic.affairs' || prefix === 'examinations' || /^ium\d+$/.test(prefix)) return false;
+            for (const f of FACULTIES) {
+                if (prefix === f.toLowerCase()) return false;
+            }
             return true;
-        } else if (role === 'LECTURER') return prefix.includes('lecturer');
-        else if (role === 'STUDENT') return prefix.includes('student');
-        else if (role === 'EXAM') return prefix.includes('exam');
-        else return new RegExp(`\\b${role.toLowerCase()}\\b`).test(prefix);
+        }
+        return false;
     };
 
     const getRoleFromEmail = (email) => {
-        if (!email || !email.includes('@')) return 'ALL';
+        if (!email || !email.includes('@')) return 'LECTURER'; 
+        
         const prefix = getNormalizedPrefix(email);
-        if (prefix.includes('student')) return 'STUDENT';
-        if (prefix.includes('lecturer')) return 'LECTURER';
-        if (prefix.includes('exam')) return 'EXAM';
-        for (let f of FACULTIES) { if (new RegExp(`\\b${f.toLowerCase()}\\b`).test(prefix)) return f; }
-        return 'ALL';
+        
+        if (prefix === 'academic.affairs') return 'ALL';
+        if (prefix === 'examinations') return 'EXAM';
+        
+        for (let f of FACULTIES) { 
+            if (prefix === f.toLowerCase()) return f; 
+        }
+        
+        if (/^ium\d+$/.test(prefix)) return 'STUDENT';
+        
+        return 'LECTURER';
     };
 
     window.getSafeVal = (row, possibleKeys) => {
