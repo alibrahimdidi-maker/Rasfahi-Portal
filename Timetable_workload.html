@@ -1,445 +1,459 @@
 <!DOCTYPE html>
 <html lang="dv" dir="ltr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Executive Workload & Timetable Portal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-    <script>
-        document.addEventListener('contextmenu', e => e.preventDefault()); 
-        document.addEventListener('keydown', e => {
-            if (e.key === 'F12') e.preventDefault();
-            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) e.preventDefault();
-            if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's' || e.key === 'P' || e.key === 'p')) e.preventDefault();
-        });
-        document.addEventListener('dragstart', e => { if(!e.target.classList || !e.target.classList.contains('tt-card')) e.preventDefault(); }); 
-    </script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;600;800&display=swap');
-        :root { --royal-green: #004d40; --gold: #d4af37; --royal-blue: #0d47a1; --royal-purple: #4a148c; --bg-light: #f8fafc; --danger-red: #dc2626;}
-        body { background: var(--bg-light); font-family: 'Inter', sans-serif; margin: 0; overflow-x: hidden; -webkit-user-select: none; user-select: none; }
-        input, textarea, select, .ts-control, .ts-dropdown { -webkit-user-select: auto; user-select: auto; }
-        .font-royal { font-family: 'Playfair Display', serif; }
-        .bg-gradient-royal { background: linear-gradient(135deg, var(--royal-green), var(--royal-blue), var(--royal-purple)); }
-        .btn-gold { background: linear-gradient(45deg, #bf953f, #fcf6ba, #b38728); color: black; font-weight: 800; border: 1px solid rgba(0,0,0,0.1); cursor: pointer; transition: 0.3s; }
-        .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4); }
-        .btn-royal-blue { background: linear-gradient(135deg, #0d47a1, #1976d2); color: white; box-shadow: 0 4px 15px rgba(13, 71, 161, 0.3); transition: 0.3s; border: 1px solid rgba(255,255,255,0.1); }
-        .btn-royal-blue:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(13, 71, 161, 0.5); background: linear-gradient(135deg, #1565c0, #1e88e5); }
-        .btn-royal-green { background: linear-gradient(135deg, #004d40, #00695c); color: white; transition: 0.3s; border: 1px solid rgba(255,255,255,0.1); }
-        .btn-royal-green:hover { transform: translateY(-2px); background: linear-gradient(135deg, #00695c, #00796b); }
-        .card { background: white; border-radius: 12px; border-top: 5px solid var(--royal-green); box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        .clickable-name { cursor: pointer; transition: 0.2s; position: relative; display: inline-block; border-bottom: 1px dashed var(--royal-blue); }
-        .clickable-name:hover { color: var(--royal-blue); background-color: #f0f9ff; padding: 0 4px; border-radius: 4px; border-bottom-style: solid; font-weight: bold;}
-        .tab-btn { padding: 12px 16px; font-weight: 800; cursor: pointer; border-bottom: 4px solid transparent; color: #64748b; transition: 0.3s; white-space: nowrap; }
-        .tab-btn.active { border-bottom: 4px solid var(--royal-green); color: var(--royal-green); background: #f0fdf4; border-radius: 8px 8px 0 0;}
-        .tab-content { display: none; } .tab-content.active { display: block; animation: fadeIn 0.4s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        /* Timetable CSS */
-        #tt-grid-table { border-collapse: separate; border-spacing: 2px; width: 100%; min-width: max-content; }
-        .tt-time-header { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; padding: 4px 0;}
-        .tt-time-start { font-size: 13px; font-weight: 900; color: #fff; letter-spacing: 0.5px;}
-        .tt-time-end { font-size: 9px; font-weight: 600; color: #d1d5db; border-top: 1px dotted rgba(255,255,255,0.4); width: 80%; margin-top: 3px; padding-top: 3px;}
-        .tt-course-cell { background: #f8fafc; border-right: 3px solid #cbd5e1; position: sticky; left: 0; z-index: 5; box-shadow: 2px 0 5px rgba(0,0,0,0.05); min-width: 200px; max-width: 280px; border-left: 4px solid var(--royal-green);}
-        .tt-course-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px;}
-        .tt-course-title { font-size: 11px; font-weight: 900; color: var(--royal-blue); line-height: 1.3;}
-        .tt-slot { min-height: 55px; border: 1px dashed rgba(0,0,0,0.15); border-radius: 6px; padding: 4px; transition: 0.2s; background: #f8fafc; display: flex; flex-direction: column; gap: 4px; position: relative;}
-        .tt-slot.drag-over { background: #e0f2fe; border: 2px solid var(--royal-blue); transform: scale(1.02); }
-        .tt-card { cursor: grab; padding: 6px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; color: white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-left: 4px solid rgba(0,0,0,0.4); background: linear-gradient(135deg, var(--royal-green), #0f766e); display: flex; flex-direction: column; gap: 4px; z-index: 10; transition: 0.2s;}
-        .tt-card:hover { transform: translateY(-2px); filter: brightness(1.1);}
-        .tt-card.clash { border: 2px solid #fecdd3; background: linear-gradient(135deg, #be123c, #e11d48); animation: shake 0.4s ease-in-out; }
-        .tt-card-title { font-size: 9.5px; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.3);}
-        .tt-card-info { font-size: 8px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 4px;}
-        .tt-card-remove { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.3); border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer;}
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
-        /* Modals & Toasts */
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; padding: 10px; }
-        .modal-content { background: white; width: 100%; max-width: 1100px; max-height: 95vh; overflow-y: auto; border-radius: 16px; border-top: 8px solid var(--royal-green); }
-        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;}
-        .toast { background: #1e293b; color: #fff; padding: 16px 24px; border-radius: 10px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 12px; min-width: 300px; pointer-events: auto; animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;}
-        .toast.success { border-left: 6px solid #34d399; } .toast.error { border-left: 6px solid #f87171; }
-        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        #loader { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 999999; flex-direction: column; align-items: center; justify-content: center; }
-        .pulse-green { height: 10px; width: 10px; background-color: #4ade80; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.7); } 70% { box-shadow: 0 0 0 6px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
-        /* Print */
-        @media print { 
-            body.is-printing-tt #tt-print-frame, body.is-printing-tt #tt-print-frame * { visibility: visible; }
-            #tt-print-frame { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
-            .tt-print-header { text-align: center; border-bottom: 3px solid var(--royal-green); padding-bottom: 10px; margin-bottom: 20px;}
-            #tt-grid-table { border: 2px solid #1e293b; width: 100%; }
-            #tt-grid-table th { background-color: var(--royal-green) !important; color: white !important; -webkit-print-color-adjust: exact; border: 1px solid #1e293b;}
-            #tt-grid-table td { border: 1px solid #cbd5e1; padding: 4px; }
-            .tt-course-cell { background: #f8fafc !important; -webkit-print-color-adjust: exact; border-right: 2px solid #1e293b;}
-            .tt-card { border: 1px solid var(--royal-blue); background: white !important; color: black !important; text-shadow: none; box-shadow: none; -webkit-print-color-adjust: exact; page-break-inside: avoid; padding: 4px; }
-            .tt-card-remove { display: none !important; }
-        }
-    </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Presidential Executive Workload & Timetable Portal</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;800&display=swap');
+:root { --royal-green: #004d40; --gold: #d4af37; --royal-blue: #0d47a1; --royal-purple: #4a148c; --bg-light: #f8fafc; }
+body { background: var(--bg-light); font-family: 'Inter', sans-serif; margin: 0; overflow-x: hidden; -webkit-user-select: none; user-select: none; }
+input, select, textarea, .ts-control { -webkit-user-select: auto; user-select: auto; }
+.bg-gradient-royal { background: linear-gradient(135deg, var(--royal-green), var(--royal-blue), var(--royal-purple)); }
+.btn-gold { background: linear-gradient(45deg, #bf953f, #fcf6ba, #b38728); color: black; font-weight: 800; border: 1px solid rgba(0,0,0,0.1); cursor: pointer; transition: 0.3s; }
+.btn-gold:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(212,175,55,0.4); }
+.btn-royal-blue { background: linear-gradient(135deg, #0d47a1, #1976d2); color: white; cursor: pointer; transition: 0.3s; }
+.btn-royal-blue:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(13,71,161,0.4); }
+.btn-royal-green { background: linear-gradient(135deg, #004d40, #00695c); color: white; cursor: pointer; transition: 0.3s; }
+.card { background: white; border-radius: 12px; border-top: 5px solid var(--royal-green); box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+.tab-btn { padding: 12px 16px; font-weight: 800; cursor: pointer; border-bottom: 4px solid transparent; color: #64748b; transition: 0.3s; white-space: nowrap; }
+.tab-btn.active { border-bottom: 4px solid var(--royal-green); color: var(--royal-green); background: #f0fdf4; border-radius: 8px 8px 0 0;}
+.tab-content { display: none; } .tab-content.active { display: block; animation: fadeIn 0.3s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+/* Timetable Grid CSS */
+#tt-grid-table { border-collapse: separate; border-spacing: 2px; width: 100%; min-width: max-content; }
+.tt-time-header { display: flex; flex-direction: column; align-items: center; line-height: 1.2; padding: 4px 0;}
+.tt-slot { min-height: 55px; border: 1px dashed rgba(0,0,0,0.15); border-radius: 6px; padding: 4px; transition: 0.2s; background: #f8fafc; position: relative;}
+.tt-slot.drag-over { background: #e0f2fe; border: 2px solid var(--royal-blue); }
+.tt-card { cursor: grab; padding: 6px; border-radius: 4px; font-size: 9px; font-weight: 800; color: white; border-left: 4px solid rgba(0,0,0,0.4); background: linear-gradient(135deg, #004d40, #0f766e); z-index: 10; margin-bottom:4px;}
+.tt-card:active { cursor: grabbing; opacity: 0.8; }
+.tt-card-remove { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.3); border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer;}
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; padding: 10px; }
+.modal-content { background: white; width: 100%; max-width: 1100px; max-height: 90vh; overflow-y: auto; border-radius: 12px; border-top: 8px solid var(--royal-green); }
+#toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 8px;}
+.toast { background: #1e293b; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s forwards;}
+.toast.success { border-left: 5px solid #34d399; } .toast.error { border-left: 5px solid #f87171; }
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+#loader { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 999999; flex-direction: column; align-items: center; justify-content: center; }
+.pulse-green { height: 10px; width: 10px; background-color: #4ade80; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.7); } 70% { box-shadow: 0 0 0 6px rgba(0,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
+@media print { body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: absolute; left: 0; top: 0; width: 100%; } }
+</style>
 </head>
 <body>
 
 <div id="toast-container"></div>
-<div id="loader"><div class="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-royal-green mb-4"></div><p class="font-black text-royal-green uppercase tracking-widest text-sm" id="loader-text">Loading...</p></div>
+<div id="loader"><div class="animate-spin rounded-full h-12 w-12 border-t-4 border-royal-green mb-4"></div><p class="font-black text-royal-green" id="loader-text">Loading...</p></div>
 
-<div id="login-screen" class="min-h-screen bg-gradient-royal flex flex-col items-center justify-center p-4 relative">
-    <div class="bg-white p-8 md:p-12 rounded-2xl shadow-2xl w-full max-w-md text-center border-t-8 border-gold z-10">
-        <h1 class="text-2xl md:text-3xl font-black text-[#004d40] uppercase tracking-tighter mb-2 font-royal">Workload Portal</h1>
-        <p class="text-[10px] md:text-xs text-gray-500 font-bold mb-8 uppercase tracking-widest">Academic Affairs & Timetabling</p>
-        <div class="space-y-5 text-left">
-            <div><label class="text-[10px] font-bold text-gray-600 uppercase">Access Role</label><select id="login-role" disabled class="w-full p-3 border-2 rounded-lg font-bold text-sm bg-gray-50"></select></div>
-            <div><label class="text-[10px] font-bold text-gray-600 uppercase">Email</label><input type="email" id="login-email" class="w-full p-3 border-2 rounded-lg text-sm" oninput="window.detectFacultyFromEmail()"></div>
-            <div><label class="text-[10px] font-bold text-gray-600 uppercase">Password</label><input type="password" id="login-password" class="w-full p-3 border-2 rounded-lg text-sm"></div>
-            <button onclick="window.handleLogin()" class="btn-gold w-full py-4 rounded-xl mt-6 uppercase tracking-widest text-sm shadow-xl">Secure Login</button>
+<div id="login-screen" class="min-h-screen bg-gradient-royal flex flex-col items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border-t-8 border-gold">
+        <h1 class="text-2xl font-black text-[#004d40] uppercase mb-2">Workload & Timetable</h1>
+        <div class="space-y-4 text-left mt-6">
+            <div><label class="text-[10px] font-bold text-gray-600 uppercase">Role</label><select id="login-role" disabled class="w-full p-2 border rounded bg-gray-50 text-xs font-bold"></select></div>
+            <div><label class="text-[10px] font-bold text-gray-600 uppercase">Email</label><input type="email" id="login-email" class="w-full p-2 border rounded text-sm" oninput="window.detectFacultyFromEmail()"></div>
+            <div><label class="text-[10px] font-bold text-gray-600 uppercase">Password</label><input type="password" id="login-password" class="w-full p-2 border rounded text-sm"></div>
+            <button onclick="window.handleLogin()" class="btn-gold w-full py-3 rounded mt-4 uppercase text-sm">Secure Login</button>
         </div>
     </div>
 </div>
 
 <div id="app-screen" style="display: none;">
-    <header class="bg-gradient-royal p-4 md:p-6 text-white text-center shadow-lg relative border-b-4 border-gold">
-        <div class="absolute top-4 right-4 md:top-6 md:right-8 flex flex-col items-end gap-2 z-10">
-            <div id="sync-status" class="bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2"><span id="cloud-pulse" class="pulse-green"></span> <span id="cloud-txt">Connected</span> | 👤 <span id="user-badge" class="text-gold uppercase"></span></div>
-            <button onclick="window.handleLogout()" class="text-[10px] uppercase font-bold text-red-300 hover:text-white bg-black/20 px-2 py-1 rounded">Logout ⇥</button>
+    <header class="bg-gradient-royal p-4 text-white text-center shadow-lg border-b-4 border-gold relative">
+        <div class="absolute top-4 right-4 flex items-center gap-2">
+            <div id="sync-status" class="bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-2"><span id="cloud-pulse" class="pulse-green"></span> <span id="cloud-txt">Synced</span></div>
+            <button onclick="window.handleLogout()" class="text-[10px] font-bold bg-black/30 px-2 py-1 rounded">Logout</button>
         </div>
-        <h1 class="text-xl md:text-3xl font-black uppercase tracking-tighter mb-4 mt-14 md:mt-0 font-royal">Executive Workload & Timetable Portal</h1>
-        <div id="header-stats" class="flex justify-center gap-2 md:gap-4 flex-wrap max-w-4xl mx-auto">
-            <div class="bg-red-600/90 border border-red-500/50 px-4 py-2 rounded-xl flex items-center gap-3"><span class="text-2xl">⚠️</span><div class="text-left"><p class="text-[9px] uppercase font-black text-red-200">Unassigned</p><h3 id="hdr-unassigned" class="text-xl font-black">0</h3></div></div>
-            <div class="bg-orange-500/90 border border-orange-400/50 px-4 py-2 rounded-xl flex items-center gap-3"><span class="text-2xl">⏳</span><div class="text-left"><p class="text-[9px] uppercase font-black text-orange-100">Idle Staff</p><h3 id="hdr-idle" class="text-xl font-black">0</h3></div></div>
-        </div>
-        <div id="personal-info-header" class="hidden mt-4 bg-white/20 px-5 py-2.5 rounded-full inline-block text-xs font-black text-gold border border-white/30"></div>
+        <h1 class="text-2xl font-black uppercase mt-6 md:mt-0" style="font-family: 'Playfair Display', serif;">University Workload & Timetable Portal</h1>
+        <p id="personal-info-header" class="text-xs font-bold text-gold mt-2"></p>
     </header>
 
-    <main class="container mx-auto px-2 md:px-4 py-6 md:py-8">
-        <div id="main-dashboard-controls">
-            <div class="card p-4 mb-6 bg-gray-50 flex flex-col xl:flex-row justify-between items-center gap-4 border-l-4 border-royal-blue">
-                <div class="flex flex-wrap justify-center gap-2 items-center">
-                    <button onclick="window.generateDummies('lect')" class="btn-gold px-3 py-1.5 rounded text-[9px]">1. Get Sample Lecturers</button>
-                    <button onclick="window.generateDummies('mod')" class="btn-gold px-3 py-1.5 rounded text-[9px]">2. Get Sample Modules</button>
-                    <label class="ml-2 text-[9px] font-bold bg-white border-2 border-dashed border-blue-400 text-blue-800 px-3 py-1.5 rounded cursor-pointer hover:bg-blue-50">☁️ UPLOAD LECTURERS <input type="file" accept=".csv" onchange="window.importData('lecturers', event)" class="hidden"></label>
-                    <label class="text-[9px] font-bold bg-white border-2 border-dashed border-purple-400 text-purple-800 px-3 py-1.5 rounded cursor-pointer hover:bg-purple-50">☁️ UPLOAD MODULES <input type="file" multiple accept=".csv" onchange="window.importData('modules', event)" class="hidden"></label>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <div class="flex gap-2 justify-end">
-                        <button onclick="window.saveLocal(false)" class="btn-royal-blue px-5 py-2 rounded text-[10px] font-black uppercase">💾 Save Local</button>
-                        <button onclick="window.saveToServer()" class="btn-royal-green px-5 py-2 rounded text-[10px] font-black uppercase">☁️ Push Cloud</button>
-                    </div>
-                </div>
+    <main class="container mx-auto px-2 py-6">
+        <div id="main-dashboard-controls" class="card p-4 mb-6 bg-gray-50 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex gap-2">
+                <button onclick="window.generateDummies('lect')" class="bg-gray-300 px-3 py-1 rounded text-[10px] font-bold">Add Dummy Lecturers</button>
+                <button onclick="window.generateDummies('mod')" class="bg-gray-300 px-3 py-1 rounded text-[10px] font-bold">Add Dummy Modules</button>
             </div>
-            
-            <div id="admin-controls" class="hidden card p-4 mb-6 bg-red-50 border-t-4 border-red-600 justify-between items-center gap-4">
-                <div><h3 class="font-black text-red-800 uppercase text-xs">Global Admin</h3></div>
-                <div class="flex gap-2">
-                    <button onclick="window.masterReset()" class="bg-red-700 hover:bg-red-800 text-white font-bold px-4 py-2 rounded text-[9px] uppercase">🚨 Master Reset</button>
-                </div>
+            <div class="flex gap-2">
+                <button onclick="window.saveLocal(false)" class="btn-royal-blue px-4 py-1.5 rounded text-[10px] font-bold">💾 Save Local</button>
+                <button onclick="window.saveToServer()" class="btn-royal-green px-4 py-1.5 rounded text-[10px] font-bold">☁️ Push Cloud</button>
             </div>
         </div>
 
-        <div class="flex justify-center border-b mb-6 gap-2 overflow-x-auto px-2">
-            <div class="tab-btn active text-[10px] md:text-sm" onclick="window.switchTab('timetable')">📅 Timetable Master</div>
-            <div class="tab-btn text-[10px] md:text-sm" onclick="window.switchTab('matrix')">📋 Assignment Matrix</div>
-            <div class="tab-btn text-[10px] md:text-sm" onclick="window.switchTab('lectdata')">👨‍💼 Lecturers Data</div>
-            <div class="tab-btn text-[10px] md:text-sm" onclick="window.switchTab('moddata')">📚 Modules Data</div>
+        <div id="admin-controls" class="hidden card p-4 mb-6 bg-red-50 border-t-4 border-red-600 flex justify-between items-center">
+            <h3 class="font-black text-red-800 text-xs">Global Admin Setup</h3>
+            <div class="flex gap-2"><label class="bg-purple-600 text-white font-bold px-3 py-1 rounded text-[10px] cursor-pointer">📤 Import Master CSV <input type="file" accept=".csv" onchange="window.importMasterCSV(event)" class="hidden"></label><button onclick="window.masterReset()" class="bg-red-700 text-white font-bold px-3 py-1 rounded text-[10px]">🚨 Master Reset</button></div>
+        </div>
+
+        <div class="flex border-b mb-6 gap-2 overflow-x-auto" id="main-tabs-container">
+            <div class="tab-btn active text-xs" onclick="window.switchTab('timetable')">📅 Timetable</div>
+            <div class="tab-btn text-xs" onclick="window.switchTab('matrix')">📋 Assignment Matrix</div>
+            <div class="tab-btn text-xs" onclick="window.switchTab('students')">🎓 Students</div>
+            <div class="tab-btn text-xs" onclick="window.switchTab('staff')">👨‍🏫 Staff Targets</div>
+            <div class="tab-btn text-xs" onclick="window.switchTab('analytics')">📊 Analytics</div>
+            <div class="tab-btn text-xs" onclick="window.switchTab('lectdata')">👨‍💼 Lecturers DB</div>
+            <div class="tab-btn text-xs" onclick="window.switchTab('moddata')">📚 Modules DB</div>
         </div>
 
         <div id="tab-timetable" class="tab-content active">
-            <div class="flex flex-col xl:flex-row gap-4">
-                <div id="tt-sidebar" class="w-full xl:w-1/4 bg-white p-4 rounded-xl shadow border-t-4 border-gold flex flex-col">
-                    <h3 class="font-black text-royal-green uppercase mb-2 text-xs">Unscheduled Modules</h3>
-                    <p class="text-[9px] text-gray-500 mb-3 font-bold border-b pb-2">Drag cards onto grid. 3-way clash engine is active!</p>
-                    <select id="tt-batch-filter" onchange="window.renderTimetableBoard()" class="w-full p-2 border rounded text-xs mb-3 font-bold text-royal-blue outline-none shadow-sm"><option value="">-- Select Day --</option></select>
-                    <div id="tt-unassigned-list" class="flex-1 overflow-y-auto space-y-2 min-h-[300px] max-h-[600px] p-2 bg-gray-50 rounded border border-dashed border-gray-300" ondrop="window.dropToUnassigned(event)" ondragover="window.allowDrop(event)"></div>
+            <div id="tt-admin-view" class="flex flex-col xl:flex-row gap-4 mb-6">
+                <div class="w-full xl:w-1/4 bg-white p-3 rounded-xl shadow border-t-4 border-gold">
+                    <h3 class="font-black text-[11px] uppercase mb-2">Unscheduled Modules</h3>
+                    <select id="tt-batch-filter" onchange="window.renderTimetableBoard()" class="w-full p-2 border rounded text-xs mb-2 font-bold bg-gray-50"><option value="">- Select Day -</option></select>
+                    <div id="tt-unassigned-list" class="overflow-y-auto min-h-[300px] max-h-[500px] p-2 bg-gray-50 border border-dashed" ondrop="window.dropToUnassigned(event)" ondragover="window.allowDrop(event)"></div>
                 </div>
-
-                <div id="tt-grid-container" class="w-full xl:w-3/4 bg-white p-4 rounded-xl shadow border-t-4 border-royal-blue overflow-hidden flex flex-col">
-                    <div class="flex justify-between items-center mb-4 border-b pb-2">
-                        <h3 class="font-black text-royal-blue uppercase text-sm" id="grid-view-title">Master Schedule Grid</h3>
+                <div class="w-full xl:w-3/4 bg-white p-3 rounded-xl shadow border-t-4 border-royal-blue">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-black text-[12px] uppercase">Master Grid</h3>
                         <div class="flex gap-2">
-                            <button id="tt-clear-btn" onclick="window.clearCurrentTimetable()" class="bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1.5 rounded text-[9px] font-bold shadow-sm transition">🗑️ Clear Day</button>
-                            <button onclick="window.printTimetablePDF()" class="btn-royal-blue px-3 py-1.5 rounded text-[9px] font-bold shadow-sm">🖨️ Export PDF</button>
+                            <button onclick="window.openTTSettingsModal()" class="bg-gray-200 px-2 py-1 rounded text-[9px] font-bold">⚙️ Config</button>
+                            <button onclick="window.clearCurrentTimetable()" class="bg-red-100 text-red-700 px-2 py-1 rounded text-[9px] font-bold">🗑️ Clear Day</button>
                         </div>
                     </div>
-                    <div class="overflow-x-auto flex-1 border rounded-lg bg-gray-50 shadow-inner" id="timetable-scroll-area">
-                        <table class="w-full text-left text-[10px]" id="tt-grid-table">
-                            <thead id="tt-grid-head" class="bg-[#004d40] sticky top-0 z-20 shadow-md"></thead>
-                            <tbody id="tt-grid-body" class="divide-y divide-gray-200 bg-white"></tbody>
-                        </table>
-                    </div>
+                    <div class="overflow-x-auto border rounded bg-gray-50 max-h-[500px]"><table class="w-full text-left text-[10px]" id="tt-grid-table"><thead id="tt-grid-head" class="bg-[#004d40] sticky top-0 z-20"></thead><tbody id="tt-grid-body" class="bg-white"></tbody></table></div>
                 </div>
             </div>
-        </div>
 
-        <div id="tab-matrix" class="tab-content">
-            <div class="card overflow-hidden">
-                <div class="p-3 bg-gray-50 border-b flex justify-between items-center gap-3">
-                    <select id="facView" onchange="window.triggerAllRenders();" class="p-2 border rounded-lg text-xs font-bold text-royal-green"></select>
-                    <input type="text" id="mSearch" placeholder="Search..." class="p-2 border rounded-lg text-xs w-64" onkeyup="window.renderMatrix()">
+            <div class="card p-4">
+                <h3 class="font-black text-royal-green text-sm uppercase border-b pb-2 mb-4">Detailed Schedule Views</h3>
+                <div class="flex gap-2 mb-4 flex-wrap">
+                    <select id="list-filter-prog" onchange="window.renderScheduledList()" class="p-2 border rounded text-xs"><option value="">-- All Programs --</option></select>
+                    <select id="list-filter-batch" onchange="window.renderScheduledList()" class="p-2 border rounded text-xs"><option value="">-- All Batches --</option></select>
+                    <select id="list-filter-lect" onchange="window.renderScheduledList()" class="p-2 border rounded text-xs"><option value="">-- All Lecturers --</option></select>
+                    <button onclick="window.printTimetableList()" class="btn-royal-blue px-4 py-2 rounded text-[10px] font-bold">🖨️ Print View</button>
                 </div>
-                <div class="overflow-x-auto max-h-[650px] pb-24">
-                    <table class="w-full text-left text-[9px] md:text-xs min-w-[900px]">
-                        <thead class="sticky top-0 bg-[#004d40] text-white z-10 shadow">
-                            <tr><th class="p-2">Status</th><th class="p-2">Prog</th><th class="p-2">Module Details</th><th class="p-2">Faculty</th><th class="p-2 w-[250px]">Assign Lecturer</th></tr>
-                        </thead>
-                        <tbody id="matrix-body" class="divide-y bg-white"><tr><td colspan="5" class="p-10 text-center text-gray-400 font-bold italic">Loading Data...</td></tr></tbody>
+                <div class="overflow-x-auto max-h-[400px]">
+                    <table class="w-full text-left text-[10px] md:text-xs">
+                        <thead class="bg-gray-100 sticky top-0 uppercase"><tr><th class="p-2">Day & Time</th><th class="p-2">Module Code & Name</th><th class="p-2">Program</th><th class="p-2">Batch</th><th class="p-2">Lecturer</th><th class="p-2">Room</th></tr></thead>
+                        <tbody id="scheduled-list-body" class="divide-y"></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <div id="tab-lectdata" class="tab-content">
-            <div class="card overflow-hidden p-4">
-                <div class="flex justify-between items-center mb-4 border-b pb-2"><h2 class="font-black text-royal-green uppercase text-sm">Lecturers</h2><button onclick="window.openAddLecturerModal()" class="btn-royal-blue px-3 py-2 rounded text-[10px] font-bold shadow-sm">+ Add Lecturer</button></div>
-                <div class="overflow-x-auto max-h-[600px]"><table class="w-full text-left text-[10px] md:text-xs"><thead class="sticky top-0 bg-[#004d40] text-white uppercase shadow-sm font-bold text-[9px]"><tr><th class="p-2">Faculty</th><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2 text-center">Action</th></tr></thead><tbody id="lectdata-body" class="divide-y bg-white"></tbody></table></div>
+        <div id="tab-matrix" class="tab-content">
+            <div class="card p-3">
+                <div class="flex justify-between gap-3 mb-3"><select id="facView" onchange="window.triggerAllRenders();" class="p-2 border rounded text-xs font-bold"></select><input type="text" id="mSearch" placeholder="Search..." class="p-2 border rounded text-xs w-64" onkeyup="window.renderMatrix()"></div>
+                <div class="overflow-x-auto max-h-[600px]"><table class="w-full text-left text-[9px] md:text-xs min-w-[800px]"><thead class="sticky top-0 bg-[#004d40] text-white"><tr><th class="p-2">Status</th><th class="p-2">Program & Campus</th><th class="p-2">Module Info</th><th class="p-2">Fac</th><th class="p-2 w-[250px]">Assign Lecturer</th><th class="p-2">Action</th></tr></thead><tbody id="matrix-body" class="divide-y"></tbody></table></div>
             </div>
         </div>
 
-        <div id="tab-moddata" class="tab-content">
-            <div class="card overflow-hidden p-4">
-                <div class="flex justify-between items-center mb-4 border-b pb-2"><h2 class="font-black text-royal-green uppercase text-sm">Modules</h2><button onclick="window.openAddModuleModal()" class="btn-royal-blue px-3 py-2 rounded text-[10px] font-bold shadow-sm">+ Add Module</button></div>
-                <div class="overflow-x-auto max-h-[600px]"><table class="w-full text-left text-[10px] md:text-xs"><thead class="sticky top-0 bg-[#004d40] text-white uppercase shadow-sm font-bold text-[9px]"><tr><th class="p-2">Program</th><th class="p-2">Faculty</th><th class="p-2">Name</th><th class="p-2">Code</th><th class="p-2 text-center">Action</th></tr></thead><tbody id="moddata-body" class="divide-y bg-white"></tbody></table></div>
+        <div id="tab-students" class="tab-content">
+            <div class="card p-4"><div class="flex justify-between mb-4"><h2 class="font-black text-sm uppercase">Students</h2><div class="flex gap-2"><button onclick="window.generateDummyStudents()" class="btn-gold px-3 py-1 rounded text-[10px]">+ Dummy Students</button><button onclick="window.openAddStudentModal()" class="btn-royal-blue px-3 py-1 rounded text-[10px]">+ Add Student</button></div></div><input type="text" id="stuSearch" onkeyup="window.renderStudentTab()" placeholder="Search Students..." class="p-2 border rounded w-full mb-3 text-xs"><div class="overflow-x-auto max-h-[500px]"><table class="w-full text-left text-xs"><thead class="bg-[#004d40] text-white sticky top-0"><tr><th class="p-2">ID</th><th class="p-2">Name & Email</th><th class="p-2">Program</th><th class="p-2">Batch</th><th class="p-2">Action</th></tr></thead><tbody id="students-body" class="divide-y"></tbody></table></div></div>
+        </div>
+
+        <div id="tab-staff" class="tab-content">
+            <div class="card p-4"><h2 class="font-black text-sm uppercase mb-4">Staff Targets</h2><div class="overflow-x-auto max-h-[500px]"><table class="w-full text-left text-xs"><thead class="bg-gray-100 sticky top-0"><tr><th class="p-2">Name & ID</th><th class="p-2">Faculty</th><th class="p-2">Target (Hrs)</th></tr></thead><tbody id="staff-target-body" class="divide-y"></tbody></table></div></div>
+        </div>
+
+        <div id="tab-analytics" class="tab-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="card p-4"><h3 class="text-xs font-black uppercase mb-2">Workload by Faculty</h3><div class="h-64"><canvas id="facultyChart"></canvas></div></div>
+                <div class="card p-4"><h3 class="text-xs font-black uppercase mb-2">Cross-Assignment Stats</h3><div class="h-64"><canvas id="assignmentDetailsChart"></canvas></div></div>
             </div>
+            <div class="card p-4"><h3 class="text-xs font-black uppercase mb-2 border-b pb-2">Faculty Summary</h3><div id="summary-table-container" class="overflow-x-auto text-xs"></div></div>
+        </div>
+
+        <div id="tab-lectdata" class="tab-content">
+            <div class="card p-4"><div class="flex justify-between mb-4"><h2 class="font-black text-sm uppercase">Lecturers Master Data</h2><button onclick="window.openAddLecturerModal()" class="btn-royal-blue px-3 py-1 rounded text-[10px]">+ Add Lecturer</button></div><div class="overflow-x-auto max-h-[500px]"><table class="w-full text-left text-xs"><thead class="bg-[#004d40] text-white sticky top-0"><tr><th class="p-2">Fac</th><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Type</th><th class="p-2">Action</th></tr></thead><tbody id="lectdata-body" class="divide-y"></tbody></table></div></div>
+        </div>
+
+        <div id="tab-moddata" class="tab-content">
+            <div class="card p-4"><div class="flex justify-between mb-4"><h2 class="font-black text-sm uppercase">Modules Master Data</h2><button onclick="window.openAddModuleModal()" class="btn-royal-blue px-3 py-1 rounded text-[10px]">+ Add Module</button></div><div class="overflow-x-auto max-h-[500px]"><table class="w-full text-left text-xs"><thead class="bg-[#004d40] text-white sticky top-0"><tr><th class="p-2">Prog</th><th class="p-2">Batch</th><th class="p-2">Name</th><th class="p-2">Code</th><th class="p-2">WCH</th><th class="p-2">Action</th></tr></thead><tbody id="moddata-body" class="divide-y"></tbody></table></div></div>
         </div>
     </main>
 </div>
 
-<div id="add-lecturer-modal" class="modal-overlay"><div class="bg-white p-6 rounded-xl w-full max-w-lg border-t-4 border-royal-blue"><div class="flex justify-between border-b pb-2 mb-2"><h2 class="font-black uppercase">Add Lecturer</h2><button onclick="document.getElementById('add-lecturer-modal').style.display='none'">X</button></div><div class="space-y-2"><input type="text" id="add-lect-id" placeholder="ID" class="w-full p-2 border"><input type="text" id="add-lect-name" placeholder="Name" class="w-full p-2 border"><select id="add-lect-fac" class="w-full p-2 border"></select></div><button onclick="window.saveNewLecturer()" class="btn-royal-blue mt-4 w-full p-2 rounded">Save</button></div></div>
-<div id="add-module-modal" class="modal-overlay"><div class="bg-white p-6 rounded-xl w-full max-w-lg border-t-4 border-royal-green"><div class="flex justify-between border-b pb-2 mb-2"><h2 class="font-black uppercase">Add Module</h2><button onclick="document.getElementById('add-module-modal').style.display='none'">X</button></div><div class="space-y-2"><input type="text" id="add-mod-code" placeholder="Code" class="w-full p-2 border"><input type="text" id="add-mod-name" placeholder="Name" class="w-full p-2 border"><input type="text" id="add-mod-prog" placeholder="Program" class="w-full p-2 border"><input type="text" id="add-mod-batch" placeholder="Batch" class="w-full p-2 border"><select id="add-mod-fac" class="w-full p-2 border"></select></div><button onclick="window.saveNewModule()" class="btn-royal-green mt-4 w-full p-2 rounded">Save</button></div></div>
-<div id="tt-print-frame"><div class="tt-print-header"><h1 class="font-royal text-[#004d40] uppercase text-2xl">Official Timetable</h1><h3 id="tt-print-subtitle"></h3></div><div id="tt-print-content"></div></div>
+<div id="add-student-modal" class="modal-overlay"><div class="modal-content max-w-sm p-4"><h2 class="font-black border-b mb-2">Student Details</h2><input type="text" id="stu-id" placeholder="ID" class="w-full p-2 border mb-2 text-xs"><input type="text" id="stu-name" placeholder="Name" class="w-full p-2 border mb-2 text-xs"><input type="text" id="stu-email" placeholder="Email" class="w-full p-2 border mb-2 text-xs"><input type="text" id="stu-prog" placeholder="Program" class="w-full p-2 border mb-2 text-xs"><input type="text" id="stu-batch" placeholder="Batch" class="w-full p-2 border mb-2 text-xs"><div class="flex justify-end gap-2 mt-2"><button onclick="document.getElementById('add-student-modal').style.display='none'" class="p-2 bg-gray-300 text-xs rounded">Cancel</button><button onclick="window.saveStudent()" class="p-2 bg-blue-600 text-white text-xs rounded">Save</button></div></div></div>
+<div id="add-lecturer-modal" class="modal-overlay"><div class="modal-content max-w-sm p-4"><h2 class="font-black border-b mb-2">Lecturer Details</h2><select id="lect-fac" class="w-full p-2 border mb-2 text-xs"></select><input type="text" id="lect-id" placeholder="ID" class="w-full p-2 border mb-2 text-xs"><input type="text" id="lect-name" placeholder="Name" class="w-full p-2 border mb-2 text-xs"><select id="lect-type" class="w-full p-2 border mb-2 text-xs"><option value="Full-time">Full-time</option><option value="Part-time">Part-time</option></select><select id="lect-cat" class="w-full p-2 border mb-2 text-xs"><option value="Teaching Focused">Teaching</option><option value="Research Focused">Research</option></select><div class="flex justify-end gap-2 mt-2"><button onclick="document.getElementById('add-lecturer-modal').style.display='none'" class="p-2 bg-gray-300 text-xs rounded">Cancel</button><button onclick="window.saveLecturer()" class="p-2 bg-blue-600 text-white text-xs rounded">Save</button></div></div></div>
+<div id="add-module-modal" class="modal-overlay"><div class="modal-content max-w-md p-4"><h2 class="font-black border-b mb-2">Module Details</h2><div class="grid grid-cols-2 gap-2"><input type="text" id="mod-code" placeholder="Code" class="p-2 border text-xs"><input type="text" id="mod-name" placeholder="Name" class="p-2 border text-xs"><select id="mod-fac" class="p-2 border text-xs"></select><input type="text" id="mod-prog" placeholder="Program" class="p-2 border text-xs"><input type="text" id="mod-batch" placeholder="Batch" class="p-2 border text-xs"><input type="text" id="mod-comb" placeholder="Combined Batch" class="p-2 border text-xs"><input type="number" id="mod-wch" placeholder="WCH" class="p-2 border text-xs"></div><div class="flex justify-end gap-2 mt-4"><button onclick="document.getElementById('add-module-modal').style.display='none'" class="p-2 bg-gray-300 text-xs rounded">Cancel</button><button onclick="window.saveModule()" class="p-2 bg-green-600 text-white text-xs rounded">Save</button></div></div></div>
+<div id="tt-settings-modal" class="modal-overlay"><div class="modal-content max-w-sm p-4"><h2 class="font-black border-b mb-2">Timetable Config</h2><div class="grid grid-cols-2 gap-2 text-xs mb-2"><label><input type="checkbox" id="tt-d0" value="Sunday"> Sun</label><label><input type="checkbox" id="tt-d1" value="Monday"> Mon</label><label><input type="checkbox" id="tt-d2" value="Tuesday"> Tue</label><label><input type="checkbox" id="tt-d3" value="Wednesday"> Wed</label><label><input type="checkbox" id="tt-d4" value="Thursday"> Thu</label></div><div class="flex gap-2"><input type="number" id="tt-start" placeholder="Start(0-23)" class="p-2 border w-full text-xs"><input type="number" id="tt-dur" placeholder="Mins" class="p-2 border w-full text-xs"></div><button onclick="window.saveTTConfig()" class="w-full mt-3 p-2 bg-blue-600 text-white rounded text-xs">Save Settings</button></div></div>
+<div id="print-area" style="display:none; background:white; padding:20px;">
+    <h1 style="text-align:center; color:#004d40; border-bottom:2px solid; margin-bottom:10px;">Official Document</h1><h3 id="print-sub" style="text-align:center; margin-bottom:20px;"></h3><div id="print-body"></div>
+</div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    const firebaseConfig = { apiKey: "AIzaSyBpbegNLw1PZbE0BEx9CtKMC9cawyL6Ik4", authDomain: "workload-portal.firebaseapp.com", databaseURL: "https://workload-portal-default-rtdb.firebaseio.com", projectId: "workload-portal", storageBucket: "workload-portal.firebasestorage.app" };
-    let app, auth, dbCloud;
-    let localDB = { lecturers: [], modules: [], assignments: {}, timetable: [], ttConfig: { startHour: 8, endHour: 22, slotDuration: 50, days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"] } };
-    let activeRole = 'ALL', currentUserEmail = '';
-    const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS"];
-    window.globalLecturerOptions = []; window.globalLecturerOptgroups = [];
+const firebaseConfig = { apiKey: "AIzaSyBpbegNLw1PZbE0BEx9CtKMC9cawyL6Ik4", authDomain: "workload-portal.firebaseapp.com", databaseURL: "https://workload-portal-default-rtdb.firebaseio.com", projectId: "workload-portal", storageBucket: "workload-portal.firebasestorage.app" };
+let app, auth, dbCloud;
+let localDB = { lecturers: [], modules: [], assignments: {}, timetable: [], students: [], ttConfig: { startHour: 8, endHour: 22, slotDuration: 50, days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"] } };
+let activeRole = 'ALL', currentUserEmail = '', curEditId = null;
+const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS"];
+window.globalLecturerOptions = []; window.tsMatrix = []; let charts = {};
 
-    window.showToast = (msg, type = 'info') => {
-        const t = document.createElement('div'); t.className = `toast ${type}`; t.innerHTML = `<span>${msg}</span>`;
-        document.getElementById('toast-container').appendChild(t);
-        setTimeout(() => { t.style.animation = 'fadeOut 0.4s forwards'; setTimeout(() => t.remove(), 400); }, 3000);
-    };
-    window.makeSafeId = (id) => String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
-    window.getSafeVal = (row, keys) => { for (let k of Object.keys(row)) { let ck = k.toLowerCase().replace(/[\s\.\-_]/g, ''); for (let pk of keys) { if (ck.includes(pk.toLowerCase().replace(/[\s\.\-_]/g, ''))) return row[k]||''; } } return ''; };
-    window.getFaculty = (r) => { let raw = window.getSafeVal(r, ['Kulliyyah','Faculty']); let m = FACULTIES.find(f => String(raw).toUpperCase().includes(f)); return m || String(raw).trim(); };
-    window.getSafeCampus = (r) => window.getSafeVal(r, ['Campus','MALE']) || 'MALE';
+window.showToast = (msg, type='info') => { let t = document.createElement('div'); t.className = `toast ${type}`; t.innerHTML = `<span>${msg}</span>`; document.getElementById('toast-container').appendChild(t); setTimeout(() => { t.style.opacity=0; setTimeout(()=>t.remove(),300); }, 3000); };
+window.makeSafeId = (id) => String(id||`U-${Date.now()}`).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
+window.getSafeVal = (r, keys) => { for (let k of Object.keys(r)) { let ck = k.toLowerCase().replace(/[\s\.\-_]/g, ''); for (let pk of keys) { if (ck.includes(pk.toLowerCase().replace(/[\s\.\-_]/g, ''))) return r[k]||''; } } return ''; };
+window.getFac = (r) => { let raw = window.getSafeVal(r, ['Kulliyyah','Faculty']); let m = FACULTIES.find(f => String(raw).toUpperCase().includes(f)); return m || String(raw).trim(); };
+window.saveLocal = (silent=false) => { ['modules','lecturers','assignments','timetable','students','ttConfig'].forEach(k => localStorage.setItem(`wl_${k}`, JSON.stringify(localDB[k]))); if(!silent) window.showToast("Saved Locally", "success"); };
+const loadLocalCache = () => { ['modules','lecturers','assignments','timetable','students','ttConfig'].forEach(k => { let d = localStorage.getItem(`wl_${k}`); if(d) localDB[k] = JSON.parse(d); }); };
 
-    window.saveLocal = (silent = false) => {
-        ['modules','lecturers','assignments','timetable','ttConfig'].forEach(k => localStorage.setItem(`wl_${k}`, JSON.stringify(localDB[k])));
-        if(!silent) window.showToast("Saved Locally.", "success");
-    };
-    const loadLocalCache = () => {
-        ['modules','lecturers','assignments','timetable','ttConfig'].forEach(k => { let d = localStorage.getItem(`wl_${k}`); if(d) localDB[k] = JSON.parse(d); });
-    };
+try { app=initializeApp(firebaseConfig); auth=getAuth(app); dbCloud=getFirestore(app); } catch(e) { window.showToast("Firebase Offline","error"); }
 
-    try { app = initializeApp(firebaseConfig); auth = getAuth(app); dbCloud = getFirestore(app); } catch(e) { window.showToast("Firebase Offline", "error"); }
+const buildDropdowns = () => {
+    let opts = `<option value="ALL">Admin</option><option value="LECTURER">Lecturer</option><option value="STUDENT">Student</option>`; FACULTIES.forEach(f => opts += `<option value="${f}">${f}</option>`);
+    document.getElementById('login-role').innerHTML = opts; 
+    let vOpts = `<option value="ALL">All Faculties</option>`; FACULTIES.forEach(f => vOpts += `<option value="${f}">${f}</option>`); document.getElementById('facView').innerHTML = vOpts;
+    document.getElementById('lect-fac').innerHTML = vOpts; document.getElementById('mod-fac').innerHTML = vOpts;
+}; buildDropdowns();
 
-    const buildDropdowns = () => {
-        let opts = `<option value="ALL">Global Admin</option>`; FACULTIES.forEach(f => opts += `<option value="${f}">${f}</option>`);
-        document.getElementById('login-role').innerHTML = opts; document.getElementById('facView').innerHTML = `<option value="ALL">All Faculties</option>` + opts;
-        document.getElementById('add-lect-fac').innerHTML = opts; document.getElementById('add-mod-fac').innerHTML = opts;
-    }; buildDropdowns();
+window.detectFacultyFromEmail = () => { let em = document.getElementById('login-email').value.toLowerCase(); let r = 'ALL'; if(em.includes('student')) r='STUDENT'; else if(em.includes('lecturer')) r='LECTURER'; else FACULTIES.forEach(f=>{if(em.includes(f.toLowerCase())) r=f;}); document.getElementById('login-role').value = r; };
 
-    window.detectFacultyFromEmail = () => {
-        let em = document.getElementById('login-email').value.toLowerCase();
-        let r = 'ALL'; FACULTIES.forEach(f => { if(em.includes(f.toLowerCase())) r = f; });
-        document.getElementById('login-role').value = r;
-    };
-
-    if (auth) {
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUserEmail = user.email; activeRole = document.getElementById('login-role').value;
-                document.getElementById('user-badge').innerText = activeRole;
-                document.getElementById('login-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block';
-                if(activeRole==='ALL') document.getElementById('admin-controls').style.display='flex';
-                loadCloudData();
-            } else { document.getElementById('app-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; }
-        });
-    }
-
-    async function loadCloudData() {
-        try {
-            if(!navigator.onLine) throw new Error("Offline");
-            let [l,m,a,t] = await Promise.all([getDocs(collection(dbCloud,"lecturers")), getDocs(collection(dbCloud,"modules")), getDocs(collection(dbCloud,"assignments")), getDocs(collection(dbCloud,"timetable"))]);
-            localDB.lecturers = l.docs.map(d=>d.data()); localDB.modules = m.docs.map(d=>d.data());
-            a.docs.forEach(d => localDB.assignments[d.id] = d.data()); localDB.timetable = t.docs.map(d=>d.data());
-            window.saveLocal(true); window.showToast("Cloud Synced.", "success");
-        } catch(e) { loadLocalCache(); window.showToast("Loaded Local Cache.", "warning"); }
-        window.triggerAllRenders();
-    }
-
-    window.handleLogin = async () => {
-        try { await signInWithEmailAndPassword(auth, document.getElementById('login-email').value, document.getElementById('login-password').value); } 
-        catch(e) { alert("Login Failed: "+e.message); }
-    };
-    window.handleLogout = async () => { await signOut(auth); location.reload(); };
-
-    window.switchTab = (id) => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        event.target.classList.add('active'); document.getElementById(`tab-${id}`).classList.add('active');
-        if(id==='timetable') window.renderTimetableBoard(); if(id==='matrix') window.renderMatrix();
-        if(id==='lectdata') window.renderLectDataTab(); if(id==='moddata') window.renderModDataTab();
-    };
-
-    window.triggerAllRenders = () => { window.renderMatrix(); window.renderLectDataTab(); window.renderModDataTab(); window.populateTimetableFilters(); window.renderTimetableBoard(); };
-
-    window.populateTimetableFilters = () => {
-        let h = '<option value="">-- Select Day --</option>'; localDB.ttConfig.days.forEach(d => h += `<option value="${d}">${d}</option>`);
-        document.getElementById('tt-batch-filter').innerHTML = h; if(localDB.ttConfig.days.length>0) document.getElementById('tt-batch-filter').value = localDB.ttConfig.days[0];
-    };
-
-    const generateTimeSlots = () => {
-        let s = [], st = new Date(); st.setHours(localDB.ttConfig.startHour,10,0); let ed = new Date(); ed.setHours(localDB.ttConfig.endHour,30,0);
-        while(st<ed) { let start = st.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); st.setMinutes(st.getMinutes()+localDB.ttConfig.slotDuration); let end = st.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); s.push({start,end}); }
-        return s;
-    };
-
-    const renderGridStructure = () => {
-        let ts = generateTimeSlots(), day = document.getElementById('tt-batch-filter').value || 'Sunday';
-        let crs = new Set(); localDB.modules.forEach(m => crs.add(window.getSafeVal(m,['ProgramName','Program'])||'General'));
-        let cList = Array.from(crs).sort(); if(cList.length===0) cList=['General'];
-
-        let hHead = `<tr><th class="p-2 text-center w-48 border-r bg-[#004d40] text-white sticky left-0 uppercase">Program / Course</th>`;
-        ts.forEach(s => hHead += `<th class="p-0 border-r min-w-[110px] bg-[#004d40]"><div class="tt-time-header"><span class="tt-time-start">${s.start}</span><span class="tt-time-end">${s.end}</span></div></th>`);
-        document.getElementById('tt-grid-head').innerHTML = hHead + '</tr>';
-
-        let hBody = '';
-        cList.forEach((c, i) => {
-            hBody += `<tr class="${i%2===0?'bg-white':'bg-gray-50'}"><td class="tt-course-cell p-0"><div class="tt-course-row"><span class="tt-course-title">${c}</span></div></td>`;
-            ts.forEach(s => hBody += `<td class="p-1 border-r border-b"><div id="cell-${c.replace(/[^a-zA-Z0-9]/g,'')}-${day}-${s.start.replace(':','')}" class="tt-slot h-full" ondrop="window.dropCard(event,'${c}','${day}','${s.start}')" ondragover="window.allowDrop(event)" ondragleave="window.dragLeave(event)"></div></td>`);
-            hBody += `</tr>`;
-        });
-        document.getElementById('tt-grid-body').innerHTML = hBody;
-    };
-
-    window.renderTimetableBoard = () => {
-        let day = document.getElementById('tt-batch-filter').value;
-        if(!day) { document.getElementById('tt-unassigned-list').innerHTML = '<p class="p-4 text-center">Select Day</p>'; renderGridStructure(); return; }
-        renderGridStructure();
-        
-        let schIds = localDB.timetable.map(t=>t.moduleId), uns = localDB.modules.filter(m=>!schIds.includes(window.makeSafeId(window.getSafeVal(m,['ModuleCode']))));
-        if(activeRole!=='ALL') uns = uns.filter(m=>window.getFaculty(m)===activeRole);
-        let uHtml = '';
-        uns.forEach((m,i) => {
-            let mC = window.makeSafeId(window.getSafeVal(m,['ModuleCode'])), mN = window.getSafeVal(m,['ModuleName']), mB = window.getSafeVal(m,['OfferedBatch']), mP = window.getSafeVal(m,['ProgramName'])||'General';
-            let lId = localDB.assignments[mC]?.id || '', lN = 'Unassigned';
-            if(lId) { let l = localDB.lecturers.find(x=>window.makeSafeId(window.getSafeVal(x,['LecturerID']))===lId); if(l) lN = window.getSafeVal(l,['LecturerName']); }
-            uHtml += `<div class="tt-card" draggable="true" id="c-${mC}" data-mcode="${mC}" data-batch="${mB}" data-prog="${mP}" data-lect="${lId}" ondragstart="window.dragStart(event)"><div class="tt-card-title">${mN}</div><div class="tt-card-info"><span>${mC} | ${lN}</span><span>${mB}</span></div></div>`;
-        });
-        document.getElementById('tt-unassigned-list').innerHTML = uHtml;
-
-        localDB.timetable.forEach(t => {
-            if(t.day!==day) return;
-            let cId = `cell-${(t.program||'General').replace(/[^a-zA-Z0-9]/g,'')}-${t.day}-${t.time.replace(':','')}`;
-            let cell = document.getElementById(cId);
-            if(cell) {
-                let m = localDB.modules.find(x=>window.makeSafeId(window.getSafeVal(x,['ModuleCode']))===t.moduleId)||{};
-                let mN = window.getSafeVal(m,['ModuleName'])||t.moduleId, lN = 'Unassigned';
-                if(t.lecturerId) { let l = localDB.lecturers.find(x=>window.makeSafeId(window.getSafeVal(x,['LecturerID']))===t.lecturerId); if(l) lN = window.getSafeVal(l,['LecturerName']); }
-                let crd = document.createElement('div'); crd.className="tt-card"; crd.draggable=true; crd.id=`tt-${t.id}`; crd.dataset.mcode=t.moduleId; crd.dataset.batch=t.batch; crd.dataset.prog=t.program; crd.dataset.lect=t.lecturerId; crd.dataset.ttid=t.id; crd.ondragstart=window.dragStart;
-                crd.innerHTML = `<div class="tt-card-title">${mN}</div><div class="tt-card-info"><span>${t.moduleId} <br><span class="text-[6px]">${t.batch}|${lN}</span></span><span class="tt-card-room">${t.room}</span></div><div class="tt-card-remove" onclick="window.removeScheduled('${t.id}')">X</div>`;
-                cell.appendChild(crd);
+if (auth) {
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUserEmail = user.email; activeRole = document.getElementById('login-role').value;
+            document.getElementById('user-badge').innerText = activeRole; document.getElementById('login-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block';
+            
+            if(activeRole==='ALL') { document.getElementById('admin-controls').style.display='flex'; }
+            if(activeRole==='STUDENT' || activeRole==='LECTURER') {
+                document.getElementById('main-dashboard-controls').style.display='none';
+                document.getElementById('admin-controls').style.display='none';
+                document.getElementById('tt-admin-view').style.display='none';
             }
-        });
-    };
+            let info = "";
+            if(activeRole==='STUDENT') info = `🎓 Student Account: ${currentUserEmail}`;
+            if(activeRole==='LECTURER') info = `👨‍🏫 Lecturer Account: ${currentUserEmail}`;
+            if(info) { let h = document.getElementById('personal-info-header'); h.innerText=info; h.classList.remove('hidden'); }
+            
+            await loadCloudData();
+        } else { document.getElementById('app-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; }
+    });
+}
 
-    window.allowDrop = (e) => { e.preventDefault(); if(e.target.classList.contains('tt-slot')) e.target.classList.add('drag-over'); };
-    window.dragLeave = (e) => { if(e.target.classList.contains('tt-slot')) e.target.classList.remove('drag-over'); };
-    window.dragStart = (e) => e.dataTransfer.setData("text", e.target.id);
-    window.dropToUnassigned = (e) => { e.preventDefault(); let d = e.dataTransfer.getData("text"); let c = document.getElementById(d); if(c && c.dataset.ttid) window.removeScheduled(c.dataset.ttid); };
+async function loadCloudData() {
+    document.getElementById('loader').style.display='flex';
+    try {
+        if(!navigator.onLine) throw new Error("Offline");
+        let [l,m,a,t,s,c] = await Promise.all([getDocs(collection(dbCloud,"lecturers")), getDocs(collection(dbCloud,"modules")), getDocs(collection(dbCloud,"assignments")), getDocs(collection(dbCloud,"timetable")), getDocs(collection(dbCloud,"students")), getDocs(collection(dbCloud,"config"))]);
+        localDB.lecturers = l.docs.map(d=>d.data()); localDB.modules = m.docs.map(d=>d.data()); a.docs.forEach(d => localDB.assignments[d.id] = d.data()); localDB.timetable = t.docs.map(d=>d.data()); localDB.students = s.docs.map(d=>d.data());
+        c.docs.forEach(d => { if(d.id==='timetableSettings') localDB.ttConfig = d.data(); });
+        window.saveLocal(true); window.showToast("Cloud Synced", "success");
+    } catch(e) { loadLocalCache(); window.showToast("Local Cache Loaded", "warning"); }
+    window.triggerAllRenders(); document.getElementById('loader').style.display='none';
+}
 
-    // --- 3 WAY CLASH ENGINE ---
-    window.dropCard = (e, crs, day, time) => {
-        e.preventDefault(); let t = e.target; if(!t.classList.contains('tt-slot')) t=t.closest('.tt-slot'); if(t) t.classList.remove('drag-over');
-        let c = document.getElementById(e.dataTransfer.getData("text")); if(!c||!t) return;
-        let mC=c.dataset.mcode, lId=c.dataset.lect, bat=c.dataset.batch, prg=c.dataset.prog||crs;
-        
-        if(localDB.timetable.find(x=>x.day===day&&x.time===time&&x.batch===bat&&x.program===prg && x.id!==c.dataset.ttid)) return window.showToast("🚨 BATCH CLASH! Class already scheduled for this batch.", "error");
-        if(lId && localDB.timetable.find(x=>x.day===day&&x.time===time&&x.lecturerId===lId && x.id!==c.dataset.ttid)) return window.showToast("🚨 LECTURER CLASH! Lecturer is busy at this time.", "error");
-        
-        let r = prompt("Assign Room:", "Main Hall"); if(r===null) return window.renderTimetableBoard();
-        if(r.trim()!=='' && r.toUpperCase()!=='TBA' && localDB.timetable.find(x=>x.day===day&&x.time===time&&x.room.toUpperCase()===r.toUpperCase() && x.id!==c.dataset.ttid)) {
-            if(!confirm(`⚠️ ROOM CLASH: [${r}] is booked. Force assign?`)) return window.renderTimetableBoard();
+window.handleLogin = async () => { try { await signInWithEmailAndPassword(auth, document.getElementById('login-email').value, document.getElementById('login-password').value); } catch(e) { alert("Login Failed: "+e.message); } };
+window.handleLogout = async () => { await signOut(auth); location.reload(); };
+
+window.switchTab = (id) => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    event.target.classList.add('active'); document.getElementById(`tab-${id}`).classList.add('active');
+    if(id==='timetable') window.renderTimetableBoard(); if(id==='matrix') window.renderMatrix(); if(id==='students') window.renderStudentTab();
+};
+
+window.triggerAllRenders = () => { 
+    window.renderMatrix(); window.renderLectDataTab(); window.renderModDataTab(); window.renderStudentTab(); window.renderStaffTargets(); window.updateAnalytics();
+    let opts = '<option value="">- All -</option>';
+    let progs = new Set(), bats = new Set();
+    localDB.modules.forEach(m => { progs.add(window.getSafeVal(m,['ProgramName'])); bats.add(window.getSafeVal(m,['OfferedBatch'])); });
+    let pHTML=opts, bHTML=opts, lHTML=opts;
+    Array.from(progs).filter(Boolean).sort().forEach(p => pHTML += `<option value="${p}">${p}</option>`);
+    Array.from(bats).filter(Boolean).sort().forEach(b => bHTML += `<option value="${b}">${b}</option>`);
+    localDB.lecturers.forEach(l => lHTML += `<option value="${window.makeSafeId(window.getSafeVal(l,['LecturerID']))}">${window.getSafeVal(l,['LecturerName'])}</option>`);
+    document.getElementById('list-filter-prog').innerHTML = pHTML; document.getElementById('list-filter-batch').innerHTML = bHTML; document.getElementById('list-filter-lect').innerHTML = lHTML;
+    
+    let dHTML = '<option value="">- Select Day -</option>'; localDB.ttConfig.days.forEach(d => dHTML += `<option value="${d}">${d}</option>`);
+    document.getElementById('tt-batch-filter').innerHTML = dHTML; if(localDB.ttConfig.days.length>0) document.getElementById('tt-batch-filter').value = localDB.ttConfig.days[0];
+    window.renderTimetableBoard(); window.renderScheduledList();
+};
+
+// --- TIMETABLE LOGIC ---
+const generateTimeSlots = () => { let s = [], st = new Date(); st.setHours(localDB.ttConfig.startHour||8,10,0); let ed = new Date(); ed.setHours((localDB.ttConfig.endHour||22),30,0); while(st<ed) { let s1=st.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); st.setMinutes(st.getMinutes()+(localDB.ttConfig.slotDuration||50)); s.push({start:s1, end:st.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}); } return s; };
+
+window.renderTimetableBoard = () => {
+    if(activeRole==='STUDENT' || activeRole==='LECTURER') return window.renderScheduledList();
+    let day = document.getElementById('tt-batch-filter').value, ts = generateTimeSlots();
+    let crs = new Set(); localDB.modules.forEach(m => crs.add(window.getSafeVal(m,['ProgramName'])||'General'));
+    let cList = Array.from(crs).sort(); if(cList.length===0) cList=['General'];
+
+    let hHead = `<tr><th class="p-2 text-center w-48 border-r bg-[#004d40] text-white sticky left-0 uppercase">Program</th>`;
+    ts.forEach(s => hHead += `<th class="p-0 border-r min-w-[110px] bg-[#004d40]"><div class="tt-time-header"><span class="tt-time-start">${s.start}</span></div></th>`);
+    document.getElementById('tt-grid-head').innerHTML = hHead + '</tr>';
+
+    let hBody = '';
+    cList.forEach((c, i) => {
+        hBody += `<tr class="${i%2===0?'bg-white':'bg-gray-50'}"><td class="tt-course-cell p-0"><div class="tt-course-row"><span class="tt-course-title">${c}</span></div></td>`;
+        ts.forEach(s => hBody += `<td class="p-1 border-r border-b"><div id="cell-${c.replace(/[^a-zA-Z0-9]/g,'')}-${day}-${s.start.replace(':','')}" class="tt-slot h-full" ondrop="window.dropCard(event,'${c}','${day}','${s.start}')" ondragover="window.allowDrop(event)" ondragleave="window.dragLeave(event)"></div></td>`);
+        hBody += `</tr>`;
+    });
+    document.getElementById('tt-grid-body').innerHTML = hBody;
+
+    if(!day) { document.getElementById('tt-unassigned-list').innerHTML = '<p class="p-4 text-center">Select Day</p>'; return; }
+    
+    let schIds = localDB.timetable.map(t=>t.moduleId), uns = localDB.modules.filter(m=>!schIds.includes(window.makeSafeId(window.getSafeVal(m,['ModuleCode']))));
+    if(activeRole!=='ALL') uns = uns.filter(m=>window.getFac(m)===activeRole);
+    let uHtml = '';
+    uns.forEach((m) => {
+        let mC = window.makeSafeId(window.getSafeVal(m,['ModuleCode'])), mN = window.getSafeVal(m,['ModuleName']), mB = window.getSafeVal(m,['OfferedBatch']), mP = window.getSafeVal(m,['ProgramName'])||'General';
+        let lId = localDB.assignments[mC]?.id || '', lN = 'Unassigned';
+        if(lId) { let l = localDB.lecturers.find(x=>window.makeSafeId(window.getSafeVal(x,['LecturerID']))===lId); if(l) lN = window.getSafeVal(l,['LecturerName']); }
+        uHtml += `<div class="tt-card" draggable="true" id="c-${mC}" data-mcode="${mC}" data-batch="${mB}" data-prog="${mP}" data-lect="${lId}" ondragstart="window.dragStart(event)"><div class="tt-card-title">${mN}</div><div class="tt-card-info"><span>${mC} | ${lN}</span><span>${mB}</span></div></div>`;
+    });
+    document.getElementById('tt-unassigned-list').innerHTML = uHtml;
+
+    localDB.timetable.forEach(t => {
+        if(t.day!==day) return;
+        let cId = `cell-${(t.program||'General').replace(/[^a-zA-Z0-9]/g,'')}-${t.day}-${t.time.replace(':','')}`;
+        let cell = document.getElementById(cId);
+        if(cell) {
+            let m = localDB.modules.find(x=>window.makeSafeId(window.getSafeVal(x,['ModuleCode']))===t.moduleId)||{};
+            let mN = window.getSafeVal(m,['ModuleName'])||t.moduleId, lN = 'Unassigned';
+            if(t.lecturerId) { let l = localDB.lecturers.find(x=>window.makeSafeId(window.getSafeVal(x,['LecturerID']))===t.lecturerId); if(l) lN = window.getSafeVal(l,['LecturerName']); }
+            let crd = document.createElement('div'); crd.className="tt-card"; crd.draggable=true; crd.id=`tt-${t.id}`; crd.dataset.mcode=t.moduleId; crd.dataset.batch=t.batch; crd.dataset.prog=t.program; crd.dataset.lect=t.lecturerId; crd.dataset.ttid=t.id; crd.ondragstart=window.dragStart;
+            crd.innerHTML = `<div class="tt-card-title">${mN}</div><div class="tt-card-info"><span>${t.moduleId} <br><span class="text-[7px]">${t.batch}|${lN}</span></span><span>${t.room}</span></div><div class="tt-card-remove" onclick="window.removeScheduled('${t.id}')">X</div>`;
+            cell.appendChild(crd);
         }
+    });
+};
+
+window.allowDrop = (e) => { e.preventDefault(); if(e.target.classList.contains('tt-slot')) e.target.classList.add('drag-over'); };
+window.dragLeave = (e) => { if(e.target.classList.contains('tt-slot')) e.target.classList.remove('drag-over'); };
+window.dragStart = (e) => e.dataTransfer.setData("text", e.target.id);
+window.dropToUnassigned = (e) => { e.preventDefault(); let c = document.getElementById(e.dataTransfer.getData("text")); if(c && c.dataset.ttid) window.removeScheduled(c.dataset.ttid); };
+
+window.dropCard = (e, crs, day, time) => {
+    e.preventDefault(); let t = e.target; if(!t.classList.contains('tt-slot')) t=t.closest('.tt-slot'); if(t) t.classList.remove('drag-over');
+    let c = document.getElementById(e.dataTransfer.getData("text")); if(!c||!t) return;
+    let mC=c.dataset.mcode, lId=c.dataset.lect, bat=c.dataset.batch, prg=c.dataset.prog||crs;
+    
+    if(localDB.timetable.find(x=>x.day===day&&x.time===time&&x.batch===bat&&x.program===prg && x.id!==c.dataset.ttid)) return window.showToast("🚨 BATCH CLASH!", "error");
+    if(lId && localDB.timetable.find(x=>x.day===day&&x.time===time&&x.lecturerId===lId && x.id!==c.dataset.ttid)) return window.showToast("🚨 LECTURER CLASH!", "error");
+    let r = prompt("Assign Room:", "Main Hall"); if(r===null) return window.renderTimetableBoard();
+    if(r.trim()!=='' && r.toUpperCase()!=='TBA' && localDB.timetable.find(x=>x.day===day&&x.time===time&&x.room.toUpperCase()===r.toUpperCase() && x.id!==c.dataset.ttid)) {
+        if(!confirm(`⚠️ ROOM CLASH: [${r}] is booked. Force assign?`)) return window.renderTimetableBoard();
+    }
+    
+    if(c.dataset.ttid) localDB.timetable = localDB.timetable.filter(x=>x.id!==c.dataset.ttid);
+    localDB.timetable.push({ id:`tt_${Date.now()}`, moduleId:mC, lecturerId:lId, program:prg, batch:bat, day:day, time:time, room:r||"TBA" });
+    window.saveLocal(true); window.renderTimetableBoard(); window.renderScheduledList(); window.showToast("Scheduled.", "success");
+};
+window.removeScheduled = (id) => { localDB.timetable = localDB.timetable.filter(t=>t.id!==id); window.saveLocal(true); window.renderTimetableBoard(); window.renderScheduledList(); };
+window.clearCurrentTimetable = () => { let d=document.getElementById('tt-batch-filter').value; if(d&&confirm(`Clear ${d}?`)){ localDB.timetable=localDB.timetable.filter(t=>t.day!==d); window.saveLocal(); window.renderTimetableBoard(); window.renderScheduledList();} };
+
+window.renderScheduledList = () => {
+    let p = document.getElementById('list-filter-prog')?.value || '';
+    let b = document.getElementById('list-filter-batch')?.value || '';
+    let l = document.getElementById('list-filter-lect')?.value || '';
+    
+    let myProg = null, myBatch = null, myLid = null;
+    if(activeRole==='STUDENT') { let s = localDB.students.find(x=>x.Email.toLowerCase()===currentUserEmail); if(s) { myProg=s.Program; myBatch=s.Batch; } }
+    if(activeRole==='LECTURER') { let lx = localDB.lecturers.find(x=>currentUserEmail.includes(window.makeSafeId(window.getSafeVal(x,['LecturerID'])).toLowerCase())); if(lx) myLid=window.makeSafeId(window.getSafeVal(lx,['LecturerID'])); }
+
+    let h = '';
+    let sorted = [...localDB.timetable].sort((x,y) => x.day.localeCompare(y.day) || x.time.localeCompare(y.time));
+    
+    sorted.forEach(t => {
+        if(activeRole==='STUDENT' && (t.program!==myProg || t.batch!==myBatch)) return;
+        if(activeRole==='LECTURER' && t.lecturerId!==myLid) return;
+        if(activeRole==='ALL') {
+            if(p && t.program!==p) return;
+            if(b && t.batch!==b) return;
+            if(l && t.lecturerId!==l) return;
+        }
+
+        let m = localDB.modules.find(x=>window.makeSafeId(window.getSafeVal(x,['ModuleCode']))===t.moduleId)||{};
+        let mN = window.getSafeVal(m,['ModuleName'])||t.moduleId, lN = 'Unassigned';
+        if(t.lecturerId) { let lx = localDB.lecturers.find(x=>window.makeSafeId(window.getSafeVal(x,['LecturerID']))===t.lecturerId); if(lx) lN = window.getSafeVal(lx,['LecturerName']); }
         
-        if(c.dataset.ttid) localDB.timetable = localDB.timetable.filter(x=>x.id!==c.dataset.ttid);
-        localDB.timetable.push({ id:`tt_${Date.now()}`, moduleId:mC, lecturerId:lId, program:prg, batch:bat, day:day, time:time, room:r||"TBA" });
-        window.saveLocal(true); window.renderTimetableBoard(); window.showToast("Scheduled successfully.", "success");
-    };
-    window.removeScheduled = (id) => { localDB.timetable = localDB.timetable.filter(t=>t.id!==id); window.saveLocal(true); window.renderTimetableBoard(); };
-    window.clearCurrentTimetable = () => { let d=document.getElementById('tt-batch-filter').value; if(d&&confirm(`Clear ${d}?`)){ localDB.timetable=localDB.timetable.filter(t=>t.day!==d); window.saveLocal(); window.renderTimetableBoard(); }};
-    window.printTimetablePDF = () => { document.body.classList.add('is-printing-tt'); document.getElementById('tt-print-content').innerHTML = ''; document.getElementById('tt-print-content').appendChild(document.getElementById('tt-grid-table').cloneNode(true)); setTimeout(()=>{window.print(); document.body.classList.remove('is-printing-tt');},500); };
+        h += `<tr class="hover:bg-blue-50 border-b">
+            <td class="p-2 font-bold">${t.day} <br><span class="text-[10px] text-gray-500">${t.time}</span></td>
+            <td class="p-2"><span class="font-mono bg-gray-200 px-1 rounded">${t.moduleId}</span><br><span class="text-royal-blue font-bold">${mN}</span></td>
+            <td class="p-2 text-[10px]">${t.program}</td>
+            <td class="p-2 font-bold">${t.batch}</td>
+            <td class="p-2 text-[10px]">${lN}</td>
+            <td class="p-2"><span class="bg-gray-800 text-white px-2 py-1 rounded text-[10px]">${t.room}</span></td>
+        </tr>`;
+    });
+    document.getElementById('scheduled-list-body').innerHTML = h || '<tr><td colspan="6" class="p-4 text-center text-gray-500 italic">No scheduled sessions found for selected filters.</td></tr>';
+};
 
-    window.renderMatrix = () => {
-        let tb = document.getElementById('matrix-body'), h = '';
-        if(window.tsMatrix) window.tsMatrix.forEach(t=>t.destroy()); window.tsMatrix=[];
-        localDB.modules.forEach(m => {
-            if(activeRole!=='ALL' && window.getFaculty(m)!==activeRole) return;
-            let mc = window.makeSafeId(window.getSafeVal(m,['ModuleCode'])), ass = localDB.assignments[mc]||{id:''};
-            h += `<tr id="r-${mc}" class="border-b"><td class="p-2">${ass.id?'<span class="text-green-600">Assigned</span>':'<span class="text-red-600">Unassigned</span>'}</td><td class="p-2">${window.getSafeVal(m,['ProgramName'])}</td><td class="p-2"><b>${window.getSafeVal(m,['ModuleName'])}</b><br>${mc}</td><td class="p-2">${window.getFaculty(m)}</td><td class="p-2"><select data-mcode="${mc}" data-assigned="${ass.id}" class="w-full tom-select-assign"></select></td></tr>`;
-        });
-        tb.innerHTML = h||'<tr><td colspan="5" class="p-4 text-center">No Data</td></tr>';
-        
-        let globOpts = []; localDB.lecturers.forEach(l => { if(activeRole!=='ALL' && window.getFaculty(l)!==activeRole) return; globOpts.push({value: window.makeSafeId(window.getSafeVal(l,['LecturerID'])), text: window.getSafeVal(l,['LecturerName'])}); });
-        document.querySelectorAll('.tom-select-assign').forEach(el => {
-            let ts = new TomSelect(el, { create:false, placeholder:"Assign...", options:globOpts, valueField:'value', labelField:'text', searchField:['text'] });
-            if(el.dataset.assigned) ts.setValue(el.dataset.assigned, true);
-            ts.on('change', v => { localDB.assignments[el.dataset.mcode] = {id:v}; window.saveLocal(true); window.renderMatrix(); window.showToast("Assigned","success"); });
-            window.tsMatrix.push(ts);
-        });
-    };
+window.printTimetableList = () => {
+    let b = document.getElementById('print-body'); b.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:10px;"><thead><tr style="background:#f1f5f9;"><th style="border:1px solid #cbd5e1; padding:4px;">Day & Time</th><th style="border:1px solid #cbd5e1; padding:4px;">Module</th><th style="border:1px solid #cbd5e1; padding:4px;">Program</th><th style="border:1px solid #cbd5e1; padding:4px;">Batch</th><th style="border:1px solid #cbd5e1; padding:4px;">Lecturer</th><th style="border:1px solid #cbd5e1; padding:4px;">Room</th></tr></thead><tbody>${document.getElementById('scheduled-list-body').innerHTML}</tbody></table>`;
+    document.getElementById('print-area').style.display='block'; document.getElementById('print-sub').innerText = "Filtered Timetable View"; setTimeout(()=>{window.print(); document.getElementById('print-area').style.display='none';}, 500);
+};
 
-    window.renderLectDataTab = () => {
-        let h = ''; localDB.lecturers.forEach(l => {
-            if(activeRole!=='ALL' && window.getFaculty(l)!==activeRole) return;
-            let id = window.makeSafeId(window.getSafeVal(l,['LecturerID']));
-            h += `<tr class="border-b"><td class="p-2">${window.getFaculty(l)}</td><td class="p-2">${id}</td><td class="p-2 font-bold">${window.getSafeVal(l,['LecturerName'])}</td><td class="p-2"><button onclick="window.deleteLecturerRow('${id}')" class="text-red-500">Del</button></td></tr>`;
-        });
-        document.getElementById('lectdata-body').innerHTML = h;
-    };
-    window.renderModDataTab = () => {
-        let h = ''; localDB.modules.forEach(m => {
-            if(activeRole!=='ALL' && window.getFaculty(m)!==activeRole) return;
-            let mc = window.makeSafeId(window.getSafeVal(m,['ModuleCode']));
-            h += `<tr class="border-b"><td class="p-2">${window.getSafeVal(m,['ProgramName'])}</td><td class="p-2">${window.getFaculty(m)}</td><td class="p-2 font-bold">${window.getSafeVal(m,['ModuleName'])}</td><td class="p-2">${mc}</td><td class="p-2"><button onclick="window.deleteModuleRow('${mc}')" class="text-red-500">Del</button></td></tr>`;
-        });
-        document.getElementById('moddata-body').innerHTML = h;
-    };
+// --- MATRIX & CRUD ---
+window.renderMatrix = () => {
+    let tb = document.getElementById('matrix-body'), h = '';
+    if(window.tsMatrix) window.tsMatrix.forEach(t=>t.destroy()); window.tsMatrix=[];
+    let vF = document.getElementById('facView').value, sq = document.getElementById('mSearch').value.toLowerCase();
+    
+    localDB.modules.forEach(m => {
+        let fac = window.getFac(m), nm = window.getSafeVal(m,['ModuleName']), mc = window.makeSafeId(window.getSafeVal(m,['ModuleCode']));
+        if((vF==='ALL' || fac.includes(vF)) && (nm.toLowerCase().includes(sq) || mc.toLowerCase().includes(sq))) {
+            let ass = localDB.assignments[mc]||{id:''};
+            let aH = activeRole==='ALL'?`<button onclick="window.deleteMod('${mc}')" class="text-red-500">Del</button>`:'';
+            h += `<tr class="border-b hover:bg-gray-50"><td class="p-2">${ass.id?'<span class="text-green-600 font-bold text-[10px]">Assigned</span>':'<span class="text-red-600 font-bold text-[10px]">Unassigned</span>'}</td><td class="p-2 text-[10px]">${window.getSafeVal(m,['ProgramName'])}</td><td class="p-2 leading-tight"><b>${nm}</b><br><span class="font-mono text-[9px] bg-gray-200 px-1 rounded">${mc}</span></td><td class="p-2 text-[10px]">${fac}</td><td class="p-2"><select data-mcode="${mc}" data-assigned="${ass.id}" class="w-full tom-select-assign ${activeRole==='ALL'||fac.includes(activeRole)?'':'disabled'}"></select></td><td class="p-2 text-center">${aH}</td></tr>`;
+        }
+    });
+    tb.innerHTML = h||'<tr><td colspan="6" class="p-4 text-center">No Data</td></tr>';
+    
+    let globOpts = []; localDB.lecturers.forEach(l => globOpts.push({value: window.makeSafeId(window.getSafeVal(l,['LecturerID'])), text: window.getSafeVal(l,['LecturerName'])}));
+    document.querySelectorAll('.tom-select-assign').forEach(el => {
+        if(el.classList.contains('disabled')) return;
+        let ts = new TomSelect(el, { create:false, placeholder:"Assign Lecturer...", options:globOpts, valueField:'value', labelField:'text', searchField:['text'] });
+        if(el.dataset.assigned) ts.setValue(el.dataset.assigned, true);
+        ts.on('change', v => { localDB.assignments[el.dataset.mcode] = {id:v}; window.saveLocal(true); window.triggerAllRenders(); window.showToast("Assigned","success"); });
+        window.tsMatrix.push(ts);
+    });
+};
 
-    window.saveNewLecturer = () => {
-        let id=document.getElementById('add-lect-id').value, nm=document.getElementById('add-lect-name').value, fac=document.getElementById('add-lect-fac').value;
-        if(!id||!nm) return alert("Required fields missing");
-        localDB.lecturers.push({"Lecturer ID":id, "Lecturer Name":nm, "Kulliyyah / Centre":fac}); window.saveLocal(); window.renderLectDataTab(); document.getElementById('add-lecturer-modal').style.display='none';
-    };
-    window.saveNewModule = () => {
-        let c=document.getElementById('add-mod-code').value, nm=document.getElementById('add-mod-name').value, fac=document.getElementById('add-mod-fac').value;
-        if(!c||!nm) return alert("Required fields missing");
-        localDB.modules.push({"Module Code":c, "Module Name":nm, "Parent Kulliyya":fac}); window.saveLocal(); window.renderModDataTab(); window.renderMatrix(); document.getElementById('add-module-modal').style.display='none';
-    };
-    window.deleteModuleRow = (id) => { if(confirm("Delete?")){ localDB.modules=localDB.modules.filter(m=>window.makeSafeId(window.getSafeVal(m,['ModuleCode']))!==id); delete localDB.assignments[id]; window.saveLocal(); window.triggerAllRenders(); } };
-    window.deleteLecturerRow = (id) => { if(confirm("Delete?")){ localDB.lecturers=localDB.lecturers.filter(l=>window.makeSafeId(window.getSafeVal(l,['LecturerID']))!==id); window.saveLocal(); window.triggerAllRenders(); } };
+// Modals Setup
+window.openAddLecturerModal=()=>{curEditId=null; document.getElementById('add-lecturer-modal').style.display='flex';};
+window.openAddModuleModal=()=>{curEditId=null; document.getElementById('add-module-modal').style.display='flex';};
+window.openAddStudentModal=()=>{curEditId=null; document.getElementById('add-student-modal').style.display='flex';};
+window.openTTSettingsModal=()=>{document.getElementById('tt-settings-modal').style.display='flex';};
 
-    window.saveToServer = async () => {
-        if(!navigator.onLine) return alert("Offline!"); document.getElementById('loader').style.display='flex';
-        let b = writeBatch(dbCloud);
-        localDB.modules.forEach(m => b.set(doc(dbCloud,"modules",window.makeSafeId(window.getSafeVal(m,['ModuleCode']))), m, {merge:true}));
-        localDB.lecturers.forEach(l => b.set(doc(dbCloud,"lecturers",window.makeSafeId(window.getSafeVal(l,['LecturerID']))), l, {merge:true}));
-        Object.keys(localDB.assignments).forEach(k => b.set(doc(dbCloud,"assignments",k), localDB.assignments[k], {merge:true}));
-        localDB.timetable.forEach(t => b.set(doc(dbCloud,"timetable",t.id), t, {merge:true}));
-        b.set(doc(dbCloud,"config","timetableSettings"), localDB.ttConfig);
-        await b.commit(); document.getElementById('loader').style.display='none'; window.showToast("Cloud Save Complete!", "success");
-    };
-    window.masterReset = async () => { if(confirm("Wipe Cloud?")) { localStorage.clear(); localDB={lecturers:[],modules:[],assignments:{},timetable:[],ttConfig:{startHour:8,endHour:22,slotDuration:50,days:["Sunday"]}}; window.triggerAllRenders(); window.showToast("Reset Done", "success"); } };
+window.saveLecturer=()=>{ let id=document.getElementById('lect-id').value, nm=document.getElementById('lect-name').value, fac=document.getElementById('lect-fac').value, ty=document.getElementById('lect-type').value, ct=document.getElementById('lect-cat').value; if(!id||!nm)return alert("Fill required"); localDB.lecturers.push({"Lecturer ID":id, "Lecturer Name":nm, "Kulliyyah / Centre":fac, "Lecturer Type":ty, "Lecturer Category":ct}); window.saveLocal(); window.triggerAllRenders(); document.getElementById('add-lecturer-modal').style.display='none'; };
+window.saveModule=()=>{ let c=document.getElementById('mod-code').value, nm=document.getElementById('mod-name').value, fac=document.getElementById('mod-fac').value, p=document.getElementById('mod-prog').value, b=document.getElementById('mod-batch').value, w=document.getElementById('mod-wch').value; if(!c||!nm)return alert("Fill required"); localDB.modules.push({"Module Code":c, "Module Name":nm, "Parent Kulliyya":fac, "Program Name":p, "Offered Batch":b, "Weekly Contact Hours":w}); window.saveLocal(); window.triggerAllRenders(); document.getElementById('add-module-modal').style.display='none'; };
+window.saveStudent=()=>{ let id=document.getElementById('stu-id').value, nm=document.getElementById('stu-name').value, em=document.getElementById('stu-email').value, p=document.getElementById('stu-prog').value, b=document.getElementById('stu-batch').value; if(!id||!nm||!em)return alert("Fill required"); localDB.students.push({StudentID:id, Name:nm, Email:em, Program:p, Batch:b}); window.saveLocal(); window.triggerAllRenders(); document.getElementById('add-student-modal').style.display='none'; };
+window.saveTTConfig=()=>{ let st=parseInt(document.getElementById('tt-start').value), du=parseInt(document.getElementById('tt-dur').value); let ds=[]; for(let i=0;i<=6;i++){let cb=document.getElementById(`tt-d${i}`); if(cb.checked) ds.push(cb.value);} localDB.ttConfig={startHour:st||8, endHour:22, slotDuration:du||50, days:ds}; window.saveLocal(); window.triggerAllRenders(); document.getElementById('tt-settings-modal').style.display='none'; };
+
+window.deleteMod=(id)=>{ if(confirm("Delete?")){ localDB.modules=localDB.modules.filter(m=>window.makeSafeId(window.getSafeVal(m,['ModuleCode']))!==id); delete localDB.assignments[id]; window.saveLocal(); window.triggerAllRenders(); } };
+window.deleteLect=(id)=>{ if(confirm("Delete?")){ localDB.lecturers=localDB.lecturers.filter(l=>window.makeSafeId(window.getSafeVal(l,['LecturerID']))!==id); window.saveLocal(); window.triggerAllRenders(); } };
+window.deleteStu=(id)=>{ if(confirm("Delete?")){ localDB.students=localDB.students.filter(s=>window.makeSafeId(s.StudentID)!==id); window.saveLocal(); window.triggerAllRenders(); } };
+
+window.renderLectDataTab=()=>{ let h=''; localDB.lecturers.forEach(l=>{ let id=window.makeSafeId(window.getSafeVal(l,['LecturerID'])); h+=`<tr class="border-b"><td class="p-2">${window.getFac(l)}</td><td class="p-2">${id}</td><td class="p-2 font-bold">${window.getSafeVal(l,['LecturerName'])}</td><td class="p-2">${window.getSafeVal(l,['LecturerType'])}</td><td class="p-2"><button onclick="window.deleteLect('${id}')" class="text-red-500">Del</button></td></tr>`; }); document.getElementById('lectdata-body').innerHTML=h; };
+window.renderModDataTab=()=>{ let h=''; localDB.modules.forEach(m=>{ let mc=window.makeSafeId(window.getSafeVal(m,['ModuleCode'])); h+=`<tr class="border-b"><td class="p-2">${window.getSafeVal(m,['ProgramName'])}</td><td class="p-2">${window.getSafeVal(m,['OfferedBatch'])}</td><td class="p-2 font-bold">${window.getSafeVal(m,['ModuleName'])}</td><td class="p-2">${mc}</td><td class="p-2">${window.getSafeVal(m,['WeeklyContactHours'])}</td><td class="p-2"><button onclick="window.deleteMod('${mc}')" class="text-red-500">Del</button></td></tr>`; }); document.getElementById('moddata-body').innerHTML=h; };
+window.renderStudentTab=()=>{ let sq=document.getElementById('stuSearch').value.toLowerCase(); let h=''; localDB.students.filter(s=>s.Name.toLowerCase().includes(sq)||s.StudentID.toLowerCase().includes(sq)).forEach(s=>{ h+=`<tr class="border-b"><td class="p-2">${s.StudentID}</td><td class="p-2"><b>${s.Name}</b><br><span class="text-[9px]">${s.Email}</span></td><td class="p-2">${s.Program}</td><td class="p-2 bg-gray-100">${s.Batch}</td><td class="p-2"><button onclick="window.deleteStu('${window.makeSafeId(s.StudentID)}')" class="text-red-500">Del</button></td></tr>`; }); document.getElementById('students-body').innerHTML=h; };
+window.renderStaffTargets=()=>{ let h=''; localDB.lecturers.forEach(l=>{ h+=`<tr class="border-b"><td class="p-2"><b>${window.getSafeVal(l,['LecturerName'])}</b><br><span class="text-[9px]">${window.getSafeVal(l,['LecturerID'])}</span></td><td class="p-2">${window.getFac(l)}</td><td class="p-2">${window.getDefaultTarget(l)} Hrs</td></tr>`; }); document.getElementById('staff-target-body').innerHTML=h; };
+
+window.updateAnalytics=()=>{
+    if(charts.fac) charts.fac.destroy();
+    let lbls=[], d1=[], d2=[];
+    FACULTIES.forEach(f=>{ let ft=0, pt=0; localDB.modules.forEach(m=>{ if(window.getFac(m)===f) { let mc=window.makeSafeId(window.getSafeVal(m,['ModuleCode'])); let a=localDB.assignments[mc]; if(a&&a.id) { let l=localDB.lecturers.find(x=>window.makeSafeId(window.getSafeVal(x,['LecturerID']))===a.id); if(l) { let w=parseFloat(window.getSafeVal(m,['WeeklyContactHours']))||0; if(String(window.getSafeVal(l,['LecturerType'])).toLowerCase().includes('part')) pt+=w; else ft+=w; } } } }); lbls.push(f); d1.push(ft); d2.push(pt); });
+    charts.fac = new Chart(document.getElementById('facultyChart'), { type:'bar', data:{labels:lbls, datasets:[{label:'Full-Time (Hrs)', data:d1, backgroundColor:'#0d47a1'},{label:'Part-Time (Hrs)', data:d2, backgroundColor:'#d4af37'}]}, options:{responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true}, y:{stacked:true}}} });
+};
+
+window.importMasterCSV = async (e) => {
+    let file=e.target.files[0]; if(!file)return;
+    Papa.parse(file, { header:true, complete:res=>{ let c=0; res.data.forEach(r=>{ let mc=window.getSafeVal(r,['ModuleCode']); if(mc) { localDB.modules.push(r); c++; } }); window.saveLocal(); window.triggerAllRenders(); window.showToast(`Imported ${c} rows`,"success"); e.target.value=''; } });
+};
+
+window.saveToServer = async () => {
+    if(!navigator.onLine) return alert("Offline!"); document.getElementById('loader').style.display='flex';
+    let b = writeBatch(dbCloud);
+    localDB.modules.forEach(m => b.set(doc(dbCloud,"modules",window.makeSafeId(window.getSafeVal(m,['ModuleCode']))), m, {merge:true}));
+    localDB.lecturers.forEach(l => b.set(doc(dbCloud,"lecturers",window.makeSafeId(window.getSafeVal(l,['LecturerID']))), l, {merge:true}));
+    localDB.students.forEach(s => b.set(doc(dbCloud,"students",window.makeSafeId(s.StudentID)), s, {merge:true}));
+    Object.keys(localDB.assignments).forEach(k => b.set(doc(dbCloud,"assignments",k), localDB.assignments[k], {merge:true}));
+    localDB.timetable.forEach(t => b.set(doc(dbCloud,"timetable",t.id), t, {merge:true}));
+    b.set(doc(dbCloud,"config","timetableSettings"), localDB.ttConfig);
+    await b.commit(); document.getElementById('loader').style.display='none'; window.showToast("Cloud Save Complete!", "success");
+};
+window.masterReset = async () => { if(confirm("Wipe Local & Cloud Data?")) { localStorage.clear(); localDB={lecturers:[],modules:[],assignments:{},timetable:[],students:[],ttConfig:{startHour:8,endHour:22,slotDuration:50,days:["Sunday"]}}; window.triggerAllRenders(); window.showToast("Reset Done", "success"); } };
+
+// Auto-Sync
+let syncT=null; window.addEventListener('click', ()=>{ clearTimeout(syncT); syncT=setTimeout(()=>window.saveToServer(), 300000); }); // sync every 5 mins of activity
 </script>
 </body>
 </html>
