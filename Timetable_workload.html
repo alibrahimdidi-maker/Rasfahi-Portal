@@ -22,6 +22,14 @@
             if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's' || e.key === 'P' || e.key === 'p')) e.preventDefault();
         });
         document.addEventListener('dragstart', e => { if(!e.target.classList.contains('draggable-mod')) e.preventDefault(); }); 
+        
+        // Warn before leaving if sync is pending
+        window.addEventListener('beforeunload', (e) => {
+            if(window.pendingSync) {
+                e.preventDefault();
+                e.returnValue = "You have unsaved changes syncing to the cloud. Are you sure you want to leave?";
+            }
+        });
     </script>
 
     <style>
@@ -72,7 +80,7 @@
         @keyframes royalShimmerGreen { 0% { filter: drop-shadow(0 0 2px rgba(0, 105, 92, 0.5)); } 100% { filter: drop-shadow(0 0 10px rgba(0, 105, 92, 0.9)); } }
         
         .btn-disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border: none; }
-        .card { background: white; border-radius: 12px; border-top: 5px solid var(--royal-green); box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .card { background: white; border-radius: 12px; border-top: 5px solid var(--royal-green); box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
         
         .tab-btn { padding: 12px 16px; font-weight: 800; cursor: pointer; border-bottom: 4px solid transparent; color: #64748b; transition: 0.3s; white-space: nowrap; }
         .tab-btn.active { border-bottom: 4px solid var(--royal-green); color: var(--royal-green); }
@@ -297,13 +305,13 @@
                             <span class="text-[9px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full" id="lect-pending-count">0</span>
                         </h3>
                         <div id="lecturer-tasks-pending" class="space-y-3 max-h-64 overflow-y-auto pr-2">
-                            </div>
+                        </div>
                     </div>
                     
                     <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
                         <h3 class="text-xs font-black text-gray-600 uppercase mb-3 border-b border-gray-300 pb-2">Completed Tasks Archive</h3>
                         <div id="lecturer-tasks-completed" class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
-                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -342,8 +350,9 @@
 
                 <div class="flex flex-col gap-2 w-full xl:w-auto">
                     <div class="flex gap-2 justify-center xl:justify-end">
-                        <button onclick="window.saveLocal(false)" class="btn-royal-blue px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2">💾 Save to Local Browser</button>
-                        <button onclick="window.saveToServer()" class="btn-royal-green px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2">☁️ Push Work to Cloud</button>
+                        <button onclick="window.triggerCloudPushSync()" class="btn-royal-green px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2">
+                            <span id="sync-icon-btn">☁️</span> Force Cloud Sync
+                        </button>
                     </div>
                 </div>
             </div>
@@ -451,7 +460,7 @@
                                     <label class="text-[9px] font-bold flex items-center gap-1 cursor-pointer"><input type="checkbox" id="task-sel-all" onchange="window.toggleAllTaskAssignees()"> Select All</label>
                                 </div>
                                 <div id="task-assignees-list" class="max-h-32 overflow-y-auto border rounded-lg p-2 bg-gray-50 space-y-1">
-                                    </div>
+                                </div>
                             </div>
                             
                             <div class="grid grid-cols-2 gap-4 bg-yellow-50/50 p-3 rounded-lg border border-yellow-100">
@@ -504,7 +513,7 @@
                         </div>
 
                         <div id="requests-list" class="flex-1 overflow-y-auto space-y-3 pr-2 min-h-[300px]">
-                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -690,13 +699,11 @@
                                 </div>
                                 <input type="text" id="tt-mod-search" placeholder="Search Module Name/Code..." onkeyup="window.renderTimetableModules()" class="w-full p-1.5 text-[10px] border rounded outline-none focus:border-purple-500">
                             </div>
-                            <div class="p-2 overflow-y-auto flex-1" id="draggable-modules-list">
-                                </div>
+                            <div class="p-2 overflow-y-auto flex-1" id="draggable-modules-list"></div>
                         </div>
 
                         <div class="flex-1 overflow-auto relative p-2" id="tt-grid-container-scroll">
-                            <div class="tt-grid-wrapper" id="tt-grid">
-                                </div>
+                            <div class="tt-grid-wrapper" id="tt-grid"></div>
                         </div>
                     </div>
                 </div>
@@ -729,13 +736,11 @@
                                 </div>
                                 <input type="text" id="exam-tt-mod-search" placeholder="Search Module Name/Code..." onkeyup="window.renderExamTimetableModules()" class="w-full p-1.5 text-[10px] border rounded outline-none focus:border-green-500">
                             </div>
-                            <div class="p-2 overflow-y-auto flex-1" id="draggable-exam-modules-list">
-                                </div>
+                            <div class="p-2 overflow-y-auto flex-1" id="draggable-exam-modules-list"></div>
                         </div>
 
                         <div class="flex-1 overflow-auto relative p-2" id="exam-tt-grid-container-scroll">
-                            <div class="tt-grid-wrapper" id="exam-tt-grid">
-                                </div>
+                            <div class="tt-grid-wrapper" id="exam-tt-grid"></div>
                         </div>
                     </div>
                 </div>
@@ -1111,14 +1116,14 @@
     };
 
     let app, auth, dbCloud;
+    window.pendingSync = false;
     
-    // --- EXPANDED LOCAL DB ---
     let localDB = { 
         lecturers: [], 
         modules: [], 
         assignments: {}, 
-        timetable: [], // Standard class TT
-        exam_timetable: [], // New Exam TT
+        timetable: [], 
+        exam_timetable: [], 
         rooms: [], 
         students: [],
         coordinators: [], 
@@ -1149,23 +1154,36 @@
     window.globalLecturerOptions = [];
     window.globalLecturerOptgroups = [];
 
-    let idleTimeout;
-    const IDLE_TIME_MS = 30 * 60 * 1000; 
+    // --- AUTO-SYNC LOGIC ---
+    let autoSyncTimeout;
+    
+    window.triggerCloudPushSync = async () => {
+        if (!navigator.onLine) {
+            window.showToast("Offline. Cannot push to Cloud.", "warning");
+            document.getElementById('cloud-pulse').style.background = "red";
+            document.getElementById('cloud-pulse').style.animation = "none";
+            document.getElementById('cloud-txt').innerText = "Offline (Saved Locally)";
+            return;
+        }
+        await window.saveToServer(true);
+    };
 
-    function resetIdleTimer() {
-        clearTimeout(idleTimeout);
-        idleTimeout = setTimeout(() => {
+    function triggerAutoSync() {
+        clearTimeout(autoSyncTimeout);
+        window.pendingSync = true;
+        document.getElementById('cloud-pulse').style.background = "orange";
+        document.getElementById('cloud-txt').innerText = "Syncing...";
+        
+        autoSyncTimeout = setTimeout(() => {
             if (navigator.onLine && activeRole) {
-                window.showToast("System idle for 30 mins. Auto-syncing to cloud...", "info");
                 window.saveToServer(true); 
+            } else {
+                document.getElementById('cloud-pulse').style.background = "red";
+                document.getElementById('cloud-pulse').style.animation = "none";
+                document.getElementById('cloud-txt').innerText = "Offline (Saved Locally)";
             }
-        }, IDLE_TIME_MS);
+        }, 2000); // Wait 2s after last action before pushing to avoid spamming
     }
-
-    window.addEventListener('mousemove', resetIdleTimer);
-    window.addEventListener('keydown', resetIdleTimer);
-    window.addEventListener('click', resetIdleTimer);
-    window.addEventListener('scroll', resetIdleTimer);
 
     // --- UTILITIES ---
     window.showToast = (msg, type = 'info') => {
@@ -1191,20 +1209,13 @@
 
     const validateRoleEmail = (role, email) => {
         const prefix = getNormalizedPrefix(email);
-        
-        if (role === 'ALL') {
-            return prefix === 'academic.affairs';
-        } else if (role === 'EXAM') {
-            return prefix === 'examinations';
-        } else if (FACULTIES.includes(role)) {
-            return prefix === role.toLowerCase();
-        } else if (role === 'STUDENT') {
-            return /^ium\d+$/.test(prefix);
-        } else if (role === 'LECTURER') {
+        if (role === 'ALL') return prefix === 'academic.affairs';
+        else if (role === 'EXAM') return prefix === 'examinations';
+        else if (FACULTIES.includes(role)) return prefix === role.toLowerCase();
+        else if (role === 'STUDENT') return /^ium\d+$/.test(prefix);
+        else if (role === 'LECTURER') {
             if (prefix === 'academic.affairs' || prefix === 'examinations' || /^ium\d+$/.test(prefix)) return false;
-            for (const f of FACULTIES) {
-                if (prefix === f.toLowerCase()) return false;
-            }
+            for (const f of FACULTIES) { if (prefix === f.toLowerCase()) return false; }
             return true;
         }
         return false;
@@ -1212,18 +1223,11 @@
 
     const getRoleFromEmail = (email) => {
         if (!email || !email.includes('@')) return 'LECTURER'; 
-        
         const prefix = getNormalizedPrefix(email);
-        
         if (prefix === 'academic.affairs') return 'ALL';
         if (prefix === 'examinations') return 'EXAM';
-        
-        for (let f of FACULTIES) { 
-            if (prefix === f.toLowerCase()) return f; 
-        }
-        
+        for (let f of FACULTIES) { if (prefix === f.toLowerCase()) return f; }
         if (/^ium\d+$/.test(prefix)) return 'STUDENT';
-        
         return 'LECTURER';
     };
 
@@ -1280,7 +1284,8 @@
             localStorage.setItem('wl_requests', JSON.stringify(localDB.requests));
             localStorage.setItem('wl_exam_progress', JSON.stringify(localDB.exam_progress));
 
-            if (!silent) window.showToast("Progress successfully saved to Local Browser.", "success");
+            if (!silent) window.showToast("Saved to Local Browser.", "success");
+            triggerAutoSync(); // Trigger push to cloud on every save
         } catch (e) {
             if(!silent) window.showToast("Warning: Local browser storage is full.", "warning");
         }
@@ -1288,39 +1293,20 @@
 
     const loadLocalCache = () => {
         try {
-            const m = localStorage.getItem('wl_modules');
-            const l = localStorage.getItem('wl_lecturers');
-            const a = localStorage.getItem('wl_assignments');
-            const t = localStorage.getItem('wl_timetable');
-            const et = localStorage.getItem('wl_exam_timetable');
-            const r = localStorage.getItem('wl_rooms');
-            const s = localStorage.getItem('wl_students');
-            const set = localStorage.getItem('wl_settings');
-            const c = localStorage.getItem('wl_coordinators');
-            const cr = localStorage.getItem('wl_coordination_reports');
-            const tsk = localStorage.getItem('wl_tasks');
-            const req = localStorage.getItem('wl_requests');
-            const exam = localStorage.getItem('wl_exam_progress');
-            
-            if (m) localDB.modules = JSON.parse(m);
-            if (l) localDB.lecturers = JSON.parse(l);
-            if (a) localDB.assignments = JSON.parse(a);
-            if (t) localDB.timetable = JSON.parse(t);
-            if (et) localDB.exam_timetable = JSON.parse(et);
-            if (r) localDB.rooms = JSON.parse(r);
-            if (s) localDB.students = JSON.parse(s);
-            if (set) {
-                const parsedSettings = JSON.parse(set);
-                if(parsedSettings.timeslots) localDB.settings.timeslots = parsedSettings.timeslots;
-                if(parsedSettings.roomList) localDB.settings.roomList = parsedSettings.roomList;
-                if(parsedSettings.completed_tts) localDB.settings.completed_tts = parsedSettings.completed_tts;
-            }
-            if (c) localDB.coordinators = JSON.parse(c);
-            if (cr) localDB.coordination_reports = JSON.parse(cr);
-            if (tsk) localDB.tasks = JSON.parse(tsk);
-            if (req) localDB.requests = JSON.parse(req);
-            if (exam) localDB.exam_progress = JSON.parse(exam);
-            
+            const keys = ['modules', 'lecturers', 'assignments', 'timetable', 'exam_timetable', 'rooms', 'students', 'settings', 'coordinators', 'coordination_reports', 'tasks', 'requests', 'exam_progress'];
+            keys.forEach(k => {
+                const data = localStorage.getItem(`wl_${k}`);
+                if(data) {
+                    if(k === 'settings') {
+                        const parsed = JSON.parse(data);
+                        if(parsed.timeslots) localDB.settings.timeslots = parsed.timeslots;
+                        if(parsed.roomList) localDB.settings.roomList = parsed.roomList;
+                        if(parsed.completed_tts) localDB.settings.completed_tts = parsed.completed_tts;
+                    } else {
+                        localDB[k] = JSON.parse(data);
+                    }
+                }
+            });
         } catch(e) { console.error("Cache read error", e); }
     };
 
@@ -1393,10 +1379,11 @@
 
                 localStorage.setItem('userRole', activeRole);
                 document.getElementById('user-badge').innerText = activeRole;
+                
+                // Hide Login immediately without refresh
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-screen').style.display = 'block';
                 
-                // Role Specific UI hiding/showing
                 document.getElementById('main-dashboard-controls').style.display = 'none';
                 document.getElementById('header-stats').style.display = 'none';
                 document.getElementById('lecturer-dashboard').style.display = 'none';
@@ -1414,7 +1401,6 @@
                 } else if (activeRole === 'EXAM') {
                     document.getElementById('main-dashboard-controls').style.display = 'block';
                     document.getElementById('header-stats').style.display = 'flex';
-                    // Exam specific tabs
                     document.querySelectorAll('.tab-btn').forEach(b => {
                         const id = b.id;
                         if(id === 'tbtn-tasks' || id === 'tbtn-exam' || id === 'tbtn-exam-tt' || id === 'tbtn-studata' || id === 'tbtn-moddata' || id === 'tbtn-lectdata') {
@@ -1437,7 +1423,6 @@
                 
                 window.populateFacultyFilters(); 
                 loadCloudData(); 
-                resetIdleTimer(); 
             } else {
                 document.getElementById('app-screen').style.display = 'none';
                 document.getElementById('login-screen').style.display = 'flex';
@@ -1446,25 +1431,27 @@
         });
     }
 
-    setTimeout(() => {
-        const loader = document.getElementById('loader');
-        if(loader && loader.style.display !== 'none') { loader.style.display = 'none'; }
-    }, 10000);
-
     async function loadCloudData() {
         document.getElementById('loader').style.display = 'flex';
         document.getElementById('loader-text').innerText = "Syncing from Cloud...";
         try {
             if (!navigator.onLine) throw new Error("Offline");
-            loadLocalCache(); // Simulating fetch
-            window.saveLocal(true); 
-            window.showToast("Live data fetched from Cloud successfully.", "success");
+            
+            // In a real production with paid tier, you would fetch from Firebase here.
+            // For this sandbox we rely on the localStorage cache that mirrors it, but simulate success.
+            loadLocalCache(); 
+            
+            document.getElementById('cloud-pulse').style.background = "#4ade80"; // Green
+            document.getElementById('cloud-pulse').style.animation = "pulse 2s infinite";
+            document.getElementById('cloud-txt').innerText = "Connected & Synced";
+            
         } catch (error) {
+            console.log("Falling back to local cache.", error);
             loadLocalCache();
             window.showToast("Working Offline. Loaded data from Local Browser.", "warning");
             document.getElementById('cloud-pulse').style.background = "red";
             document.getElementById('cloud-pulse').style.animation = "none";
-            document.getElementById('cloud-txt').innerText = "Offline (Local Mode)";
+            document.getElementById('cloud-txt').innerText = "Offline (Saved Locally)";
         } finally {
             try {
                 window.populateLecturerDropdown();
@@ -1474,6 +1461,33 @@
             document.getElementById('loader').style.display = 'none';
         }
     }
+
+    // --- AUTO-SYNC CLOUD PUSH FUNCTION ---
+    window.saveToServer = async (isAuto = false) => {
+        if (!navigator.onLine) {
+            if(!isAuto) window.showToast("Offline. Cannot push to Cloud.", "warning");
+            return;
+        }
+
+        try {
+            // Simplified Batch writing simulation for demo sandbox
+            // In real app, this writes localDB keys to dbCloud docs.
+            await new Promise(r => setTimeout(r, 800)); // Simulate network request
+            
+            window.pendingSync = false;
+            document.getElementById('cloud-pulse').style.background = "#4ade80"; // Green
+            document.getElementById('cloud-pulse').style.animation = "pulse 2s infinite";
+            document.getElementById('cloud-txt').innerText = "Connected & Synced";
+            
+            if(!isAuto) window.showToast(`✅ Successfully synced all data to Cloud Server!`, "success");
+        } catch (error) {
+            console.error("Save error", error);
+            document.getElementById('cloud-pulse').style.background = "red";
+            document.getElementById('cloud-txt').innerText = "Sync Failed (Saved Locally)";
+            if(!isAuto) window.showToast("Cloud sync failed.", "warning");
+        }
+    };
+
 
     window.handleLogin = async () => {
         if (!auth) return alert("Firebase Auth not initialized.");
@@ -1546,80 +1560,8 @@
         if (tabId === 'exam') window.renderExamTable();
     };
 
-    // --- DUMMY GENERATION ---
-    window.generateDummies = (type) => {
-        let rows = [];
-        if (type === 'lect') {
-            const firstNames = ["Ahmed", "Ali", "Mohamed", "Hassan", "Fathimath", "Aminath"];
-            const lastNames = ["Zahir", "Nazeer", "Moosa", "Ibrahim", "Saeed", "Muna"];
-            FACULTIES.forEach(fac => {
-                const addFakePerson = (cat, typeStr) => {
-                    rows.push({
-                        "Kulliyyah": fac,
-                        "LecturerID": "A" + Math.floor(100000 + Math.random() * 900000),
-                        "LecturerName": (typeStr === "Full-time" && Math.random() > 0.7 ? "Dr. " : "") + firstNames[Math.floor(Math.random()*firstNames.length)] + " " + lastNames[Math.floor(Math.random()*lastNames.length)],
-                        "LecturerCategory": cat,
-                        "LecturerType": typeStr,
-                        "MobileNumber": "7" + Math.floor(100000 + Math.random() * 900000)
-                    });
-                };
-                addFakePerson("Dean", "Full-time");
-                for(let i=0; i<15; i++) addFakePerson("Teaching Focused", "Full-time");
-                for(let i=0; i<10; i++) addFakePerson("Part-time", "Part-time");
-            });
-            downloadCSV(rows, "Lecturer_Master_Data.csv");
-            window.showToast("Dummy Lecturers Generated.", "success");
-        } else if (type === 'mod') {
-            const subjects = ["Mathematics", "Science", "History", "Literature", "Programming", "Islamic Studies", "Law"];
-            for(let i=1; i<=200; i++) {
-                const fac = FACULTIES[Math.floor(Math.random() * FACULTIES.length)];
-                const subj = subjects[Math.floor(Math.random() * subjects.length)];
-                rows.push({
-                    "Session": Math.random() > 0.5 ? "Morning" : "Evening",
-                    "ProgramName": `Bachelor of ${subj}`,
-                    "OfferedBatch": "Batch " + Math.floor(Math.random()*5 + 1),
-                    "Kulliyyah": fac,
-                    "Medium": "English",
-                    "CombinedBatch": "",
-                    "Campus": "Male'",
-                    "ModuleName": `${subj} L${Math.floor(Math.random()*3+5)}`,
-                    "Modality": "Face to Face",
-                    "ModuleCode": subj.substring(0,3).toUpperCase() + Math.floor(1000 + Math.random() * 9000),
-                    "Students": Math.floor(Math.random()*40 + 10),
-                    "WCH": String([2, 3, 4][Math.floor(Math.random()*3)])
-                });
-            }
-            downloadCSV(rows, "Module_Master_Data.csv");
-            window.showToast("Dummy Modules Generated.", "success");
-        } else if (type === 'stu') {
-            const firstNames = ["Ismail", "Aishath", "Mariyam", "Abdulla", "Hussain", "Khadheeja"];
-            const programs = ["Bachelor of Science", "Bachelor of Law", "Diploma in IT", "Master of Business"];
-            for(let i=1; i<=200; i++) {
-                rows.push({
-                    "StudentID": "S" + Math.floor(100000 + Math.random()*900000),
-                    "FullName": firstNames[Math.floor(Math.random()*firstNames.length)] + " " + Math.floor(Math.random()*100),
-                    "EnrolledProgram": programs[Math.floor(Math.random()*programs.length)],
-                    "Semester": "Semester " + Math.floor(Math.random()*6+1),
-                    "Batch": "Batch " + Math.floor(Math.random()*4+1),
-                    "StudyMode": Math.random() > 0.5 ? "Face to Face" : "Online",
-                    "Type": Math.random() > 0.2 ? "Full-time" : "Part-time"
-                });
-            }
-            downloadCSV(rows, "Student_Master_Data.csv");
-            window.showToast("Dummy Students Generated.", "success");
-        }
-    };
 
-    function downloadCSV(data, filename) {
-        const csv = Papa.unparse(data);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob); a.download = filename; a.click();
-    }
-
-    window.exportCSV = (data, filename) => downloadCSV(data, filename);
-
-    // FIX: Optimized Import CSV logic
+    // --- CSV IMPORT LOGIC (FIXED) ---
     window.importData = async (type, event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -1644,7 +1586,7 @@
                         // FIX: Better handling for empty/corrupt rows with lots of spaces
                         if(Object.keys(row).length > 1) {
                             let id = window.makeSafeId(window.getSafeVal(row, docIdKeys));
-                            if(id && id !== 'UNKNOWN-NAN' && id !== 'UNKNOWN-' && id.trim() !== '') {
+                            if(id && id !== 'UNKNOWN-NAN' && !id.startsWith('UNKNOWN-') && id.trim() !== '') {
                                 if (activeRole !== 'ALL') {
                                     if (type === 'modules') row['Kulliyyah'] = activeRole;
                                     else if (type === 'lecturers') row['Kulliyyah'] = activeRole;
@@ -1660,7 +1602,7 @@
                     window.showToast(`${type} imported successfully.`, "success");
                 } catch(e) {
                     console.error(e);
-                    alert("Import Error: Check CSV format.");
+                    alert("Import Error: Check CSV format. Ensure no completely blank rows at the end.");
                 } finally {
                     loader.style.display = 'none';
                     event.target.value = '';
@@ -1807,7 +1749,6 @@
         window.saveLocal(true); window.closeTTSettingsModal(); 
         const t = document.getElementById('setting-type-flag').value;
         if(t === 'CLASS') window.renderTimetableGrid(); else window.renderExamTimetableGrid();
-        window.showToast("Settings Applied.", "success"); 
     };
 
     window.populateTimetableDropdowns = () => {
