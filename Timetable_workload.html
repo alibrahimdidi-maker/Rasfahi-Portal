@@ -202,6 +202,10 @@
         .star-rating.s4 { background: linear-gradient(90deg, #d4af37 80%, #d1d5db 80%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .star-rating.s5 { background: linear-gradient(90deg, #d4af37 100%, #d1d5db 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
+        .royal-sheet-print {
+            border: 4px double #d4af37; padding: 20px; background: #fffdf7;
+        }
+
         @media print {
             body.is-printing > :not(#report-frame) { display: none !important; }
             body.is-printing { background: white; }
@@ -420,10 +424,11 @@
                 <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('staff')" id="tbtn-staff">👨‍🏫 Staff Targets</div>
                 <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('timetable')" id="tbtn-timetable">🗓️ Timetable Manager</div>
                 <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('exam-tt')" id="tbtn-exam-tt">📝 Exam Timetable</div>
-                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('events')" id="tbtn-events">🎉 Events & Attendance</div>
-                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('weekly')" id="tbtn-weekly">📝 Weekly Reports</div>
                 <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('tasks')" id="tbtn-tasks">✅ Tasks & Requests</div>
                 <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('exam')" id="tbtn-exam">📑 Exam Unit Prep</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('coordinators')" id="tbtn-coordinators">👨‍💼 Coordinators</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('events')" id="tbtn-events">🎉 Events</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('weekly')" id="tbtn-weekly">📝 Weekly Reports</div>
                 <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('studata')" id="tbtn-studata">🎓 Students</div>
                 <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('lectdata')" id="tbtn-lectdata">👨‍💼 Lecturers</div>
                 <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('moddata')" id="tbtn-moddata">📚 Modules</div>
@@ -540,6 +545,103 @@
                 </div>
             </div>
 
+            <div id="tab-coordinators" class="tab-content">
+                <div class="card p-6 border-t-8 border-pink-700 shadow-lg">
+                    <div class="flex items-center justify-between border-b pb-4 mb-4">
+                        <div>
+                            <h2 class="text-xl font-black text-pink-900 uppercase tracking-wide flex items-center gap-2"><span>👨‍💼</span> Coordinator Management & Checklists</h2>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Assign coordinators, track checklists, and view royal sheets.</p>
+                        </div>
+                        <button onclick="window.printRoyalSheet()" class="btn-gold px-4 py-2 rounded text-[10px] shadow flex items-center gap-2 font-black uppercase">
+                            🖨️ Print Royal Sheet
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="space-y-6">
+                            <div class="bg-pink-50 p-4 rounded-xl border border-pink-200">
+                                <h3 class="text-xs font-black uppercase text-pink-800 mb-3 border-b border-pink-300 pb-2">Assign Coordinator</h3>
+                                <div class="space-y-3 text-[10px]">
+                                    <div>
+                                        <label class="font-bold text-gray-700">Select Lecturer</label>
+                                        <select id="coord-lect-select" class="w-full p-2 border rounded outline-none focus:border-pink-500"></select>
+                                    </div>
+                                    <div>
+                                        <label class="font-bold text-gray-700">Coordinate Type</label>
+                                        <select id="coord-type-select" class="w-full p-2 border rounded outline-none focus:border-pink-500">
+                                            <option value="Batch">Batch / Program</option>
+                                            <option value="Module">Specific Module</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="font-bold text-gray-700">Item (Batch Name / Module Code)</label>
+                                        <input type="text" id="coord-item-input" placeholder="e.g. Batch 1 or ENG101" class="w-full p-2 border rounded outline-none focus:border-pink-500">
+                                    </div>
+                                    <button onclick="window.assignCoordinator()" class="w-full bg-pink-600 text-white font-bold rounded py-2 shadow hover:bg-pink-700 transition">✅ Assign Coordinator</button>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <h3 class="text-[10px] font-black uppercase text-gray-700 mb-2 text-center">Checklist Submissions</h3>
+                                <div class="h-48"><canvas id="coordPieChart"></canvas></div>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative">
+                                <div class="absolute top-2 right-2 flex gap-2">
+                                    <select id="coord-my-role-select" onchange="window.loadCoordChecklist()" class="p-1 border rounded text-[9px] bg-pink-50 text-pink-800 outline-none font-bold">
+                                        <option value="">-- Select Your Coordinated Item --</option>
+                                    </select>
+                                </div>
+                                <h3 class="text-xs font-black uppercase text-royal-blue mb-4 border-b pb-2">Coordinator Quality Checklist</h3>
+                                
+                                <div id="coord-checklist-area" class="space-y-4 text-[10px] opacity-50 pointer-events-none transition">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <label class="flex items-center gap-2 p-2 bg-gray-50 rounded border hover:bg-blue-50 cursor-pointer">
+                                            <input type="checkbox" id="chk-moodle" class="w-4 h-4"> <span class="font-bold">Moodle / Turnitin Links Active</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 p-2 bg-gray-50 rounded border hover:bg-blue-50 cursor-pointer">
+                                            <input type="checkbox" id="chk-notes" class="w-4 h-4"> <span class="font-bold">Notes & Tutorials Uploaded</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 p-2 bg-gray-50 rounded border hover:bg-blue-50 cursor-pointer">
+                                            <input type="checkbox" id="chk-isims" class="w-4 h-4"> <span class="font-bold">iSIMS Attendance Marked (Weekly)</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 p-2 bg-gray-50 rounded border hover:bg-blue-50 cursor-pointer">
+                                            <input type="checkbox" id="chk-feedback" class="w-4 h-4"> <span class="font-bold">Student Feedback Evaluated</span>
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <label class="font-bold text-red-600 block mb-1">Student Complaints / ARC Issues (Forward to Faculty)</label>
+                                        <textarea id="chk-arc" rows="3" class="w-full p-2 border rounded outline-none focus:border-red-400" placeholder="List any major issues or write 'None'..."></textarea>
+                                    </div>
+                                    <div class="flex justify-between items-center border-t pt-3">
+                                        <span class="text-gray-500 italic" id="chk-status-txt">Select an item above to fill checklist.</span>
+                                        <button onclick="window.saveCoordChecklist()" class="bg-royal-blue text-white px-6 py-2 rounded font-bold shadow hover:bg-blue-800 transition">💾 Submit Report</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-green-50 p-4 rounded-xl border border-green-200 h-48 flex flex-col">
+                                    <h3 class="text-[9px] font-black uppercase text-green-800 mb-2 border-b border-green-300 pb-1">Submitted Reports</h3>
+                                    <div id="coord-submitted-list" class="flex-1 overflow-y-auto text-[9px] space-y-1"></div>
+                                </div>
+                                <div class="bg-red-50 p-4 rounded-xl border border-red-200 h-48 flex flex-col">
+                                    <h3 class="text-[9px] font-black uppercase text-red-800 mb-2 border-b border-red-300 pb-1">Pending Reports</h3>
+                                    <div id="coord-pending-list" class="flex-1 overflow-y-auto text-[9px] space-y-1"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 border-t pt-4">
+                        <h3 class="text-xs font-black uppercase text-gray-700 mb-2 text-center">Coordinator Assignment Analytics (By Faculty)</h3>
+                        <div class="h-48 max-w-3xl mx-auto"><canvas id="coordBarChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+            
             <div id="tab-events" class="tab-content">
                 <div class="card p-6 border-t-8 border-indigo-700 shadow-lg">
                     <div class="flex items-center gap-2 mb-4 border-b pb-2">
@@ -653,20 +755,33 @@
                 <div class="card p-6 border-t-8 border-blue-700 shadow-lg">
                     <h2 class="text-xl font-black text-blue-900 uppercase mb-4">Tasks & Requests</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-gray-50 p-4 rounded border">
+                        <div class="bg-gray-50 p-4 rounded border relative">
                             <h3 class="text-sm font-bold mb-2">Assign New Task</h3>
                             <input type="text" id="task-title" class="w-full p-2 border rounded mb-2 text-xs" placeholder="Task Title">
                             <div class="flex gap-2 mb-2">
                                 <input type="date" id="task-date" class="w-full p-2 border rounded text-xs">
                                 <input type="time" id="task-time" class="w-full p-2 border rounded text-xs">
+                                <select id="task-recur" class="p-2 border rounded text-xs flex-1 outline-none text-gray-700">
+                                    <option value="None">No Recurrence</option>
+                                    <option value="Weekly">Weekly</option>
+                                    <option value="Monthly">Monthly</option>
+                                </select>
                             </div>
+                            
+                            <div class="mb-2 p-2 bg-white border rounded">
+                                <label class="text-[9px] font-bold text-gray-500 uppercase block mb-1">Attach Files (Optional)</label>
+                                <div id="task-files-container" class="space-y-1">
+                                    <input type="file" multiple accept=".pdf,.xls,.xlsx,.doc,.docx,.png,.jpg,image/*,application/*" class="text-[9px] w-full file:mr-2 file:py-1 file:px-2 file:border-0 file:text-[9px] file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                </div>
+                            </div>
+
                             <div id="subtasks-container" class="mb-2"></div>
                             <button onclick="window.addSubTaskField()" class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded mb-2">+ Add Subtask</button>
                             <div class="max-h-32 overflow-y-auto border p-2 bg-white mb-2 text-[10px]">
                                 <label><input type="checkbox" id="task-sel-all" onchange="window.toggleAllTaskAssignees()"> Select All Lecturers</label>
                                 <div id="task-assignees-list"></div>
                             </div>
-                            <button onclick="window.assignTask()" class="bg-blue-600 text-white px-4 py-2 rounded text-xs w-full">Assign Task</button>
+                            <button onclick="window.assignTask()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-xs w-full shadow transition font-bold uppercase">Assign Task & Notify</button>
                         </div>
                         <div class="bg-gray-50 p-4 rounded border">
                             <div class="flex justify-between items-center mb-2">
@@ -681,11 +796,15 @@
 
             <div id="tab-exam" class="tab-content">
                 <div class="card p-6 border-t-8 border-green-700 shadow-lg">
-                    <h2 class="text-xl font-black text-green-900 uppercase mb-4">Exam Unit Preparation</h2>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-black text-green-900 uppercase">Exam Unit Preparation</h2>
+                        <button onclick="window.openExamRequestModal()" class="bg-green-600 text-white px-4 py-2 rounded text-[10px] font-bold shadow hover:bg-green-700 transition">✉️ Send Exam Request</button>
+                    </div>
+
                     <div class="flex gap-2 mb-4">
-                        <input type="text" id="examSearch" onkeyup="window.renderExamTable()" placeholder="Search module..." class="p-2 border rounded flex-1 text-xs">
-                        <select id="exam-fac-filter" onchange="window.renderExamTable()" class="p-2 border rounded text-xs"><option value="ALL">All Faculties</option></select>
-                        <select id="exam-status-filter" onchange="window.renderExamTable()" class="p-2 border rounded text-xs"><option value="ALL">All Status</option><option value="Pending">Pending</option><option value="Complete">Complete</option></select>
+                        <input type="text" id="examSearch" onkeyup="window.renderExamTable()" placeholder="Search module..." class="p-2 border rounded flex-1 text-xs outline-none focus:border-green-500">
+                        <select id="exam-fac-filter" onchange="window.renderExamTable()" class="p-2 border rounded text-xs outline-none focus:border-green-500"><option value="ALL">All Faculties</option></select>
+                        <select id="exam-status-filter" onchange="window.renderExamTable()" class="p-2 border rounded text-xs outline-none focus:border-green-500"><option value="ALL">All Status</option><option value="Pending">Pending</option><option value="Complete">Complete</option></select>
                     </div>
                     <div class="grid grid-cols-3 gap-4 mb-4 text-center">
                         <div class="bg-red-100 p-2 rounded"><span class="block text-2xl font-bold text-red-700" id="exam-stat-pending">0</span>Pending</div>
@@ -878,7 +997,7 @@
                                     <th class="p-2">Semester</th>
                                     <th class="p-2">Batch</th>
                                     <th class="p-2">Study Mode</th>
-                                    <th class="p-2 text-center">Action</th>
+                                    <th class="p-2 text-center w-24">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="studata-body" class="divide-y bg-white">
@@ -917,7 +1036,7 @@
                                     <th class="p-2">Lecturer Category</th>
                                     <th class="p-2">Lecturer Type</th>
                                     <th class="p-2">Mobile Number</th>
-                                    <th class="p-2 text-center">Action</th>
+                                    <th class="p-2 text-center w-24">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="lectdata-body" class="divide-y bg-white">
@@ -968,7 +1087,7 @@
                                     <th class="p-2">Module Code</th>
                                     <th class="p-2 text-center">Students</th>
                                     <th class="p-2 text-center">WCH</th>
-                                    <th class="p-2 text-center">Action</th>
+                                    <th class="p-2 text-center w-24">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="moddata-body" class="divide-y bg-white">
@@ -981,6 +1100,118 @@
 
         </div>
     </main>
+</div>
+
+<div id="m-2fa" class="modal-overlay">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl border-t-8 border-red-600">
+        <h2 class="text-lg font-black text-red-600 uppercase mb-2">🔐 2-Factor Verification</h2>
+        <p class="text-[9px] text-gray-500 mb-4 font-bold">Authorized action required. An OTP has been sent to your registered email/phone.</p>
+        <p id="2fa-action-text" class="text-xs mb-4 text-gray-800 font-black bg-red-50 p-2 rounded border border-red-200"></p>
+        <input type="text" id="2fa-code" placeholder="Enter 6-Digit OTP (e.g. 123456)" class="w-full p-2 border-2 rounded text-xs font-bold mb-4 outline-none focus:border-red-500 text-center tracking-widest">
+        <div class="flex justify-end gap-2">
+            <button onclick="document.getElementById('m-2fa').style.display='none'" class="px-4 py-2 bg-gray-300 rounded font-bold text-[10px] uppercase">Cancel</button>
+            <button onclick="window.confirm2FA()" class="bg-red-600 text-white px-4 py-2 rounded font-bold text-[10px] shadow uppercase">Verify & Proceed</button>
+        </div>
+    </div>
+</div>
+
+<div id="module-info-modal" class="modal-overlay">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-2xl shadow-2xl border-t-8 border-royal-blue relative">
+        <button onclick="document.getElementById('module-info-modal').style.display='none'" class="absolute top-4 right-4 text-gray-400 hover:text-red-600 text-2xl font-bold leading-none">&times;</button>
+        <h2 class="text-xl font-black text-royal-blue uppercase mb-1" id="m-info-code">MOD101</h2>
+        <p class="text-xs text-gray-600 font-bold mb-4" id="m-info-title">Module Title</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                <h3 class="text-[10px] font-black uppercase text-blue-800 mb-2 border-b pb-1">Assigned Lecturers</h3>
+                <div id="m-info-lecturers" class="text-xs space-y-1"></div>
+            </div>
+            <div class="bg-green-50 p-3 rounded border border-green-200">
+                <h3 class="text-[10px] font-black uppercase text-green-800 mb-2 border-b pb-1">Programs & Sessions</h3>
+                <div id="m-info-programs" class="text-[10px] space-y-1"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="border p-2 rounded">
+                <h3 class="text-[10px] font-black uppercase text-gray-700 text-center mb-1">Student Distribution</h3>
+                <div class="h-40"><canvas id="m-info-pie"></canvas></div>
+            </div>
+            <div class="border p-2 rounded">
+                <h3 class="text-[10px] font-black uppercase text-gray-700 text-center mb-1">Weekly Schedule</h3>
+                <div id="m-info-schedule" class="text-[10px] max-h-40 overflow-y-auto space-y-1 mt-2"></div>
+            </div>
+        </div>
+
+        <div class="bg-gray-50 border p-3 rounded">
+            <h3 class="text-[10px] font-black uppercase text-gray-800 mb-2 border-b pb-1 flex justify-between">
+                <span>Registered Students</span> <span id="m-info-stu-count" class="text-royal-blue">0</span>
+            </h3>
+            <div id="m-info-students" class="max-h-32 overflow-y-auto text-[9px] grid grid-cols-2 gap-1"></div>
+        </div>
+    </div>
+</div>
+
+<div id="student-info-modal" class="modal-overlay">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-2xl shadow-2xl border-t-8 border-gold relative">
+        <button onclick="document.getElementById('student-info-modal').style.display='none'" class="absolute top-4 right-4 text-gray-400 hover:text-red-600 text-2xl font-bold leading-none">&times;</button>
+        <div class="flex items-center gap-3 mb-4 border-b pb-2">
+            <div class="text-4xl">🎓</div>
+            <div>
+                <h2 class="text-lg font-black text-gray-800 uppercase" id="s-info-name">Student Name</h2>
+                <p class="text-xs text-gold font-bold" id="s-info-id">ID: S123456 | Semester: 1</p>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-3 gap-2 text-center mb-4">
+            <div class="bg-gray-100 p-2 rounded border"><span class="block text-[10px] uppercase font-bold text-gray-500">Core Modules</span><strong class="text-lg text-gray-800" id="s-info-core">0</strong></div>
+            <div class="bg-blue-100 p-2 rounded border border-blue-200"><span class="block text-[10px] uppercase font-bold text-blue-600">Additional</span><strong class="text-lg text-blue-800" id="s-info-add">0</strong></div>
+            <div class="bg-green-100 p-2 rounded border border-green-200"><span class="block text-[10px] uppercase font-bold text-green-600">Total WCH</span><strong class="text-lg text-green-800" id="s-info-wch">0</strong></div>
+        </div>
+
+        <h3 class="text-xs font-black uppercase text-royal-green mb-2 border-b pb-1">Registered Modules Breakdown</h3>
+        <div class="overflow-x-auto max-h-60 border rounded">
+            <table class="w-full text-left text-[10px]">
+                <thead class="bg-gray-50 text-gray-600"><tr><th class="p-2 border-b">Code</th><th class="p-2 border-b">Title</th><th class="p-2 border-b">Type</th><th class="p-2 border-b text-center">WCH</th></tr></thead>
+                <tbody id="s-info-mods" class="divide-y bg-white"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="exam-request-modal" class="modal-overlay">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl transform transition-all border-t-8 border-green-600">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 class="text-lg font-black text-green-800 uppercase">Exam Unit Formal Request</h2>
+            <button onclick="document.getElementById('exam-request-modal').style.display='none'" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none">&times;</button>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Request Type</label>
+                <select id="exam-req-type" class="w-full p-2 border rounded text-xs outline-none focus:border-green-500">
+                    <option value="Request Exam Paper">Request Exam Paper</option>
+                    <option value="Request Paper Marking">Request Paper Marking</option>
+                    <option value="Result Deadline Reminder">Result Deadline Reminder</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Select Target Lecturer</label>
+                <select id="exam-req-lect" class="w-full p-2 border rounded text-xs outline-none focus:border-green-500"></select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Module Code / Subject</label>
+                <input type="text" id="exam-req-title" class="w-full p-2 border rounded text-xs outline-none focus:border-green-500" placeholder="E.g. MAT101 Final Exam">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Attach Documents (Optional)</label>
+                <input type="file" multiple accept=".pdf,.xls,.xlsx,.doc,.docx,.png,.jpg,image/*,application/*" class="text-[9px] w-full file:mr-2 file:py-1 file:px-2 file:border-0 file:text-[9px] file:font-bold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 border p-1 rounded">
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-2 border-t pt-4">
+            <button onclick="document.getElementById('exam-request-modal').style.display='none'" class="px-4 py-2 bg-gray-300 rounded font-bold text-[10px]">Cancel</button>
+            <button onclick="window.sendExamRequest()" class="bg-green-600 text-white px-4 py-2 rounded font-bold text-[10px] flex items-center gap-1 shadow">✉️ Send via Email</button>
+        </div>
+    </div>
 </div>
 
 <div id="student-request-modal" class="modal-overlay">
@@ -1307,15 +1538,185 @@
         }
     };
     
-    let charts = { faculty: null, focus: null, assignmentDetails: null, taskComp: null, facDil: null, examPie: null, examBar: null, ttPie: null, eventBar: null, eventPie: null, coordPie: null, coordBar: null }; 
+    let charts = { faculty: null, focus: null, assignmentDetails: null, taskComp: null, facDil: null, examPie: null, examBar: null, ttPie: null, eventBar: null, eventPie: null, coordPie: null, coordBar: null, minfoPie: null }; 
     let currentLecturerId = null;
     let currentStudentId = null;
     let activeRole = 'ALL';
+    let pending2FAAction = null;
+    let pending2FAData = null;
     
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
 
     let autoSyncTimeout;
     
+    // --- 2FA LOGIC ---
+    window.init2FA = (actionType, id) => {
+        pending2FAAction = actionType;
+        pending2FAData = id;
+        let actionText = '';
+        if(actionType === 'delete_lect') actionText = `Delete Lecturer ID: ${id}`;
+        else if(actionType === 'delete_mod') actionText = `Delete Module Code: ${id}`;
+        else if(actionType === 'delete_stu') actionText = `Delete Student ID: ${id}`;
+        else if(actionType === 'edit_lect') actionText = `Edit Lecturer ID: ${id}`;
+        else if(actionType === 'edit_mod') actionText = `Edit Module Code: ${id}`;
+        else if(actionType === 'edit_stu') actionText = `Edit Student ID: ${id}`;
+        
+        document.getElementById('2fa-action-text').innerText = actionText;
+        document.getElementById('2fa-code').value = '';
+        document.getElementById('m-2fa').style.display = 'flex';
+        // Simulate sending OTP
+        window.showToast(`OTP sent to your registered email for ${actionType}`, "info");
+    };
+
+    window.confirm2FA = () => {
+        const code = document.getElementById('2fa-code').value;
+        if(code.length < 4) return alert("Please enter valid OTP.");
+        
+        if(pending2FAAction === 'delete_lect') {
+            localDB.lecturers = localDB.lecturers.filter(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) !== pending2FAData);
+            for (let key in localDB.assignments) { if (localDB.assignments[key].id === pending2FAData) localDB.assignments[key].id = ''; }
+            window.saveLocal(true); window.triggerAllRenders();
+            window.showToast("Lecturer Deleted", "success");
+        } else if(pending2FAAction === 'delete_mod') {
+            localDB.modules = localDB.modules.filter(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode', 'Code'])) !== pending2FAData);
+            delete localDB.assignments[pending2FAData];
+            localDB.timetable = localDB.timetable.filter(t => t.modCode !== pending2FAData);
+            localDB.exam_timetable = localDB.exam_timetable.filter(t => t.modCode !== pending2FAData);
+            window.saveLocal(true); window.triggerAllRenders();
+            window.showToast("Module Deleted", "success");
+        } else if(pending2FAAction === 'delete_stu') {
+            localDB.students = localDB.students.filter(s => window.makeSafeId(window.getSafeVal(s, ['StudentID', 'ID'])) !== pending2FAData);
+            window.saveLocal(true); window.renderStudentsTab();
+            window.showToast("Student Deleted", "success");
+        } else {
+            window.showToast("Edit mode unlocked (Simulation)", "success");
+        }
+        
+        document.getElementById('m-2fa').style.display = 'none';
+        pending2FAAction = null;
+        pending2FAData = null;
+    };
+
+
+    // --- MODULE DETAILS INFO ---
+    window.showModuleDetails = (mCode) => {
+        const mod = localDB.modules.find(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode'])) === mCode);
+        if(!mod) return;
+        
+        document.getElementById('m-info-code').innerText = mCode;
+        document.getElementById('m-info-title').innerText = window.getSafeVal(mod, ['ModuleName']);
+        
+        const ass = localDB.assignments[mCode];
+        let lectHtml = '';
+        if(ass && ass.id) {
+            const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === ass.id);
+            if(l) lectHtml = `<b>${window.getSafeVal(l, ['LecturerName'])}</b><br><span class="text-gray-500">${window.getSafeVal(l, ['LecturerType'])} - ${window.getSafeVal(l, ['LecturerCategory'])}</span>`;
+            else lectHtml = "Unknown Lecturer";
+        } else lectHtml = "Unassigned";
+        document.getElementById('m-info-lecturers').innerHTML = lectHtml;
+
+        document.getElementById('m-info-programs').innerHTML = `
+            <b>Program:</b> ${window.getSafeVal(mod, ['ProgramName'])} <br>
+            <b>Batch:</b> ${window.getSafeVal(mod, ['OfferedBatch'])} <br>
+            <b>Session:</b> ${window.getSafeVal(mod, ['Session'])} <br>
+            <b>Mode:</b> ${window.getSafeVal(mod, ['Modality'])}
+        `;
+
+        let schedHtml = '';
+        localDB.timetable.forEach(t => {
+            if(t.modCode === mCode) {
+                const ts = localDB.settings.timeslots[t.tsIndex];
+                schedHtml += `<div class="bg-gray-100 p-1 rounded border mb-1"><b>${t.day}</b>: ${ts.start}-${ts.end} (Rm: ${t.room})</div>`;
+            }
+        });
+        document.getElementById('m-info-schedule').innerHTML = schedHtml || '<span class="italic text-gray-500">Not scheduled yet.</span>';
+
+        let stuHtml = '';
+        let count = 0;
+        let mProg = window.getSafeVal(mod, ['ProgramName']);
+        let mBatch = window.getSafeVal(mod, ['OfferedBatch']);
+        let modeCounts = {"Face to Face": 0, "Online": 0, "Blended": 0};
+
+        localDB.students.forEach(s => {
+            if(window.getSafeVal(s, ['EnrolledProgram']) === mProg && (window.getSafeVal(s, ['Batch']) === mBatch || mBatch === '')) {
+                stuHtml += `<div class="border-b p-1"><b>${window.getSafeVal(s, ['FullName'])}</b><br><span class="text-gray-400">${window.getSafeVal(s, ['StudentID'])}</span></div>`;
+                count++;
+                const sm = window.getSafeVal(s, ['StudyMode']);
+                if(modeCounts[sm] !== undefined) modeCounts[sm]++;
+            }
+        });
+        document.getElementById('m-info-students').innerHTML = stuHtml || '<div class="col-span-2 text-center text-gray-500 italic">No registered students found.</div>';
+        document.getElementById('m-info-stu-count').innerText = count;
+
+        if(charts.minfoPie) charts.minfoPie.destroy();
+        charts.minfoPie = new Chart(document.getElementById('m-info-pie'), {
+            type: 'pie',
+            data: { labels: ['F2F', 'Online', 'Blended'], datasets: [{ data: [modeCounts["Face to Face"], modeCounts["Online"], modeCounts["Blended"]], backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'] }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+        });
+
+        document.getElementById('module-info-modal').style.display = 'flex';
+    };
+
+    // --- STUDENT DETAILS INFO ---
+    window.showStudentDetails = (id) => {
+        const stu = localDB.students.find(s => window.makeSafeId(window.getSafeVal(s, ['StudentID'])) === id);
+        if(!stu) return;
+
+        document.getElementById('s-info-name').innerText = window.getSafeVal(stu, ['FullName']);
+        document.getElementById('s-info-id').innerText = `ID: ${id} | Semester: ${window.getSafeVal(stu, ['Semester'])} | Batch: ${window.getSafeVal(stu, ['Batch'])}`;
+
+        let mHtml = '';
+        let coreCount = 0; let addCount = 0; let totWCH = 0;
+        const sProg = window.getSafeVal(stu, ['EnrolledProgram']);
+        const sBatch = window.getSafeVal(stu, ['Batch']);
+
+        localDB.modules.forEach(m => {
+            const mProg = window.getSafeVal(m, ['ProgramName']);
+            const mBatch = window.getSafeVal(m, ['OfferedBatch']);
+            if(mProg === sProg && (mBatch === sBatch || mBatch === '')) {
+                const wch = parseFloat(window.getSafeVal(m, ['WCH'])) || 0;
+                totWCH += wch;
+                coreCount++;
+                mHtml += `<tr>
+                    <td class="p-2 border-b font-bold text-royal-blue">${window.getSafeVal(m, ['ModuleCode'])}</td>
+                    <td class="p-2 border-b">${window.getSafeVal(m, ['ModuleName'])}</td>
+                    <td class="p-2 border-b"><span class="bg-green-100 text-green-800 px-1 rounded">Core</span></td>
+                    <td class="p-2 border-b text-center font-bold">${wch}</td>
+                </tr>`;
+            }
+        });
+
+        document.getElementById('s-info-mods').innerHTML = mHtml || '<tr><td colspan="4" class="text-center p-2 italic text-gray-500">No modules found for this program/batch.</td></tr>';
+        document.getElementById('s-info-core').innerText = coreCount;
+        document.getElementById('s-info-add').innerText = addCount;
+        document.getElementById('s-info-wch').innerText = totWCH;
+
+        document.getElementById('student-info-modal').style.display = 'flex';
+    };
+
+    // --- EXAM REQUEST ---
+    window.openExamRequestModal = () => {
+        const sel = document.getElementById('exam-req-lect');
+        let opts = '<option value="">-- Select Lecturer --</option>';
+        localDB.lecturers.forEach(l => {
+            opts += `<option value="${window.getSafeVal(l, ['LecturerName'])}">${window.getSafeVal(l, ['LecturerName'])} (${window.getSafeVal(l, ['LecturerID'])})</option>`;
+        });
+        sel.innerHTML = opts;
+        document.getElementById('exam-request-modal').style.display = 'flex';
+    };
+
+    window.sendExamRequest = () => {
+        const l = document.getElementById('exam-req-lect').value;
+        const m = document.getElementById('exam-req-title').value;
+        if(!l || !m) return alert("Select lecturer and enter module details.");
+        
+        simulateEmail(`Lecturer: ${l}`, `EXAM UNIT: ${document.getElementById('exam-req-type').value}`, `Module: ${m}. Please check your portal for details/attachments.`);
+        window.showToast("Exam Request Sent", "success");
+        document.getElementById('exam-request-modal').style.display = 'none';
+    };
+
+
     window.triggerCloudPushSync = async () => {
         if (!navigator.onLine) {
             window.showToast("Offline. Cannot push to Cloud.", "warning");
@@ -1515,8 +1916,6 @@
         document.getElementById('login-role').value = getRoleFromEmail(email);
     };
 
-    // --- MODAL & BUTTON FIXES ---
-
     window.openAddLecturerModal = () => document.getElementById('add-lecturer-modal').style.display = 'flex';
     window.closeAddLecturerModal = () => document.getElementById('add-lecturer-modal').style.display = 'none';
 
@@ -1599,7 +1998,6 @@
         window.showToast("Student Added Successfully", "success");
     };
 
-    // --- TAB RENDER FUNCTIONS ---
     window.renderLectDataTab = () => {
         const tbody = document.getElementById('lectdata-body'); if(!tbody) return;
         const searchQ = document.getElementById('lectSearch').value.toLowerCase();
@@ -1629,24 +2027,16 @@
                     <td class="p-2">${cat}</td>
                     <td class="p-2">${type}</td>
                     <td class="p-2">${mobile || '-'}</td>
-                    <td class="p-2 text-center"><button onclick="window.deleteLecturer('${window.makeSafeId(id)}')" class="text-red-500 font-bold hover:underline">Delete</button></td>
+                    <td class="p-2 text-center flex gap-1 justify-center">
+                        <button onclick="window.init2FA('edit_lect', '${window.makeSafeId(id)}')" class="text-blue-500 font-bold hover:underline">Edit</button>
+                        <button onclick="window.init2FA('delete_lect', '${window.makeSafeId(id)}')" class="text-red-500 font-bold hover:underline">Del</button>
+                    </td>
                 </tr>`;
             }
         });
         tbody.innerHTML = html || '<tr><td colspan="7" class="p-4 text-center text-gray-500 italic">No lecturers found.</td></tr>';
     };
 
-    window.deleteLecturer = (safeId) => {
-        if(confirm("Delete lecturer? This will unassign them from modules.")) {
-            localDB.lecturers = localDB.lecturers.filter(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) !== safeId);
-            for (let key in localDB.assignments) {
-                if (localDB.assignments[key].id === safeId) {
-                    localDB.assignments[key].id = '';
-                }
-            }
-            window.saveLocal(true); window.triggerAllRenders();
-        }
-    };
 
     window.renderModDataTab = () => {
         const tbody = document.getElementById('moddata-body'); if(!tbody) return;
@@ -1698,25 +2088,19 @@
                     <td class="p-2">${campus}</td>
                     <td class="p-2 min-w-[150px]">${name}</td>
                     <td class="p-2">${modality}</td>
-                    <td class="p-2 font-bold text-royal-blue">${code}</td>
+                    <td class="p-2 font-bold text-royal-blue clickable-name" onclick="window.showModuleDetails('${window.makeSafeId(code)}')">${code}</td>
                     <td class="p-2 text-center">${students}</td>
                     <td class="p-2 text-center">${wch}</td>
-                    <td class="p-2 text-center"><button onclick="window.deleteModule('${window.makeSafeId(code)}')" class="text-red-500 font-bold hover:underline">Delete</button></td>
+                    <td class="p-2 text-center flex gap-1 justify-center">
+                        <button onclick="window.init2FA('edit_mod', '${window.makeSafeId(code)}')" class="text-blue-500 font-bold hover:underline">Edit</button>
+                        <button onclick="window.init2FA('delete_mod', '${window.makeSafeId(code)}')" class="text-red-500 font-bold hover:underline">Del</button>
+                    </td>
                 </tr>`;
             }
         });
         tbody.innerHTML = html || '<tr><td colspan="14" class="p-4 text-center text-gray-500 italic">No modules found.</td></tr>';
     };
 
-    window.deleteModule = (safeCode) => {
-        if(confirm("Delete module? This will remove it from the timetable and assignments.")) {
-            localDB.modules = localDB.modules.filter(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode', 'Code'])) !== safeCode);
-            delete localDB.assignments[safeCode];
-            localDB.timetable = localDB.timetable.filter(t => t.modCode !== safeCode);
-            localDB.exam_timetable = localDB.exam_timetable.filter(t => t.modCode !== safeCode);
-            window.saveLocal(true); window.triggerAllRenders();
-        }
-    };
 
     window.renderMatrix = () => {
         const tbody = document.getElementById('matrix-body'); if(!tbody) return;
@@ -1745,9 +2129,10 @@
             window.getFilteredLecturers().forEach(l => {
                 const lId = window.makeSafeId(window.getSafeVal(l, ['LecturerID']));
                 const lName = window.getSafeVal(l, ['LecturerName']);
-                const lFac = window.getFaculty(l);
+                const lType = window.getSafeVal(l, ['LecturerType', 'Type']);
+                const lCat = window.getSafeVal(l, ['LecturerCategory', 'Category']);
                 const sel = (ass.id === lId) ? 'selected' : '';
-                lectOptions += `<option value="${lId}" ${sel}>${lName} (${lFac})</option>`;
+                lectOptions += `<option value="${lId}" ${sel}>${lName} [ID:${lId}] - ${lType} - ${lCat}</option>`;
             });
 
             const thA = document.getElementById('th-actions');
@@ -1757,7 +2142,7 @@
             html += `<tr class="hover:bg-blue-50 border-b border-gray-100 transition">
                 <td class="p-2"><span class="px-2 py-1 rounded text-[8px] font-black uppercase ${statusColor}">${statusTxt}</span></td>
                 <td class="p-2 text-[10px]"><b>${campus}</b><br><span class="text-gray-500">${prog}</span></td>
-                <td class="p-2 text-[10px]"><b class="text-royal-blue">${mCode}</b><br>${mName}</td>
+                <td class="p-2 text-[10px]"><b class="text-royal-blue clickable-name" onclick="window.showModuleDetails('${mCode}')">${mCode}</b><br>${mName}</td>
                 <td class="p-2 text-center font-black text-xs text-purple-700">${wch}</td>
                 <td class="p-2 text-[10px] font-bold text-gray-700">${fac}</td>
                 <td class="p-2 text-center">
@@ -1830,8 +2215,160 @@
         if(l) { l.custom_target = parseInt(val); window.saveLocal(true); window.updateAnalytics(); }
     };
     
-    // --- ADDED MISSING FUNCTIONS FOR TABS AND MODALS ---
-    window.renderCoordinationTab = () => {};
+    // --- COORDINATION TAB LOGIC ---
+    window.renderCoordinationTab = () => {
+        const select = document.getElementById('coord-lect-select');
+        if(select) {
+            let opts = '<option value="">-- Select Lecturer --</option>';
+            localDB.lecturers.forEach(l => {
+                opts += `<option value="${window.makeSafeId(window.getSafeVal(l, ['LecturerID']))}">${window.getSafeVal(l, ['LecturerName'])} (${window.getSafeVal(l, ['LecturerID'])})</option>`;
+            });
+            select.innerHTML = opts;
+        }
+
+        const myRoleSelect = document.getElementById('coord-my-role-select');
+        if(myRoleSelect && currentLecturerId) {
+            let myOpts = '<option value="">-- Select Your Coordinated Item --</option>';
+            localDB.coordinators.forEach(c => {
+                if(c.lectId === currentLecturerId) {
+                    myOpts += `<option value="${c.type}: ${c.item}">${c.type}: ${c.item}</option>`;
+                }
+            });
+            myRoleSelect.innerHTML = myOpts;
+        }
+        window.updateAnalytics(); // To render lists & charts
+    };
+
+    window.assignCoordinator = () => {
+        const lId = document.getElementById('coord-lect-select').value;
+        const type = document.getElementById('coord-type-select').value;
+        const item = document.getElementById('coord-item-input').value.trim();
+
+        if(!lId || !item) return alert("Select a lecturer and define the item (batch/module).");
+
+        localDB.coordinators.push({ lectId: lId, type: type, item: item });
+        window.saveLocal(true);
+        simulateEmail(`Lecturer ID: ${lId}`, `New Coordinator Role Assigned`, `You have been assigned to coordinate ${type}: ${item}. Check your portal.`);
+        document.getElementById('coord-item-input').value = '';
+        window.showToast("Coordinator Assigned", "success");
+        window.triggerAllRenders();
+    };
+
+    window.loadCoordChecklist = () => {
+        const target = document.getElementById('coord-my-role-select').value;
+        const area = document.getElementById('coord-checklist-area');
+        const txt = document.getElementById('chk-status-txt');
+
+        if(!target) {
+            area.style.opacity = '0.5'; area.style.pointerEvents = 'none';
+            txt.innerText = "Select an item above to fill checklist.";
+            return;
+        }
+        
+        area.style.opacity = '1'; area.style.pointerEvents = 'auto';
+        txt.innerText = "Draft mode - not submitted.";
+
+        const existing = localDB.coordination_reports.find(r => r.target === target && r.lectId === currentLecturerId);
+        if(existing) {
+            document.getElementById('chk-moodle').checked = existing.moodle;
+            document.getElementById('chk-notes').checked = existing.notes;
+            document.getElementById('chk-isims').checked = existing.isims;
+            document.getElementById('chk-feedback').checked = existing.feedback;
+            document.getElementById('chk-arc').value = existing.arc;
+            txt.innerText = `Last submitted: ${new Date(existing.date).toLocaleDateString()}`;
+        } else {
+            document.getElementById('chk-moodle').checked = false;
+            document.getElementById('chk-notes').checked = false;
+            document.getElementById('chk-isims').checked = false;
+            document.getElementById('chk-feedback').checked = false;
+            document.getElementById('chk-arc').value = '';
+        }
+    };
+
+    window.saveCoordChecklist = () => {
+        const target = document.getElementById('coord-my-role-select').value;
+        if(!target) return alert("Please select a target first.");
+
+        const report = {
+            id: Math.random().toString(36).substr(2,9),
+            lectId: currentLecturerId,
+            target: target,
+            moodle: document.getElementById('chk-moodle').checked,
+            notes: document.getElementById('chk-notes').checked,
+            isims: document.getElementById('chk-isims').checked,
+            feedback: document.getElementById('chk-feedback').checked,
+            arc: document.getElementById('chk-arc').value,
+            date: new Date().toISOString()
+        };
+
+        const exIdx = localDB.coordination_reports.findIndex(r => r.target === target && r.lectId === currentLecturerId);
+        if(exIdx > -1) localDB.coordination_reports[exIdx] = report;
+        else localDB.coordination_reports.push(report);
+
+        window.saveLocal(true);
+        window.showToast("Coordinator Report Submitted", "success");
+        if(report.arc && report.arc.trim() !== '' && report.arc.toLowerCase() !== 'none') {
+            simulateEmail('Faculty Dean & ARC', `Coordinator Complaint Logged: ${target}`, report.arc);
+        }
+        window.triggerAllRenders();
+    };
+
+    window.printRoyalSheet = () => {
+        const target = document.getElementById('coord-my-role-select')?.value;
+        if(!target) return alert("Select a coordinated item first to print its royal sheet.");
+
+        const type = target.split(':')[0].trim();
+        const val = target.split(':')[1].trim();
+
+        let sList = '';
+        localDB.students.forEach(s => {
+            if(type === 'Batch' && (window.getSafeVal(s, ['Batch']) === val || window.getSafeVal(s, ['EnrolledProgram']) === val)) {
+                sList += `<tr><td>${window.getSafeVal(s, ['StudentID'])}</td><td>${window.getSafeVal(s, ['FullName'])}</td><td>-</td></tr>`; // No mobile in sample data, but structure is here
+            }
+        });
+
+        let lList = '';
+        localDB.modules.forEach(m => {
+            const mCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+            if( (type === 'Batch' && window.getSafeVal(m, ['OfferedBatch']) === val) || (type === 'Module' && window.getSafeVal(m, ['ModuleCode']) === val) ) {
+                const ass = localDB.assignments[mCode];
+                if(ass && ass.id) {
+                    const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === ass.id);
+                    if(l) lList += `<tr><td>${mCode}</td><td>${window.getSafeVal(l, ['LecturerName'])}</td><td>${window.getSafeVal(l, ['MobileNumber'])}</td></tr>`;
+                }
+            }
+        });
+
+        const html = `
+            <div class="royal-sheet-print">
+                <h1 class="text-2xl font-black text-center mb-4 uppercase text-[#d4af37]">Official Coordination Roster</h1>
+                <h2 class="text-lg font-bold text-center mb-6">${target}</h2>
+                
+                <h3 class="font-bold border-b mb-2">Lecturers (Module Contacts)</h3>
+                <table class="w-full text-left border-collapse mb-6 text-sm">
+                    <thead><tr class="bg-gray-100"><th>Module</th><th>Lecturer</th><th>Mobile</th></tr></thead>
+                    <tbody>${lList || '<tr><td colspan="3" class="text-center italic">No assigned lecturers found.</td></tr>'}</tbody>
+                </table>
+
+                <h3 class="font-bold border-b mb-2">Students Enrolled</h3>
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead><tr class="bg-gray-100"><th>ID</th><th>Name</th><th>Mobile</th></tr></thead>
+                    <tbody>${sList || '<tr><td colspan="3" class="text-center italic">No students found matching this criteria.</td></tr>'}</tbody>
+                </table>
+            </div>
+        `;
+        document.getElementById('print-content-custom').innerHTML = html;
+        document.getElementById('print-report-subtitle').innerText = "";
+        document.getElementById('print-filter-info').innerHTML = "";
+        
+        document.title = `Royal_Sheet_${target}`;
+        document.body.classList.add('is-printing-master');
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('is-printing-master');
+        }, 500);
+    };
+
 
     window.populateLecturerDropdown = () => {
         const select = document.getElementById('lecturerSelectStandalone'); if(!select) return;
@@ -1998,6 +2535,7 @@
         window.renderRequestsList();
         window.renderEventsTab();
         window.renderWeeklyReports();
+        window.renderCoordinationTab();
         
         ['btn-add-lect', 'btn-add-mod', 'btn-add-stu'].forEach(id => {
             let el = document.getElementById(id);
@@ -2186,7 +2724,7 @@
         if (tabId === 'exam') window.renderExamTable();
         if (tabId === 'events') window.renderEventsTab();
         if (tabId === 'weekly') window.renderWeeklyReports();
-        if (tabId === 'coordination') window.renderCoordinationTab();
+        if (tabId === 'coordinators') window.renderCoordinationTab();
     };
 
     function downloadCSV(data, filename) {
@@ -2370,7 +2908,6 @@
         populateSelect('stu-filter-prog', uniqueValues(localDB.students, ['EnrolledProgram', 'Program']), "All Programs");
     };
 
-    // --- STUDENTS DATA RENDERING ---
     window.renderStudentsTab = () => {
         const tbody = document.getElementById('studata-body'); if(!tbody) return;
         const searchQ = document.getElementById('stuSearch').value.toLowerCase();
@@ -2387,24 +2924,20 @@
 
             if (matchSearch && matchProg) {
                 html += `<tr class="hover:bg-gray-50 border-b border-gray-100">
-                    <td class="p-2 font-bold text-royal-blue">${id}</td>
+                    <td class="p-2 font-bold text-royal-blue clickable-name" onclick="window.showStudentDetails('${window.makeSafeId(id)}')">${id}</td>
                     <td class="p-2">${name}</td>
                     <td class="p-2">${prog}</td>
                     <td class="p-2">${window.getSafeVal(s, ['Semester'])}</td>
                     <td class="p-2">${window.getSafeVal(s, ['Batch'])}</td>
                     <td class="p-2">${window.getSafeVal(s, ['StudyMode', 'Mode'])}</td>
-                    <td class="p-2 text-center"><button onclick="window.deleteStudent('${window.makeSafeId(id)}')" class="text-red-500 font-bold hover:underline">Delete</button></td>
+                    <td class="p-2 text-center flex gap-1 justify-center">
+                        <button onclick="window.init2FA('edit_stu', '${window.makeSafeId(id)}')" class="text-blue-500 font-bold hover:underline">Edit</button>
+                        <button onclick="window.init2FA('delete_stu', '${window.makeSafeId(id)}')" class="text-red-500 font-bold hover:underline">Del</button>
+                    </td>
                 </tr>`;
             }
         });
         tbody.innerHTML = html || '<tr><td colspan="7" class="p-4 text-center text-gray-500 italic">No students found.</td></tr>';
-    };
-
-    window.deleteStudent = (safeId) => {
-        if(confirm("Delete student?")) {
-            localDB.students = localDB.students.filter(s => window.makeSafeId(window.getSafeVal(s, ['StudentID', 'ID'])) !== safeId);
-            window.saveLocal(true); window.renderStudentsTab();
-        }
     };
 
     window.populateStudentDropdown = () => {
@@ -2698,7 +3231,8 @@
             if(!confirm(`Warning: You are dropping a module from ${originProg} into the ${targetProg} row. Continue?`)) return;
         }
 
-        const ass = localDB.assignments[code];
+        const
+const ass = localDB.assignments[code];
         const lectId = ass ? ass.id : null;
         
         let mode = "Face to Face";
@@ -3028,6 +3562,7 @@
     window.assignTask = () => {
         const title = document.getElementById('task-title').value;
         const deadline = `${document.getElementById('task-date').value} ${document.getElementById('task-time').value}`;
+        const recur = document.getElementById('task-recur').value;
         const assignees = Array.from(document.querySelectorAll('.task-assignee-cb:checked')).map(cb => cb.value);
 
         let subtasks = [];
@@ -3044,6 +3579,7 @@
         const taskObj = {
             id: Math.random().toString(36).substr(2,9),
             title, deadline, assignees, subtasks, created: new Date().toISOString(),
+            recurrence: recur,
             senderRole: activeRole 
         };
 
@@ -3200,16 +3736,17 @@
             const isOverdue = new Date(t.deadline) < new Date() && progressPct < 100;
             if(isOverdue) hasOverdue = true;
 
-            const senderColors = { 'ALL': 'bg-blue-100 text-blue-800', 'EXAM': 'bg-green-100 text-green-800'
-};
+            const senderColors = { 'ALL': 'bg-blue-100 text-blue-800', 'EXAM': 'bg-green-100 text-green-800'};
             const sBadgeColor = senderColors[t.senderRole] || 'bg-purple-100 text-purple-800';
             const sName = t.senderRole === 'ALL' ? 'Academic Affairs' : (t.senderRole === 'EXAM' ? 'Exam Unit' : t.senderRole);
+
+            const recurBadge = t.recurrence && t.recurrence !== 'None' ? `<span class="bg-blue-100 text-blue-800 px-1 rounded ml-1 text-[7px]">🔄 ${t.recurrence}</span>` : '';
 
             const card = `<div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${progressPct === 100 ? 'border-green-500' : (isOverdue ? 'border-red-500' : 'border-orange-500')}">
                 <div class="flex justify-between items-start mb-2">
                     <div>
                         <span class="text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sBadgeColor}">${sName}</span>
-                        <h4 class="text-xs font-black mt-1">${t.title}</h4>
+                        <h4 class="text-xs font-black mt-1">${t.title} ${recurBadge}</h4>
                     </div>
                     <span class="font-bold text-[10px] ${progressPct === 100 ? 'text-green-600' : 'text-orange-600'}">${progressPct}%</span>
                 </div>
@@ -3260,6 +3797,19 @@
         if(btnWeekly) {
             const hasAssignedMod = Object.values(localDB.assignments).some(a => a.id === currentLecturerId);
             btnWeekly.style.display = hasAssignedMod ? 'flex' : 'none';
+        }
+        
+        // Also Refresh Coordination Dropdown if it exists
+        const coordMyRole = document.getElementById('coord-my-role-select');
+        if(coordMyRole) {
+            let myOpts = '<option value="">-- Select Your Coordinated Item --</option>';
+            localDB.coordinators.forEach(c => {
+                if(c.lectId === currentLecturerId) {
+                    myOpts += `<option value="${c.type}: ${c.item}">${c.type}: ${c.item}</option>`;
+                }
+            });
+            coordMyRole.innerHTML = myOpts;
+            window.loadCoordChecklist();
         }
     };
 
@@ -3415,7 +3965,6 @@
         window.updateAnalytics(); 
     };
 
-    // --- ENHANCED ANALYTICS LOGIC ---
     window.updateAnalytics = () => {
         if (localDB.modules.length === 0 && localDB.lecturers.length === 0) return;
         
@@ -3843,7 +4392,6 @@
         }
     };
 
-    // --- EXPORT MASTER REPORTS ---
     window.printMasterReport = (type) => {
         const thead = document.getElementById('print-table-head');
         const tbody = document.getElementById('print-table-body');
@@ -3909,7 +4457,6 @@
             let gridHtml = '';
 
             if(isExam) {
-                // Standard List layout for Exam Timetables
                 gridHtml = `<table class="w-full border-collapse border-2 border-green-800 text-xs text-center mt-4">
                     <thead class="bg-green-200"><tr><th class="border border-green-400 p-2">Date</th><th class="border border-green-400 p-2">Time Slot</th><th class="border border-green-400 p-2">Module Details</th><th class="border border-green-400 p-2">Venue</th></tr></thead><tbody>`;
                 
@@ -3936,7 +4483,6 @@
                 if(validEntries.length === 0) gridHtml = '<p class="text-center p-4 italic text-gray-500">No exam schedules found for this filter.</p>';
 
             } else {
-                // Matrix layout for Class Timetables
                 gridHtml = `<table class="w-full border-collapse border-2 border-gray-800 text-xs text-center mt-4">
                     <thead class="bg-gray-200"><tr><th class="border border-gray-400 p-2">Program</th>`;
                 localDB.settings.timeslots.forEach(ts => gridHtml += `<th class="border border-gray-400 p-1">${ts.start}-${ts.end}</th>`);
