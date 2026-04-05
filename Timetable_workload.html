@@ -648,6 +648,63 @@
                     </div>
                 </div>
             </div>
+            
+            <div id="tab-tasks" class="tab-content">
+                <div class="card p-6 border-t-8 border-blue-700 shadow-lg">
+                    <h2 class="text-xl font-black text-blue-900 uppercase mb-4">Tasks & Requests</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-gray-50 p-4 rounded border">
+                            <h3 class="text-sm font-bold mb-2">Assign New Task</h3>
+                            <input type="text" id="task-title" class="w-full p-2 border rounded mb-2 text-xs" placeholder="Task Title">
+                            <div class="flex gap-2 mb-2">
+                                <input type="date" id="task-date" class="w-full p-2 border rounded text-xs">
+                                <input type="time" id="task-time" class="w-full p-2 border rounded text-xs">
+                            </div>
+                            <div id="subtasks-container" class="mb-2"></div>
+                            <button onclick="window.addSubTaskField()" class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded mb-2">+ Add Subtask</button>
+                            <div class="max-h-32 overflow-y-auto border p-2 bg-white mb-2 text-[10px]">
+                                <label><input type="checkbox" id="task-sel-all" onchange="window.toggleAllTaskAssignees()"> Select All Lecturers</label>
+                                <div id="task-assignees-list"></div>
+                            </div>
+                            <button onclick="window.assignTask()" class="bg-blue-600 text-white px-4 py-2 rounded text-xs w-full">Assign Task</button>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded border">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="text-sm font-bold">Incoming Requests</h3>
+                                <select id="req-filter-type" onchange="window.renderRequestsList()" class="text-xs p-1 border rounded"><option value="ALL">All</option><option value="Pending Approvals">Pending</option></select>
+                            </div>
+                            <div id="requests-list" class="max-h-96 overflow-y-auto pr-1 space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-exam" class="tab-content">
+                <div class="card p-6 border-t-8 border-green-700 shadow-lg">
+                    <h2 class="text-xl font-black text-green-900 uppercase mb-4">Exam Unit Preparation</h2>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="examSearch" onkeyup="window.renderExamTable()" placeholder="Search module..." class="p-2 border rounded flex-1 text-xs">
+                        <select id="exam-fac-filter" onchange="window.renderExamTable()" class="p-2 border rounded text-xs"><option value="ALL">All Faculties</option></select>
+                        <select id="exam-status-filter" onchange="window.renderExamTable()" class="p-2 border rounded text-xs"><option value="ALL">All Status</option><option value="Pending">Pending</option><option value="Complete">Complete</option></select>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 mb-4 text-center">
+                        <div class="bg-red-100 p-2 rounded"><span class="block text-2xl font-bold text-red-700" id="exam-stat-pending">0</span>Pending</div>
+                        <div class="bg-yellow-100 p-2 rounded"><span class="block text-2xl font-bold text-yellow-700" id="exam-stat-progress">0</span>In Progress</div>
+                        <div class="bg-green-100 p-2 rounded"><span class="block text-2xl font-bold text-green-700" id="exam-stat-complete">0</span>Completed</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="h-48"><canvas id="examPieChart"></canvas></div>
+                        <div class="h-48"><canvas id="examBarChart"></canvas></div>
+                    </div>
+                    <p class="text-xs font-bold text-gray-600 mb-2">Top Faculty: <span id="exam-top-fac" class="text-green-600"></span></p>
+                    <div class="overflow-x-auto max-h-96 border rounded">
+                        <table class="w-full text-left text-[10px]">
+                            <thead class="bg-green-800 text-white sticky top-0"><tr><th class="p-2">Module</th><th class="p-2">Program</th><th class="p-2">Details</th><th class="p-2">Lecturer</th><th class="p-2 text-center">Paper</th><th class="p-2 text-center">Marking</th><th class="p-2 text-center">Kit</th><th class="p-2 text-center">Progress</th></tr></thead>
+                            <tbody id="exam-table-body" class="bg-white"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
             <div id="tab-matrix" class="tab-content">
                 <div class="card overflow-hidden">
@@ -1458,9 +1515,8 @@
         document.getElementById('login-role').value = getRoleFromEmail(email);
     };
 
-    // --- MODAL & BUTTON FIXES (ADDED JAVASCRIPT FUNCTIONS) ---
+    // --- MODAL & BUTTON FIXES ---
 
-    // Open/Close Modals
     window.openAddLecturerModal = () => document.getElementById('add-lecturer-modal').style.display = 'flex';
     window.closeAddLecturerModal = () => document.getElementById('add-lecturer-modal').style.display = 'none';
 
@@ -1470,11 +1526,9 @@
     window.openAddStudentModal = () => document.getElementById('add-student-modal').style.display = 'flex';
     window.closeAddStudentModal = () => document.getElementById('add-student-modal').style.display = 'none';
 
-    // CSV Exports 
     window.exportLecturersCSV = () => window.exportCSV(localDB.lecturers, 'Lecturers_Master_Data.csv');
     window.exportModulesCSV = () => window.exportCSV(localDB.modules, 'Modules_Master_Data.csv');
 
-    // Save Functions (Matches generated CSV keys perfectly)
     window.saveNewLecturer = () => {
         const fac = document.getElementById('add-lect-fac').value;
         const id = document.getElementById('add-lect-id').value;
@@ -1545,7 +1599,7 @@
         window.showToast("Student Added Successfully", "success");
     };
 
-    // TAB RENDER FUNCTIONS (ADDED MISSING FUNCTIONS)
+    // --- TAB RENDER FUNCTIONS ---
     window.renderLectDataTab = () => {
         const tbody = document.getElementById('lectdata-body'); if(!tbody) return;
         const searchQ = document.getElementById('lectSearch').value.toLowerCase();
@@ -1776,7 +1830,155 @@
         if(l) { l.custom_target = parseInt(val); window.saveLocal(true); window.updateAnalytics(); }
     };
     
-    // --- END MODAL & BUTTON FIXES ---
+    // --- ADDED MISSING FUNCTIONS FOR TABS AND MODALS ---
+    window.renderCoordinationTab = () => {};
+
+    window.populateLecturerDropdown = () => {
+        const select = document.getElementById('lecturerSelectStandalone'); if(!select) return;
+        let opts = [];
+        localDB.lecturers.forEach(l => {
+            const id = window.getSafeVal(l, ['LecturerID']);
+            const name = window.getSafeVal(l, ['LecturerName']);
+            if(id && name) opts.push({value: window.makeSafeId(id), text: `${name} [${id}]`});
+        });
+        if(window.tsLect) window.tsLect.destroy();
+        window.tsLect = new TomSelect(select, {
+            create: false, placeholder: "🔍 Verify Your Identity...",
+            options: opts, valueField: 'value', labelField: 'text', searchField: ['text']
+        });
+    };
+
+    window.openStudentRequestModal = () => document.getElementById('student-request-modal').style.display = 'flex';
+    window.closeStudentRequestModal = () => document.getElementById('student-request-modal').style.display = 'none';
+
+    window.submitStudentRequest = () => {
+        if(!currentStudentId) return alert("Please select your ID from the dropdown first.");
+        const reqObj = {
+            id: Math.random().toString(36).substr(2,9),
+            lectId: currentStudentId,
+            type: document.getElementById('stu-req-type').value,
+            targetRole: 'FACULTY',
+            title: document.getElementById('stu-req-title').value,
+            details: document.getElementById('stu-req-details').value,
+            status: 'Pending',
+            date: new Date().toISOString()
+        };
+        localDB.requests.push(reqObj);
+        window.saveLocal(true);
+        window.closeStudentRequestModal();
+        window.showToast("Student Request Submitted", "success");
+    };
+
+    window.viewPersonalTimetable = (type) => {
+        const id = type === 'student' ? currentStudentId : currentLecturerId;
+        if(!id) return alert("Please select your Identity/Profile first.");
+        document.getElementById('print-report-subtitle').innerText = "Personal Class Timetable - " + id;
+        document.getElementById('print-filter-info').innerHTML = '';
+        
+        let gridHtml = `<table class="print-table w-full text-center"><thead><tr><th>Day</th><th>Time</th><th>Module</th><th>Room</th></tr></thead><tbody>`;
+        let found = false;
+        localDB.timetable.forEach(t => {
+            let match = false;
+            if(type === 'lecturer' && t.lectId === id) match = true;
+            if(type === 'student') {
+                const stu = localDB.students.find(s => window.makeSafeId(window.getSafeVal(s, ['StudentID'])) === id);
+                if(stu && t.program === window.getSafeVal(stu, ['EnrolledProgram'])) match = true;
+            }
+            if(match) {
+                found = true;
+                const ts = localDB.settings.timeslots[t.tsIndex];
+                gridHtml += `<tr><td>${t.day}</td><td>${ts.start} - ${ts.end}</td><td>${t.modCode}</td><td>${t.room}</td></tr>`;
+            }
+        });
+        gridHtml += `</tbody></table>`;
+        if(!found) gridHtml = '<p class="text-center mt-4">No classes scheduled.</p>';
+        
+        document.getElementById('print-content-custom').innerHTML = gridHtml;
+        document.title = `Personal_Timetable_${id}`;
+        document.body.classList.add('is-printing-master');
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('is-printing-master');
+        }, 500);
+    };
+
+    window.viewPersonalExamTimetable = (type) => {
+        const id = type === 'student' ? currentStudentId : currentLecturerId;
+        if(!id) return alert("Please select your Identity/Profile first.");
+        document.getElementById('print-report-subtitle').innerText = "Personal Exam Timetable - " + id;
+        document.getElementById('print-filter-info').innerHTML = '';
+        
+        let gridHtml = `<table class="print-table w-full text-center"><thead><tr><th>Date</th><th>Time</th><th>Module</th><th>Venue</th></tr></thead><tbody>`;
+        let found = false;
+        localDB.exam_timetable.forEach(t => {
+            let match = false;
+            if(type === 'lecturer') {
+                const ass = localDB.assignments[t.modCode];
+                if(ass && ass.id === id) match = true;
+            }
+            if(type === 'student') {
+                const stu = localDB.students.find(s => window.makeSafeId(window.getSafeVal(s, ['StudentID'])) === id);
+                if(stu && t.program === window.getSafeVal(stu, ['EnrolledProgram'])) match = true;
+            }
+            if(match) {
+                found = true;
+                const ts = localDB.settings.timeslots[t.tsIndex];
+                gridHtml += `<tr><td>${t.day}</td><td>${ts.start} - ${ts.end}</td><td>${t.modCode}</td><td>${t.room}</td></tr>`;
+            }
+        });
+        gridHtml += `</tbody></table>`;
+        if(!found) gridHtml = '<p class="text-center mt-4">No exams scheduled.</p>';
+        
+        document.getElementById('print-content-custom').innerHTML = gridHtml;
+        document.title = `Personal_Exam_Timetable_${id}`;
+        document.body.classList.add('is-printing-master');
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('is-printing-master');
+        }, 500);
+    };
+
+    window.openHRView = (id) => {
+        const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === id);
+        if(!lect) return;
+        const fac = window.getFaculty(lect);
+        document.getElementById('hr-meta').innerHTML = `
+            <div><b>Name:</b> ${window.getSafeVal(lect, ['LecturerName'])}</div>
+            <div><b>ID:</b> ${window.getSafeVal(lect, ['LecturerID'])}</div>
+            <div><b>Faculty:</b> ${fac}</div>
+            <div><b>Type:</b> ${window.getSafeVal(lect, ['LecturerType'])}</div>
+        `;
+        let tbody = '';
+        let total = 0;
+        localDB.modules.forEach(m => {
+            const mCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+            const ass = localDB.assignments[mCode];
+            if(ass && ass.id === id) {
+                const wch = parseFloat(window.getSafeVal(m, ['WCH'])) || 0;
+                total += wch;
+                tbody += `<tr>
+                    <td class="p-2 border-b">${mCode} - ${window.getSafeVal(m, ['ModuleName'])}</td>
+                    <td class="p-2 border-b">${window.getFaculty(m)}</td>
+                    <td class="p-2 border-b">${window.getSafeVal(m, ['ProgramName'])}</td>
+                    <td class="p-2 border-b text-center">${window.getSafeVal(m, ['NoofStudents']) || 0}</td>
+                    <td class="p-2 border-b text-center">${ass.mode}</td>
+                    <td class="p-2 border-b text-right">${wch}</td>
+                </tr>`;
+            }
+        });
+        document.getElementById('hr-table-body').innerHTML = tbody || '<tr><td colspan="6" class="text-center p-4">No modules assigned.</td></tr>';
+        document.getElementById('hr-total').innerText = total.toFixed(1);
+        document.getElementById('hr-modal').style.display = 'flex';
+    };
+
+    window.closeHRView = () => document.getElementById('hr-modal').style.display = 'none';
+    window.printOfficialDocument = () => { window.print(); };
+    window.downloadOfficialPDF = () => { window.print(); };
+
+    window.importMasterCSV = (event) => {
+        alert("Please use the specific import buttons (Lecturers, Modules, or Students) for better data structuring.");
+        event.target.value = '';
+    };
 
     window.triggerAllRenders = () => {
         window.renderMatrix(); 
@@ -2998,7 +3200,8 @@
             const isOverdue = new Date(t.deadline) < new Date() && progressPct < 100;
             if(isOverdue) hasOverdue = true;
 
-            const senderColors = { 'ALL': 'bg-blue-100 text-blue-800', 'EXAM': 'bg-green-100 text-green-800' };
+            const senderColors = { 'ALL': 'bg-blue-100 text-blue-800', 'EXAM': 'bg-green-100 text-green-800'
+};
             const sBadgeColor = senderColors[t.senderRole] || 'bg-purple-100 text-purple-800';
             const sName = t.senderRole === 'ALL' ? 'Academic Affairs' : (t.senderRole === 'EXAM' ? 'Exam Unit' : t.senderRole);
 
@@ -3019,7 +3222,6 @@
         });
 
         document.getElementById('lecturer-tasks-pending').innerHTML = pendingHtml || '<p class="text-[10px] text-gray-500 italic p-2">No pending tasks.</p>';
-        document.getElementById('lecturer-tasks-completed').innerHTML = completedHtml || '<p class="text-[10px] text-gray-500 italic p-2">No completed tasks yet.</p>';
         
         const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === currentLecturerId);
         const lFac = window.getFaculty(lect);
@@ -3053,6 +3255,12 @@
 
         const pCount = (pendingHtml.match(/<div class="bg-white p-3 rounded-lg shadow-sm border-l-4/g) || []).length;
         document.getElementById('lect-pending-count').innerText = pCount;
+        
+        const btnWeekly = document.getElementById('btn-submit-weekly');
+        if(btnWeekly) {
+            const hasAssignedMod = Object.values(localDB.assignments).some(a => a.id === currentLecturerId);
+            btnWeekly.style.display = hasAssignedMod ? 'flex' : 'none';
+        }
     };
 
     window.markSubTaskDone = (taskId, subIdx) => {
@@ -3143,7 +3351,7 @@
                         <b class="text-royal-blue">${mCode}</b><br>
                         <span class="text-[9px] text-gray-600">${mName}</span>
                     </td>
-<td class="p-3 text-[9px]">${prog} <br> <span class="font-bold text-gray-500">${window.getSafeVal(m, ['OfferedBatch'])}</span></td>
+                    <td class="p-3 text-[9px]">${prog} <br> <span class="font-bold text-gray-500">${window.getSafeVal(m, ['OfferedBatch'])}</span></td>
                     <td class="p-3 text-[9px]">Students: <b>${window.getSafeVal(m, ['NoofStudents']) || 0}</b> <br> Campus: ${window.getSafeCampus(m)}</td>
                     <td class="p-3 font-bold text-[9px]">${lectName}</td>
                     <td class="p-3 text-center">${toggleBtn('paper', p.paper)}</td>
