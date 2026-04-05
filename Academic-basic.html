@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="dv" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presidential Executive Workload & Timetable Portal - Master Edition</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        document.addEventListener('contextmenu', e => e.preventDefault()); 
+        document.addEventListener('keydown', e => {
+            if (e.key === 'F12') e.preventDefault();
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) e.preventDefault();
+            if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's' || e.key === 'P' || e.key === 'p')) e.preventDefault();
+        });
+        document.addEventListener('dragstart', e => { 
+            if(!e.target.classList.contains('draggable-mod')) e.preventDefault(); 
+        }); 
+    </script>
+
+    <style>
+        /* ========================================== */
+        /* 2. TYPOGRAPHY & THEME VARIABLES            */
+        /* ========================================== */
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;600;800&display=swap');
+        
+        :root { 
+            --royal-green: #004d40; 
+            --royal-green-light: #00695c;
+            --gold: #d4af37; 
+            --royal-blue: #0d47a1; 
+            --royal-blue-light: #1565c0;
+            --royal-purple: #4a148c; 
+            --bg-light: #f8fafc; 
+            --text-dark: #1e293b;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+        
+        body { 
+            background-color: var(--bg-light); 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            overflow-x: hidden; 
+            -webkit-user-select: none; 
+            user-select: none; 
+            color: var(--text-dark);
+        }
+        
+        input, textarea, select { 
+            -webkit-user-select: auto; 
+            user-select: auto; 
+            outline: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--royal-blue);
+            box-shadow: 0 0 0 3px rgba(13, 71, 161, 0.1);
+        }
+        
+        /* ========================================== */
+        /* 3. INTERACTIVE UI COMPONENTS               */
+        /* ========================================== */
+        .clickable-name { 
+            cursor: pointer; 
+            color: var(--royal-blue); 
+            font-weight: bold;
+            transition: all 0.3s ease; 
+            position: relative; 
+            display: inline-block; 
+        }
+        
+        .clickable-name:hover { 
+            text-decoration: underline; 
+            text-decoration-color: var(--gold); 
+            text-decoration-thickness: 2px; 
+            text-underline-offset: 4px; 
+            transform: scale(1.02); 
+            background-color: #e0f2fe; 
+            padding: 2px 4px; 
+            border-radius: 4px; 
+        }
+
+        .bg-gradient-royal { 
+            background: linear-gradient(135deg, var(--royal-green), var(--royal-blue), var(--royal-purple)); 
+        }
+        
+        /* Premium Buttons */
+        .btn-gold { 
+            background: linear-gradient(45deg, #bf953f, #fcf6ba, #b38728); 
+            color: black; 
+            font-weight: 800; 
+            border: 1px solid rgba(0,0,0,0.1); 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+        }
+        .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+
+        .btn-royal-blue { 
+            background: linear-gradient(135deg, #0d47a1, #1976d2); 
+            color: white; 
+            box-shadow: 0 4px 15px rgba(13, 71, 161, 0.3); 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .btn-royal-blue:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 25px rgba(13, 71, 161, 0.5); 
+            background: linear-gradient(135deg, #1565c0, #1e88e5); 
+        }
+
+        .btn-royal-green { 
+            background: linear-gradient(135deg, #004d40, #00695c); 
+            color: white; 
+            box-shadow: 0 4px 15px rgba(0, 77, 64, 0.3); 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .btn-royal-green:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 25px rgba(0, 77, 64, 0.5); 
+            background: linear-gradient(135deg, #00695c, #00796b); 
+        }
+
+        /* Layout Cards */
+        .card { 
+            background: white; 
+            border-radius: 12px; 
+            border-top: 5px solid var(--royal-green); 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+            margin-bottom: 1.5rem; 
+            transition: box-shadow 0.3s ease;
+        }
+        .card:hover { box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
+        
+        /* Tab Navigation System */
+        .tab-btn { 
+            padding: 14px 20px; 
+            font-weight: 800; 
+            cursor: pointer; 
+            border-bottom: 4px solid transparent; 
+            color: #64748b; 
+            transition: all 0.3s ease; 
+            white-space: nowrap;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        .tab-btn:hover { background-color: #f1f5f9; color: var(--royal-blue); }
+        .tab-btn.active { 
+            border-bottom: 4px solid var(--royal-green); 
+            color: var(--royal-green); 
+            background-color: white;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.02);
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { 
+            display: block; 
+            animation: fadeIn 0.4s ease-in-out; 
+        }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(15px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; } 
+        ::-webkit-scrollbar-thumb { 
+            background: #cbd5e1; 
+            border-radius: 10px; 
+            border: 2px solid transparent; 
+            background-clip: padding-box; 
+        }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* ========================================== */
+        /* 4. MODALS, TABLES & POPUPS                 */
+        /* ========================================== */
+        .modal-overlay { 
+            display: none; 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(15, 23, 42, 0.7); 
+            backdrop-filter: blur(8px); 
+            z-index: 1000; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px; 
+            animation: fadeInModal 0.3s ease-out;
+        }
+        @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
+        
+        .royal-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 13px; 
+            margin-top: 15px; 
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .royal-table th { 
+            background: linear-gradient(to bottom, #f8fafc, #e2e8f0); 
+            color: var(--royal-green); 
+            font-weight: 900; 
+            padding: 14px 16px; 
+            border-bottom: 2px solid #cbd5e1; 
+            text-transform: uppercase;
+            text-align: left;
+            letter-spacing: 0.5px;
+        }
+        .royal-table td { 
+            padding: 12px 16px; 
+            border-bottom: 1px solid #e2e8f0; 
+            color: var(--text-dark);
+        }
+        .royal-table tr:last-child td { border-bottom: none; }
+        .royal-table tr:nth-child(even) { background-color: #f8fafc; }
+        .royal-table tr:hover { background-color: #e0f2fe; }
+
+        /* ========================================== */
+        /* 5. TOAST NOTIFICATIONS & LOADERS           */
+        /* ========================================== */
+        #toast-container { 
+            position: fixed; 
+            bottom: 24px; 
+            right: 24px; 
+            z-index: 999999; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            pointer-events: none; 
+        }
+        .toast { 
+            background: #1e293b; 
+            color: #fff; 
+            padding: 16px 24px; 
+            border-radius: 10px; 
+            font-size: 14px; 
+            font-weight: 600; 
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3); 
+            display: flex; 
+            align-items: center; 
+            gap: 14px; 
+            min-width: 320px; 
+            pointer-events: auto; 
+            animation: slideInToast 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
+        }
+        .toast.success { border-left: 6px solid var(--success); }
+        .toast.warning { border-left: 6px solid var(--warning); }
+        .toast.info { border-left: 6px solid var(--royal-blue-light); }
+        .toast.error { border-left: 6px solid var(--danger); }
+        
+        @keyframes slideInToast { 
+            from { transform: translateX(120%) scale(0.9); opacity: 0; } 
+            to { transform: translateX(0) scale(1); opacity: 1; } 
+        }
+        @keyframes fadeOutToast { 
+            to { opacity: 0; transform: translateX(120%) scale(0.9); } 
+        }
+
+        #loader { 
+            display: flex; 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(255,255,255,0.98); 
+            z-index: 999999; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+        }
+
+        /* ========================================== */
+        /* 6. TIMETABLE GRID CSS (DRAG & DROP)        */
+        /* ========================================== */
+        .tt-grid-wrapper { 
+            display: flex; 
+            flex-direction: column; 
+            width: 100%; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 8px;
+            background: white; 
+            overflow: auto; 
+            max-height: 600px; 
+            position: relative; 
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.02);
+        }
+        .tt-row { 
+            display: flex; 
+            min-width: max-content; 
+            border-bottom: 1px solid #e2e8f0; 
+        }
+        .tt-row:last-child { border-bottom: none; }
+        .tt-h-row { 
+            position: sticky; 
+            top: 0; 
+            z-index: 20; 
+            background: var(--royal-purple); 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        }
+        
+        /* Grid Cells */
+        .tt-cell { 
+            flex: 0 0 150px; 
+            border-right: 1px solid #e2e8f0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 90px; 
+            padding: 8px; 
+            background: white; 
+            position: relative; 
+            transition: all 0.2s ease; 
+        }
+        .tt-cell:last-child { border-right: none; }
+        .tt-cell.drag-over { 
+            background-color: #eff6ff; 
+            border: 2px dashed var(--royal-blue); 
+            transform: scale(0.98);
+        }
+        
+        .tt-h-cell { 
+            flex: 0 0 150px; 
+            border-right: 1px solid #6b21a8; 
+            display: flex; 
+            flex-direction: column; 
+            text-align: center; 
+            color: white; 
+            position: relative;
+        }
+        .tt-h-cell:last-child { border-right: none; }
+        .tt-time-top { font-weight: 900; font-size: 13px; padding: 8px; border-bottom: 1px solid #6b21a8; background: #581c87; letter-spacing: 1px; }
+        .tt-time-bot { font-weight: 600; font-size: 11px; padding: 6px; color: #d8b4fe; background: #4c1d95; }
+        
+        .tt-r-cell { 
+            flex: 0 0 180px; 
+            background: #f8fafc; 
+            color: var(--royal-green); 
+            font-weight: 900; 
+            padding: 15px; 
+            position: sticky; 
+            left: 0; 
+            z-index: 10; 
+            border-right: 3px solid #cbd5e1; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-transform: uppercase;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+        .tt-c-cell { 
+            flex: 0 0 180px; 
+            background: #0f172a; 
+            color: var(--gold); 
+            font-weight: 900; 
+            padding: 15px; 
+            position: sticky; 
+            left: 0; 
+            z-index: 30; 
+            border-right: 3px solid #0f172a; 
+            display: flex;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 13px;
+        }
+
+        /* Draggable Modules inside Timetable */
+        .draggable-mod { 
+            background: white; 
+            border: 1px solid #cbd5e1; 
+            border-left: 5px solid var(--royal-blue); 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-size: 12px; 
+            cursor: grab; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            transition: all 0.2s ease; 
+            margin-bottom: 10px; 
+        }
+        .draggable-mod:hover { 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1); 
+            transform: translateY(-2px); 
+            border-color: var(--royal-blue-light); 
+        }
+        .draggable-mod:active { 
+            cursor: grabbing; 
+            opacity: 0.9; 
+            transform: scale(0.95); 
+        }
+
+        /* Assigned Timetable Blocks (Dropped items) */
+        .assigned-block { 
+            background: linear-gradient(135deg, #eff6ff, #dbeafe); 
+            border: 1px solid #93c5fd; 
+            border-radius: 8px; 
+            padding: 8px; 
+            font-size: 11px; 
+            width: 100%; 
+            height: 100%; 
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.05); 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            text-align: center; 
+            position: relative; 
+            transition: all 0.2s ease;
+        }
+        .assigned-block.exam-block {
+            background: linear-gradient(135deg, #f0fdf4, #d1fae5);
+            border-color: #86efac;
+        }
+        .assigned-block:hover { 
+            transform: scale(1.03); 
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15); 
+            z-index: 5; 
+        }
+        .assigned-block .del-btn { 
+            position: absolute; 
+            top: -8px; 
+            right: -8px; 
+            background: var(--danger); 
+            color: white; 
+            border-radius: 50%; 
+            width: 22px; 
+            height: 22px; 
+            font-size: 14px; 
+            font-weight: bold; 
+            text-align: center; 
+            line-height: 20px; 
+            cursor: pointer; 
+            opacity: 0;
+            visibility: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3); 
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+        .assigned-block:hover .del-btn { 
+            opacity: 1;
+            visibility: visible;
+        }
+        .assigned-block .del-btn:hover {
+            transform: scale(1.1);
+            background: #dc2626;
+        }
+
+        /* ========================================== */
+        /* 7. PRINT STYLES                            */
+        /* ========================================== */
+        @media print {
+            body { background: white; }
+            body * { visibility: hidden; }
+            #royal-popup-modal, #royal-popup-modal * { visibility: visible; }
+            #royal-popup-modal { 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                width: 100%; 
+                background: white; 
+                box-shadow: none; 
+                border: none; 
+                padding: 0;
+            }
+            .modal-overlay { background: transparent; backdrop-filter: none; }
+            .btn-no-print { display: none !important; }
+            .card, .royal-table { box-shadow: none !important; border: 1px solid #ccc; }
+            canvas { max-width: 100% !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<div id="toast-container"></div>
+
+<div id="loader" class="fixed inset-0 bg-white/95 z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="animate-spin rounded-full h-24 w-24 border-t-4 border-b-4 border-[#004d40] mb-6"></div>
+    <p class="font-black text-[#004d40] uppercase tracking-widest text-2xl">Initializing Portal</p>
+    <p class="text-sm text-gray-500 font-bold mt-2">Loading core modules, databases, and UI components...</p>
+</div>
+
+<header class="bg-gradient-to-r from-[#004d40] to-[#0d47a1] p-8 text-white text-center shadow-xl relative z-50">
+    <h1 class="text-3xl md:text-5xl font-black uppercase tracking-tighter drop-shadow-lg">Executive Workload & Timetable Portal</h1>
+    <p class="text-sm md:text-base text-gray-300 font-bold tracking-widest mt-2 uppercase">Official Academic Data Management System</p>
+    
+    <div class="mt-8 flex flex-wrap justify-center gap-4">
+        <button onclick="saveLocal()" class="btn-royal-blue px-8 py-3 rounded-xl text-sm font-bold shadow-lg flex items-center gap-2 transition transform hover:scale-105">
+            <span class="text-lg">💾</span> Save All Work Locally
+        </button>
+        <button onclick="triggerAllRenders(); showToast('All Systems Synced & Refreshed Successfully!', 'success')" class="btn-royal-green px-8 py-3 rounded-xl text-sm font-bold shadow-lg flex items-center gap-2 transition transform hover:scale-105">
+            <span class="text-lg">🔄</span> Force Sync & Refresh Data
+        </button>
+    </div>
+</header>
+
+<main class="container mx-auto px-4 py-8 max-w-[1400px]">
+    
+    <div class="card p-6 flex flex-col lg:flex-row gap-6 justify-between mb-8 bg-white border-l-8 border-royal-blue items-center shadow-md">
+        <div class="flex flex-col md:flex-row items-center gap-4 w-full lg:w-auto">
+            <span class="text-sm font-black text-gray-700 uppercase tracking-wide bg-gray-100 px-4 py-2 rounded-lg">Generate Data:</span>
+            <div class="flex gap-3 flex-wrap justify-center">
+                <button onclick="generateDummies('lect')" class="btn-gold px-5 py-2.5 rounded-lg shadow-sm text-sm flex items-center gap-2 font-bold"><span>👨‍🏫</span> Lecturers</button>
+                <button onclick="generateDummies('mod')" class="btn-gold px-5 py-2.5 rounded-lg shadow-sm text-sm flex items-center gap-2 font-bold"><span>📚</span> Modules</button>
+                <button onclick="generateDummies('stu')" class="btn-gold px-5 py-2.5 rounded-lg shadow-sm text-sm flex items-center gap-2 font-bold"><span>🎓</span> Students</button>
+            </div>
+        </div>
+        
+        <div class="flex flex-col md:flex-row items-center gap-4 w-full lg:w-auto mt-4 lg:mt-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-gray-200">
+            <span class="text-sm font-black text-gray-700 uppercase tracking-wide bg-gray-100 px-4 py-2 rounded-lg">Master Import:</span>
+            <label class="text-sm font-bold bg-blue-50 border-2 border-dashed border-blue-400 text-blue-800 px-6 py-2.5 rounded-lg cursor-pointer hover:bg-blue-100 hover:border-blue-600 transition shadow-sm flex items-center gap-2">
+                <span class="text-lg">☁️</span> Upload CSV Data
+                <input type="file" accept=".csv" onchange="showToast('CSV Upload Simulation Successful. Database updated with new records.', 'success')" class="hidden">
+            </label>
+        </div>
+    </div>
+
+    <div class="flex flex-wrap justify-center border-b-2 border-gray-200 mb-8 gap-1 md:gap-2 bg-white p-2 rounded-xl shadow-sm" id="tabs">
+        <div class="tab-btn active text-sm md:text-base hover:bg-gray-50 rounded-lg" onclick="switchTab('analytics')">📊 Analytics Dashboard</div>
+        <div class="tab-btn text-sm md:text-base hover:bg-gray-50 rounded-lg" onclick="switchTab('matrix')">📋 Assignment Matrix</div>
+        <div class="tab-btn text-sm md:text-base hover:bg-gray-50 rounded-lg" onclick="switchTab('timetable')">🗓️ Class Timetable</div>
+        <div class="tab-btn text-sm md:text-base hover:bg-gray-50 rounded-lg" onclick="switchTab('exam-tt')">📝 Exam Timetable</div>
+        <div class="tab-btn text-sm md:text-base hover:bg-gray-50 rounded-lg" onclick="switchTab('tasks')">✅ Tasks & Exam Unit</div>
+        <div class="tab-btn text-sm md:text-base hover:bg-gray-50 rounded-lg" onclick="switchTab('events')">🎉 Events & Emails</div>
+        <div class="tab-btn text-sm md:text-base hover:bg-gray-50 rounded-lg" onclick="switchTab('coordination')">🤝 Coordination</div>
+        <div class="tab-btn text-sm md:text-base hover:bg-gray-50 rounded-lg" onclick="switchTab('studata')">🎓 Students</div>
+        <div class="tab-btn text-sm md:text-base hover:bg-gray-50 rounded-lg" onclick="switchTab('lectdata')">👨‍💼 Lecturers</div>
+        <div class="tab-btn text-sm md:text-base hover:bg-gray-50 rounded-lg" onclick="switchTab('moddata')">📚 Modules</div>
+    </div>
+
+    <div id="tab-analytics" class="tab-content active">
+        <div class="card p-8 shadow-lg border-t-8">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-gray-200 pb-6">
+                <div>
+                    <h2 class="text-3xl font-black text-royal-green uppercase tracking-wide">Enterprise Analytics</h2>
+                    <p class="text-sm text-gray-500 font-bold mt-2 uppercase tracking-widest">Real-time Faculty, Module & Student Insights</p>
+                </div>
+                <button onclick="window.print()" class="btn-royal-blue px-6 py-3 rounded-xl text-sm font-bold shadow-md mt-4 md:mt-0 flex items-center gap-2 transition hover:scale-105">
+                    <span class="text-lg">🖨️</span> Export PDF Report
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition">
+                    <h3 class="text-base font-black uppercase text-royal-blue mb-4 text-center border-b border-gray-200 pb-3">Student Enrollment Distribution</h3>
+                    <div class="h-80 flex justify-center relative w-full">
+                        <canvas id="studentsPieChart"></canvas>
+                    </div>
+                    <p class="text-xs text-center text-gray-500 font-bold mt-6 italic bg-white p-3 rounded-lg border border-gray-100">Visualizes total active students categorized by enrolled program.</p>
+                </div>
+                
+                <div class="bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition">
+                    <h3 class="text-base font-black uppercase text-royal-green mb-4 text-center border-b border-gray-200 pb-3">Highest Enrolled Modules</h3>
+                    <div class="h-80 flex justify-center relative w-full">
+                        <canvas id="popularModulesChart"></canvas>
+                    </div>
+                    <p class="text-xs text-center text-gray-500 font-bold mt-6 italic bg-white p-3 rounded-lg border border-gray-100">Top modules based on individual student enrollments and selections.</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 border-l-8 border-blue-500 p-6 rounded-xl shadow-sm text-center transform hover:scale-105 transition duration-300">
+                    <p class="text-xs font-black text-blue-800 uppercase tracking-wider mb-2 opacity-80">Total Lecturers</p>
+                    <h4 class="text-5xl font-black text-blue-700 drop-shadow-sm" id="stat-lects">0</h4>
+                </div>
+                <div class="bg-gradient-to-br from-green-50 to-green-100 border-l-8 border-green-500 p-6 rounded-xl shadow-sm text-center transform hover:scale-105 transition duration-300">
+                    <p class="text-xs font-black text-green-800 uppercase tracking-wider mb-2 opacity-80">Total Modules</p>
+                    <h4 class="text-5xl font-black text-green-700 drop-shadow-sm" id="stat-mods">0</h4>
+                </div>
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 border-l-8 border-purple-500 p-6 rounded-xl shadow-sm text-center transform hover:scale-105 transition duration-300">
+                    <p class="text-xs font-black text-purple-800 uppercase tracking-wider mb-2 opacity-80">Total Students</p>
+                    <h4 class="text-5xl font-black text-purple-700 drop-shadow-sm" id="stat-stus">0</h4>
+                </div>
+                <div class="bg-gradient-to-br from-orange-50 to-orange-100 border-l-8 border-orange-500 p-6 rounded-xl shadow-sm text-center transform hover:scale-105 transition duration-300">
+                    <p class="text-xs font-black text-orange-800 uppercase tracking-wider mb-2 opacity-80">Pending Assignments</p>
+                    <h4 class="text-5xl font-black text-orange-700 drop-shadow-sm" id="stat-pend">0</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-matrix" class="tab-content">
+        <div class="card p-8 shadow-lg border-t-8 border-royal-blue">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-gray-200 pb-6">
+                <div>
+                    <h2 class="text-2xl font-black text-royal-blue uppercase tracking-wide">Assignment Matrix</h2>
+                    <p class="text-sm text-gray-500 font-bold mt-2">Assign lecturers to modules, manage workloads, and monitor status.</p>
+                </div>
+                <div class="w-full md:w-auto">
+                    <input type="text" id="mSearch" placeholder="🔍 Search Module Code or Name..." class="p-3 border border-gray-300 rounded-xl text-sm w-full md:w-96 shadow-sm focus:border-royal-blue outline-none transition bg-gray-50 focus:bg-white" onkeyup="renderMatrix()">
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto max-h-[700px] border border-gray-300 rounded-xl shadow-inner bg-white custom-scrollbar">
+                <table class="w-full text-left text-sm min-w-[1100px]">
+                    <thead class="bg-gradient-to-b from-[#0d47a1] to-[#1565c0] text-white sticky top-0 shadow-md z-10">
+                        <tr>
+                            <th class="p-4 uppercase tracking-wider font-black text-xs border-r border-white/10 w-32 text-center">Status</th>
+                            <th class="p-4 uppercase tracking-wider font-black text-xs border-r border-white/10">Module Code & Name</th>
+                            <th class="p-4 text-center uppercase tracking-wider font-black text-xs border-r border-white/10 w-24">WCH</th>
+                            <th class="p-4 uppercase tracking-wider font-black text-xs border-r border-white/10 w-32">Faculty</th>
+                            <th class="p-4 w-96 uppercase tracking-wider font-black text-xs border-r border-white/10">Assign Lecturer (Name & Focus)</th>
+                            <th class="p-4 text-center uppercase tracking-wider font-black text-xs w-48">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-timetable" class="tab-content">
+        <div class="card p-8 border-t-8 border-purple-800 shadow-lg bg-gradient-to-b from-purple-50 to-white">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-purple-200 pb-6">
+                <div>
+                    <h2 class="text-3xl font-black text-purple-900 uppercase tracking-wide">Class Timetable Manager</h2>
+                    <p class="text-sm text-gray-600 font-bold mt-2">Interactive drag-and-drop grid. Assign modules to timeslots and venues.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0 w-full md:w-auto">
+                    <select id="tt-day-select" class="p-3 border-2 border-purple-300 rounded-xl font-black text-purple-900 text-sm shadow-sm outline-none bg-white cursor-pointer hover:border-purple-500 transition" onchange="renderTimetableGrid()">
+                        <option value="Sunday">📅 Sunday Schedule</option>
+                        <option value="Monday">📅 Monday Schedule</option>
+                        <option value="Tuesday">📅 Tuesday Schedule</option>
+                        <option value="Wednesday">📅 Wednesday Schedule</option>
+                        <option value="Thursday">📅 Thursday Schedule</option>
+                        <option value="Friday">📅 Friday Schedule</option>
+                        <option value="Saturday">📅 Saturday Schedule</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex flex-col lg:flex-row gap-8 h-[750px]">
+                <div class="w-full lg:w-80 bg-white border border-gray-300 rounded-2xl shadow-md flex flex-col overflow-hidden shrink-0">
+                    <div class="p-4 bg-purple-900 text-white font-black text-sm uppercase text-center tracking-wider shadow-sm">
+                        Available Modules
+                    </div>
+                    <div class="p-4 border-b border-gray-200 bg-gray-50">
+                        <input type="text" id="tt-search" placeholder="🔍 Filter modules..." class="w-full p-3 border border-gray-300 rounded-lg text-sm outline-none focus:border-purple-500 shadow-inner" onkeyup="renderTimetableGrid()">
+                        <p class="text-[10px] text-gray-500 mt-2 font-bold italic text-center">Drag a module card onto the grid.</p>
+                    </div>
+                    <div class="p-4 overflow-y-auto flex-1 bg-gray-100 custom-scrollbar space-y-3" id="tt-draggable-list">
+                        </div>
+                </div>
+                
+                <div class="flex-1 border-2 border-gray-300 rounded-2xl overflow-hidden shadow-md relative bg-white flex flex-col">
+                    <div class="p-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center text-xs font-bold text-gray-600">
+                        <span>Timetable Grid View</span>
+                        <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded">Auto-saving Enabled</span>
+                    </div>
+                    <div class="tt-grid-wrapper flex-1 custom-scrollbar" id="tt-grid">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-exam-tt" class="tab-content">
+        <div class="card p-8 border-t-8 border-green-800 shadow-lg bg-gradient-to-b from-green-50 to-white">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-green-200 pb-6">
+                <div>
+                    <h2 class="text-3xl font-black text-green-900 uppercase tracking-wide">Exam Venues & Scheduling</h2>
+                    <p class="text-sm text-gray-600 font-bold mt-2">Allocate physical venues and assign invigilators for final examinations.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0 w-full md:w-auto">
+                    <input type="date" id="exam-date-select" class="p-3 border-2 border-green-300 rounded-xl font-black text-green-900 text-sm shadow-sm outline-none bg-white cursor-pointer hover:border-green-500 transition" onchange="renderExamTimetableGrid()">
+                </div>
+            </div>
+            
+            <div class="flex flex-col lg:flex-row gap-8 h-[750px]">
+                <div class="w-full lg:w-80 bg-white border border-gray-300 rounded-2xl shadow-md flex flex-col overflow-hidden shrink-0">
+                    <div class="p-4 bg-green-900 text-white font-black text-sm uppercase text-center tracking-wider shadow-sm">
+                        Exam Modules
+                    </div>
+                    <div class="p-4 border-b border-gray-200 bg-gray-50">
+                        <input type="text" id="extt-search" placeholder="🔍 Filter exam modules..." class="w-full p-3 border border-gray-300 rounded-lg text-sm outline-none focus:border-green-500 shadow-inner" onkeyup="renderExamTimetableGrid()">
+                        <p class="text-[10px] text-gray-500 mt-2 font-bold italic text-center">Drag module to assign venue & time.</p>
+                    </div>
+                    <div class="p-4 overflow-y-auto flex-1 bg-gray-100 custom-scrollbar space-y-3" id="extt-draggable-list">
+                        </div>
+                </div>
+                
+                <div class="flex-1 border-2 border-gray-300 rounded-2xl overflow-hidden shadow-md relative bg-white flex flex-col">
+                    <div class="p-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center text-xs font-bold text-gray-600">
+                        <span>Venue Allocation Grid</span>
+                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded">Clash Detection Active</span>
+                    </div>
+                    <div class="tt-grid-wrapper flex-1 custom-scrollbar" id="exam-tt-grid">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-tasks" class="tab-content">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            
+            <div class="card p-8 border-t-8 border-blue-700 flex flex-col shadow-xl">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-3xl">📌</span>
+                    <h2 class="text-2xl font-black text-blue-900 uppercase">Assign General Task</h2>
+                </div>
+                <p class="text-sm text-gray-500 mb-8 border-b border-blue-100 pb-4">Create general administrative tasks and notify staff via automated emails.</p>
+                
+                <div class="space-y-6 flex-1 bg-gray-50 p-6 rounded-xl border border-gray-200">
+                    <div>
+                        <label class="text-sm font-black text-gray-700 uppercase tracking-wide block mb-2">Task Title / Subject</label>
+                        <input type="text" id="t-title" class="w-full p-4 border border-gray-300 rounded-lg text-sm focus:border-blue-500 outline-none shadow-sm transition" placeholder="e.g. Submit Mid-Term Grades for Review...">
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="text-sm font-black text-gray-700 uppercase tracking-wide block mb-2">Target Audience</label>
+                            <select id="t-target" class="w-full p-4 border border-gray-300 rounded-lg text-sm focus:border-blue-500 outline-none shadow-sm bg-white cursor-pointer transition">
+                                <option value="ALL STAFF">All Faculty & Staff</option>
+                                <option value="KSL LECTURERS">Faculty of Law (KSL) Lecturers</option>
+                                <option value="KED LECTURERS">Faculty of Ed (KED) Lecturers</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-sm font-black text-gray-700 uppercase tracking-wide block mb-2">Deadline</label>
+                            <input type="date" class="w-full p-4 border border-gray-300 rounded-lg text-sm focus:border-blue-500 outline-none shadow-sm bg-white cursor-pointer transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-black text-gray-700 uppercase tracking-wide block mb-2">Detailed Message / Instructions</label>
+                        <textarea id="t-msg" class="w-full p-4 border border-gray-300 rounded-lg text-sm focus:border-blue-500 outline-none shadow-sm transition" rows="5" placeholder="Enter comprehensive task details, steps, and requirements here..."></textarea>
+                    </div>
+                </div>
+                
+                <button onclick="assignTask('general')" class="bg-gradient-to-r from-blue-700 to-blue-900 hover:from-blue-800 hover:to-black transition text-white w-full py-4 rounded-xl text-base font-black uppercase tracking-widest shadow-lg mt-8 flex justify-center items-center gap-3 transform hover:scale-[1.02]">
+                    <span class="text-xl">🚀</span> Create Task & Dispatch Email
+                </button>
+            </div>
+            
+            <div class="card p-8 border-t-8 border-red-700 bg-red-50 flex flex-col shadow-xl">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-3xl">📑</span>
+                    <h2 class="text-2xl font-black text-red-900 uppercase">Exam Unit Official Request</h2>
+                </div>
+                <p class="text-sm text-gray-600 mb-8 border-b border-red-200 pb-4">Formally request exam papers, marking schemes, and moderation kits from lecturers.</p>
+                
+                <div class="space-y-6 flex-1">
+                    <div>
+                        <label class="text-sm font-black text-red-800 uppercase tracking-wide block mb-2">Target Faculty</label>
+                        <select id="ex-target" class="w-full p-4 border border-red-300 rounded-xl text-sm focus:border-red-500 outline-none bg-white shadow-sm cursor-pointer transition font-bold">
+                            <option value="ALL FACULTIES">Global Request (All Faculties)</option>
+                            <option value="KSL FACULTY">Faculty of Law (KSL) Only</option>
+                            <option value="KED FACULTY">Faculty of Education (KED) Only</option>
+                        </select>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl border-2 border-red-200 shadow-sm">
+                        <label class="text-sm font-black text-red-800 uppercase tracking-wide block mb-4 border-b border-red-100 pb-3">Select Required Documents:</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-bold text-gray-700">
+                            <label class="flex items-center gap-3 cursor-pointer p-3 hover:bg-red-50 rounded-lg transition border border-transparent hover:border-red-100"><input type="checkbox" id="c-pap" checked class="w-5 h-5 accent-red-600"> Final Exam Paper</label>
+                            <label class="flex items-center gap-3 cursor-pointer p-3 hover:bg-red-50 rounded-lg transition border border-transparent hover:border-red-100"><input type="checkbox" id="c-sch" checked class="w-5 h-5 accent-red-600"> Marking Scheme</label>
+                            <label class="flex items-center gap-3 cursor-pointer p-3 hover:bg-red-50 rounded-lg transition border border-transparent hover:border-red-100"><input type="checkbox" id="c-mod" checked class="w-5 h-5 accent-red-600"> Moderation Form</label>
+                            <label class="flex items-center gap-3 cursor-pointer p-3 hover:bg-red-50 rounded-lg transition border border-transparent hover:border-red-100"><input type="checkbox" id="c-rub" class="w-5 h-5 accent-red-600"> Assignment Rubrics</label>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="text-sm font-black text-red-800 uppercase tracking-wide block mb-2 flex items-center gap-2"><span class="text-lg">🔗</span> Reference Material (Google Drive Link)</label>
+                        <input type="text" id="ex-drive" class="w-full p-4 border border-red-300 rounded-xl text-sm focus:border-red-500 outline-none bg-white shadow-sm transition" placeholder="Paste secure link to official templates or past papers here...">
+                        <p class="text-xs text-red-500 mt-2 font-bold italic">This link will be prominently included in the automated email sent to lecturers.</p>
+                    </div>
+                    
+                    <div>
+                        <label class="text-sm font-black text-red-800 uppercase tracking-wide block mb-2">Additional Instructions</label>
+                        <textarea id="ex-msg" class="w-full p-4 border border-red-300 rounded-xl text-sm focus:border-red-500 outline-none bg-white shadow-sm transition" rows="3" placeholder="E.g. Please ensure all documents are digitally signed and password protected before uploading to the portal..."></textarea>
+                    </div>
+                </div>
+                
+                <button onclick="assignTask('exam')" class="bg-gradient-to-r from-red-700 to-red-900 hover:from-red-800 hover:to-black transition text-white w-full py-4 rounded-xl text-base font-black uppercase tracking-widest shadow-lg mt-8 flex justify-center items-center gap-3 transform hover:scale-[1.02]">
+                    <span class="text-xl">📤</span> Send Official Request & Email
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    <div id="tab-events" class="tab-content">
+        <div class="card p-10 border-t-8 border-indigo-700 shadow-xl">
+            <h2 class="text-3xl font-black text-indigo-900 uppercase mb-3">Events & Automated Reminders</h2>
+            <p class="text-sm text-gray-500 mb-10 border-b border-indigo-100 pb-6">Schedule official meetings, forums, and configure system-wide recurring email reminders.</p>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <div class="lg:col-span-2 bg-white p-8 border-2 border-indigo-100 rounded-2xl shadow-sm hover:shadow-md transition">
+                    <h3 class="font-black text-indigo-800 mb-6 uppercase tracking-wider flex items-center gap-3 text-xl border-b pb-3"><span>📅</span> Schedule Official Event</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <label class="text-sm font-bold text-gray-700 uppercase block mb-2">Event Title / Description</label>
+                            <input type="text" id="ev-title" class="w-full p-4 border border-gray-300 rounded-xl text-sm focus:border-indigo-600 outline-none bg-gray-50 focus:bg-white shadow-sm transition" placeholder="e.g. Annual Academic Staff Forum 2026">
+                        </div>
+                        <div>
+                            <label class="text-sm font-bold text-gray-700 uppercase block mb-2">Event Date</label>
+                            <input type="date" class="w-full p-4 border border-gray-300 rounded-xl text-sm focus:border-indigo-600 outline-none bg-gray-50 focus:bg-white shadow-sm cursor-pointer transition">
+                        </div>
+                        <div>
+                            <label class="text-sm font-bold text-gray-700 uppercase block mb-2">Target Audience</label>
+                            <select id="ev-target" class="w-full p-4 border border-gray-300 rounded-xl text-sm focus:border-indigo-600 outline-none bg-gray-50 focus:bg-white shadow-sm cursor-pointer transition font-bold text-indigo-900">
+                                <option value="ALL STAFF & STUDENTS">Entire University (Staff & Students)</option>
+                                <option value="ALL LECTURERS">All Lecturers</option>
+                                <option value="KSL STAFF">Faculty of Law (KSL) Only</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-8 flex justify-end">
+                        <button onclick="createEvent()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-10 py-4 rounded-xl text-sm font-black uppercase tracking-widest shadow-lg transition transform hover:-translate-y-1 flex items-center gap-2">
+                            <span>📢</span> Dispatch Email Invitations
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-gradient-to-b from-teal-50 to-teal-100 p-8 border border-teal-200 rounded-2xl shadow-sm flex flex-col justify-center text-center relative overflow-hidden">
+                    <div class="absolute -right-10 -top-10 text-9xl opacity-10">🔄</div>
+                    <div class="text-6xl mb-6 animate-pulse drop-shadow-md">🔄</div>
+                    <h3 class="font-black text-teal-900 mb-4 uppercase tracking-wider text-xl">Cron Job Scheduler</h3>
+                    <p class="text-sm text-teal-700 mb-8 font-semibold bg-white/50 p-4 rounded-lg">Activate system daemon to automatically generate and email staff every Thursday at 09:00 AM requesting their mandatory weekly workload reports.</p>
+                    <button onclick="setupReminder()" class="bg-teal-600 hover:bg-teal-700 text-white w-full py-4 rounded-xl text-sm font-black uppercase tracking-widest shadow-lg transition transform hover:-translate-y-1">Activate Auto-Reminders</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-coordination" class="tab-content">
+        <div class="card p-10 border-t-8 border-pink-700 shadow-xl">
+            <h2 class="text-3xl font-black text-pink-900 uppercase mb-3">Faculty Coordination Assignments</h2>
+            <p class="text-sm text-gray-600 mb-10 border-b border-pink-200 pb-6">Assign administrative roles (Module Coordinator, Course Coordinator, Batch Coordinator) to specific lecturers and manage their reporting.</p>
+            
+            <div class="bg-white p-8 border-2 border-pink-100 rounded-2xl shadow-sm mb-10">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-pink-100 pb-4">
+                    <h3 class="font-black text-pink-800 uppercase tracking-wider text-xl flex items-center gap-2"><span>👤</span> Assign Coordinators</h3>
+                    <button onclick="addCoordField()" class="bg-pink-50 border-2 border-pink-200 hover:bg-pink-100 text-pink-800 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2 mt-4 md:mt-0">➕ Add New Assignment Row</button>
+                </div>
+                
+                <div id="coord-fields" class="space-y-5">
+                    </div>
+                
+                <div class="flex flex-col md:flex-row gap-4 items-center bg-gray-50 p-5 rounded-xl border border-gray-200 shadow-inner mt-4" id="coord-initial-row">
+                    <div class="w-full md:w-1/4">
+                        <label class="text-xs font-bold text-gray-500 uppercase block mb-2">Role Type</label>
+                        <select class="p-3 border border-gray-300 rounded-lg w-full text-sm outline-none focus:border-pink-500 cursor-pointer shadow-sm"><option>Module Coordinator</option><option>Course Coordinator</option><option>Batch Coordinator</option></select>
+                    </div>
+                    <div class="w-full md:flex-1">
+                        <label class="text-xs font-bold text-gray-500 uppercase block mb-2">Target (e.g. Bachelor of Arts - Batch 1)</label>
+                        <input type="text" placeholder="Enter specific target name..." class="p-3 border border-gray-300 rounded-lg w-full text-sm outline-none focus:border-pink-500 shadow-sm">
+                    </div>
+                    <div class="w-full md:w-1/3">
+                        <label class="text-xs font-bold text-gray-500 uppercase block mb-2">Assign To Lecturer</label>
+                        <select class="coord-lect-select w-full p-3 border border-gray-300 rounded-lg text-sm outline-none focus:border-pink-500 bg-white shadow-sm cursor-pointer"><option value="">-- Generate Data First --</option></select>
+                    </div>
+                </div>
+                
+                <div class="mt-8 flex justify-end">
+                    <button onclick="showToast('Coordination Assignments Successfully Saved to Secure Database.','success')" class="bg-pink-700 hover:bg-pink-800 text-white px-10 py-4 rounded-xl text-sm font-black uppercase tracking-widest shadow-lg transition transform hover:-translate-y-1">💾 Save All Assignments</button>
+                </div>
+            </div>
+            
+            <div class="bg-gradient-to-r from-gray-50 to-gray-100 p-8 border border-gray-300 rounded-2xl shadow-md relative overflow-hidden">
+                <div class="absolute left-0 top-0 w-2 h-full bg-gray-800"></div>
+                <h3 class="font-black text-gray-900 uppercase tracking-wider mb-3 text-xl">Weekly Coordination Reporting</h3>
+                <p class="text-sm text-gray-600 mb-8 bg-white p-4 rounded border border-gray-200">Simulate a coordinator submitting their weekly status report regarding their assigned modules or batches. This will generate a formal PDF and email the Dean automatically.</p>
+                <div class="flex flex-wrap justify-end gap-5 mt-4">
+                    <button onclick="showToast('Generating Formal Coordination PDF Report. Please wait...','info')" class="bg-white border-2 border-gray-800 hover:bg-gray-800 hover:text-white text-gray-800 px-8 py-3.5 rounded-xl text-sm font-bold shadow-md transition flex items-center gap-2"><span>📄</span> Export PDF Report</button>
+                    <button onclick="simulateEmail('Dean & Academic Review Committee', 'Weekly Coordination Report Submission', 'A coordinator has formally submitted their weekly status. The detailed PDF report is attached for your review and necessary actions.')" class="btn-royal-green px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg flex items-center gap-2 transform hover:-translate-y-1 transition"><span>📧</span> Submit & Email Dean</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-studata" class="tab-content">
+        <div class="card p-8 shadow-lg">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-gray-200 pb-6">
+                <div>
+                    <h2 class="text-3xl font-black text-royal-green uppercase tracking-wide">Students Master Data</h2>
+                    <p class="text-sm text-gray-500 font-bold mt-2">Manage enrollments, view detailed academic profiles, and export cohort data.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
+                    <select id="stu-f-prog" onchange="renderStudents()" class="p-3 border border-gray-300 rounded-xl text-sm font-bold outline-none focus:border-royal-green bg-gray-50 shadow-sm cursor-pointer transition">
+                        <option value="ALL">All Programs</option>
+                        <option value="Bachelors Program">Bachelors Program</option>
+                    </select>
+                    <button onclick="window.print()" class="bg-gray-800 hover:bg-black text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md transition flex items-center justify-center gap-2"><span>🖨️</span> Print / PDF</button>
+                </div>
+            </div>
+            
+            <div class="relative mb-8">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-xl">🔍</span>
+                <input type="text" id="stuSearch" onkeyup="renderStudents()" placeholder="Global Search by Student ID or Full Name..." class="pl-12 p-4 border-2 border-gray-300 rounded-2xl text-base font-semibold w-full focus:border-royal-blue outline-none shadow-sm transition bg-gray-50 focus:bg-white">
+            </div>
+            
+            <div class="overflow-x-auto max-h-[650px] border-2 border-gray-200 rounded-xl shadow-inner bg-white custom-scrollbar">
+                <table class="w-full text-left text-sm min-w-[900px]">
+                    <thead class="bg-gradient-to-b from-[#004d40] to-[#00695c] text-white sticky top-0 shadow-md z-10">
+                        <tr>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10 w-48">Student ID</th>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10">Full Name (Click for Details)</th>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10">Program & Cohort</th>
+                            <th class="p-5 text-center uppercase tracking-wider font-black text-xs w-40">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stu-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-lectdata" class="tab-content">
+        <div class="card p-8 shadow-lg">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-gray-200 pb-6">
+                <div>
+                    <h2 class="text-3xl font-black text-royal-green uppercase tracking-wide">Lecturers Master Data</h2>
+                    <p class="text-sm text-gray-500 font-bold mt-2">Manage staff details, academic teaching focus, and faculty assignment.</p>
+                </div>
+                <button onclick="window.print()" class="bg-gray-800 hover:bg-black text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md mt-4 md:mt-0 transition flex items-center gap-2"><span>🖨️</span> Print / PDF</button>
+            </div>
+            
+            <div class="relative mb-8">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-xl">🔍</span>
+                <input type="text" id="lectSearch" onkeyup="renderLecturers()" placeholder="Global Search by Lecturer ID or Name..." class="pl-12 p-4 border-2 border-gray-300 rounded-2xl text-base font-semibold w-full focus:border-royal-blue outline-none shadow-sm transition bg-gray-50 focus:bg-white">
+            </div>
+            
+            <div class="overflow-x-auto max-h-[650px] border-2 border-gray-200 rounded-xl shadow-inner bg-white custom-scrollbar">
+                <table class="w-full text-left text-sm min-w-[1000px]">
+                    <thead class="bg-gradient-to-b from-[#004d40] to-[#00695c] text-white sticky top-0 shadow-md z-10">
+                        <tr>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10 w-32 text-center">Faculty</th>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10 w-48">Lecturer ID</th>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10">Full Name (Click for Details)</th>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10 w-48 text-center">Focus Category</th>
+                            <th class="p-5 text-center uppercase tracking-wider font-black text-xs w-40">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lect-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-moddata" class="tab-content">
+        <div class="card p-8 shadow-lg">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-gray-200 pb-6">
+                <div>
+                    <h2 class="text-3xl font-black text-royal-green uppercase tracking-wide">Modules Master Data</h2>
+                    <p class="text-sm text-gray-500 font-bold mt-2">Manage academic modules, Weekly Contact Hours (WCH), and program allocations.</p>
+                </div>
+                <button onclick="window.print()" class="bg-gray-800 hover:bg-black text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md mt-4 md:mt-0 transition flex items-center gap-2"><span>🖨️</span> Print / PDF</button>
+            </div>
+            
+            <div class="relative mb-8">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-xl">🔍</span>
+                <input type="text" id="modSearchInput" onkeyup="renderModules()" placeholder="Global Search by Module Code or Name..." class="pl-12 p-4 border-2 border-gray-300 rounded-2xl text-base font-semibold w-full focus:border-royal-blue outline-none shadow-sm transition bg-gray-50 focus:bg-white">
+            </div>
+            
+            <div class="overflow-x-auto max-h-[650px] border-2 border-gray-200 rounded-xl shadow-inner bg-white custom-scrollbar">
+                <table class="w-full text-left text-sm min-w-[1100px]">
+                    <thead class="bg-gradient-to-b from-[#004d40] to-[#00695c] text-white sticky top-0 shadow-md z-10">
+                        <tr>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10 w-32 text-center">Faculty</th>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10 w-40">Module Code</th>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10">Module Name (Click for Details)</th>
+                            <th class="p-5 uppercase tracking-wider font-black text-xs border-r border-white/10">Program</th>
+                            <th class="p-5 text-center uppercase tracking-wider font-black text-xs border-r border-white/10 w-28">WCH</th>
+                            <th class="p-5 text-center uppercase tracking-wider font-black text-xs w-40">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mod-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<div id="royal-popup-modal" class="modal-overlay">
+    <div class="bg-white p-8 md:p-10 rounded-2xl w-full max-w-5xl shadow-2xl relative border-t-8 border-gold flex flex-col max-h-[90vh] animate-[fadeInModal_0.3s_ease-out]">
+        <div class="flex flex-col md:flex-row justify-between items-start border-b-2 border-gray-200 pb-6 mb-6 shrink-0 gap-4">
+            <div>
+                <h2 id="rp-title" class="text-3xl md:text-4xl font-black text-royal-green uppercase font-serif tracking-tight drop-shadow-sm">Details</h2>
+                <p id="rp-sub" class="text-sm md:text-base font-bold text-royal-blue mt-2 tracking-widest uppercase bg-blue-50 inline-block px-3 py-1 rounded border border-blue-100"></p>
+            </div>
+            <div class="flex gap-3 self-end md:self-start">
+                <button onclick="window.print()" class="btn-no-print bg-gray-800 hover:bg-black transition text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md flex items-center gap-2 transform hover:scale-105">
+                    <span>🖨️</span> Export PDF / Print
+                </button>
+                <button onclick="document.getElementById('royal-popup-modal').style.display='none'" class="btn-no-print text-gray-500 hover:text-red-600 hover:bg-red-50 transition text-4xl font-black leading-none bg-gray-100 rounded-full w-12 h-12 flex items-center justify-center shadow-sm">
+                    &times;
+                </button>
+            </div>
+        </div>
+        
+        <div id="rp-content" class="overflow-y-auto flex-1 pr-4 custom-scrollbar text-gray-800 text-sm">
+            </div>
+        
+        <div class="hidden print:block mt-16 pt-6 border-t-2 border-gray-800 text-center">
+            <p class="text-[12px] text-gray-800 font-black uppercase tracking-widest">Official Record - Presidential Executive Workload Portal</p>
+            <p class="text-[10px] text-gray-500 mt-1">Generated electronically. No signature required.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. GLOBAL STATE & IN-MEMORY DATABASE ---
+    // Simulating a robust backend database structure
+    let localDB = { 
+        lecturers: [], 
+        modules: [], 
+        assignments: {}, // Key: ModuleCode, Value: LecturerID
+        students: [], 
+        student_modules: {}, // Key: StudentID, Value: Array of ModuleCodes
+        timetable: [], // Store for class TT entries
+        exam_timetable: [] // Store for exam TT entries
+    };
+    
+    // Store Chart.js instances to allow destroying and recreating
+    let charts = { studentsPie: null, popularModules: null };
+    
+    // --- 2. INITIALIZATION ROUTINE ---
+    document.addEventListener('DOMContentLoaded', () => { 
+        // Hide loader after a short artificial delay to simulate heavy data loading
+        setTimeout(() => {
+            document.getElementById('loader').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loader').style.display = 'none'; 
+                switchTab('analytics'); 
+            }, 500);
+        }, 1500);
+    });
+
+    // --- 3. UTILITIES & TOAST NOTIFICATIONS ---
+    
+    // Creates a safe, standard ID string
+    const makeSafeId = (id) => String(id || `UNK-${Math.random()}`).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
+    
+    // Safely gets a value from an object using an array of possible keys
+    const getSafeVal = (row, keys) => { 
+        if (!row || typeof row !== 'object') return ''; 
+        for (let k of keys) { if (row[k]) return row[k]; } 
+        return ''; 
+    };
+
+    // Advanced Toast Notification System
+    const showToast = (msg, type='info') => {
+        const container = document.getElementById('toast-container');
+        if(!container) return;
+        
+        const d = document.createElement('div');
+        d.className = `toast ${type}`; 
+        
+        let icon = 'ℹ️';
+        if(type==='success') icon = '✅';
+        else if(type==='error') icon = '❌';
+        else if(type==='warning') icon = '⚠️';
+        
+        d.innerHTML = `<span class="text-2xl">${icon}</span> <span class="tracking-wide leading-tight">${msg}</span>`;
+        container.appendChild(d); 
+        
+        // Auto-remove toast
+        setTimeout(() => { 
+            d.style.animation = 'fadeOutToast 0.4s forwards'; 
+            setTimeout(() => d.remove(), 400); 
+        }, 4000);
+    };
+    
+    // Email Simulation Engine
+    const simulateEmail = (to, sub, body) => { 
+        showToast(`📧 Email successfully queued for dispatch to ${to}`, "success"); 
+        console.log(`\n======================================================\n[EMAIL DISPATCH SIMULATION]\nTo: ${to}\nSubject: ${sub}\n\nBody:\n${body}\n======================================================\n`); 
+    };
+    
+    // Local Save Simulation
+    const saveLocal = (silent = false) => { 
+        // In a production environment, this would serialize localDB to localStorage or push to Firebase
+        if(!silent) showToast("System State Preserved: All data saved locally successfully.", "success"); 
+    };
+    
+    // Global Master Render Trigger
+    const triggerAllRenders = () => { 
+        renderMatrix(); 
+        renderStudents(); 
+        renderLecturers(); 
+        renderModules(); 
+        renderAnalytics(); 
+        updateCoordLectDropdowns();
+        renderTimetableGrid();
+        renderExamTimetableGrid();
+    };
+
+    // --- 4. TAB NAVIGATION SYSTEM ---
+    const switchTab = (id) => {
+        // Reset UI
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        // Activate selected
+        if(event && event.currentTarget) {
+            event.currentTarget.classList.add('active'); 
+        } else {
+            // Fallback if called programmatically without event
+            const btn = document.querySelector(`.tab-btn[onclick*="${id}"]`);
+            if(btn) btn.classList.add('active');
+        }
+        
+        document.getElementById(`tab-${id}`).classList.add('active');
+        
+        // Trigger specific renders based on active tab to optimize performance and ensure data freshness
+        if(id==='analytics') renderAnalytics(); 
+        if(id==='matrix') renderMatrix();
+        if(id==='studata') renderStudents(); 
+        if(id==='lectdata') renderLecturers(); 
+        if(id==='moddata') renderModules();
+        if(id==='coordination') updateCoordLectDropdowns();
+        if(id==='timetable') renderTimetableGrid();
+        if(id==='exam-tt') renderExamTimetableGrid();
+    };
+
+    // --- 5. DUMMY DATA GENERATOR (For Testing & Validation) ---
+    const generateDummies = (type) => {
+        if(type==='lect') {
+            const numLects = 15;
+            for(let i=1; i<=numLects; i++) {
+                localDB.lecturers.push({
+                    ID: `L${Math.floor(1000 + Math.random() * 9000)}`, 
+                    Name: `Dr. Academic Scholar ${i}`, 
+                    Fac: i%2===0 ? "KSL" : "KED", 
+                    Cat: i%3===0 ? "Research Focus" : "Teaching Focus"
+                });
+            }
+            showToast(`${numLects} Dummy Lecturers Injected into Database`, "success");
+        }
+        else if(type==='mod') {
+            const numMods = 25;
+            for(let i=1; i<=numMods; i++) {
+                localDB.modules.push({
+                    Code: `MOD${Math.floor(100 + Math.random() * 900)}`, 
+                    Name: `Advanced Academic Subject ${i}`, 
+                    Prog: "Bachelors Program", 
+                    Fac: i%2===0 ? "KSL" : "KED", 
+                    WCH: Math.floor(Math.random() * 3) + 2, // Random WCH 2-4 
+                    Batch: `Batch ${Math.floor(Math.random() * 3) + 1}`
+                });
+            }
+            showToast(`${numMods} Dummy Modules Injected into Database`, "success");
+        }
+        else if(type==='stu') {
+            const numStus = 40;
+            for(let i=1; i<=numStus; i++) {
+                let sId = `STU${Math.floor(5000 + Math.random() * 4000)}`; 
+                localDB.students.push({
+                    ID: sId, 
+                    Name: `Student Candidate ${i}`, 
+                    Prog: "Bachelors Program", 
+                    Batch: `Batch ${Math.floor(Math.random() * 3) + 1}`
+                });
+                
+                // Randomly enroll student in 1 to 3 modules to build relationships
+                if(localDB.modules.length > 0) {
+                    localDB.student_modules[sId] = [];
+                    const numEnrollments = Math.floor(Math.random() * 3) + 1;
+                    for(let j=0; j<numEnrollments; j++) {
+                        const randomModCode = localDB.modules[Math.floor(Math.random() * localDB.modules.length)].Code;
+                        if(!localDB.student_modules[sId].includes(randomModCode)) {
+                            localDB.student_modules[sId].push(randomModCode);
+                        }
+                    }
+                }
+            }
+            showToast(`${numStus} Dummy Students Injected with Auto-Enrollments`, "success");
+        }
+        triggerAllRenders();
+    };
+
+    // --- 6. ADVANCED 2-STEP VERIFICATION DELETE ---
+    const delConfirm = (type, id, callback) => {
+        // Step 1: Standard confirmation with explicit warning
+        if(confirm(`SECURITY ALERT [STEP 1/2]\n\nAre you absolutely sure you want to PERMANENTLY delete the ${type} record for [${id}]?\n\nWARNING: This action cannot be undone and will cascade to remove all associated assignments, student enrollments, and timetable schedules.`)) {
+            // Step 2: Explicit typing confirmation to prevent accidental clicks
+            const code = prompt(`SECURITY ALERT [STEP 2/2]\n\nType the word "DELETE" (all caps) to confirm the permanent removal of ${id}:`);
+            if(code === "DELETE") { 
+                callback(); 
+                showToast(`System Record ${type} [${id}] Purged Successfully`, "success"); 
+            } else { 
+                showToast("Security Protocol: Deletion Cancelled - Verification code failed.", "error"); 
+            }
+        }
+    };
+
+    // --- 7. ASSIGNMENT MATRIX RENDERING ---
+    const renderMatrix = () => {
+        const tbody = document.getElementById('matrix-body'); 
+        if(!tbody) return;
+        
+        const searchQ = document.getElementById('mSearch').value.toLowerCase();
+        let html = '';
+        
+        localDB.modules.forEach(m => {
+            // Filter by search query
+            if(!m.Code.toLowerCase().includes(searchQ) && !m.Name.toLowerCase().includes(searchQ)) return;
+            
+            // Ensure assignment object exists for this module
+            if(!localDB.assignments[m.Code]) localDB.assignments[m.Code] = '';
+            let assId = localDB.assignments[m.Code];
+            
+            // Build Lecturer Dropdown with Focus category noted
+            let lOpt = '<option value="">-- Unassigned (Pending) --</option>';
+            localDB.lecturers.forEach(l => {
+                const selected = assId === l.ID ? 'selected' : '';
+                lOpt += `<option value="${l.ID}" ${selected}>${l.Name} [Focus: ${l.Cat}]</option>`;
+            });
+            
+            const statusColor = assId ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300 animate-pulse';
+            const statusTxt = assId ? 'Assigned' : 'Pending';
+            
+            html += `<tr class="border-b border-gray-200 hover:bg-blue-50 transition duration-150">
+                <td class="p-5 text-center">
+                    <span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${statusColor} shadow-sm inline-block w-full">${statusTxt}</span>
+                </td>
+                <td class="p-5">
+                    <b class="clickable-name text-base" onclick="showPopup('m','${m.Code}')">${m.Code}</b><br>
+                    <span class="text-gray-600 text-sm font-semibold mt-1 inline-block">${m.Name}</span>
+                </td>
+                <td class="p-5 text-center font-black text-purple-700 text-base bg-purple-50/50">${m.WCH}</td>
+                <td class="p-5 text-xs font-black text-gray-700 uppercase tracking-widest">${m.Fac}</td>
+                <td class="p-5">
+                    <select onchange="localDB.assignments['${m.Code}']=this.value; saveLocal(true); renderMatrix(); renderTimetableGrid(); renderExamTimetableGrid();" class="w-full p-3 border-2 border-gray-300 rounded-xl text-xs font-bold outline-none focus:border-royal-blue bg-white shadow-sm cursor-pointer transition hover:border-gray-400">
+                        ${lOpt}
+                    </select>
+                </td>
+                <td class="p-5 text-center flex flex-col gap-3 justify-center">
+                    <button onclick="alert('System Edit Mode active for ${m.Code}. Please use the dropdown menu to select a new lecturer assignment.')" class="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition shadow-sm">Edit Assignment</button>
+                    <button onclick="delConfirm('Module','${m.Code}',()=> { localDB.modules=localDB.modules.filter(x=>x.Code!=='${m.Code}'); delete localDB.assignments['${m.Code}']; triggerAllRenders(); })" class="bg-red-50 text-red-700 border border-red-200 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition shadow-sm">Delete Module</button>
+                </td>
+            </tr>`;
+        });
+        
+        tbody.innerHTML = html || '<tr><td colspan="6" class="p-16 text-center text-gray-500 italic text-base">No modules match your current search criteria. Generate or upload data.</td></tr>';
+    };
+
+    // --- 8. ROYAL POPUP ENGINE (Dynamic Details Generation) ---
+    // This function generates beautiful, data-rich modals depending on what is clicked
+    const showPopup = (type, id) => {
+        let title='', subtitle='', content='';
+        
+        // ---------------- STUDENT PROFILE ----------------
+        if(type==='s') {
+            let stu = localDB.students.find(x=>x.ID===id); 
+            if(!stu) return;
+            title = `🎓 Official Student Profile`; 
+            subtitle = `${stu.Name} (ID: ${id}) | Program: ${stu.Prog} | Cohort: ${stu.Batch}`;
+            
+            content = `
+                <div class="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-2xl border border-blue-200 mb-8 flex justify-between items-center shadow-sm">
+                    <div>
+                        <p class="text-xs font-black text-gray-500 uppercase tracking-widest mb-1 opacity-70">Academic Status</p>
+                        <p class="text-xl font-black text-royal-blue flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span> Active Enrollment</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-black text-gray-500 uppercase tracking-widest mb-1 opacity-70">Total Modules</p>
+                        <p class="text-4xl font-black text-royal-blue">${(localDB.student_modules[id]||[]).length}</p>
+                    </div>
+                </div>
+                <h3 class="text-base font-black text-royal-green mb-4 border-b-2 border-gray-200 pb-2 uppercase tracking-wide">Official Enrolled Modules List</h3>
+                <table class="royal-table">
+                    <thead><tr><th class="w-40">Module Code</th><th>Module Name</th><th class="w-24 text-center">Credit (WCH)</th></tr></thead>
+                    <tbody>`;
+            
+            let mods = localDB.student_modules[id] || [];
+            let totalWCH = 0;
+            if(mods.length === 0) content += `<tr><td colspan="3" class="text-center italic text-gray-500 py-10 text-base">This student is not currently enrolled in any academic modules.</td></tr>`;
+            
+            mods.forEach(mc => {
+                let modData = localDB.modules.find(x=>x.Code===mc);
+                let wch = modData ? parseFloat(modData.WCH) : 0;
+                totalWCH += wch;
+                content += `<tr class="transition duration-150 hover:bg-blue-50">
+                    <td><b class="text-royal-green text-base">${mc}</b></td>
+                    <td class="font-semibold text-gray-700 text-sm">${modData ? modData.Name : '<span class="text-red-500 italic">Error: Unknown Module</span>'}</td>
+                    <td class="text-center font-black text-base">${wch}</td>
+                </tr>`;
+            });
+            content += `</tbody>
+                <tfoot><tr class="bg-gray-100 border-t-4 border-gray-300"><td colspan="2" class="text-right font-black uppercase text-royal-blue text-sm p-4">Total Academic Contact Hours:</td><td class="text-center font-black text-purple-700 text-2xl p-4">${totalWCH}</td></tr></tfoot>
+            </table>`;
+        }
+        
+        // ---------------- LECTURER PROFILE ----------------
+        else if(type==='l') {
+            let l = localDB.lecturers.find(x=>x.ID===id); 
+            if(!l) return;
+            title = `👨‍💼 Official Staff Profile`; 
+            subtitle = `${l.Name} (ID: ${id}) | Faculty: ${l.Fac} | Academic Focus: ${l.Cat}`;
+            
+            let totalWCH = 0;
+            let assignedCount = 0;
+            let rowsHtml = '';
+            
+            // Calculate workload across all modules
+            localDB.modules.forEach(m => { 
+                if(localDB.assignments[m.Code]===id) {
+                    assignedCount++;
+                    let wch = parseFloat(m.WCH) || 0;
+                    totalWCH += wch;
+                    rowsHtml += `<tr class="transition duration-150 hover:bg-blue-50">
+                        <td><b class="text-royal-blue text-base">${m.Code}</b></td>
+                        <td class="font-semibold text-gray-700 text-sm">${m.Name}</td>
+                        <td class="text-xs font-bold text-gray-600">${m.Prog}</td>
+                        <td class="text-center font-black text-purple-700 text-base">${wch}</td>
+                    </tr>`; 
+                }
+            });
+
+            content = `
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div class="bg-gradient-to-br from-green-50 to-green-100 p-8 rounded-2xl border border-green-200 shadow-sm text-center">
+                        <p class="text-xs font-black text-green-800 uppercase tracking-widest mb-3 opacity-80">Active Modules Assigned</p>
+                        <p class="text-6xl font-black text-green-700 drop-shadow-sm">${assignedCount}</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-8 rounded-2xl border border-purple-200 shadow-sm text-center">
+                        <p class="text-xs font-black text-purple-800 uppercase tracking-widest mb-3 opacity-80">Total Workload (WCH)</p>
+                        <p class="text-6xl font-black text-purple-700 drop-shadow-sm">${totalWCH}</p>
+                    </div>
+                </div>
+                <h3 class="text-base font-black text-royal-blue mb-4 border-b-2 border-gray-200 pb-2 uppercase tracking-wide">Comprehensive Teaching Workload</h3>
+                <table class="royal-table">
+                    <thead><tr><th class="w-40">Module Code</th><th>Module Name</th><th>Program Name</th><th class="w-24 text-center">WCH</th></tr></thead>
+                    <tbody>`;
+            
+            if(assignedCount === 0) rowsHtml = `<tr><td colspan="4" class="text-center italic text-gray-500 py-10 text-base">No modules are currently assigned to this staff member.</td></tr>`;
+            
+            content += rowsHtml + `</tbody></table>`;
+        }
+        
+        // ---------------- MODULE PROFILE ----------------
+        else if(type==='m') {
+            let m = localDB.modules.find(x=>x.Code===id); 
+            if(!m) return;
+            title = `📚 Academic Module Specification`; 
+            subtitle = `${m.Name} (${id}) | Faculty: ${m.Fac} | Program: ${m.Prog}`;
+            
+            let lectId = localDB.assignments[id];
+            let lectName = lectId ? localDB.lecturers.find(x=>x.ID===lectId)?.Name || 'Unknown Database Error' : 'TBA (Pending Official Assignment)';
+            let lectCat = lectId ? localDB.lecturers.find(x=>x.ID===lectId)?.Cat || '' : '';
+            
+            let bgClass = lectId ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-300' : 'bg-gradient-to-r from-red-50 to-red-100 border-red-300';
+            let txtClass = lectId ? 'text-green-800' : 'text-red-700 animate-pulse';
+            let icon = lectId ? '👨‍🏫' : '⚠️';
+            
+            content = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                    <div class="${bgClass} p-8 rounded-2xl border shadow-sm flex flex-col justify-center">
+                        <p class="text-xs font-black text-gray-600 uppercase tracking-widest mb-2 opacity-80">Assigned Lecturer</p>
+                        <p class="text-2xl font-black ${txtClass} flex items-center gap-3"><span>${icon}</span> ${lectName}</p>
+                        ${lectCat ? `<p class="text-xs font-bold text-gray-700 mt-3 bg-white/60 inline-block px-3 py-1.5 rounded-lg w-max shadow-sm border border-white">${lectCat}</p>` : ''}
+                    </div>
+                    <div class="bg-gradient-to-br from-gray-50 to-gray-100 p-8 rounded-2xl border border-gray-300 shadow-sm flex flex-col justify-center items-center text-center">
+                        <p class="text-xs font-black text-gray-600 uppercase tracking-widest mb-2 opacity-80">Academic Credit Weight (WCH)</p>
+                        <p class="text-6xl font-black text-royal-blue drop-shadow-sm">${m.WCH}</p>
+                    </div>
+                </div>
+                
+                <h3 class="text-base font-black text-royal-green mb-4 border-b-2 border-gray-200 pb-2 uppercase tracking-wide">Official Class Roster (Active Students)</h3>
+                <table class="royal-table">
+                    <thead><tr><th class="w-48">Student ID</th><th>Student Full Name</th><th class="w-40 text-center">Enrollment Status</th></tr></thead>
+                    <tbody>`;
+            
+            let stuCount = 0;
+            localDB.students.forEach(stu => { 
+                if(localDB.student_modules[stu.ID] && localDB.student_modules[stu.ID].includes(id)) {
+                    stuCount++;
+                    content += `<tr class="hover:bg-blue-50 transition duration-150">
+                        <td class="p-4"><b class="text-gray-800 text-base">${stu.ID}</b></td>
+                        <td class="p-4 font-semibold text-royal-blue text-sm">${stu.Name}</td>
+                        <td class="p-4 text-center"><span class="bg-green-100 text-green-800 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm border border-green-200">Active</span></td>
+                    </tr>`; 
+                }
+            });
+            
+            if(stuCount === 0) content += `<tr><td colspan="3" class="text-center italic text-gray-500 py-10 text-base">No students are currently officially enrolled in this module.</td></tr>`;
+            
+            content += `</tbody>
+                <tfoot><tr class="bg-gray-100 border-t-4 border-gray-300"><td colspan="2" class="text-right font-black uppercase text-royal-blue text-sm p-4">Total Registered Cohort Size:</td><td class="text-center font-black text-purple-700 text-3xl p-4">${stuCount}</td></tr></tfoot>
+            </table>`;
+        }
+        
+        // Inject and Display
+        document.getElementById('rp-title').innerText = title; 
+        document.getElementById('rp-sub').innerText = subtitle; 
+        document.getElementById('rp-content').innerHTML = content;
+        document.getElementById('royal-popup-modal').style.display = 'flex';
+    };
+
+    // --- 9. MASTER DATA RENDERING TABS (Students, Lecturers, Modules) ---
+    
+    const renderStudents = () => {
+        const tbody = document.getElementById('stu-body');
+        if(!tbody) return;
+        const q = document.getElementById('stuSearch').value.toLowerCase();
+        const pF = document.getElementById('stu-f-prog').value;
+        let h=''; 
+        
+        localDB.students.forEach(s => {
+            if((pF==='ALL' || s.Prog===pF) && (s.ID.toLowerCase().includes(q) || s.Name.toLowerCase().includes(q))) {
+                h += `<tr class="border-b border-gray-200 hover:bg-blue-50 transition duration-150">
+                    <td class="p-5 font-black text-gray-800 text-base">${s.ID}</td>
+                    <td class="p-5"><b class="clickable-name text-base" onclick="showPopup('s','${s.ID}')">${s.Name}</b></td>
+                    <td class="p-5 text-sm font-bold text-gray-600">${s.Prog} <br> <span class="text-gray-400 text-xs">${s.Batch}</span></td>
+                    <td class="p-5 text-center">
+                        <button onclick="delConfirm('Student','${s.ID}',()=>{localDB.students=localDB.students.filter(x=>x.ID!=='${s.ID}'); delete localDB.student_modules['${s.ID}']; triggerAllRenders();})" class="bg-red-50 text-red-700 border border-red-200 hover:bg-red-600 hover:text-white px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm transition">Delete</button>
+                    </td>
+                </tr>`;
+            }
+        }); 
+        tbody.innerHTML = h || '<tr><td colspan="4" class="p-16 text-center text-gray-500 italic text-base">No student records found matching criteria.</td></tr>';
+    };
+
+    const renderLecturers = () => {
+        const tbody = document.getElementById('lect-body');
+        if(!tbody) return;
+        const q = document.getElementById('lectSearch').value.toLowerCase(); 
+        let h='';
+        
+        localDB.lecturers.forEach(l => {
+            if(l.ID.toLowerCase().includes(q) || l.Name.toLowerCase().includes(q)) {
+                h += `<tr class="border-b border-gray-200 hover:bg-blue-50 transition duration-150">
+                    <td class="p-5 font-black text-gray-600 uppercase text-xs tracking-widest">${l.Fac}</td>
+                    <td class="p-5 font-black text-gray-800 text-base">${l.ID}</td>
+                    <td class="p-5"><b class="clickable-name text-base" onclick="showPopup('l','${l.ID}')">${l.Name}</b></td>
+                    <td class="p-5 text-center"><span class="bg-purple-50 text-purple-800 border border-purple-200 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm block w-full">${l.Cat}</span></td>
+                    <td class="p-5 text-center">
+                        <button onclick="delConfirm('Lecturer','${l.ID}',()=>{localDB.lecturers=localDB.lecturers.filter(x=>x.ID!=='${l.ID}'); triggerAllRenders();})" class="bg-red-50 text-red-700 border border-red-200 hover:bg-red-600 hover:text-white px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm transition">Delete</button>
+                    </td>
+                </tr>`;
+            }
+        }); 
+        tbody.innerHTML = h || '<tr><td colspan="5" class="p-16 text-center text-gray-500 italic text-base">No lecturer records found matching criteria.</td></tr>';
+    };
+
+    const renderModules = () => {
+        const tbody = document.getElementById('mod-body');
+        if(!tbody) return;
+        const q = document.getElementById('modSearchInput').value.toLowerCase(); 
+        let h='';
+        
+        localDB.modules.forEach(m => {
+            if(m.Code.toLowerCase().includes(q) || m.Name.toLowerCase().includes(q)) {
+                h += `<tr class="border-b border-gray-200 hover:bg-blue-50 transition duration-150">
+                    <td class="p-5 font-black text-gray-600 uppercase text-xs tracking-widest">${m.Fac}</td>
+                    <td class="p-5"><b class="clickable-name text-base" onclick="showPopup('m','${m.Code}')">${m.Code}</b></td>
+                    <td class="p-5 text-sm font-semibold text-gray-800">${m.Name}</td>
+                    <td class="p-5 text-xs font-bold text-gray-600">${m.Prog}</td>
+                    <td class="p-5 text-center font-black text-purple-700 bg-purple-50/50 text-xl rounded">${m.WCH}</td>
+                    <td class="p-5 text-center">
+                        <button onclick="delConfirm('Module','${m.Code}',()=>{localDB.modules=localDB.modules.filter(x=>x.Code!=='${m.Code}'); delete localDB.assignments['${m.Code}']; triggerAllRenders();})" class="bg-red-50 text-red-700 border border-red-200 hover:bg-red-600 hover:text-white px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm transition">Delete</button>
+                    </td>
+                </tr>`;
+            }
+        }); 
+        tbody.innerHTML = h || '<tr><td colspan="6" class="p-16 text-center text-gray-500 italic text-base">No module records found matching criteria.</td></tr>';
+    };
+
+    // --- 10. TASKS, EXAM UNIT & EMAIL AUTOMATION LOGIC ---
+    const assignTask = (type) => {
+        if(type==='exam') {
+            // Exam Unit Flow
+            let docs=[]; 
+            if(document.getElementById('c-pap').checked) docs.push('Final Exam Paper (Encrypted)'); 
+            if(document.getElementById('c-sch').checked) docs.push('Official Marking Scheme'); 
+            if(document.getElementById('c-mod').checked) docs.push('Signed Moderation Form');
+            if(document.getElementById('c-rub').checked) docs.push('Assignment Grading Rubrics');
+            
+            if(docs.length === 0) return alert("System Error: Please select at least one required document type to formally request.");
+            
+            let driveLink = document.getElementById('ex-drive').value || 'N/A (Use standard templates)';
+            let inst = document.getElementById('ex-msg').value || 'Standard Exam Unit operating procedures apply. Ensure timely submission and strict confidentiality.';
+            let target = document.getElementById('ex-target').value;
+            
+            // Format rigorous email body
+            let body = `[CLASSIFIED: OFFICIAL MEMO FROM EXAMINATIONS UNIT]\n\nREQUIRED DOCUMENTATION:\n- ${docs.join('\n- ')}\n\nINSTRUCTIONS FROM UNIT HEAD:\n"${inst}"\n\nACCESS OFFICIAL TEMPLATES HERE:\n${driveLink}\n\nFailure to submit by the designated deadline will result in administrative action.`;
+            
+            simulateEmail(target, "[URGENT ACTION REQUIRED] Official Exam Document Request", body);
+            
+            // Reset form gracefully
+            document.getElementById('ex-msg').value = '';
+            document.getElementById('ex-drive').value = '';
+            
+        } else {
+            // General Administrative Task Flow
+            let target = document.getElementById('t-target').value;
+            let title = document.getElementById('t-title').value;
+            let msg = document.getElementById('t-msg').value;
+            
+            if(!title) return alert("System Error: Please enter a specific task title before dispatching.");
+            
+            simulateEmail(target, `[NEW TASK] ${title}`, `TASK DIRECTIVE DETAILS:\n${msg}\n\nPlease update your completion status on the portal. System generated message.`);
+            
+            // Reset form
+            document.getElementById('t-title').value = '';
+            document.getElementById('t-msg').value = '';
+        }
+    };
+
+    // --- 11. EVENTS & CRON JOB REMINDERS ---
+    const createEvent = () => {
+        let title = document.getElementById('ev-title').value;
+        if(!title) return alert("Validation Error: Event title is required to generate invitations.");
+        
+        simulateEmail(
+            document.getElementById('ev-target').value, 
+            `📅 OFFICIAL INVITATION: ${title}`, 
+            `Dear Colleague,\n\nYou are formally invited to attend "${title}". \n\nPlease check your personalized portal calendar for finalized venue and time specifications. \n\nAttendance is tracked and highly encouraged.\n\nRegards,\nAdministrative Secretariat`
+        );
+        
+        document.getElementById('ev-title').value = '';
+    };
+
+    const setupReminder = () => {
+        simulateEmail(
+            "SYSTEM DAEMON (Target: All Staff)", 
+            "⚙️ [CRON] Automated Reminder Configuration Status", 
+            "SUCCESS CONFIRMATION:\n\nThe executive system daemon has been successfully configured.\nAutomated weekly report reminder emails will now dispatch to all active academic staff every Thursday at exactly 09:00 AM (Server Time)."
+        );
+    };
+
+    // --- 12. FACULTY COORDINATION MODULE ---
+    const updateCoordLectDropdowns = () => {
+        // Hydrate all dynamic lecturer dropdowns in the coordination tab
+        let opts = '<option value="">-- Select Valid Lecturer --</option>';
+        localDB.lecturers.forEach(l => {
+            opts += `<option value="${l.ID}">${l.Name} [${l.Fac}]</option>`;
+        });
+        
+        document.querySelectorAll('.coord-lect-select').forEach(sel => {
+            const curVal = sel.value;
+            sel.innerHTML = opts;
+            if(curVal) sel.value = curVal;
+        });
+    };
+
+    const addCoordField = () => {
+        // Remove the initial visual placeholder if it exists on first click
+        const initRow = document.getElementById('coord-initial-row');
+        if(initRow) initRow.remove();
+
+        const container = document.getElementById('coord-fields');
+        const rowId = 'coord-row-' + Date.now();
+        const newHtml = `
+        <div id="${rowId}" class="flex flex-col md:flex-row gap-5 items-center bg-white p-5 rounded-xl border border-pink-200 shadow-sm mt-4 animate-[fadeIn_0.3s_ease-out] hover:shadow-md transition">
+            <div class="w-full md:w-1/4">
+                <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Role Designation</label>
+                <select class="p-3 border-2 border-gray-300 rounded-lg w-full text-sm font-bold outline-none focus:border-pink-500 cursor-pointer transition"><option>Module Coordinator</option><option>Course Coordinator</option><option>Batch Coordinator</option></select>
+            </div>
+            <div class="w-full md:flex-1">
+                <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Specific Target Name</label>
+                <input type="text" placeholder="Enter target (e.g., BA Intake 2)..." class="p-3 border-2 border-gray-300 rounded-lg w-full text-sm font-bold outline-none focus:border-pink-500 transition">
+            </div>
+            <div class="w-full md:w-1/3">
+                <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Assign To Lecturer</label>
+                <select class="coord-lect-select w-full p-3 border-2 border-gray-300 rounded-lg text-sm font-bold outline-none focus:border-pink-500 bg-gray-50 cursor-pointer transition"></select>
+            </div>
+            <div class="pt-6 md:pt-0 hidden md:block">
+                <button onclick="document.getElementById('${rowId}').remove()" class="text-red-400 hover:text-red-600 transition font-black text-3xl px-4 py-1 bg-red-50 hover:bg-red-100 rounded-xl" title="Remove Assignment Row">&times;</button>
+            </div>
+        </div>`; 
+        
+        container.insertAdjacentHTML('beforeend', newHtml);
+        updateCoordLectDropdowns();
+    };
+
+    // --- 13. ENTERPRISE ANALYTICS (CHART.JS IMPLEMENTATION) ---
+    const renderAnalytics = () => {
+        // 1. Update Dynamic Summary Header Numbers
+        const elLects = document.getElementById('stat-lects');
+        const elMods = document.getElementById('stat-mods');
+        const elStus = document.getElementById('stat-stus');
+        const elPend = document.getElementById('stat-pend');
+        
+        if(elLects) elLects.innerText = localDB.lecturers.length;
+        if(elMods) elMods.innerText = localDB.modules.length;
+        if(elStus) elStus.innerText = localDB.students.length;
+        
+        let pendingAss = 0;
+        localDB.modules.forEach(m => { if(!localDB.assignments[m.Code]) pendingAss++; });
+        if(elPend) elPend.innerText = pendingAss;
+
+        if(localDB.students.length===0 || localDB.modules.length===0) return;
+        
+        // 2. Render Pie Chart: Students grouped by enrolled program
+        const sC={}; 
+        localDB.students.forEach(s => { sC[s.Prog] = (sC[s.Prog]||0)+1; });
+        
+        if(charts.studentsPie) charts.studentsPie.destroy(); 
+        const pieCanvas = document.getElementById('studentsPieChart');
+        if(pieCanvas) {
+            charts.studentsPie = new Chart(pieCanvas,{
+                type:'doughnut', 
+                data:{ 
+                    labels: Object.keys(sC), 
+                    datasets:[{ 
+                        data: Object.values(sC), 
+                        backgroundColor: ['#004d40','#d4af37','#0d47a1','#4a148c', '#e65100', '#00695c'],
+                        borderWidth: 3,
+                        borderColor: '#ffffff',
+                        hoverOffset: 15
+                    }] 
+                },
+                options: { 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'right', labels: { font: { family: 'Inter', size: 12, weight: 'bold' }, padding: 20 } },
+                        tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 16, titleFont: {size: 14}, bodyFont: {size: 14, weight: 'bold'} }
+                    },
+                    cutout: '60%',
+                    animation: { animateScale: true, animateRotate: true }
+                }
+            });
+        }
+        
+        // 3. Render Bar Chart: Most Popular Modules by Enrollment Count
+        const mC={}; 
+        for(let s in localDB.student_modules) {
+            localDB.student_modules[s].forEach(m => { mC[m] = (mC[m]||0)+1; });
+        }
+        
+        // Sort descending and slice top 5
+        let mK = Object.keys(mC).sort((a,b)=>mC[b]-mC[a]).slice(0,5);
+        // Map codes to user-friendly labels
+        let mLabels = mK.map(code => {
+            let mod = localDB.modules.find(x => x.Code === code);
+            return mod ? mod.Name.substring(0, 18) + "..." : code;
+        });
+
+        if(charts.popularModules) charts.popularModules.destroy(); 
+        const barCanvas = document.getElementById('popularModulesChart');
+        if(barCanvas) {
+            charts.popularModules = new Chart(barCanvas,{
+                type:'bar', 
+                data:{ 
+                    labels: mLabels, 
+                    datasets:[{ 
+                        label: 'Total Active Enrollments', 
+                        data: mK.map(k=>mC[k]), 
+                        backgroundColor: '#00695c',
+                        borderRadius: 8,
+                        hoverBackgroundColor: '#0d47a1',
+                        borderWidth: 2,
+                        borderColor: '#004d40'
+                    }] 
+                },
+                options: { 
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [4,4], color: '#cbd5e1' }, ticks: { font: {weight: 'bold', size: 12}, stepSize: 1 } },
+                        x: { grid: { display: false }, ticks: { font: {weight: 'bold', size: 11} } }
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 16, titleFont: {size: 14}, bodyFont: {size: 14, weight: 'bold'} }
+                    },
+                    animation: { duration: 1500, easing: 'easeOutQuart' }
+                }
+            });
+        }
+    };
+
+    // --- 14. ADVANCED TIMETABLE DRAG & DROP LOGIC ---
+    
+    // Global variable to hold currently dragged module code
+    let draggedModuleCode = null;
+
+    // A. Drag Event Handlers for Module Cards
+    const handleDragStart = (e, code) => {
+        draggedModuleCode = code;
+        e.dataTransfer.setData('text/plain', code);
+        e.dataTransfer.effectAllowed = 'move';
+        // Visual feedback
+        setTimeout(() => e.target.classList.add('opacity-40', 'scale-95'), 0);
+    };
+
+    const handleDragEnd = (e) => {
+        e.target.classList.remove('opacity-40', 'scale-95');
+        // Clear all highlight states on grid
+        document.querySelectorAll('.tt-cell').forEach(c => c.classList.remove('drag-over'));
+        draggedModuleCode = null;
+    };
+
+    // B. Drop Event Handlers for Grid Cells
+    const handleDragOver = (e) => {
+        e.preventDefault(); // Necessary to allow dropping
+        e.dataTransfer.dropEffect = 'move';
+        if(e.currentTarget.classList.contains('tt-cell')) {
+            e.currentTarget.classList.add('drag-over');
+        }
+    };
+
+    const handleDragLeave = (e) => {
+        if(e.currentTarget.classList.contains('tt-cell')) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+    };
+
+    // C. Handling the Actual Drop (Class Timetable)
+    const handleDropClass = (e, prog, day, tsIndex) => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        if(!draggedModuleCode) return;
+        
+        // Data Retrieval
+        let lectId = localDB.assignments[draggedModuleCode];
+        let lectName = lectId ? localDB.lecturers.find(l=>l.ID===lectId)?.Name || 'TBA' : 'TBA';
+        
+        // Build the physical DOM block
+        let blockHtml = `
+        <div class="assigned-block animate-[fadeIn_0.3s_ease-out]">
+            <strong class="text-[12px] font-black tracking-wide">${draggedModuleCode}</strong>
+            <span class="text-[10px] text-gray-700 mt-1 font-bold">${lectName}</span>
+            <span class="text-[9px] bg-white border border-blue-200 shadow-sm rounded px-1.5 py-0.5 mt-1.5 font-black text-royal-blue inline-block w-max mx-auto">Rm: Auto-Assign</span>
+            <span class="del-btn" onclick="this.parentElement.remove(); showToast('Module removed from schedule slot.', 'info');">&times;</span>
+        </div>`;
+        
+        // Append to cell
+        e.currentTarget.innerHTML += blockHtml;
+        showToast(`${draggedModuleCode} successfully scheduled for ${prog}.`, "success");
+    };
+
+    // D. Handling the Actual Drop (Exam Timetable)
+    const handleDropExam = (e, venue, day, tsIndex) => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        if(!draggedModuleCode) return;
+        
+        // Data Retrieval
+        let m = localDB.modules.find(x=>x.Code===draggedModuleCode);
+        let stuCount = localDB.students.filter(s => localDB.student_modules[s.ID]?.includes(draggedModuleCode)).length;
+        
+        let lectId = localDB.assignments[draggedModuleCode];
+        // Split name to show only first name to fit box
+        let shortLectName = lectId ? (localDB.lecturers.find(l=>l.ID===lectId)?.Name.split(' ')[0] || 'TBA') : 'TBA';
+
+        // Build the physical DOM block
+        let blockHtml = `
+        <div class="assigned-block exam-block animate-[fadeIn_0.3s_ease-out]">
+            <strong class="text-[12px] font-black text-green-900 tracking-wide">${draggedModuleCode}</strong>
+            <span class="text-[10px] text-green-700 mt-1 font-black">👥 ${stuCount} Students</span>
+            <span class="text-[9px] bg-white border border-green-300 shadow-sm rounded px-1.5 py-0.5 mt-1.5 font-black text-green-900 inline-block w-max mx-auto uppercase">Invig: ${shortLectName}</span>
+            <span class="del-btn" onclick="this.parentElement.remove(); showToast('Removed from exam venue allocation.', 'info');">&times;</span>
+        </div>`;
+        
+        // Append to cell
+        e.currentTarget.innerHTML += blockHtml;
+        showToast(`${draggedModuleCode} examination officially scheduled at ${venue}.`, "success");
+    };
+
+    // E. Grid Generation Routines
+    const renderTimetableGrid = () => {
+        const grid = document.getElementById('tt-grid'); 
+        const list = document.getElementById('tt-draggable-list');
+        if(!grid || !list) return;
+        
+        // 1. Render Draggable Sidebar List
+        let search = document.getElementById('tt-search')?.value.toLowerCase() || '';
+        let listHtml = '';
+        localDB.modules.forEach(m => {
+            if(search && !m.Code.toLowerCase().includes(search) && !m.Name.toLowerCase().includes(search)) return;
+            
+            let lectId = localDB.assignments[m.Code];
+            let lectName = lectId ? localDB.lecturers.find(l=>l.ID===lectId)?.Name || 'TBA' : 'Unassigned';
+            let dotColor = lectId ? 'bg-green-500' : 'bg-red-500 animate-pulse';
+            
+            listHtml += `
+            <div class="draggable-mod" draggable="true" ondragstart="handleDragStart(event, '${m.Code}')" ondragend="handleDragEnd(event)">
+                <div class="flex justify-between items-center mb-1.5">
+                    <strong class="text-royal-blue text-sm font-black">${m.Code}</strong>
+                    <span class="w-3 h-3 rounded-full ${dotColor} shadow-sm border border-white"></span>
+                </div>
+                <span class="text-xs text-gray-800 font-semibold leading-tight block mb-2">${m.Name}</span>
+                <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase block">Assignee: <span class="text-gray-800">${lectName}</span></span>
+                    <span class="text-[9px] font-bold text-gray-400 uppercase mt-1 block">${m.Prog}</span>
+                </div>
+            </div>`;
+        });
+        list.innerHTML = listHtml || '<p class="text-sm font-bold text-gray-400 text-center mt-10">No modules available to schedule.</p>';
+
+        // 2. Render Main Grid Framework
+        // Static standard timeslots
+        const times = ["08:00 - 10:00", "10:00 - 12:00", "12:00 - 14:00", "14:00 - 16:00", "16:00 - 18:00", "18:00 - 20:00"];
+        
+        let h = `<div class="tt-h-row tt-row"><div class="tt-c-cell flex items-center shadow-md z-40">Program Cohort</div>`;
+        times.forEach(t => { 
+            let pts = t.split(" - ");
+            h += `<div class="tt-h-cell"><div class="tt-time-top">${pts[0]}</div><div class="tt-time-bot">to ${pts[1]}</div></div>`; 
+        });
+        h += `</div>`;
+        
+        // Extract unique programs to act as rows
+        const progs = [...new Set(localDB.modules.map(m => m.Prog))];
+        if(progs.length === 0) progs.push("Bachelor of Science (Sample Cohort)", "Master of Law (Sample Cohort)");
+
+        let currentDay = document.getElementById('tt-day-select')?.value || 'Sunday';
+
+        // Build Rows
+        progs.forEach(p => {
+            h += `<div class="tt-row"><div class="tt-r-cell shadow-sm">
+                <span class="text-sm">${p}</span>
+                <span class="text-[10px] text-gray-500 mt-2 bg-gray-200 px-2 py-1 rounded inline-block w-max">${currentDay}</span>
+            </div>`;
+            
+            times.forEach((t, idx) => { 
+                h += `<div class="tt-cell hover:bg-purple-50/50 transition cursor-pointer border-dashed border-transparent hover:border-purple-300 border-2 m-1.5 rounded-xl flex flex-col items-center justify-center gap-2"
+                      ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDropClass(event, '${p}', '${currentDay}', ${idx})">
+                    <span class="text-[10px] text-purple-300 font-black uppercase tracking-widest pointer-events-none bg-purple-50 px-3 py-1 rounded-full">Drop</span>
+                </div>`; 
+            });
+            h += `</div>`;
+        });
+        
+        grid.innerHTML = h;
+    };
+
+    const renderExamTimetableGrid = () => {
+        const grid = document.getElementById('exam-tt-grid'); 
+        const list = document.getElementById('extt-draggable-list');
+        if(!grid || !list) return;
+        
+        // 1. Render Exam Draggable Sidebar List
+        let search = document.getElementById('extt-search')?.value.toLowerCase() || '';
+        let listHtml = '';
+        localDB.modules.forEach(m => {
+            if(search && !m.Code.toLowerCase().includes(search) && !m.Name.toLowerCase().includes(search)) return;
+            
+            let stuCount = localDB.students.filter(s => localDB.student_modules[s.ID]?.includes(m.Code)).length;
+            let lectId = localDB.assignments[m.Code];
+            let lectName = lectId ? localDB.lecturers.find(l=>l.ID===lectId)?.Name || 'TBA' : 'Unassigned';
+
+            listHtml += `
+            <div class="draggable-mod !border-l-green-600 hover:bg-green-50 transition duration-150" draggable="true" ondragstart="handleDragStart(event, '${m.Code}')" ondragend="handleDragEnd(event)">
+                <div class="flex justify-between items-center mb-1.5">
+                    <strong class="text-green-800 text-sm font-black">${m.Code}</strong>
+                    <span class="text-[10px] font-black text-green-900 bg-green-200 px-2 py-0.5 rounded shadow-sm border border-green-300">👥 ${stuCount}</span>
+                </div>
+                <span class="text-xs text-gray-800 font-semibold leading-tight block mb-2">${m.Name}</span>
+                <div class="bg-white p-2 rounded border border-green-100 shadow-sm mt-1">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase block">Invigilator: <span class="text-gray-800">${lectName}</span></span>
+                    <span class="text-[9px] font-bold text-gray-400 uppercase mt-1 block">${m.Prog}</span>
+                </div>
+            </div>`;
+        });
+        list.innerHTML = listHtml || '<p class="text-sm font-bold text-gray-400 text-center mt-10">No modules available to schedule.</p>';
+
+        // 2. Render Main Exam Grid Framework
+        const times = ["08:00 - 10:30", "11:00 - 13:30", "14:00 - 16:30", "17:00 - 19:30"];
+        let h = `<div class="tt-h-row tt-row"><div class="tt-c-cell flex items-center shadow-md bg-green-900 text-green-100 border-r-green-950 z-40">Physical Exam Venues</div>`;
+        times.forEach(t => { 
+            let pts = t.split(" - ");
+            h += `<div class="tt-h-cell border-r-green-800"><div class="tt-time-top !bg-green-800 !border-green-900 text-green-50">${pts[0]}</div><div class="tt-time-bot !bg-green-700 !text-white">${pts[1]}</div></div>`; 
+        });
+        h += `</div>`;
+        
+        // Static official venues
+        const venues = ["Main Auditorium (Cap: 300)", "Exam Hall A (Cap: 150)", "Exam Hall B (Cap: 150)", "Comp Lab 1 (Cap: 40)", "Comp Lab 2 (Cap: 40)"];
+        let currentDate = document.getElementById('exam-date-select')?.value || new Date().toISOString().split('T')[0];
+
+        // Build Venue Rows
+        venues.forEach(v => {
+            let vName = v.split(' (')[0];
+            let vCap = v.split(' (')[1] ? '('+v.split(' (')[1] : '';
+            
+            h += `<div class="tt-row"><div class="tt-r-cell shadow-sm text-green-950 bg-green-50 border-r-green-800 border-b-green-200">
+                <span class="text-sm font-black">${vName}</span>
+                <span class="text-[10px] text-green-700 mt-2 bg-green-100 px-2 py-1 rounded inline-block w-max font-bold border border-green-200">${vCap.replace(')','')}</span>
+            </div>`;
+            
+            times.forEach((t, idx) => { 
+                h += `<div class="tt-cell hover:bg-green-50/80 transition cursor-pointer border-dashed border-transparent hover:border-green-400 border-2 m-1.5 rounded-xl flex flex-col items-center justify-center gap-2"
+                      ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDropExam(event, '${vName}', '${currentDate}', ${idx})">
+                    <span class="text-[10px] text-green-300 font-black uppercase tracking-widest pointer-events-none bg-green-50 px-3 py-1 rounded-full">Drop</span>
+                </div>`; 
+            });
+            h += `</div>`;
+        });
+        grid.innerHTML = h;
+    };
+
+</script>
+</body>
+</html>
