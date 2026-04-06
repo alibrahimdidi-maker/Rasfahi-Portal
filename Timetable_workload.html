@@ -526,6 +526,8 @@
 
                 <div id="analytics-export-area" class="bg-white p-2">
                     
+                    <div id="faculty-quick-filters" class="flex flex-wrap justify-center gap-2 mb-6 mt-2"></div>
+                    
                     <div class="card p-4 mb-6 border-t-4 border-royal-green">
                         <h3 class="text-xs font-black uppercase text-royal-green mb-2 tracking-wide">FACULTY WIDE WORKLOAD (PERIODS)</h3>
                         <div class="h-64 md:h-80"><canvas id="facultyChart"></canvas></div>
@@ -886,7 +888,6 @@
         </div>
     </main>
 </div>
-
 <div id="m-2fa" class="modal-overlay">
     <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl border-t-8 border-red-600">
         <h2 class="text-lg font-black text-red-600 uppercase mb-2">🔐 2-Factor Verification</h2>
@@ -1338,12 +1339,10 @@
         }
     };
     
-    let charts = { faculty: null, focus: null, assignmentDetails: null, taskComp: null, facDil: null, examPie: null, examBar: null, ttPie: null, eventBar: null, eventPie: null, coordPie: null, coordBar: null, minfoPie: null }; 
+    let charts = { faculty: null, focus: null, assignmentDetails: null, taskComp: null, facDil: null, examPie: null, examBar: null, ttPie: null, eventBar: null, eventPie: null, coordPie: null, coordBar: null, minfoPie: null, wrBar: null, wrPie: null }; 
     let currentLecturerId = null;
     let currentStudentId = null;
     let activeRole = 'ALL';
-    let pending2FAAction = null;
-    let pending2FAData = null;
     
     const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
 
@@ -1595,8 +1594,7 @@
             content.innerHTML = '';
         }
     };
-
-    // --- EXAM REQUEST ---
+// --- EXAM REQUEST ---
     window.openExamRequestModal = () => {
         const sel = document.getElementById('exam-req-lect');
         let opts = '<option value="">-- Select Lecturer --</option>';
@@ -2054,7 +2052,10 @@
 
             const thA = document.getElementById('th-actions');
             const showActions = thA && thA.style.display !== 'none';
-            const actionBtn = showActions ? `<td class="p-2 text-center"><button onclick="window.clearAssignment('${mCode}')" class="action-icon" title="Clear Assignment">🗑️</button></td>` : '';
+            const actionBtn = showActions ? `<td class="p-2 text-center flex gap-2 justify-center">
+                <button onclick="window.init2FA('edit_mod', '${mCode}')" class="action-icon" title="Edit Assignment">✏️</button>
+                <button onclick="window.clearAssignment('${mCode}')" class="action-icon text-red-500" title="Clear Assignment">🗑️</button>
+            </td>` : '';
 
             html += `<tr class="hover:bg-blue-50 border-b border-gray-100 transition">
                 <td class="p-2"><span class="px-2 py-1 rounded text-[8px] font-black uppercase ${statusColor}">${statusTxt}</span></td>
@@ -2298,13 +2299,30 @@
         localDB.lecturers.forEach(l => {
             const id = window.getSafeVal(l, ['LecturerID']);
             const name = window.getSafeVal(l, ['LecturerName']);
-            if(id && name) opts.push({value: window.makeSafeId(id), text: `${name} [${id}]`});
+            const fac = window.getFaculty(l);
+            if(id && name) opts.push({value: window.makeSafeId(id), text: `${name} [${id}] - ${fac}`});
         });
         if(window.tsLect) window.tsLect.destroy();
         window.tsLect = new TomSelect(select, {
-            create: false, placeholder: "🔍 Verify Your Identity...",
+            create: false, placeholder: "🔍 Search & Verify Identity...",
             options: opts, valueField: 'value', labelField: 'text', searchField: ['text']
         });
+    };
+
+    window.populateStudentDropdown = () => {
+        const select = document.getElementById('studentSelectStandalone'); if(!select) return;
+        let opts = [];
+        localDB.students.forEach(s => {
+            const id = window.getSafeVal(s, ['StudentID']);
+            const name = window.getSafeVal(s, ['FullName']);
+            if(id && name) opts.push({value: window.makeSafeId(id), text: `${name} [${id}]`});
+        });
+        if(window.tsStu) window.tsStu.destroy();
+        window.tsStu = new TomSelect(select, {
+            create: false, placeholder: "🔍 Search Student ID or Name...",
+            options: opts, valueField: 'value', labelField: 'text', searchField: ['text']
+        });
+        window.tsStu.on('change', val => { currentStudentId = val; });
     };
 
     window.openStudentRequestModal = () => document.getElementById('student-request-modal').style.display = 'flex';
@@ -2559,22 +2577,40 @@
     }
 
     window.saveToServer = async (isAuto = false) => {
-        if (!navigator.onLine) {
-            if(!isAuto) window.showToast("Offline. Cannot push to Cloud.", "warning");
+        if (!navigator.onLine || !dbCloud) {
+            if(!isAuto) window.showToast("Offline or DB not connected. Saved Locally.", "warning");
             return;
         }
         try {
-            await new Promise(r => setTimeout(r, 800)); 
+            document.getElementById('cloud-pulse').style.background = "orange";
+            document.getElementById('cloud-txt').innerText = "Syncing...";
+            
+            // Save to Firebase logic 
+            const docRef = doc(dbCloud, "workload_data", "master");
+            await setDoc(docRef, {
+                modules: localDB.modules,
+                lecturers: localDB.lecturers,
+                assignments: localDB.assignments,
+                timetable: localDB.timetable,
+                exam_timetable: localDB.exam_timetable,
+                students: localDB.students,
+                tasks: localDB.tasks,
+                requests: localDB.requests,
+                coordination_reports: localDB.coordination_reports,
+                lastUpdated: new Date().toISOString()
+            }, { merge: true });
+
             window.pendingSync = false;
             document.getElementById('cloud-pulse').style.background = "#4ade80"; 
             document.getElementById('cloud-pulse').style.animation = "pulse 2s infinite";
             document.getElementById('cloud-txt').innerText = "Connected & Synced";
             if(!isAuto) window.showToast(`✅ Successfully synced all data to Cloud Server!`, "success");
         } catch (error) {
-            console.error("Save error", error);
+            console.error("Firebase Save Error:", error);
             document.getElementById('cloud-pulse').style.background = "red";
+            document.getElementById('cloud-pulse').style.animation = "none";
             document.getElementById('cloud-txt').innerText = "Sync Failed (Saved Locally)";
-            if(!isAuto) window.showToast("Cloud sync failed.", "warning");
+            if(!isAuto) window.showToast("Cloud sync failed. Check console.", "error");
         }
     };
 
@@ -2628,8 +2664,9 @@
     window.switchTab = (tabId) => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'border-b-[4px]', 'border-royal-green'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        if(event && event.target && event.target.classList.contains('tab-btn')) event.target.classList.add('active', 'border-b-[4px]', 'border-royal-green');
-        else document.getElementById(`tbtn-${tabId}`)?.classList.add('active', 'border-b-[4px]', 'border-royal-green');
+        
+        let btn = document.getElementById(`tbtn-${tabId}`);
+        if(btn) btn.classList.add('active', 'border-b-[4px]', 'border-royal-green');
         
         const tabEl = document.getElementById(`tab-${tabId}`);
         if(tabEl) tabEl.classList.add('active');
@@ -2640,8 +2677,8 @@
         if (tabId === 'lectdata') window.renderLectDataTab();
         if (tabId === 'moddata') window.renderModDataTab();
         if (tabId === 'studata') window.renderStudentsTab();
-        if (tabId === 'timetable') { window.populateTimetableDropdowns(); window.renderTimetableModules(); window.renderTimetableGrid(); }
-        if (tabId === 'exam-tt') { window.populateTimetableDropdowns(); window.renderExamTimetableModules(); window.renderExamTimetableGrid(); }
+        if (tabId === 'timetable') { window.populateTimetableDropdowns(); window.renderTimetableGrid(); window.renderTimetableModules(); }
+        if (tabId === 'exam-tt') { window.populateTimetableDropdowns(); window.renderExamTimetableGrid(); window.renderExamTimetableModules(); }
         if (tabId === 'tasks') { window.renderTasksTab(); window.renderRequestsList(); }
         if (tabId === 'exam') window.renderExamTable();
         if (tabId === 'events') window.renderEventsTab();
@@ -3326,544 +3363,26 @@
         window.closeWeeklyModal();
         
         simulateEmail(`Academic Affairs & ${fac} Dean`, `Weekly Report Submitted: ${modCode}`, `Lecturer ${currentLecturerId} has submitted their weekly delivery report.`);
-        window.showToast
-window.showToast("Weekly Report Submitted Successfully.", "success");
+        window.showToast("Weekly Report Submitted Successfully.", "success");
         window.renderWeeklyReports();
     };
 
-    window.renderWeeklyReports = () => {
-        const tbody = document.getElementById('wr-table-body');
-        if(!tbody) return;
-
-        const facFilter = document.getElementById('wr-filter-fac').value;
-        const searchQ = document.getElementById('wr-search').value.toLowerCase();
-
-        let html = '';
-        localDB.weekly_reports.forEach(r => {
-            const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
-            const lName = l ? window.getSafeVal(l, ['LecturerName']) : r.lectId;
-            
-            const matchSearch = r.modCode.toLowerCase().includes(searchQ) || lName.toLowerCase().includes(searchQ);
-            const matchFac = facFilter === 'ALL' || r.fac.includes(facFilter);
-
-            if(matchSearch && matchFac) {
-                const tick = (val) => val ? '✅' : '❌';
-                html += `<tr class="hover:bg-teal-50 border-b border-gray-100">
-                    <td class="p-3 font-bold text-gray-800">${lName} <br> <span class="text-[8px] text-gray-500">${r.fac}</span></td>
-                    <td class="p-3 text-teal-800 font-black">${r.modCode}</td>
-                    <td class="p-3 text-center text-[9px]">${r.date}</td>
-                    <td class="p-3 text-center font-bold">${r.hrsTaken} / ${r.hrsSched}</td>
-                    <td class="p-3 text-center font-bold text-red-600">${r.hrsCan}</td>
-                    <td class="p-3 text-[9px] text-gray-600">${r.reason}</td>
-                    <td class="p-3 text-center text-[10px]">M: ${tick(r.moodle)} <br> I: ${tick(r.isims)}</td>
-                    <td class="p-3 text-center text-[10px]">A: ${tick(r.assign)} <br> E: ${tick(r.exam)}</td>
-                </tr>`;
-            }
-        });
-        tbody.innerHTML = html || '<tr><td colspan="8" class="p-10 text-center text-gray-400 font-bold italic">No weekly reports found.</td></tr>';
-
-        // Add Charts for Weekly Reports
-        if(charts.wrBar) charts.wrBar.destroy();
-        if(charts.wrPie) charts.wrPie.destroy();
-
-        let totalSched = 0, totalTaken = 0, totalCan = 0;
-        let moodleUpdates = 0, isimsUpdates = 0, assigns = 0, exams = 0;
-        let totalReps = 0;
-
-        localDB.weekly_reports.forEach(r => {
-            const matchFac = facFilter === 'ALL' || r.fac.includes(facFilter);
-            if(matchFac) {
-                totalSched += parseFloat(r.hrsSched) || 0;
-                totalTaken += parseFloat(r.hrsTaken) || 0;
-                totalCan += parseFloat(r.hrsCan) || 0;
-                if(r.moodle) moodleUpdates++;
-                if(r.isims) isimsUpdates++;
-                if(r.assign) assigns++;
-                if(r.exam) exams++;
-                totalReps++;
-            }
-        });
-
-        const canvasBar = document.getElementById('wrChartBar');
-        if(canvasBar) {
-            charts.wrBar = new Chart(canvasBar, {
-                type: 'bar',
-                data: {
-                    labels: ['Scheduled', 'Delivered', 'Cancelled'],
-                    datasets: [{
-                        label: 'Total Hours',
-                        data: [totalSched, totalTaken, totalCan],
-                        backgroundColor: ['#3b82f6', '#22c55e', '#ef4444']
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
-        const canvasPie = document.getElementById('wrChartPie');
-        if(canvasPie && totalReps > 0) {
-            charts.wrPie = new Chart(canvasPie, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Moodle Updated', 'iSIMS Marked', 'Assignments', 'Exams'],
-                    datasets: [{
-                        data: [moodleUpdates, isimsUpdates, assigns, exams],
-                        backgroundColor: ['#f59e0b', '#8b5cf6', '#0ea5e9', '#ec4899']
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-    };
-
-    window.addSubTaskField = () => {
-        const container = document.getElementById('subtasks-container');
-        const row = document.createElement('div');
-        row.className = 'flex gap-2 items-center subtask-row';
-        row.innerHTML = `
-            <input type="text" class="subtask-desc w-full p-1.5 border rounded text-xs outline-none focus:border-blue-500" placeholder="Sub-task description...">
-            <input type="number" class="subtask-pct w-16 p-1.5 border rounded text-xs outline-none focus:border-blue-500 text-center" placeholder="%" value="0">
-            <span class="text-[10px] text-gray-500">%</span>
-            <button onclick="this.parentElement.remove()" class="text-red-500 font-bold ml-1">✖</button>
-        `;
-        container.appendChild(row);
-    };
-
-    window.toggleAllTaskAssignees = () => {
-        const isChecked = document.getElementById('task-sel-all').checked;
-        document.querySelectorAll('.task-assignee-cb').forEach(cb => cb.checked = isChecked);
-    };
-
-    window.renderTasksTab = () => {
-        let listHtml = '';
-        window.getFilteredLecturers().forEach(l => {
-            const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID']));
-            const name = window.getSafeVal(l, ['LecturerName']);
-            listHtml += `<label class="flex items-center gap-2 text-[10px] p-1 hover:bg-gray-100 cursor-pointer">
-                <input type="checkbox" class="task-assignee-cb" value="${id}"> ${name}
-            </label>`;
-        });
-        const tl = document.getElementById('task-assignees-list');
-        if(tl) tl.innerHTML = listHtml;
-    };
-
-    window.assignTask = () => {
-        const title = document.getElementById('task-title').value;
-        const deadline = `${document.getElementById('task-date').value} ${document.getElementById('task-time').value}`;
-        const recur = document.getElementById('task-recur').value;
-        const assignees = Array.from(document.querySelectorAll('.task-assignee-cb:checked')).map(cb => cb.value);
-
-        let subtasks = [];
-        let totalPct = 0;
-        document.querySelectorAll('.subtask-row').forEach(row => {
-            const desc = row.querySelector('.subtask-desc').value.trim();
-            const pct = parseInt(row.querySelector('.subtask-pct').value) || 0;
-            if(desc) { subtasks.push({ desc, pct, completedBy: [] }); totalPct += pct; }
-        });
-
-        if(!title || assignees.length === 0) return alert("Task title and at least one assignee required.");
-        if(subtasks.length > 0 && totalPct !== 100) return alert(`Sub-task percentages must equal 100%. Current total: ${totalPct}%`);
-
-        const taskObj = {
-            id: Math.random().toString(36).substr(2,9),
-            title, deadline, assignees, subtasks, created: new Date().toISOString(),
-            recurrence: recur,
-            senderRole: activeRole 
-        };
-
-        localDB.tasks.push(taskObj);
-        window.saveLocal(true);
-        
-        simulateEmail(`${assignees.length} Assignees`, `New Task: ${title}`, `You have been assigned a new task by ${activeRole}. Deadline: ${deadline}`);
-        window.showToast("Task Assigned Successfully", "success");
-        
-        document.getElementById('task-title').value = '';
-        document.querySelectorAll('.subtask-row').forEach((r,i) => { if(i>0) r.remove(); else { r.querySelector('.subtask-desc').value=''; r.querySelector('.subtask-pct').value='100'; } });
-        
-        window.renderLecturerWorkspace();
-        window.updateAnalytics();
-    };
-
-    window.openRequestModal = () => document.getElementById('request-modal').style.display = 'flex';
-    window.closeRequestModal = () => document.getElementById('request-modal').style.display = 'none';
-
-    window.submitRequest = () => {
-        if(!currentLecturerId) return alert("Verify Identity via Workspace Dropdown First.");
-        const targetSelect = document.getElementById('req-target-role').value;
-        const finalTarget = targetSelect === 'OTHER' ? document.getElementById('req-other-email').value : targetSelect;
-        
-        if(targetSelect === 'OTHER' && !finalTarget) return alert("Please enter the specific department email.");
-
-        const reqObj = {
-            id: Math.random().toString(36).substr(2,9),
-            lectId: currentLecturerId,
-            type: document.getElementById('req-type').value,
-            targetRole: finalTarget,
-            title: document.getElementById('req-title').value,
-            details: document.getElementById('req-details').value,
-            status: 'Pending',
-            date: new Date().toISOString()
-        };
-        localDB.requests.push(reqObj);
-        window.saveLocal(true);
-        window.closeRequestModal();
-        simulateEmail(reqObj.targetRole, `New Request from Lecturer ID: ${currentLecturerId}`, reqObj.title);
-        window.showToast("Request Submitted", "success");
-        window.renderRequestsList();
-    };
-
-    window.renderRequestsList = () => {
-        const list = document
-.getElementById('requests-list');
-        if(!list) return;
-
-        const fType = document.getElementById('req-filter-type')?.value || 'ALL';
-        
-        let html = '';
-        localDB.requests.forEach(r => {
-            if(activeRole !== 'ALL' && r.targetRole !== activeRole) {
-                if(r.targetRole === 'FACULTY') {
-                    const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
-                    const s = localDB.students.find(sx => window.makeSafeId(window.getSafeVal(sx, ['StudentID'])) === r.lectId);
-                    let targetFac = '';
-                    if(l) targetFac = window.getFaculty(l);
-                    else if(s) {
-                        const mod = localDB.modules.find(m => window.getSafeVal(m, ['ProgramName']) === window.getSafeVal(s, ['EnrolledProgram']));
-                        if(mod) targetFac = window.getFaculty(mod);
-                    }
-                    if(!targetFac.includes(activeRole)) return;
-                } else return;
-            }
-
-            if(fType !== 'ALL' && r.status !== fType && fType !== 'Pending Approvals') return;
-            if(fType === 'Pending Approvals' && r.status !== 'Pending') return;
-
-            const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
-            const s = localDB.students.find(sx => window.makeSafeId(window.getSafeVal(sx, ['StudentID'])) === r.lectId);
-            const rName = l ? window.getSafeVal(l, ['LecturerName']) : (s ? window.getSafeVal(s, ['FullName']) : 'Unknown');
-            const rContext = l ? window.getFaculty(l) : (s ? window.getSafeVal(s, ['EnrolledProgram']) : 'Unknown');
-            
-            const badgeColors = { 'Pending': 'bg-yellow-100 text-yellow-800', 'Approved': 'bg-green-100 text-green-800', 'Rejected': 'bg-red-100 text-red-800' };
-            const actions = r.status === 'Pending' ? `
-                <div class="mt-2 flex gap-2">
-                    <button onclick="window.updateReq('${r.id}', 'Approved', '${r.lectId}')" class="bg-green-600 text-white px-2 py-1 rounded text-[8px] font-bold">Approve</button>
-                    <button onclick="window.updateReq('${r.id}', 'Rejected', '${r.lectId}')" class="bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">Reject</button>
-                </div>
-            ` : '';
-
-            html += `<div class="bg-white border p-3 rounded-lg shadow-sm">
-                <div class="flex justify-between items-start border-b pb-2 mb-2">
-                    <div>
-                        <span class="text-[8px] font-bold uppercase text-purple-600">${r.type}</span>
-                        <h4 class="text-xs font-black text-gray-800">${r.title}</h4>
-                        <p class="text-[9px] text-gray-500">By: ${rName} (${rContext}) | To: ${r.targetRole}</p>
-                    </div>
-                    <span class="px-2 py-1 rounded text-[8px] font-black uppercase ${badgeColors[r.status]}">${r.status}</span>
-                </div>
-                <p class="text-[10px] text-gray-600">${r.details}</p>
-                <p class="text-[8px] text-gray-400 mt-2">${new Date(r.date).toLocaleString()}</p>
-                ${actions}
-            </div>`;
-        });
-        list.innerHTML = html || '<p class="text-center text-gray-500 italic text-xs mt-4">No incoming requests found.</p>';
-    };
-
-    window.updateReq = (id, status, reqOwnerId) => {
-        const r = localDB.requests.find(x => x.id === id);
-        if(r) { 
-            r.status = status; 
-            window.saveLocal(true); 
-            simulateEmail(`Owner ID: ${reqOwnerId}`, `Update on your Request`, `Your request "${r.title}" has been ${status}.`);
-            window.renderRequestsList(); 
-        }
-    };
-
-    window.renderLecturerWorkspace = () => {
-        if(activeRole !== 'LECTURER') return;
-        
-        const sel = document.getElementById('lecturerSelectStandalone');
-        if(sel && !sel.dataset.hooked) {
-            sel.addEventListener('change', (e) => {
-                currentLecturerId = e.target.value;
-                const lName = e.target.options[e.target.selectedIndex]?.text || '';
-                document.getElementById('lecturer-workspace-name').innerText = lName;
-                window.refreshWorkspaceData();
-            });
-            sel.dataset.hooked = "true";
-        }
-        window.refreshWorkspaceData();
-    };
-
-    window.refreshWorkspaceData = () => {
-        if(!currentLecturerId) return;
-
-        let pts = 0;
-        let myTasks = localDB.tasks.filter(t => t.assignees.includes(currentLecturerId));
-        
-        let pendingHtml = '';
-        let completedHtml = '';
-        let hasOverdue = false;
-
-        myTasks.forEach(t => {
-            let progressPct = 0;
-            let subHtml = '';
-            
-            if(t.subtasks && t.subtasks.length > 0) {
-                t.subtasks.forEach((st, sIdx) => {
-                    const isStDone = st.completedBy.includes(currentLecturerId);
-                    if(isStDone) progressPct += st.pct;
-                    subHtml += `
-                        <div class="flex justify-between items-center text-[9px] mt-1 pl-2 border-l-2 ${isStDone ? 'border-green-400 text-gray-400' : 'border-orange-400 text-gray-700'}">
-                            <span>${st.desc} (${st.pct}%)</span>
-                            ${isStDone ? '✅' : `<button onclick="window.markSubTaskDone('${t.id}', ${sIdx})" class="text-blue-600 hover:underline font-bold">Tick Done</button>`}
-                        </div>
-                    `;
-                });
-            } else {
-                const isLegacyDone = t.completedBy && t.completedBy.includes(currentLecturerId);
-                if(isLegacyDone) progressPct = 100;
-                subHtml = isLegacyDone ? '' : `<button onclick="window.markLegacyTaskDone('${t.id}')" class="mt-2 bg-orange-100 text-orange-800 border border-orange-300 px-2 py-1 rounded text-[8px] font-bold hover:bg-orange-200 w-full">Mark Fully Complete</button>`;
-            }
-
-            if(progressPct === 100) pts += 20;
-
-            const isOverdue = new Date(t.deadline) < new Date() && progressPct < 100;
-            if(isOverdue) hasOverdue = true;
-
-            const senderColors = { 'ALL': 'bg-blue-100 text-blue-800', 'EXAM': 'bg-green-100 text-green-800'};
-            const sBadgeColor = senderColors[t.senderRole] || 'bg-purple-100 text-purple-800';
-            const sName = t.senderRole === 'ALL' ? 'Academic Affairs' : (t.senderRole === 'EXAM' ? 'Exam Unit' : t.senderRole);
-
-            const recurBadge = t.recurrence && t.recurrence !== 'None' ? `<span class="bg-blue-100 text-blue-800 px-1 rounded ml-1 text-[7px]">🔄 ${t.recurrence}</span>` : '';
-
-            const card = `<div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${progressPct === 100 ? 'border-green-500' : (isOverdue ? 'border-red-500' : 'border-orange-500')}">
-                <div class="flex justify-between items-start mb-2">
-                    <div>
-                        <span class="text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sBadgeColor}">${sName}</span>
-                        <h4 class="text-xs font-black mt-1">${t.title} ${recurBadge}</h4>
-                    </div>
-                    <span class="font-bold text-[10px] ${progressPct === 100 ? 'text-green-600' : 'text-orange-600'}">${progressPct}%</span>
-                </div>
-                <span class="text-[8px] font-bold ${isOverdue ? 'text-red-600 animate-pulse' : 'text-gray-500'} block mb-1">⏰ Deadline: ${t.deadline}</span>
-                <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2 mb-1"><div class="bg-blue-600 h-1.5 rounded-full" style="width: ${progressPct}%"></div></div>
-                ${progressPct < 100 ? subHtml : `<p class="text-[8px] text-green-600 font-bold mt-2">Completed on ${new Date().toLocaleDateString()}</p>`}
-            </div>`;
-
-            if(progressPct === 100) completedHtml += card; else pendingHtml += card;
-        });
-
-        document.getElementById('lecturer-tasks-pending').innerHTML = pendingHtml || '<p class="text-[10px] text-gray-500 italic p-2">No pending tasks.</p>';
-        
-        const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === currentLecturerId);
-        const lFac = window.getFaculty(lect);
-        
-        let eventsHtml = '';
-        localDB.events.forEach(e => {
-            if(e.targetRole === 'ALL' || e.targetRole === lFac) {
-                const myStatus = e.responses[currentLecturerId];
-                if(!myStatus) {
-                    eventsHtml += `<div class="bg-white p-3 rounded shadow-sm border-l-4 border-yellow-500">
-                        <span class="text-[8px] font-bold text-yellow-800 uppercase">${e.type} | ${e.date}</span>
-                        <h4 class="text-xs font-black text-gray-800 mb-2">${e.title}</h4>
-                        <div class="grid grid-cols-2 gap-1">
-                            <button onclick="window.markAttendance('${e.id}', 'Attended')" class="bg-green-100 hover:bg-green-200 text-green-800 py-1 rounded text-[8px] font-bold">✅ Attending</button>
-                            <button onclick="window.markAttendance('${e.id}', 'Excused')" class="bg-gray-100 hover:bg-gray-200 text-gray-800 py-1 rounded text-[8px] font-bold">🗓️ Excused</button>
-                            <button onclick="window.markAttendance('${e.id}', 'Sick')" class="bg-blue-100 hover:bg-blue-200 text-blue-800 py-1 rounded text-[8px] font-bold">🤒 Sick Leave</button>
-                            <button onclick="window.markAttendance('${e.id}', 'Absent')" class="bg-red-100 hover:bg-red-200 text-red-800 py-1 rounded text-[8px] font-bold">❌ Absent</button>
-                        </div>
-                    </div>`;
-                }
-            }
-        });
-        document.getElementById('lecturer-events-pending').innerHTML = eventsHtml || '<p class="text-[10px] text-gray-500 italic p-2">No pending events.</p>';
-
-        const stars = Math.min(5, Math.floor(pts / 20));
-        document.getElementById('lecturer-stars').className = `star-rating s${stars}`;
-        document.getElementById('lecturer-points').innerText = `${pts} PTS`;
-
-        const banner = document.getElementById('lect-reminder-banner');
-        if(banner) banner.style.display = hasOverdue ? 'block' : 'none';
-
-        const pCount = (pendingHtml.match(/<div class="bg-white p-3 rounded-lg shadow-sm border-l-4/g) || []).length;
-        document.getElementById('lect-pending-count').innerText = pCount;
-        
-        const btnWeekly = document.getElementById('btn-submit-weekly');
-        if(btnWeekly) {
-            const hasAssignedMod = Object.values(localDB.assignments).some(a => a.id === currentLecturerId);
-            btnWeekly.style.display = hasAssignedMod ? 'flex' : 'none';
-        }
-        
-        // Refresh Coordination Dropdown if it exists
-        const coordMyRole = document.getElementById('coord-my-role-select');
-        if(coordMyRole) {
-            let myOpts = '<option value="">-- Select Your Coordinated Item --</option>';
-            localDB.coordinators.forEach(c => {
-                if(c.lectId === currentLecturerId) {
-                    myOpts += `<option value="${c.type}: ${c.item}">${c.type}: ${c.item}</option>`;
-                }
-            });
-            coordMyRole.innerHTML = myOpts;
-            window.loadCoordChecklist();
-        }
-    };
-
-    window.markSubTaskDone = (taskId, subIdx) => {
-        const t = localDB.tasks.find(x => x.id === taskId);
-        if(t && t.subtasks[subIdx]) {
-            if(!t.subtasks[subIdx].completedBy.includes(currentLecturerId)) {
-                t.subtasks[subIdx].completedBy.push(currentLecturerId);
-                window.saveLocal(true);
-                let tot = 0;
-                t.subtasks.forEach(st => { if(st.completedBy.includes(currentLecturerId)) tot += st.pct; });
-                if(tot === 100) simulateEmail(t.senderRole, "Task Completed", `Lecturer ${currentLecturerId} finished task: ${t.title}`);
-                window.refreshWorkspaceData();
-            }
-        }
-    };
-
-    window.markLegacyTaskDone = (taskId) => {
-        const t = localDB.tasks.find(x => x.id === taskId);
-        if(t) {
-            if(!t.completedBy) t.completedBy = [];
-            if(!t.completedBy.includes(currentLecturerId)) {
-                t.completedBy.push(currentLecturerId);
-                window.saveLocal(true);
-                simulateEmail(t.senderRole, "Task Completed", `Lecturer ${currentLecturerId} finished task: ${t.title}`);
-                window.refreshWorkspaceData();
-                window.showToast("Task Completed! Points added.", "success");
-            }
-        }
-    };
-
-    window.renderExamTable = () => {
-        const tbody = document.getElementById('exam-table-body');
-        if(!tbody) return;
-
-        const facFilter = document.getElementById('exam-fac-filter').value;
-        const statFilter = document.getElementById('exam-status-filter').value;
-        const searchQ = document.getElementById('examSearch').value.toLowerCase();
-
-        let html = '';
-        let pending = 0, progress = 0, complete = 0;
-        let facScores = {}; 
-
-        localDB.modules.forEach(m => {
-            const rawMCode = window.getSafeVal(m, ['ModuleCode']);
-            const mCode = window.makeSafeId(rawMCode);
-            const mName = window.getSafeVal(m, ['ModuleName']);
-            const fac = window.getFaculty(m);
-            const prog = window.getSafeVal(m, ['ProgramName']);
-            
-            const ass = localDB.assignments[mCode];
-            const lectName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['Lecturer Name'] || 'Unknown') : 'Unassigned';
-
-            const mSearch = String(mCode).toLowerCase().includes(searchQ) || String(mName).toLowerCase().includes(searchQ) || String(lectName).toLowerCase().includes(searchQ);
-            const mFac = facFilter === 'ALL' || String(fac).includes(facFilter);
-
-            if(mSearch && mFac) {
-                if(!localDB.exam_progress) localDB.exam_progress = {};
-                if(!localDB.exam_progress[mCode]) localDB.exam_progress[mCode] = { paper: false, marking: false, modKit: false };
-                const p = localDB.exam_progress[mCode];
-                
-                let score = 0;
-                if(p.paper) score += 33;
-                if(p.marking) score += 33;
-                if(p.modKit) score += 34;
-
-                let sTag = 'Pending';
-                if(score === 100) { sTag = 'Complete'; complete++; }
-                else if(score > 0) { sTag = 'Progress'; progress++; }
-                else { pending++; }
-
-                if(!facScores[fac]) facScores[fac] = { total: 0, score: 0 };
-                facScores[fac].total++;
-                facScores[fac].score += (score === 100 ? 1 : 0); 
-
-                if(statFilter !== 'ALL') {
-                    if(statFilter === 'Pending' && score === 100) return;
-                    if(statFilter === 'Complete' && score < 100) return;
-                }
-
-                const toggleBtn = (type, state) => {
-                    const color = state ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400 hover:bg-gray-300 hover:text-gray-600';
-                    const icon = state ? '✓' : 'O';
-                    return `<button onclick="window.toggleExamProgress('${mCode}', '${type}')" class="w-6 h-6 rounded-full font-bold text-[10px] shadow-sm transition ${color}">${icon}</button>`;
-                };
-
-                html += `<tr class="hover:bg-green-50 border-b border-gray-100 transition">
-                    <td class="p-3">
-                        <b class="text-royal-blue">${mCode}</b><br>
-                        <span class="text-[9px] text-gray-600">${mName}</span>
-                    </td>
-                    <td class="p-3 text-[9px]">${prog} <br> <span class="font-bold text-gray-500">${window.getSafeVal(m, ['OfferedBatch'])}</span></td>
-                    <td class="p-3 text-[9px]">Students: <b>${window.getSafeVal(m, ['NoofStudents']) || 0}</b> <br> Campus: ${window.getSafeCampus(m)}</td>
-                    <td class="p-3 font-bold text-[9px]">${lectName}</td>
-                    <td class="p-3 text-center">${toggleBtn('paper', p.paper)}</td>
-                    <td class="p-3 text-center">${toggleBtn('marking', p.marking)}</td>
-                    <td class="p-3 text-center">${toggleBtn('modKit', p.modKit)}</td>
-                    <td class="p-3 text-center">
-                        <div class="w-full bg-gray-200 rounded-full h-2.5 shadow-inner mt-2">
-                            <div class="bg-green-600 h-2.5 rounded-full" style="width: ${score}%"></div>
-                        </div>
-                        <span class="text-[8px] font-black text-gray-600">${score}%</span>
-                    </td>
-                </tr>`;
-            }
-        });
-
-        tbody.innerHTML = html || '<tr><td colspan="8" class="p-10 text-center text-gray-400 font-bold italic">No records match criteria.</td></tr>';
-
-        const penEl = document.getElementById('exam-stat-pending'); if(penEl) penEl.innerText = pending;
-        const proEl = document.getElementById('exam-stat-progress'); if(proEl) proEl.innerText = progress;
-        const comEl = document.getElementById('exam-stat-complete'); if(comEl) comEl.innerText = complete;
-
-        // Top Faculty
-        let topFac = "N/A"; let maxPct = -1;
-        Object.keys(facScores).forEach(f => {
-            if(facScores[f].total > 0) {
-                let pct = facScores[f].score / facScores[f].total;
-                if(pct > maxPct) { maxPct = pct; topFac = f; }
-            }
-        });
-        const topFacEl = document.getElementById('exam-top-fac'); if(topFacEl) topFacEl.innerText = maxPct > 0 ? `${topFac} (${Math.round(maxPct*100)}%)` : 'Awaiting Data';
-
-        // Exam Charts
-        if(charts.examPie) charts.examPie.destroy();
-        if(charts.examBar) charts.examBar.destroy();
-
-        if(document.getElementById('examPieChart')) {
-            charts.examPie = new Chart(document.getElementById('examPieChart'), {
-                type: 'doughnut',
-                data: { labels: ['Pending', 'In Progress', 'Fully Completed'], datasets: [{ data: [pending, progress, complete], backgroundColor: ['#ef4444', '#eab308', '#22c55e'] }] },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
-        if(document.getElementById('examBarChart')) {
-            const fLabels = Object.keys(facScores);
-            const fData = fLabels.map(f => facScores[f].total > 0 ? Math.round((facScores[f].score / facScores[f].total)*100) : 0);
-            charts.examBar = new Chart(document.getElementById('examBarChart'), {
-                type: 'bar',
-                data: { labels: fLabels, datasets: [{ label: '% Completed Modules', backgroundColor: '#16a34a', data: fData }] },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } } }
-            });
-        }
-    };
-
-    window.toggleExamProgress = (mCode, type) => {
-        if(!localDB.exam_progress) localDB.exam_progress = {};
-        if(!localDB.exam_progress[mCode]) localDB.exam_progress[mCode] = { paper: false, marking: false, modKit: false };
-        localDB.exam_progress[mCode][type] = !localDB.exam_progress[mCode][type];
-        window.saveLocal(true);
-        window.renderExamTable();
-        window.updateAnalytics(); 
-    };
-
     window.updateAnalytics = () => {
-        if (localDB.modules.length === 0 && localDB.lecturers.length === 0) return;
-        
+        // Render Quick Filter Buttons
+        const qfContainer = document.getElementById('faculty-quick-filters');
         const viewFilter = document.getElementById('facView')?.value || 'ALL';
         let displayFaculties = FACULTIES;
+        
+        if(qfContainer) {
+            let qfHtml = `<button onclick="window.showFacultyDetails('ALL')" class="px-3 py-1 bg-gray-800 text-white rounded-full text-[10px] font-bold shadow hover:bg-black transition">ALL</button>`;
+            displayFaculties.forEach(f => {
+                qfHtml += `<button onclick="window.showFacultyDetails('${f}')" class="px-3 py-1 bg-blue-900 text-white rounded-full text-[10px] font-bold shadow hover:bg-blue-700 transition">${f}</button>`;
+            });
+            qfContainer.innerHTML = qfHtml;
+        }
+        
+        if (localDB.modules.length === 0 && localDB.lecturers.length === 0) return;
+        
         if (viewFilter !== 'ALL') displayFaculties = FACULTIES.filter(f => String(f).includes(viewFilter));
 
         let unassignedCount = 0;
@@ -4026,7 +3545,7 @@ window.showToast("Weekly Report Submitted Successfully.", "success");
             });
         }
 
-        // Generate Faculty Summary Cards (Royal Spin Animation)
+        // Generate Faculty Summary Cards
         let cardsHtml = '';
         displayFaculties.forEach((f, idx) => {
             if (!facDetailedStats[f]) return;
