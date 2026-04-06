@@ -3209,368 +3209,369 @@
         }
     };
 
-        window.renderExamTimetableGrid = () => {
-            const grid = document.getElementById('exam-tt-grid'); if(!grid) return;
-            const dateRaw = document.getElementById('exam-tt-date').value;
-            const dateObj = dateRaw ? new Date(dateRaw) : new Date();
-            const dateStr = dateObj.toISOString().split('T')[0]; 
-            
-            const progs = [...new Set(window.getFilteredModules().map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
-            
-            let html = `<div class="tt-header-row tt-row"><div class="tt-header-course flex items-center">Program / Batch</div>`;
+    window.renderExamTimetableGrid = () => {
+        const grid = document.getElementById('exam-tt-grid'); if(!grid) return;
+        const dateRaw = document.getElementById('exam-tt-date').value;
+        const dateObj = dateRaw ? new Date(dateRaw) : new Date();
+        const dateStr = dateObj.toISOString().split('T')[0]; 
+        
+        const progs = [...new Set(window.getFilteredModules().map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
+        
+        let html = `<div class="tt-header-row tt-row"><div class="tt-header-course flex items-center">Program / Batch</div>`;
+        localDB.settings.timeslots.forEach((ts, idx) => {
+            html += `<div class="tt-header-cell">
+                <div class="tt-time-top bg-green-800 border-green-900">${ts.start}</div><div class="tt-time-bot bg-green-700 text-green-200">to ${ts.end}</div>
+                <span class="tt-col-del" title="Delete Time Column" onclick="window.removeTimeslotAndRender(${idx}, 'EXAM')">✖</span>
+            </div>`;
+        });
+        html += `</div>`;
+
+        progs.forEach(p => {
+            html += `<div class="tt-row"><div class="tt-cell-course flex text-green-800" title="${p}">${p}</div>`;
             localDB.settings.timeslots.forEach((ts, idx) => {
-                html += `<div class="tt-header-cell">
-                    <div class="tt-time-top bg-green-800 border-green-900">${ts.start}</div><div class="tt-time-bot bg-green-700 text-green-200">to ${ts.end}</div>
-                    <span class="tt-col-del" title="Delete Time Column" onclick="window.removeTimeslotAndRender(${idx}, 'EXAM')">✖</span>
-                </div>`;
+                const entries = localDB.exam_timetable.filter(e => e.day === dateStr && e.program === p && e.tsIndex == idx);
+                let blocks = '';
+                entries.forEach(e => {
+                    const m = localDB.modules.find(mx => window.makeSafeId(window.getSafeVal(mx, ['ModuleCode'])) === e.modCode);
+                    const students = m ? window.getSafeVal(m, ['NoofStudents']) || 0 : 0;
+                    
+                    const ass = localDB.assignments[e.modCode];
+                    const lName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['Lecturer Name'] || 'TBA') : 'TBA';
+                    
+                    blocks += `<div class="assigned-block border-green-400 bg-green-50" title="Invigilator: ${lName}">
+                        <strong class="text-green-800">${e.modCode}</strong>
+                        <span class="text-[8px]">👥 ${students}</span>
+                        <span class="text-gray-600 font-bold mt-0.5">Ven: ${e.room}</span>
+                        <span class="del-btn" onclick="window.delTTEntry('${e.id}', 'EXAM')">&times;</span>
+                    </div>`;
+                });
+                const isOccupied = entries.length > 0 ? 'occupied' : '';
+                html += `<div class="tt-cell ${isOccupied}" ondragover="window.allowDrop(event)" ondragleave="window.dragLeave(event)" ondrop="window.dropMod(event, '${p}', ${idx}, '${dateStr}', 'EXAM')">${blocks}</div>`;
             });
             html += `</div>`;
+        });
+        grid.innerHTML = html;
+    };
 
-            progs.forEach(p => {
-                html += `<div class="tt-row"><div class="tt-cell-course flex text-green-800" title="${p}">${p}</div>`;
-                localDB.settings.timeslots.forEach((ts, idx) => {
-                    const entries = localDB.exam_timetable.filter(e => e.day === dateStr && e.program === p && e.tsIndex == idx);
-                    let blocks = '';
-                    entries.forEach(e => {
-                        const m = localDB.modules.find(mx => window.makeSafeId(window.getSafeVal(mx, ['ModuleCode'])) === e.modCode);
-                        const students = m ? window.getSafeVal(m, ['NoofStudents']) || 0 : 0;
-                        
-                        const ass = localDB.assignments[e.modCode];
-                        const lName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['Lecturer Name'] || 'TBA') : 'TBA';
-                        
-                        blocks += `<div class="assigned-block border-green-400 bg-green-50" title="Invigilator: ${lName}">
-                            <strong class="text-green-800">${e.modCode}</strong>
-                            <span class="text-[8px]">👥 ${students}</span>
-                            <span class="text-gray-600 font-bold mt-0.5">Ven: ${e.room}</span>
-                            <span class="del-btn" onclick="window.delTTEntry('${e.id}', 'EXAM')">&times;</span>
-                        </div>`;
-                    });
-                    const isOccupied = entries.length > 0 ? 'occupied' : '';
-                    html += `<div class="tt-cell ${isOccupied}" ondragover="window.allowDrop(event)" ondragleave="window.dragLeave(event)" ondrop="window.dropMod(event, '${p}', ${idx}, '${dateStr}', 'EXAM')">${blocks}</div>`;
-                });
-                html += `</div>`;
-            });
-            grid.innerHTML = html;
-        };
-
-        window.removeTimeslotAndRender = (idx, type) => {
-            if(confirm("Remove this entire time column? Scheduled modules will be lost.")) {
-                localDB.settings.timeslots.splice(idx, 1);
-                if(type === 'CLASS') {
-                    localDB.timetable = localDB.timetable.filter(t => t.tsIndex != idx); 
-                    localDB.timetable.forEach(t => { if(t.tsIndex > idx) t.tsIndex--; });
-                    window.saveLocal(true); window.renderTimetableGrid();
-                } else {
-                    localDB.exam_timetable = localDB.exam_timetable.filter(t => t.tsIndex != idx); 
-                    localDB.exam_timetable.forEach(t => { if(t.tsIndex > idx) t.tsIndex--; });
-                    window.saveLocal(true); window.renderExamTimetableGrid();
-                }
-            }
-        };
-
-        window.dragMod = (e, code, prog) => {
-            e.dataTransfer.setData("modCode", code);
-            e.dataTransfer.setData("progName", prog);
-        };
-        window.allowDrop = (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
-        window.dragLeave = (e) => { e.currentTarget.classList.remove('drag-over'); };
-        
-        window.dropMod = (e, targetProg, tsIndex, day, type) => {
-            e.preventDefault(); 
-            e.currentTarget.classList.remove('drag-over');
-            
-            const code = e.dataTransfer.getData("modCode");
-            const originProg = e.dataTransfer.getData("progName");
-            if(!code) return;
-
-            if(originProg !== targetProg) {
-                if(!confirm(`Warning: You are dropping a module from ${originProg} into the ${targetProg} row. Continue?`)) return;
-            }
-
-            const ass = localDB.assignments[code];
-            const lectId = ass ? ass.id : null;
-            
-            let mode = "Face to Face";
+    window.removeTimeslotAndRender = (idx, type) => {
+        if(confirm("Remove this entire time column? Scheduled modules will be lost.")) {
+            localDB.settings.timeslots.splice(idx, 1);
             if(type === 'CLASS') {
-                const modeInput = prompt("Enter Mode:\n1: Face to Face\n2: Online\n3: Blended", "1");
-                if(modeInput === null) return;
-                if(modeInput === "2") mode = "Online";
-                else if(modeInput === "3") mode = "Blended";
-            }
-
-            let roomPrompt = "Available Venues/Rooms:\n";
-            localDB.settings.roomList.forEach((r, i) => roomPrompt += `${i+1}: ${r}\n`);
-            roomPrompt += "\nEnter Venue/Room Number or Name:";
-            
-            let roomInput = prompt(roomPrompt, "1");
-            if(roomInput === null) return; 
-            
-            let finalRoom = roomInput;
-            const rIndex = parseInt(roomInput) - 1;
-            if(!isNaN(rIndex) && localDB.settings.roomList[rIndex]) finalRoom = localDB.settings.roomList[rIndex];
-
-            let hasClash = false;
-            let clashMsg = "";
-            
-            const targetArray = type === 'CLASS' ? localDB.timetable : localDB.exam_timetable;
-
-            targetArray.forEach(t => {
-                if(t.day === day && t.tsIndex == tsIndex) {
-                    if(t.room === finalRoom && mode !== "Online") {
-                        hasClash = true; clashMsg += `- Venue [${finalRoom}] is already booked by ${t.modCode}.\n`;
-                    }
-                    if(type === 'CLASS' && lectId && t.lectId === lectId) {
-                        hasClash = true; clashMsg += `- Assigned Lecturer is already teaching ${t.modCode} at this time.\n`;
-                    }
-                    if(t.program === targetProg) {
-                        hasClash = true; clashMsg += `- Students in [${targetProg}] already have a scheduling conflict (${t.modCode}) at this time.\n`;
-                    }
-                }
-            });
-
-            if(hasClash) { alert(`⛔ CLASH DETECTED. CANNOT ASSIGN:\n\n${clashMsg}`); return; }
-
-            targetArray.push({ 
-                id: Math.random().toString(36).substr(2,9), 
-                modCode: code, program: targetProg, tsIndex: tsIndex, 
-                day: day, lectId: lectId, room: finalRoom, mode: mode
-            });
-            
-            window.saveLocal(true);
-            
-            if(localDB.settings.completed_tts.includes(`${type}_${targetProg}`)) {
-                simulateEmail(`Students & Staff (${targetProg})`, `[${type}] Timetable Amended`, `Changes have been made to the schedule for ${code}.`);
-            }
-
-            if(type === 'CLASS') window.renderTimetableGrid(); else window.renderExamTimetableGrid();
-            window.showToast("Scheduled Successfully", "success");
-        };
-
-        window.delTTEntry = (id, type) => {
-            if(type === 'CLASS') {
-                localDB.timetable = localDB.timetable.filter(t => t.id !== id);
+                localDB.timetable = localDB.timetable.filter(t => t.tsIndex != idx); 
+                localDB.timetable.forEach(t => { if(t.tsIndex > idx) t.tsIndex--; });
                 window.saveLocal(true); window.renderTimetableGrid();
             } else {
-                localDB.exam_timetable = localDB.exam_timetable.filter(t => t.id !== id);
+                localDB.exam_timetable = localDB.exam_timetable.filter(t => t.tsIndex != idx); 
+                localDB.exam_timetable.forEach(t => { if(t.tsIndex > idx) t.tsIndex--; });
                 window.saveLocal(true); window.renderExamTimetableGrid();
             }
-        };
+        }
+    };
 
-        window.createEvent = () => {
-            const type = document.getElementById('ev-type').value;
-            const title = document.getElementById('ev-title').value;
-            const date = document.getElementById('ev-date').value;
-            const isAll = document.getElementById('ev-target-all').checked;
-            const targetFac = document.getElementById('ev-target-fac').value;
-            
-            if(!title || !date) return alert("Title and Date are required.");
-            
-            const eventObj = {
-                id: Math.random().toString(36).substr(2,9),
-                title: title,
-                type: type,
-                date: date,
-                targetRole: isAll ? 'ALL' : targetFac,
-                responses: {} 
-            };
-            
-            localDB.events.push(eventObj);
-            window.saveLocal(true);
-            window.renderEventsTab();
-            
-            simulateEmail(eventObj.targetRole, `Invitation: ${type} - ${title}`, `You are invited to an event on ${date}. Please RSVP in your portal.`);
-            
-            document.getElementById('ev-title').value = '';
-            document.getElementById('ev-date').value = '';
-            window.showToast("Event created and invites sent.", "success");
-        };
+    window.dragMod = (e, code, prog) => {
+        e.dataTransfer.setData("modCode", code);
+        e.dataTransfer.setData("progName", prog);
+    };
+    window.allowDrop = (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
+    window.dragLeave = (e) => { e.currentTarget.classList.remove('drag-over'); };
+    
+    window.dropMod = (e, targetProg, tsIndex, day, type) => {
+        e.preventDefault(); 
+        e.currentTarget.classList.remove('drag-over');
+        
+        const code = e.dataTransfer.getData("modCode");
+        const originProg = e.dataTransfer.getData("progName");
+        if(!code) return;
 
-        window.renderEventsTab = () => {
-            const select = document.getElementById('ev-select-chart');
-            if(!select) return;
-            
-            const currVal = select.value;
-            let optHtml = '<option value="">Overall System Attendance</option>';
-            localDB.events.forEach(e => {
-                optHtml += `<option value="${e.id}">${e.date}: ${e.title}</option>`;
-});
-            select.innerHTML = optHtml;
-            if(localDB.events.some(e => e.id === currVal)) select.value = currVal;
-            
-            const selEventId = select.value;
-            let stats = {};
-            FACULTIES.forEach(f => stats[f] = { attended: 0, absent: 0, excused: 0, sick: 0 });
-            
-            let listAttendedHtml = '';
-            let listAbsentHtml = '';
-            let countAtt = 0; let countAbs = 0;
+        if(originProg !== targetProg) {
+            if(!confirm(`Warning: You are dropping a module from ${originProg} into the ${targetProg} row. Continue?`)) return;
+        }
 
-            localDB.lecturers.forEach(l => {
-                const lId = window.makeSafeId(window.getSafeVal(l, ['LecturerID']));
-                const lName = window.getSafeVal(l, ['LecturerName']);
-                const lFac = window.getFaculty(l);
-                
-                let shouldInclude = false;
-                let currentResponse = 'Absent'; 
+        const ass = localDB.assignments[code];
+        const lectId = ass ? ass.id : null;
+        
+        let mode = "Face to Face";
+        if(type === 'CLASS') {
+            const modeInput = prompt("Enter Mode:\n1: Face to Face\n2: Online\n3: Blended", "1");
+            if(modeInput === null) return;
+            if(modeInput === "2") mode = "Online";
+            else if(modeInput === "3") mode = "Blended";
+        }
 
-                if(selEventId === '') {
-                    shouldInclude = true; 
-                } else {
-                    const ev = localDB.events.find(e => e.id === selEventId);
-                    if(ev && (ev.targetRole === 'ALL' || ev.targetRole === lFac)) {
-                        shouldInclude = true;
-                        if(ev.responses[lId]) currentResponse = ev.responses[lId];
-                    }
+        let roomPrompt = "Available Venues/Rooms:\n";
+        localDB.settings.roomList.forEach((r, i) => roomPrompt += `${i+1}: ${r}\n`);
+        roomPrompt += "\nEnter Venue/Room Number or Name:";
+        
+        let roomInput = prompt(roomPrompt, "1");
+        if(roomInput === null) return; 
+        
+        let finalRoom = roomInput;
+        const rIndex = parseInt(roomInput) - 1;
+        if(!isNaN(rIndex) && localDB.settings.roomList[rIndex]) finalRoom = localDB.settings.roomList[rIndex];
+
+        let hasClash = false;
+        let clashMsg = "";
+        
+        const targetArray = type === 'CLASS' ? localDB.timetable : localDB.exam_timetable;
+
+        targetArray.forEach(t => {
+            if(t.day === day && t.tsIndex == tsIndex) {
+                if(t.room === finalRoom && mode !== "Online") {
+                    hasClash = true; clashMsg += `- Venue [${finalRoom}] is already booked by ${t.modCode}.\n`;
                 }
-
-                if(shouldInclude) {
-                    if(currentResponse === 'Attended') { stats[lFac].attended++; countAtt++; }
-                    else if(currentResponse === 'Excused') { stats[lFac].excused++; countAbs++; }
-                    else if(currentResponse === 'Sick') { stats[lFac].sick++; countAbs++; }
-                    else { stats[lFac].absent++; countAbs++; }
-
-                    const entry = `<div class="flex justify-between border-b border-gray-100 py-1 px-2"><span><b>${lName}</b> (${lFac})</span> <span class="text-gray-500 font-bold">${currentResponse}</span></div>`;
-                    if(currentResponse === 'Attended') listAttendedHtml += entry;
-                    else listAbsentHtml += entry;
+                if(type === 'CLASS' && lectId && t.lectId === lectId) {
+                    hasClash = true; clashMsg += `- Assigned Lecturer is already teaching ${t.modCode} at this time.\n`;
                 }
-            });
-
-            document.getElementById('ev-list-attended').innerHTML = listAttendedHtml || '<p class="italic text-gray-500 p-2">No attendees.</p>';
-            document.getElementById('ev-list-absent').innerHTML = listAbsentHtml || '<p class="italic text-gray-500 p-2">No absentees.</p>';
-            document.getElementById('ev-count-att').innerText = countAtt;
-            document.getElementById('ev-count-abs').innerText = countAbs;
-
-            if(charts.eventBar) charts.eventBar.destroy();
-            if(charts.eventPie) charts.eventPie.destroy();
-
-            const canvasBar = document.getElementById('eventBarChart');
-            if(canvasBar) {
-                charts.eventBar = new Chart(canvasBar, {
-                    type: 'bar',
-                    data: {
-                        labels: FACULTIES,
-                        datasets: [
-                            { label: 'Attended', backgroundColor: '#22c55e', data: FACULTIES.map(f => stats[f].attended) },
-                            { label: 'Absent/No RSVP', backgroundColor: '#ef4444', data: FACULTIES.map(f => stats[f].absent) },
-                            { label: 'Excused', backgroundColor: '#9ca3af', data: FACULTIES.map(f => stats[f].excused) },
-                            { label: 'Sick Leave', backgroundColor: '#bef264', data: FACULTIES.map(f => stats[f].sick) }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
-                });
-            }
-
-            const canvasPie = document.getElementById('eventPieChart');
-            if(canvasPie) {
-                let tAtt = 0, tAbs = 0, tExc = 0, tSick = 0;
-                FACULTIES.forEach(f => { tAtt += stats[f].attended; tAbs += stats[f].absent; tExc += stats[f].excused; tSick += stats[f].sick; });
-                
-                charts.eventPie = new Chart(canvasPie, {
-                    type: 'pie',
-                    data: {
-                        labels: ['Attended', 'Absent/No RSVP', 'Excused', 'Sick Leave'],
-                        datasets: [{ data: [tAtt, tAbs, tExc, tSick], backgroundColor: ['#22c55e', '#ef4444', '#9ca3af', '#bef264'] }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-            }
-        };
-
-        window.markAttendance = (eventId, status) => {
-            if(!currentLecturerId) return alert("Verify Identity First.");
-            const ev = localDB.events.find(e => e.id === eventId);
-            if(ev) {
-                ev.responses[currentLecturerId] = status;
-                window.saveLocal(true);
-                window.refreshWorkspaceData();
-                window.showToast("Attendance RSVP Submitted", "success");
-            }
-        };
-
-        window.openWeeklyModal = () => {
-            if(!currentLecturerId) return alert("Please select your Identity first.");
-            
-            const select = document.getElementById('wr-mod-select');
-            let html = '';
-            localDB.modules.forEach(m => {
-                const code = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
-                if(localDB.assignments[code] && localDB.assignments[code].id === currentLecturerId) {
-                    html += `<option value="${code}">${code} - ${window.getSafeVal(m, ['ModuleName'])}</option>`;
+                if(t.program === targetProg) {
+                    hasClash = true; clashMsg += `- Students in [${targetProg}] already have a scheduling conflict (${t.modCode}) at this time.\n`;
                 }
-            });
-            if(html === '') {
-                alert("You have no assigned modules to report on."); return;
             }
-            select.innerHTML = html;
-            document.getElementById('weekly-report-modal').style.display = 'flex';
+        });
+
+        if(hasClash) { alert(`⛔ CLASH DETECTED. CANNOT ASSIGN:\n\n${clashMsg}`); return; }
+
+        targetArray.push({ 
+            id: Math.random().toString(36).substr(2,9), 
+            modCode: code, program: targetProg, tsIndex: tsIndex, 
+            day: day, lectId: lectId, room: finalRoom, mode: mode
+        });
+        
+        window.saveLocal(true);
+        
+        if(localDB.settings.completed_tts.includes(`${type}_${targetProg}`)) {
+            simulateEmail(`Students & Staff (${targetProg})`, `[${type}] Timetable Amended`, `Changes have been made to the schedule for ${code}.`);
+        }
+
+        if(type === 'CLASS') window.renderTimetableGrid(); else window.renderExamTimetableGrid();
+        window.showToast("Scheduled Successfully", "success");
+    };
+
+    window.delTTEntry = (id, type) => {
+        if(type === 'CLASS') {
+            localDB.timetable = localDB.timetable.filter(t => t.id !== id);
+            window.saveLocal(true); window.renderTimetableGrid();
+        } else {
+            localDB.exam_timetable = localDB.exam_timetable.filter(t => t.id !== id);
+            window.saveLocal(true); window.renderExamTimetableGrid();
+        }
+    };
+
+    window.createEvent = () => {
+        const type = document.getElementById('ev-type').value;
+        const title = document.getElementById('ev-title').value;
+        const date = document.getElementById('ev-date').value;
+        const isAll = document.getElementById('ev-target-all').checked;
+        const targetFac = document.getElementById('ev-target-fac').value;
+        
+        if(!title || !date) return alert("Title and Date are required.");
+        
+        const eventObj = {
+            id: Math.random().toString(36).substr(2,9),
+            title: title,
+            type: type,
+            date: date,
+            targetRole: isAll ? 'ALL' : targetFac,
+            responses: {} 
         };
         
-        window.closeWeeklyModal = () => document.getElementById('weekly-report-modal').style.display = 'none';
+        localDB.events.push(eventObj);
+        window.saveLocal(true);
+        window.renderEventsTab();
+        
+        simulateEmail(eventObj.targetRole, `Invitation: ${type} - ${title}`, `You are invited to an event on ${date}. Please RSVP in your portal.`);
+        
+        document.getElementById('ev-title').value = '';
+        document.getElementById('ev-date').value = '';
+        window.showToast("Event created and invites sent.", "success");
+    };
 
-        window.submitWeeklyReport = () => {
-            const modCode = document.getElementById('wr-mod-select').value;
-            const date = document.getElementById('wr-date').value;
-            const hrsSched = document.getElementById('wr-hrs-sched').value;
-            const hrsTaken = document.getElementById('wr-hrs-taken').value;
-            const hrsCan = document.getElementById('wr-hrs-can').value;
-            const reason = document.getElementById('wr-can-reason').value;
+    window.renderEventsTab = () => {
+        const select = document.getElementById('ev-select-chart');
+        if(!select) return;
+        
+        const currVal = select.value;
+        let optHtml = '<option value="">Overall System Attendance</option>';
+        localDB.events.forEach(e => {
+            optHtml += `<option value="${e.id}">${e.date}: ${e.title}</option>`;
+        });
+        select.innerHTML = optHtml;
+        if(localDB.events.some(e => e.id === currVal)) select.value = currVal;
+        
+        const selEventId = select.value;
+        let stats = {};
+        FACULTIES.forEach(f => stats[f] = { attended: 0, absent: 0, excused: 0, sick: 0 });
+        
+        let listAttendedHtml = '';
+        let listAbsentHtml = '';
+        let countAtt = 0; let countAbs = 0;
+
+        localDB.lecturers.forEach(l => {
+            const lId = window.makeSafeId(window.getSafeVal(l, ['LecturerID']));
+            const lName = window.getSafeVal(l, ['LecturerName']);
+            const lFac = window.getFaculty(l);
             
-            const moodle = document.getElementById('wr-moodle').checked;
-            const isims = document.getElementById('wr-isims').checked;
-            const assign = document.getElementById('wr-assign').checked;
-            const exam = document.getElementById('wr-exam').checked;
+            let shouldInclude = false;
+            let currentResponse = 'Absent'; 
 
-            if(!modCode || !date || !hrsSched) return alert("Please fill the required fields.");
+            if(selEventId === '') {
+                shouldInclude = true; 
+            } else {
+                const ev = localDB.events.find(e => e.id === selEventId);
+                if(ev && (ev.targetRole === 'ALL' || ev.targetRole === lFac)) {
+                    shouldInclude = true;
+                    if(ev.responses[lId]) currentResponse = ev.responses[lId];
+                }
+            }
 
-            const m = localDB.modules.find(mx => window.makeSafeId(window.getSafeVal(mx, ['ModuleCode'])) === modCode);
-            const fac = m ? window.getFaculty(m) : 'UNKNOWN';
+            if(shouldInclude) {
+                if(currentResponse === 'Attended') { stats[lFac].attended++; countAtt++; }
+                else if(currentResponse === 'Excused') { stats[lFac].excused++; countAbs++; }
+                else if(currentResponse === 'Sick') { stats[lFac].sick++; countAbs++; }
+                else { stats[lFac].absent++; countAbs++; }
 
-            const report = {
-                id: Math.random().toString(36).substr(2,9),
-                lectId: currentLecturerId,
-                fac: fac,
-                modCode: modCode,
-                date: date,
-                hrsSched: hrsSched,
-                hrsTaken: hrsTaken,
-                hrsCan: hrsCan,
-                reason: reason,
-                moodle: moodle,
-                isims: isims,
-                assign: assign,
-                exam: exam,
-                timestamp: new Date().toISOString()
-            };
+                const entry = `<div class="flex justify-between border-b border-gray-100 py-1 px-2"><span><b>${lName}</b> (${lFac})</span> <span class="text-gray-500 font-bold">${currentResponse}</span></div>`;
+                if(currentResponse === 'Attended') listAttendedHtml += entry;
+                else listAbsentHtml += entry;
+            }
+        });
 
-            localDB.weekly_reports.push(report);
+        document.getElementById('ev-list-attended').innerHTML = listAttendedHtml || '<p class="italic text-gray-500 p-2">No attendees.</p>';
+        document.getElementById('ev-list-absent').innerHTML = listAbsentHtml || '<p class="italic text-gray-500 p-2">No absentees.</p>';
+        document.getElementById('ev-count-att').innerText = countAtt;
+        document.getElementById('ev-count-abs').innerText = countAbs;
+
+        if(charts.eventBar) charts.eventBar.destroy();
+        if(charts.eventPie) charts.eventPie.destroy();
+
+        const canvasBar = document.getElementById('eventBarChart');
+        if(canvasBar) {
+            charts.eventBar = new Chart(canvasBar, {
+                type: 'bar',
+                data: {
+                    labels: FACULTIES,
+                    datasets: [
+                        { label: 'Attended', backgroundColor: '#22c55e', data: FACULTIES.map(f => stats[f].attended) },
+                        { label: 'Absent/No RSVP', backgroundColor: '#ef4444', data: FACULTIES.map(f => stats[f].absent) },
+                        { label: 'Excused', backgroundColor: '#9ca3af', data: FACULTIES.map(f => stats[f].excused) },
+                        { label: 'Sick Leave', backgroundColor: '#bef264', data: FACULTIES.map(f => stats[f].sick) }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+            });
+        }
+
+        const canvasPie = document.getElementById('eventPieChart');
+        if(canvasPie) {
+            let tAtt = 0, tAbs = 0, tExc = 0, tSick = 0;
+            FACULTIES.forEach(f => { tAtt += stats[f].attended; tAbs += stats[f].absent; tExc += stats[f].excused; tSick += stats[f].sick; });
+            
+            charts.eventPie = new Chart(canvasPie, {
+                type: 'pie',
+                data: {
+                    labels: ['Attended', 'Absent/No RSVP', 'Excused', 'Sick Leave'],
+                    datasets: [{ data: [tAtt, tAbs, tExc, tSick], backgroundColor: ['#22c55e', '#ef4444', '#9ca3af', '#bef264'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    };
+
+    window.markAttendance = (eventId, status) => {
+        if(!currentLecturerId) return alert("Verify Identity First.");
+        const ev = localDB.events.find(e => e.id === eventId);
+        if(ev) {
+            ev.responses[currentLecturerId] = status;
             window.saveLocal(true);
-            window.closeWeeklyModal();
-            
-            simulateEmail(`Academic Affairs & ${fac} Dean`, `Weekly Report Submitted: ${modCode}`, `Lecturer ${currentLecturerId} has submitted their weekly delivery report.`);
-            window.showToast("Weekly Report Submitted Successfully.", "success");
-            window.renderWeeklyReports();
+            window.refreshWorkspaceData();
+            window.showToast("Attendance RSVP Submitted", "success");
+        }
+    };
+
+    window.openWeeklyModal = () => {
+        if(!currentLecturerId) return alert("Please select your Identity first.");
+        
+        const select = document.getElementById('wr-mod-select');
+        let html = '';
+        localDB.modules.forEach(m => {
+            const code = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+            if(localDB.assignments[code] && localDB.assignments[code].id === currentLecturerId) {
+                html += `<option value="${code}">${code} - ${window.getSafeVal(m, ['ModuleName'])}</option>`;
+            }
+        });
+        if(html === '') {
+            alert("You have no assigned modules to report on."); return;
+        }
+        select.innerHTML = html;
+        document.getElementById('weekly-report-modal').style.display = 'flex';
+    };
+    
+    window.closeWeeklyModal = () => document.getElementById('weekly-report-modal').style.display = 'none';
+
+    window.submitWeeklyReport = () => {
+        const modCode = document.getElementById('wr-mod-select').value;
+        const date = document.getElementById('wr-date').value;
+        const hrsSched = document.getElementById('wr-hrs-sched').value;
+        const hrsTaken = document.getElementById('wr-hrs-taken').value;
+        const hrsCan = document.getElementById('wr-hrs-can').value;
+        const reason = document.getElementById('wr-can-reason').value;
+        
+        const moodle = document.getElementById('wr-moodle').checked;
+        const isims = document.getElementById('wr-isims').checked;
+        const assign = document.getElementById('wr-assign').checked;
+        const exam = document.getElementById('wr-exam').checked;
+
+        if(!modCode || !date || !hrsSched) return alert("Please fill the required fields.");
+
+        const m = localDB.modules.find(mx => window.makeSafeId(window.getSafeVal(mx, ['ModuleCode'])) === modCode);
+        const fac = m ? window.getFaculty(m) : 'UNKNOWN';
+
+        const report = {
+            id: Math.random().toString(36).substr(2,9),
+            lectId: currentLecturerId,
+            fac: fac,
+            modCode: modCode,
+            date: date,
+            hrsSched: hrsSched,
+            hrsTaken: hrsTaken,
+            hrsCan: hrsCan,
+            reason: reason,
+            moodle: moodle,
+            isims: isims,
+            assign: assign,
+            exam: exam,
+            timestamp: new Date().toISOString()
         };
 
-        window.renderWeeklyReports = () => {
-            const tbody = document.getElementById('wr-table-body');
-            if(!tbody) return;
+        localDB.weekly_reports.push(report);
+        window.saveLocal(true);
+        window.closeWeeklyModal();
+        
+        simulateEmail(`Academic Affairs & ${fac} Dean`, `Weekly Report Submitted: ${modCode}`, `Lecturer ${currentLecturerId} has submitted their weekly delivery report.`);
+        window.showToast("Weekly Report Submitted Successfully.", "success");
+        window.renderWeeklyReports();
+    };
 
-            const facFilter = document.getElementById('wr-filter-fac').value;
-            const searchQ = document.getElementById('wr-search').value.toLowerCase();
+    window.renderWeeklyReports = () => {
+        const tbody = document.getElementById('wr-table-body');
+        if(!tbody) return;
 
-            let html = '';
-            localDB.weekly_reports.forEach(r => {
-                const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
-                const lName = l ? window.getSafeVal(l, ['LecturerName']) : r.lectId;
-                
-                const matchSearch = r.modCode.toLowerCase().includes(searchQ) || lName.toLowerCase().includes(searchQ);
-                const matchFac = facFilter === 'ALL' || r.fac.includes(facFilter);
+        const facFilter = document.getElementById('wr-filter-fac').value;
+        const searchQ = document.getElementById('wr-search').value.toLowerCase();
 
-                if(matchSearch && matchFac) {
-                    const tick = (val) => val ? '✅' : '❌';
-                    html += `<tr class="hover:bg-teal-50 border-b border-gray-100">
-                        <td class="p-3 font-bold text-gray-800">${lName} <br> <span class="text-[8px] text-gray-500">${r.fac}</span></td>
-                        <td class="p-3 text-teal-800 font-black">${r.modCode}</td>
+        let html = '';
+        localDB.weekly_reports.forEach(r => {
+            const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
+            const lName = l ? window.getSafeVal(l, ['LecturerName']) : r.lectId;
+            
+            const matchSearch = r.modCode.toLowerCase().includes(searchQ) || lName.toLowerCase().includes(searchQ);
+            const matchFac = facFilter === 'ALL' || r.fac.includes(facFilter);
+
+            if(matchSearch && matchFac) {
+                const tick = (val) => val ? '✅' : '❌';
+                html += `<tr class="hover:bg-teal-50 border-b border-gray-100">
+                    <td class="p-3 font-bold text-gray-800">${lName} <br> <span class="text-[8px] text-gray-500">${r.fac}</span></td>
+                    <td class="p-3 text-teal-80
+0 font-black">${r.modCode}</td>
                         <td class="p-3 text-center text-[9px]">${r.date}</td>
                         <td class="p-3 text-center font-bold">${r.hrsTaken} / ${r.hrsSched}</td>
                         <td class="p-3 text-center font-bold text-red-600">${r.hrsCan}</td>
@@ -3578,1125 +3579,1125 @@
                         <td class="p-3 text-center text-[10px]">M: ${tick(r.moodle)} <br> I: ${tick(r.isims)}</td>
                         <td class="p-3 text-center text-[10px]">A: ${tick(r.assign)} <br> E: ${tick(r.exam)}</td>
                     </tr>`;
-                }
-            });
-            tbody.innerHTML = html || '<tr><td colspan="8" class="p-10 text-center text-gray-400 font-bold italic">No weekly reports found.</td></tr>';
+            }
+        });
+        tbody.innerHTML = html || '<tr><td colspan="8" class="p-10 text-center text-gray-400 font-bold italic">No weekly reports found.</td></tr>';
+    };
+
+    window.addSubTaskField = () => {
+        const container = document.getElementById('subtasks-container');
+        const row = document.createElement('div');
+        row.className = 'flex gap-2 items-center subtask-row';
+        row.innerHTML = `
+            <input type="text" class="subtask-desc w-full p-1.5 border rounded text-xs outline-none focus:border-blue-500" placeholder="Sub-task description...">
+            <input type="number" class="subtask-pct w-16 p-1.5 border rounded text-xs outline-none focus:border-blue-500 text-center" placeholder="%" value="0">
+            <span class="text-[10px] text-gray-500">%</span>
+            <button onclick="this.parentElement.remove()" class="text-red-500 font-bold ml-1">✖</button>
+        `;
+        container.appendChild(row);
+    };
+
+    window.toggleAllTaskAssignees = () => {
+        const isChecked = document.getElementById('task-sel-all').checked;
+        document.querySelectorAll('.task-assignee-cb').forEach(cb => cb.checked = isChecked);
+    };
+
+    window.renderTasksTab = () => {
+        let listHtml = '';
+        window.getFilteredLecturers().forEach(l => {
+            const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID']));
+            const name = window.getSafeVal(l, ['LecturerName']);
+            listHtml += `<label class="flex items-center gap-2 text-[10px] p-1 hover:bg-gray-100 cursor-pointer">
+                <input type="checkbox" class="task-assignee-cb" value="${id}"> ${name}
+            </label>`;
+        });
+        const tl = document.getElementById('task-assignees-list');
+        if(tl) tl.innerHTML = listHtml;
+    };
+
+    window.assignTask = () => {
+        const title = document.getElementById('task-title').value;
+        const deadline = `${document.getElementById('task-date').value} ${document.getElementById('task-time').value}`;
+        const recur = document.getElementById('task-recur').value;
+        const assignees = Array.from(document.querySelectorAll('.task-assignee-cb:checked')).map(cb => cb.value);
+
+        let subtasks = [];
+        let totalPct = 0;
+        document.querySelectorAll('.subtask-row').forEach(row => {
+            const desc = row.querySelector('.subtask-desc').value.trim();
+            const pct = parseInt(row.querySelector('.subtask-pct').value) || 0;
+            if(desc) { subtasks.push({ desc, pct, completedBy: [] }); totalPct += pct; }
+        });
+
+        if(!title || assignees.length === 0) return alert("Task title and at least one assignee required.");
+        if(subtasks.length > 0 && totalPct !== 100) return alert(`Sub-task percentages must equal 100%. Current total: ${totalPct}%`);
+
+        const taskObj = {
+            id: Math.random().toString(36).substr(2,9),
+            title, deadline, assignees, subtasks, created: new Date().toISOString(),
+            recurrence: recur,
+            senderRole: activeRole 
         };
 
-        window.addSubTaskField = () => {
-            const container = document.getElementById('subtasks-container');
-            const row = document.createElement('div');
-            row.className = 'flex gap-2 items-center subtask-row';
-            row.innerHTML = `
-                <input type="text" class="subtask-desc w-full p-1.5 border rounded text-xs outline-none focus:border-blue-500" placeholder="Sub-task description...">
-                <input type="number" class="subtask-pct w-16 p-1.5 border rounded text-xs outline-none focus:border-blue-500 text-center" placeholder="%" value="0">
-                <span class="text-[10px] text-gray-500">%</span>
-                <button onclick="this.parentElement.remove()" class="text-red-500 font-bold ml-1">✖</button>
-            `;
-            container.appendChild(row);
+        localDB.tasks.push(taskObj);
+        window.saveLocal(true);
+        
+        simulateEmail(`${assignees.length} Assignees`, `New Task: ${title}`, `You have been assigned a new task by ${activeRole}. Deadline: ${deadline}`);
+        window.showToast("Task Assigned Successfully", "success");
+        
+        document.getElementById('task-title').value = '';
+        document.querySelectorAll('.subtask-row').forEach((r,i) => { if(i>0) r.remove(); else { r.querySelector('.subtask-desc').value=''; r.querySelector('.subtask-pct').value='100'; } });
+        
+        window.renderLecturerWorkspace();
+        window.updateAnalytics();
+    };
+
+    window.openRequestModal = () => document.getElementById('request-modal').style.display = 'flex';
+    window.closeRequestModal = () => document.getElementById('request-modal').style.display = 'none';
+
+    window.submitRequest = () => {
+        if(!currentLecturerId) return alert("Verify Identity via Workspace Dropdown First.");
+        const reqObj = {
+            id: Math.random().toString(36).substr(2,9),
+            lectId: currentLecturerId,
+            type: document.getElementById('req-type').value,
+            targetRole: document.getElementById('req-target-role').value,
+            title: document.getElementById('req-title').value,
+            details: document.getElementById('req-details').value,
+            status: 'Pending',
+            date: new Date().toISOString()
         };
+        localDB.requests.push(reqObj);
+        window.saveLocal(true);
+        window.closeRequestModal();
+        simulateEmail(reqObj.targetRole, `New Request from Lecturer ID: ${currentLecturerId}`, reqObj.title);
+        window.showToast("Request Submitted", "success");
+        window.renderRequestsList();
+    };
 
-        window.toggleAllTaskAssignees = () => {
-            const isChecked = document.getElementById('task-sel-all').checked;
-            document.querySelectorAll('.task-assignee-cb').forEach(cb => cb.checked = isChecked);
-        };
+    window.renderRequestsList = () => {
+        const list = document.getElementById('requests-list');
+        if(!list) return;
 
-        window.renderTasksTab = () => {
-            let listHtml = '';
-            window.getFilteredLecturers().forEach(l => {
-                const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID']));
-                const name = window.getSafeVal(l, ['LecturerName']);
-                listHtml += `<label class="flex items-center gap-2 text-[10px] p-1 hover:bg-gray-100 cursor-pointer">
-                    <input type="checkbox" class="task-assignee-cb" value="${id}"> ${name}
-                </label>`;
-            });
-            const tl = document.getElementById('task-assignees-list');
-            if(tl) tl.innerHTML = listHtml;
-        };
+        const fType = document.getElementById('req-filter-type')?.value || 'ALL';
+        
+        let html = '';
+        localDB.requests.forEach(r => {
+            if(activeRole !== 'ALL' && r.targetRole !== activeRole) {
+                if(r.targetRole === 'FACULTY') {
+                    const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
+                    const s = localDB.students.find(sx => window.makeSafeId(window.getSafeVal(sx, ['StudentID'])) === r.lectId);
+                    let targetFac = '';
+                    if(l) targetFac = window.getFaculty(l);
+                    else if(s) {
+                        const mod = localDB.modules.find(m => window.getSafeVal(m, ['ProgramName']) === window.getSafeVal(s, ['EnrolledProgram']));
+                        if(mod) targetFac = window.getFaculty(mod);
+                    }
+                    if(!targetFac.includes(activeRole)) return;
+                } else return;
+            }
 
-        window.assignTask = () => {
-            const title = document.getElementById('task-title').value;
-            const deadline = `${document.getElementById('task-date').value} ${document.getElementById('task-time').value}`;
-            const recur = document.getElementById('task-recur').value;
-            const assignees = Array.from(document.querySelectorAll('.task-assignee-cb:checked')).map(cb => cb.value);
+            if(fType !== 'ALL' && r.status !== fType && fType !== 'Pending Approvals') return;
+            if(fType === 'Pending Approvals' && r.status !== 'Pending') return;
 
-            let subtasks = [];
-            let totalPct = 0;
-            document.querySelectorAll('.subtask-row').forEach(row => {
-                const desc = row.querySelector('.subtask-desc').value.trim();
-                const pct = parseInt(row.querySelector('.subtask-pct').value) || 0;
-                if(desc) { subtasks.push({ desc, pct, completedBy: [] }); totalPct += pct; }
-            });
-
-            if(!title || assignees.length === 0) return alert("Task title and at least one assignee required.");
-            if(subtasks.length > 0 && totalPct !== 100) return alert(`Sub-task percentages must equal 100%. Current total: ${totalPct}%`);
-
-            const taskObj = {
-                id: Math.random().toString(36).substr(2,9),
-                title, deadline, assignees, subtasks, created: new Date().toISOString(),
-                recurrence: recur,
-                senderRole: activeRole 
-            };
-
-            localDB.tasks.push(taskObj);
-            window.saveLocal(true);
+            const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
+            const s = localDB.students.find(sx => window.makeSafeId(window.getSafeVal(sx, ['StudentID'])) === r.lectId);
+            const rName = l ? window.getSafeVal(l, ['LecturerName']) : (s ? window.getSafeVal(s, ['FullName']) : 'Unknown');
+            const rContext = l ? window.getFaculty(l) : (s ? window.getSafeVal(s, ['EnrolledProgram']) : 'Unknown');
             
-            simulateEmail(`${assignees.length} Assignees`, `New Task: ${title}`, `You have been assigned a new task by ${activeRole}. Deadline: ${deadline}`);
-            window.showToast("Task Assigned Successfully", "success");
-            
-            document.getElementById('task-title').value = '';
-            document.querySelectorAll('.subtask-row').forEach((r,i) => { if(i>0) r.remove(); else { r.querySelector('.subtask-desc').value=''; r.querySelector('.subtask-pct').value='100'; } });
-            
-            window.renderLecturerWorkspace();
-            window.updateAnalytics();
-        };
+            const badgeColors = { 'Pending': 'bg-yellow-100 text-yellow-800', 'Approved': 'bg-green-100 text-green-800', 'Rejected': 'bg-red-100 text-red-800' };
+            const actions = r.status === 'Pending' ? `
+                <div class="mt-2 flex gap-2">
+                    <button onclick="window.updateReq('${r.id}', 'Approved', '${r.lectId}')" class="bg-green-600 text-white px-2 py-1 rounded text-[8px] font-bold">Approve</button>
+                    <button onclick="window.updateReq('${r.id}', 'Rejected', '${r.lectId}')" class="bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">Reject</button>
+                </div>
+            ` : '';
 
-        window.openRequestModal = () => document.getElementById('request-modal').style.display = 'flex';
-        window.closeRequestModal = () => document.getElementById('request-modal').style.display = 'none';
-
-        window.submitRequest = () => {
-            if(!currentLecturerId) return alert("Verify Identity via Workspace Dropdown First.");
-            const reqObj = {
-                id: Math.random().toString(36).substr(2,9),
-                lectId: currentLecturerId,
-                type: document.getElementById('req-type').value,
-                targetRole: document.getElementById('req-target-role').value,
-                title: document.getElementById('req-title').value,
-                details: document.getElementById('req-details').value,
-                status: 'Pending',
-                date: new Date().toISOString()
-            };
-            localDB.requests.push(reqObj);
-            window.saveLocal(true);
-            window.closeRequestModal();
-            simulateEmail(reqObj.targetRole, `New Request from Lecturer ID: ${currentLecturerId}`, reqObj.title);
-            window.showToast("Request Submitted", "success");
-            window.renderRequestsList();
-        };
-
-        window.renderRequestsList = () => {
-            const list = document.getElementById('requests-list');
-            if(!list) return;
-
-            const fType = document.getElementById('req-filter-type')?.value || 'ALL';
-            
-            let html = '';
-            localDB.requests.forEach(r => {
-                if(activeRole !== 'ALL' && r.targetRole !== activeRole) {
-                    if(r.targetRole === 'FACULTY') {
-                        const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
-                        const s = localDB.students.find(sx => window.makeSafeId(window.getSafeVal(sx, ['StudentID'])) === r.lectId);
-                        let targetFac = '';
-                        if(l) targetFac = window.getFaculty(l);
-                        else if(s) {
-                            const mod = localDB.modules.find(m => window.getSafeVal(m, ['ProgramName']) === window.getSafeVal(s, ['EnrolledProgram']));
-                            if(mod) targetFac = window.getFaculty(mod);
-                        }
-                        if(!targetFac.includes(activeRole)) return;
-                    } else return;
-                }
-
-                if(fType !== 'ALL' && r.status !== fType && fType !== 'Pending Approvals') return;
-                if(fType === 'Pending Approvals' && r.status !== 'Pending') return;
-
-                const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
-                const s = localDB.students.find(sx => window.makeSafeId(window.getSafeVal(sx, ['StudentID'])) === r.lectId);
-                const rName = l ? window.getSafeVal(l, ['LecturerName']) : (s ? window.getSafeVal(s, ['FullName']) : 'Unknown');
-                const rContext = l ? window.getFaculty(l) : (s ? window.getSafeVal(s, ['EnrolledProgram']) : 'Unknown');
-                
-                const badgeColors = { 'Pending': 'bg-yellow-100 text-yellow-800', 'Approved': 'bg-green-100 text-green-800', 'Rejected': 'bg-red-100 text-red-800' };
-                const actions = r.status === 'Pending' ? `
-                    <div class="mt-2 flex gap-2">
-                        <button onclick="window.updateReq('${r.id}', 'Approved', '${r.lectId}')" class="bg-green-600 text-white px-2 py-1 rounded text-[8px] font-bold">Approve</button>
-                        <button onclick="window.updateReq('${r.id}', 'Rejected', '${r.lectId}')" class="bg-red-600 text-white px-2 py-1 rounded text-[8px] font-bold">Reject</button>
+            html += `<div class="bg-white border p-3 rounded-lg shadow-sm">
+                <div class="flex justify-between items-start border-b pb-2 mb-2">
+                    <div>
+                        <span class="text-[8px] font-bold uppercase text-purple-600">${r.type}</span>
+                        <h4 class="text-xs font-black text-gray-800">${r.title}</h4>
+                        <p class="text-[9px] text-gray-500">By: ${rName} (${rContext}) | To: ${r.targetRole}</p>
                     </div>
-                ` : '';
+                    <span class="px-2 py-1 rounded text-[8px] font-black uppercase ${badgeColors[r.status]}">${r.status}</span>
+                </div>
+                <p class="text-[10px] text-gray-600">${r.details}</p>
+                <p class="text-[8px] text-gray-400 mt-2">${new Date(r.date).toLocaleString()}</p>
+                ${actions}
+            </div>`;
+        });
+        list.innerHTML = html || '<p class="text-center text-gray-500 italic text-xs mt-4">No incoming requests found.</p>';
+    };
 
-                html += `<div class="bg-white border p-3 rounded-lg shadow-sm">
-                    <div class="flex justify-between items-start border-b pb-2 mb-2">
-                        <div>
-                            <span class="text-[8px] font-bold uppercase text-purple-600">${r.type}</span>
-                            <h4 class="text-xs font-black text-gray-800">${r.title}</h4>
-                            <p class="text-[9px] text-gray-500">By: ${rName} (${rContext}) | To: ${r.targetRole}</p>
+    window.updateReq = (id, status, reqOwnerId) => {
+        const r = localDB.requests.find(x => x.id === id);
+        if(r) { 
+            r.status = status; 
+            window.saveLocal(true); 
+            simulateEmail(`Owner ID: ${reqOwnerId}`, `Update on your Request`, `Your request "${r.title}" has been ${status}.`);
+            window.renderRequestsList(); 
+        }
+    };
+
+    window.renderLecturerWorkspace = () => {
+        if(activeRole !== 'LECTURER') return;
+        
+        const sel = document.getElementById('lecturerSelectStandalone');
+        if(sel && !sel.dataset.hooked) {
+            sel.addEventListener('change', (e) => {
+                currentLecturerId = e.target.value;
+                const lName = e.target.options[e.target.selectedIndex]?.text || '';
+                document.getElementById('lecturer-workspace-name').innerText = lName;
+                window.refreshWorkspaceData();
+            });
+            sel.dataset.hooked = "true";
+        }
+        window.refreshWorkspaceData();
+    };
+
+    window.refreshWorkspaceData = () => {
+        if(!currentLecturerId) return;
+
+        let pts = 0;
+        let myTasks = localDB.tasks.filter(t => t.assignees.includes(currentLecturerId));
+        
+        let pendingHtml = '';
+        let completedHtml = '';
+        let hasOverdue = false;
+        let ownCompTasks = 0;
+        let ownPendTasks = 0;
+
+        myTasks.forEach(t => {
+            let progressPct = 0;
+            let subHtml = '';
+            
+            if(t.subtasks && t.subtasks.length > 0) {
+                t.subtasks.forEach((st, sIdx) => {
+                    const isStDone = st.completedBy.includes(currentLecturerId);
+                    if(isStDone) progressPct += st.pct;
+                    subHtml += `
+                        <div class="flex justify-between items-center text-[9px] mt-1 pl-2 border-l-2 ${isStDone ? 'border-green-400 text-gray-400' : 'border-orange-400 text-gray-700'}">
+                            <span>${st.desc} (${st.pct}%)</span>
+                            ${isStDone ? '✅' : `<button onclick="window.markSubTaskDone('${t.id}', ${sIdx})" class="text-blue-600 hover:underline font-bold">Tick Done</button>`}
                         </div>
-                        <span class="px-2 py-1 rounded text-[8px] font-black uppercase ${badgeColors[r.status]}">${r.status}</span>
-                    </div>
-                    <p class="text-[10px] text-gray-600">${r.details}</p>
-                    <p class="text-[8px] text-gray-400 mt-2">${new Date(r.date).toLocaleString()}</p>
-                    ${actions}
-                </div>`;
-            });
-            list.innerHTML = html || '<p class="text-center text-gray-500 italic text-xs mt-4">No incoming requests found.</p>';
-        };
-
-        window.updateReq = (id, status, reqOwnerId) => {
-            const r = localDB.requests.find(x => x.id === id);
-            if(r) { 
-                r.status = status; 
-                window.saveLocal(true); 
-                simulateEmail(`Owner ID: ${reqOwnerId}`, `Update on your Request`, `Your request "${r.title}" has been ${status}.`);
-                window.renderRequestsList(); 
-            }
-        };
-
-        window.renderLecturerWorkspace = () => {
-            if(activeRole !== 'LECTURER') return;
-            
-            const sel = document.getElementById('lecturerSelectStandalone');
-            if(sel && !sel.dataset.hooked) {
-                sel.addEventListener('change', (e) => {
-                    currentLecturerId = e.target.value;
-                    const lName = e.target.options[e.target.selectedIndex]?.text || '';
-                    document.getElementById('lecturer-workspace-name').innerText = lName;
-                    window.refreshWorkspaceData();
+                    `;
                 });
-                sel.dataset.hooked = "true";
+            } else {
+                const isLegacyDone = t.completedBy && t.completedBy.includes(currentLecturerId);
+                if(isLegacyDone) progressPct = 100;
+                subHtml = isLegacyDone ? '' : `<button onclick="window.markLegacyTaskDone('${t.id}')" class="mt-2 bg-orange-100 text-orange-800 border border-orange-300 px-2 py-1 rounded text-[8px] font-bold hover:bg-orange-200 w-full">Mark Fully Complete</button>`;
             }
-            window.refreshWorkspaceData();
-        };
 
-        window.refreshWorkspaceData = () => {
-            if(!currentLecturerId) return;
+            if(progressPct === 100) { pts += 20; ownCompTasks++; }
+            else ownPendTasks++;
 
-            let pts = 0;
-            let myTasks = localDB.tasks.filter(t => t.assignees.includes(currentLecturerId));
+            const isOverdue = new Date(t.deadline) < new Date() && progressPct < 100;
+            if(isOverdue) hasOverdue = true;
+
+            const senderColors = { 'ALL': 'bg-blue-100 text-blue-800', 'EXAM': 'bg-green-100 text-green-800'};
+            const sBadgeColor = senderColors[t.senderRole] || 'bg-purple-100 text-purple-800';
+            const sName = t.senderRole === 'ALL' ? 'Academic Affairs' : (t.senderRole === 'EXAM' ? 'Exam Unit' : t.senderRole);
+
+            const recurBadge = t.recurrence && t.recurrence !== 'None' ? `<span class="bg-blue-100 text-blue-800 px-1 rounded ml-1 text-[7px]">🔄 ${t.recurrence}</span>` : '';
+
+            const card = `<div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${progressPct === 100 ? 'border-green-500' : (isOverdue ? 'border-red-500' : 'border-orange-500')}">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <span class="text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sBadgeColor}">${sName}</span>
+                        <h4 class="text-xs font-black mt-1">${t.title} ${recurBadge}</h4>
+                    </div>
+                    <span class="font-bold text-[10px] ${progressPct === 100 ? 'text-green-600' : 'text-orange-600'}">${progressPct}%</span>
+                </div>
+                <span class="text-[8px] font-bold ${isOverdue ? 'text-red-600 animate-pulse' : 'text-gray-500'} block mb-1">⏰ Deadline: ${t.deadline}</span>
+                <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2 mb-1"><div class="bg-blue-600 h-1.5 rounded-full" style="width: ${progressPct}%"></div></div>
+                ${progressPct < 100 ? subHtml : `<p class="text-[8px] text-green-600 font-bold mt-2">Completed on ${new Date().toLocaleDateString()}</p>`}
+            </div>`;
+
+            if(progressPct === 100) completedHtml += card; else pendingHtml += card;
+        });
+
+        document.getElementById('lecturer-tasks-pending').innerHTML = pendingHtml || '<p class="text-[10px] text-gray-500 italic p-2">No pending tasks.</p>';
+        
+        const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === currentLecturerId);
+        const lFac = window.getFaculty(lect);
+        
+        let eventsHtml = '';
+        localDB.events.forEach(e => {
+            if(e.targetRole === 'ALL' || e.targetRole === lFac) {
+                const myStatus = e.responses[currentLecturerId];
+                if(!myStatus) {
+                    eventsHtml += `<div class="bg-white p-3 rounded shadow-sm border-l-4 border-yellow-500">
+                        <span class="text-[8px] font-bold text-yellow-800 uppercase">${e.type} | ${e.date}</span>
+                        <h4 class="text-xs font-black text-gray-800 mb-2">${e.title}</h4>
+                        <div class="grid grid-cols-2 gap-1">
+                            <button onclick="window.markAttendance('${e.id}', 'Attended')" class="bg-green-100 hover:bg-green-200 text-green-800 py-1 rounded text-[8px] font-bold">✅ Attending</button>
+                            <button onclick="window.markAttendance('${e.id}', 'Excused')" class="bg-gray-100 hover:bg-gray-200 text-gray-800 py-1 rounded text-[8px] font-bold">🗓️ Excused</button>
+                            <button onclick="window.markAttendance('${e.id}', 'Sick')" class="bg-blue-100 hover:bg-blue-200 text-blue-800 py-1 rounded text-[8px] font-bold">🤒 Sick Leave</button>
+                            <button onclick="window.markAttendance('${e.id}', 'Absent')" class="bg-red-100 hover:bg-red-200 text-red-800 py-1 rounded text-[8px] font-bold">❌ Absent</button>
+                        </div>
+                    </div>`;
+                }
+            }
+        });
+        document.getElementById('lecturer-events-pending').innerHTML = eventsHtml || '<p class="text-[10px] text-gray-500 italic p-2">No pending events.</p>';
+
+        const stars = Math.min(5, Math.floor(pts / 20));
+        document.getElementById('lecturer-stars').className = `star-rating s${stars}`;
+        document.getElementById('lecturer-points').innerText = `${pts} PTS`;
+
+        const banner = document.getElementById('lect-reminder-banner');
+        if(banner) banner.style.display = hasOverdue ? 'block' : 'none';
+
+        const pCount = (pendingHtml.match(/<div class="bg-white p-3 rounded-lg shadow-sm border-l-4/g) || []).length;
+        document.getElementById('lect-pending-count').innerText = pCount;
+        
+        const btnWeekly = document.getElementById('btn-submit-weekly');
+        if(btnWeekly) {
+            const hasAssignedMod = Object.values(localDB.assignments).some(a => a.id === currentLecturerId);
+            btnWeekly.style.display = hasAssignedMod ? 'flex' : 'none';
+        }
+        
+        // Personal Progress Chart
+        if(charts.lectOwnProg) charts.lectOwnProg.destroy();
+        const canvasOwnProg = document.getElementById('lect-own-chart');
+        if(canvasOwnProg) {
+            charts.lectOwnProg = new Chart(canvasOwnProg, {
+                type: 'doughnut',
+                data: { labels: ['Completed Tasks', 'Pending Tasks'], datasets: [{ data: [ownCompTasks, ownPendTasks], backgroundColor: ['#22c55e', '#f97316'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // Also Refresh Coordination Dropdown if it exists
+        const coordMyRole = document.getElementById('coord-my-role-select');
+        if(coordMyRole) {
+            let myOpts = '<option value="">-- Select Your Coordinated Item --</option>';
+            localDB.coordinators.forEach(c => {
+                if(c.lectId === currentLecturerId) {
+                    myOpts += `<option value="${c.type}: ${c.item}">${c.type}: ${c.item}</option>`;
+                }
+            });
+            coordMyRole.innerHTML = myOpts;
+            window.loadCoordChecklist();
+        }
+    };
+
+    window.markSubTaskDone = (taskId, subIdx) => {
+        const t = localDB.tasks.find(x => x.id === taskId);
+        if(t && t.subtasks[subIdx]) {
+            if(!t.subtasks[subIdx].completedBy.includes(currentLecturerId)) {
+                t.subtasks[subIdx].completedBy.push(currentLecturerId);
+                window.saveLocal(true);
+                let tot = 0;
+                t.subtasks.forEach(st => { if(st.completedBy.includes(currentLecturerId)) tot += st.pct; });
+                if(tot === 100) simulateEmail(t.senderRole, "Task Completed", `Lecturer ${currentLecturerId} finished task: ${t.title}`);
+                window.refreshWorkspaceData();
+            }
+        }
+    };
+
+    window.markLegacyTaskDone = (taskId) => {
+        const t = localDB.tasks.find(x => x.id === taskId);
+        if(t) {
+            if(!t.completedBy) t.completedBy = [];
+            if(!t.completedBy.includes(currentLecturerId)) {
+                t.completedBy.push(currentLecturerId);
+                window.saveLocal(true);
+                simulateEmail(t.senderRole, "Task Completed", `Lecturer ${currentLecturerId} finished task: ${t.title}`);
+                window.refreshWorkspaceData();
+                window.showToast("Task Completed! Points added.", "success");
+            }
+        }
+    };
+
+    window.renderExamTable = () => {
+        const tbody = document.getElementById('exam-table-body');
+        if(!tbody) return;
+
+        const facFilter = document.getElementById('exam-fac-filter').value;
+        const statFilter = document.getElementById('exam-status-filter').value;
+        const searchQ = document.getElementById('examSearch').value.toLowerCase();
+
+        let html = '';
+        let pending = 0, progress = 0, complete = 0;
+        let facScores = {}; 
+
+        localDB.modules.forEach(m => {
+            const rawMCode = window.getSafeVal(m, ['ModuleCode']);
+            const mCode = window.makeSafeId(rawMCode);
+            const mName = window.getSafeVal(m, ['ModuleName']);
+            const fac = window.getFaculty(m);
+            const prog = window.getSafeVal(m, ['ProgramName']);
             
-            let pendingHtml = '';
-            let completedHtml = '';
-            let hasOverdue = false;
-            let ownCompTasks = 0;
-            let ownPendTasks = 0;
+            const ass = localDB.assignments[mCode];
+            const lectName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['Lecturer Name'] || 'Unknown') : 'Unassigned';
 
-            myTasks.forEach(t => {
-                let progressPct = 0;
-                let subHtml = '';
+            const mSearch = String(mCode).toLowerCase().includes(searchQ) || String(mName).toLowerCase().includes(searchQ) || String(lectName).toLowerCase().includes(searchQ);
+            const mFac = facFilter === 'ALL' || String(fac).includes(facFilter);
+
+            if(mSearch && mFac) {
+                if(!localDB.exam_progress) localDB.exam_progress = {};
+                if(!localDB.exam_progress[mCode]) localDB.exam_progress[mCode] = { paper: false, marking: false, modKit: false, vetted: false, mAssigned: false, mReturned: false };
                 
-                if(t.subtasks && t.subtasks.length > 0) {
-                    t.subtasks.forEach((st, sIdx) => {
-                        const isStDone = st.completedBy.includes(currentLecturerId);
-                        if(isStDone) progressPct += st.pct;
-                        subHtml += `
-                            <div class="flex justify-between items-center text-[9px] mt-1 pl-2 border-l-2 ${isStDone ? 'border-green-400 text-gray-400' : 'border-orange-400 text-gray-700'}">
-                                <span>${st.desc} (${st.pct}%)</span>
-                                ${isStDone ? '✅' : `<button onclick="window.markSubTaskDone('${t.id}', ${sIdx})" class="text-blue-600 hover:underline font-bold">Tick Done</button>`}
-                            </div>
-                        `;
-                    });
+                // Migrate old data gracefully
+                if(typeof localDB.exam_progress[mCode].vetted === 'undefined') localDB.exam_progress[mCode].vetted = false;
+                if(typeof localDB.exam_progress[mCode].mAssigned === 'undefined') localDB.exam_progress[mCode].mAssigned = false;
+                if(typeof localDB.exam_progress[mCode].mReturned === 'undefined') localDB.exam_progress[mCode].mReturned = false;
+
+                const p = localDB.exam_progress[mCode];
+                
+                let score = 0;
+                if(p.paper) score += 20;
+                if(p.marking) score += 15;
+                if(p.modKit) score += 15;
+                if(p.vetted) score += 15;
+                if(p.mAssigned) score += 15;
+                if(p.mReturned) score += 20;
+
+                let sTag = 'Pending';
+                if(score === 100) { sTag = 'Complete'; complete++; }
+                else if(score > 0) { sTag = 'Progress'; progress++; }
+                else { pending++; }
+
+                if(!facScores[fac]) facScores[fac] = { total: 0, score: 0 };
+                facScores[fac].total++;
+                facScores[fac].score += (score === 100 ? 1 : 0); 
+
+                if(statFilter !== 'ALL') {
+                    if(statFilter === 'Pending' && score > 0) return;
+                    if(statFilter === 'Progress' && (score === 0 || score === 100)) return;
+                    if(statFilter === 'Complete' && score < 100) return;
+                }
+
+                const renderDropdown = (type, state, timestamp) => {
+                    const tsHtml = state && timestamp ? `<br><span class="text-[7px] text-gray-500">${new Date(timestamp).toLocaleDateString()}</span>` : '';
+                    return `
+                        <select onchange="window.updateExamStatus('${mCode}', '${type}', this.value)" class="w-full p-1 border rounded text-[8px] font-bold outline-none ${state ? 'bg-green-100 text-green-800 border-green-300' : 'bg-gray-50 text-gray-600'}">
+                            <option value="false" ${!state ? 'selected' : ''}>Pending</option>
+                            <option value="true" ${state ? 'selected' : ''}>Received</option>
+                        </select>
+                        ${tsHtml}
+                    `;
+                };
+
+                html += `<tr class="hover:bg-green-50 border-b border-gray-100 transition">
+                    <td class="p-3">
+                        <b class="text-royal-blue">${mCode}</b><br>
+                        <span class="text-[9px] text-gray-600">${mName}</span>
+                    </td>
+                    <td class="p-3 text-[9px]">${prog} <br> <span class="font-bold text-gray-500">${window.getSafeVal(m, ['OfferedBatch'])}</span></td>
+                    <td class="p-3 text-[9px]">Students: <b>${window.getSafeVal(m, ['NoofStudents']) || 0}</b> <br> Fac: ${fac}</td>
+                    <td class="p-3 font-bold text-[9px]">${lectName}</td>
+                    <td class="p-2 text-center">${renderDropdown('paper', p.paper, p.ts_paper)}</td>
+                    <td class="p-2 text-center">${renderDropdown('marking', p.marking, p.ts_marking)}</td>
+                    <td class="p-2 text-center">${renderDropdown('modKit', p.modKit, p.ts_modKit)}</td>
+                    <td class="p-2 text-center">
+                        <select onchange="window.updateExamStatus('${mCode}', 'vetted', this.value)" class="w-full p-1 border rounded text-[8px] font-bold outline-none ${p.vetted ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-gray-50 text-gray-600'}">
+                            <option value="false" ${!p.vetted ? 'selected' : ''}>No</option>
+                            <option value="true" ${p.vetted ? 'selected' : ''}>Vetted</option>
+                        </select>
+                        ${p.vetted && p.ts_vetted ? `<br><span class="text-[7px] text-gray-500">${new Date(p.ts_vetted).toLocaleDateString()}</span>` : ''}
+                    </td>
+                    <td class="p-2 text-center">
+                        <select onchange="window.updateExamStatus('${mCode}', 'mAssigned', this.value)" class="w-full p-1 border rounded text-[8px] font-bold outline-none ${p.mAssigned ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-gray-50 text-gray-600'}">
+                            <option value="false" ${!p.mAssigned ? 'selected' : ''}>Not Sent</option>
+                            <option value="true" ${p.mAssigned ? 'selected' : ''}>Sent</option>
+                        </select>
+                        ${p.mAssigned && p.ts_mAssigned ? `<br><span class="text-[7px] text-gray-500">${new Date(p.ts_mAssigned).toLocaleDateString()}</span>` : ''}
+                    </td>
+                    <td class="p-2 text-center">
+                        <select onchange="window.updateExamStatus('${mCode}', 'mReturned', this.value)" class="w-full p-1 border rounded text-[8px] font-bold outline-none ${p.mReturned ? 'bg-green-100 text-green-800 border-green-300' : 'bg-gray-50 text-gray-600'}">
+                            <option value="false" ${!p.mReturned ? 'selected' : ''}>Pending</option>
+                            <option value="true" ${p.mReturned ? 'selected' : ''}>Returned</option>
+                        </select>
+                        ${p.mReturned && p.ts_mReturned ? `<br><span class="text-[7px] text-gray-500">${new Date(p.ts_mReturned).toLocaleDateString()}</span>` : ''}
+                    </td>
+                    <td class="p-3 text-center">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 shadow-inner mt-1">
+                            <div class="bg-green-600 h-2.5 rounded-full" style="width: ${score}%"></div>
+                        </div>
+                        <span class="text-[8px] font-black text-gray-600">${score}%</span>
+                    </td>
+                </tr>`;
+            }
+        });
+
+        tbody.innerHTML = html || '<tr><td colspan="11" class="p-10 text-center text-gray-400 font-bold italic">No records match criteria.</td></tr>';
+
+        const penEl = document.getElementById('exam-stat-pending'); if(penEl) penEl.innerText = pending;
+        const proEl = document.getElementById('exam-stat-progress'); if(proEl) proEl.innerText = progress;
+        const comEl = document.getElementById('exam-stat-complete'); if(comEl) comEl.innerText = complete;
+
+        // Top Faculty
+        let topFac = "N/A"; let maxPct = -1;
+        Object.keys(facScores).forEach(f => {
+            if(facScores[f].total > 0) {
+                let pct = facScores[f].score / facScores[f].total;
+                if(pct > maxPct) { maxPct = pct; topFac = f; }
+            }
+        });
+        const topFacEl = document.getElementById('exam-top-fac'); if(topFacEl) topFacEl.innerText = maxPct >= 0 ? `${topFac} (${Math.round(maxPct*100)}%)` : 'Awaiting Data';
+
+        // Exam Charts
+        if(charts.examPie) charts.examPie.destroy();
+        if(charts.examBar) charts.examBar.destroy();
+
+        if(document.getElementById('examPieChart')) {
+            charts.examPie = new Chart(document.getElementById('examPieChart'), {
+                type: 'doughnut',
+                data: { labels: ['Pending', 'In Progress', 'Fully Completed'], datasets: [{ data: [pending, progress, complete], backgroundColor: ['#ef4444', '#eab308', '#22c55e'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        if(document.getElementById('examBarChart')) {
+            const fLabels = Object.keys(facScores);
+            const fData = fLabels.map(f => facScores[f].total > 0 ? Math.round((facScores[f].score / facScores[f].total)*100) : 0);
+            charts.examBar = new Chart(document.getElementById('examBarChart'), {
+                type: 'bar',
+                data: { labels: fLabels, datasets: [{ label: '% Completed Modules', backgroundColor: '#16a34a', data: fData }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } } }
+            });
+        }
+    };
+
+    window.updateExamStatus = (mCode, type, valStr) => {
+        const isTrue = valStr === 'true';
+        if(!localDB.exam_progress) localDB.exam_progress = {};
+        if(!localDB.exam_progress[mCode]) localDB.exam_progress[mCode] = { paper: false, marking: false, modKit: false, vetted: false, mAssigned: false, mReturned: false };
+        
+        localDB.exam_progress[mCode][type] = isTrue;
+        if(isTrue) {
+            localDB.exam_progress[mCode][`ts_${type}`] = new Date().toISOString();
+        } else {
+            delete localDB.exam_progress[mCode][`ts_${type}`];
+        }
+        
+        window.saveLocal(true);
+        window.renderExamTable();
+        window.updateAnalytics(); 
+    };
+
+    window.updateAnalytics = () => {
+        if (localDB.modules.length === 0 && localDB.lecturers.length === 0) return;
+        
+        const viewFilter = document.getElementById('facView')?.value || 'ALL';
+        let displayFaculties = FACULTIES;
+        if (viewFilter !== 'ALL') displayFaculties = FACULTIES.filter(f => String(f).includes(viewFilter));
+
+        let unassignedCount = 0;
+        let workloadData = {}; 
+        let facStats = {}; 
+        let focusStats = { "Teaching": 0, "Research": 0, "Part-Time": 0 };
+        let facDetailedStats = {};
+        
+        FACULTIES.forEach(f => {
+            facStats[f] = { pt: 0, ft: 0, unassigned: 0 };
+            facDetailedStats[f] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0, ftSameWch: 0, ptSameWch: 0, otherFacWch: 0 };
+        });
+
+        let seenCombinedCodes = new Set();
+        let totalWchForKPI = 0, unassignedWchForKPI = 0;
+        
+        localDB.modules.forEach(m => {
+            const rawMCode = window.getSafeVal(m, ['ModuleCode']);
+            const mCode = window.makeSafeId(rawMCode);
+            const mFac = window.getFaculty(m);
+            
+            if (!facDetailedStats[mFac]) facDetailedStats[mFac] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0, ftSameWch: 0, ptSameWch: 0, otherFacWch: 0 };
+            if (!facStats[mFac]) facStats[mFac] = { pt: 0, ft: 0, unassigned: 0 };
+
+            facDetailedStats[mFac].offered++;
+            
+            let wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours'])) || 0;
+            const assignment = localDB.assignments[mCode] || { id: '', mode: (window.getSafeVal(m, ['CombinedBatch']) ? 'Combined' : 'Individual') };
+            
+            if (viewFilter === 'ALL' || String(mFac).includes(viewFilter)) totalWchForKPI += wch;
+
+            if (!assignment.id || assignment.id === '') {
+                if (viewFilter === 'ALL' || String(mFac).includes(viewFilter)) { unassignedCount++; unassignedWchForKPI += wch; }
+                facDetailedStats[mFac].unassigned++; facStats[mFac].unassigned += wch; 
+            } else {
+                facDetailedStats[mFac].assigned++;
+                let actualWch = wch;
+                if (assignment.mode === 'Combined') {
+                    if (seenCombinedCodes.has(mCode)) actualWch = 0;
+                    else seenCombinedCodes.add(mCode);
+                }
+
+                const assignedLect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
+                if (assignedLect) {
+                    const lFac = window.getFaculty(assignedLect);
+                    const typeStr = String(window.getSafeVal(assignedLect, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
+                    const isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
+                    
+                    if (isPartTime) facStats[mFac].pt += actualWch; else facStats[mFac].ft += actualWch; 
+
+                    if (String(lFac).toUpperCase() === String(mFac).toUpperCase()) {
+                        if (isPartTime) { facDetailedStats[mFac].ptSame++; facDetailedStats[mFac].ptSameWch += actualWch; } 
+                        else { facDetailedStats[mFac].ftSame++; facDetailedStats[mFac].ftSameWch += actualWch; }
+                    } else {
+                        facDetailedStats[mFac].otherFac++; facDetailedStats[mFac].otherFacWch += actualWch;
+                    }
                 } else {
-                    const isLegacyDone = t.completedBy && t.completedBy.includes(currentLecturerId);
-                    if(isLegacyDone) progressPct = 100;
-                    subHtml = isLegacyDone ? '' : `<button onclick="window.markLegacyTaskDone('${t.id}')" class="mt-2 bg-orange-100 text-orange-800 border border-orange-300 px-2 py-1 rounded text-[8px] font-bold hover:bg-orange-200 w-full">Mark Fully Complete</button>`;
+                    facStats[mFac].unassigned += actualWch; facDetailedStats[mFac].unassigned++; 
                 }
+            }
+        });
 
-                if(progressPct === 100) { pts += 20; ownCompTasks++; }
-                else ownPendTasks++;
+        let activeMods = localDB.modules, activeLects = localDB.lecturers;
+        if (viewFilter !== 'ALL') {
+            activeMods = activeMods.filter(m => String(window.getFaculty(m)).includes(viewFilter));
+            activeLects = activeLects.filter(l => String(window.getFaculty(l)).includes(viewFilter));
+        }
+        
+        if(document.getElementById('stat-total-mods')) document.getElementById('stat-total-mods').innerText = activeMods.length;
+        if(document.getElementById('stat-total-staff')) document.getElementById('stat-total-staff').innerText = activeLects.length;
+        if(document.getElementById('stat-assigned-pct')) document.getElementById('stat-assigned-pct').innerText = (totalWchForKPI > 0 ? Math.round(((totalWchForKPI - unassignedWchForKPI) / totalWchForKPI) * 100) : 0) + '%';
+        if(document.getElementById('stat-unassigned-wch')) document.getElementById('stat-unassigned-wch').innerText = unassignedWchForKPI.toFixed(1);
 
-                const isOverdue = new Date(t.deadline) < new Date() && progressPct < 100;
-                if(isOverdue) hasOverdue = true;
+        localDB.lecturers.forEach(l => {
+            const fac = window.getFaculty(l);
+            const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
+            const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
+            const focusStr = String(window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category', 'LecturerCategory']) || '').toLowerCase();
+            
+            workloadData[id] = { 
+                name: window.getSafeVal(l, ['LecturerName', 'FullName']), 
+                wch: 0, target: window.getDefaultTarget(l), 
+                isPartTime: typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting'), 
+                isResearch: focusStr.includes('research') || focusStr === 'res',
+                fac: fac 
+            };
+        });
 
-                const senderColors = { 'ALL': 'bg-blue-100 text-blue-800', 'EXAM': 'bg-green-100 text-green-800'};
-                const sBadgeColor = senderColors[t.senderRole] || 'bg-purple-100 text-purple-800';
-                const sName = t.senderRole === 'ALL' ? 'Academic Affairs' : (t.senderRole === 'EXAM' ? 'Exam Unit' : t.senderRole);
+        seenCombinedCodes.clear();
+        localDB.modules.forEach(m => {
+            const mCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+            const assignment = localDB.assignments[mCode] || { id: '', mode: 'Individual' };
+            let wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours'])) || 0;
 
-                const recurBadge = t.recurrence && t.recurrence !== 'None' ? `<span class="bg-blue-100 text-blue-800 px-1 rounded ml-1 text-[7px]">🔄 ${t.recurrence}</span>` : '';
+            if (assignment.id && assignment.id !== '') {
+                if (assignment.mode === 'Combined') {
+                    if (seenCombinedCodes.has(mCode)) wch = 0; else seenCombinedCodes.add(mCode);
+                }
+                if (workloadData[assignment.id]) workloadData[assignment.id].wch += wch;
+            }
+        });
 
-                const card = `<div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${progressPct === 100 ? 'border-green-500' : (isOverdue ? 'border-red-500' : 'border-orange-500')}">
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <span class="text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sBadgeColor}">${sName}</span>
-                            <h4 class="text-xs font-black mt-1">${t.title} ${recurBadge}</h4>
+        let idleCount = 0, ftOverCount = 0;
+        Object.values(workloadData).forEach(data => {
+            if (viewFilter !== 'ALL' && !String(data.fac).includes(viewFilter)) return;
+            if (data.isPartTime) focusStats["Part-Time"] += data.wch;
+            else { if (data.isResearch) focusStats["Research"] += data.wch; else focusStats["Teaching"] += data.wch; }
+
+            if (data.wch === 0) idleCount++; 
+            else if (!data.isPartTime && data.wch > data.target) ftOverCount++; 
+        });
+
+        if(document.getElementById('hdr-unassigned')) document.getElementById('hdr-unassigned').innerText = unassignedCount;
+        if(document.getElementById('hdr-idle')) document.getElementById('hdr-idle').innerText = idleCount;
+        if(document.getElementById('hdr-overload')) document.getElementById('hdr-overload').innerText = ftOverCount;
+        
+        // --- CHARTS GENERATION ---
+        if (charts.faculty) charts.faculty.destroy();
+        if (charts.focus) charts.focus.destroy();
+        if (charts.assignmentDetails) charts.assignmentDetails.destroy();
+        if (charts.taskComp) charts.taskComp.destroy();
+        if (charts.facDil) charts.facDil.destroy();
+        if (charts.ttPie) charts.ttPie.destroy();
+        if (charts.taskTabComp) charts.taskTabComp.destroy();
+        if (charts.taskTabFac) charts.taskTabFac.destroy();
+        
+        if(document.getElementById('facultyChart')) {
+            charts.faculty = new Chart(document.getElementById('facultyChart'), {
+                type: 'bar',
+                data: {
+                    labels: displayFaculties,
+                    datasets: [
+                        { label: 'Unassigned', backgroundColor: '#dc2626', data: displayFaculties.map(f => facStats[f]?.unassigned || 0) },
+                        { label: 'Part-Time', backgroundColor: '#d4af37', data: displayFaculties.map(f => facStats[f]?.pt || 0) },
+                        { label: 'Full-Time', backgroundColor: '#004d40', data: displayFaculties.map(f => facStats[f]?.ft || 0) }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'top' } } }
+            });
+        }
+
+        if(document.getElementById('focusChart')) {
+            charts.focus = new Chart(document.getElementById('focusChart'), {
+                type: 'doughnut',
+                data: { labels: ['Teaching', 'Research', 'Part-Time'], datasets: [{ data: [focusStats["Teaching"], focusStats["Research"], focusStats["Part-Time"]], backgroundColor: ['#0d47a1', '#4a148c', '#d4af37'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        if(document.getElementById('assignmentDetailsChart')) {
+            charts.assignmentDetails = new Chart(document.getElementById('assignmentDetailsChart'), {
+                type: 'bar',
+                data: {
+                    labels: displayFaculties,
+                    datasets: [
+                        { label: 'FT (Same Fac)', backgroundColor: '#0d47a1', data: displayFaculties.map(f => facDetailedStats[f]?.ftSameWch || 0) },
+                        { label: 'PT (Same Fac)', backgroundColor: '#4a148c', data: displayFaculties.map(f => facDetailedStats[f]?.ptSameWch || 0) },
+                        { label: 'Cross-Assigned', backgroundColor: '#004d40', data: displayFaculties.map(f => facDetailedStats[f]?.otherFacWch || 0) }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } }, plugins: { tooltip: { mode: 'index', intersect: false } } }
+            });
+        }
+
+        // Generate Faculty Summary Cards (Royal Spin Animation)
+        let cardsHtml = '';
+        displayFaculties.forEach((f, idx) => {
+            if (!facDetailedStats[f]) return;
+            const stats = facDetailedStats[f];
+            if(stats.offered > 0) {
+                cardsHtml += `
+                    <div class="royal-spin-card" onclick="window.showFacultyDetails('${f}')" title="Click to filter by ${f}">
+                        <div class="royal-spin-inner">
+                            <div class="absolute -right-4 -top-4 opacity-10 text-6xl">🏛️</div>
+                            <h4 class="text-[11px] md:text-xs font-black mb-2 border-b border-white/30 pb-1 tracking-widest uppercase">${f}</h4>
+                            <div class="grid grid-cols-1 gap-1.5 text-[10px] md:text-[11px] font-bold">
+                                <div class="flex justify-between items-center"><span class="opacity-80">Offered Modules:</span> <span class="bg-white/20 px-1.5 rounded">${stats.offered}</span></div>
+                                <div class="flex justify-between items-center text-green-300"><span class="opacity-80">Assigned:</span> <span class="bg-black/20 px-1.5 rounded">${stats.assigned}</span></div>
+                                <div class="flex justify-between items-center text-red-300"><span class="opacity-80">Unassigned:</span> <span class="bg-black/20 px-1.5 rounded">${stats.unassigned}</span></div>
+                            </div>
                         </div>
-                        <span class="font-bold text-[10px] ${progressPct === 100 ? 'text-green-600' : 'text-orange-600'}">${progressPct}%</span>
                     </div>
-                    <span class="text-[8px] font-bold ${isOverdue ? 'text-red-600 animate-pulse' : 'text-gray-500'} block mb-1">⏰ Deadline: ${t.deadline}</span>
-                    <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2 mb-1"><div class="bg-blue-600 h-1.5 rounded-full" style="width: ${progressPct}%"></div></div>
-                    ${progressPct < 100 ? subHtml : `<p class="text-[8px] text-green-600 font-bold mt-2">Completed on ${new Date().toLocaleDateString()}</p>`}
-                </div>`;
+                `;
+            }
+        });
+        const cardsContainer = document.getElementById('faculty-cards-container');
+        if(cardsContainer) cardsContainer.innerHTML = cardsHtml || '<p class="text-[10px] text-gray-500 italic col-span-full">No module data available to generate cards.</p>';
 
-                if(progressPct === 100) completedHtml += card; else pendingHtml += card;
-            });
+        // Generate Faculty Workload Summary Table
+        let facSummaryHtml = `
+        <div class="bg-white rounded-lg shadow-md border-t-8 border-[#004d40] overflow-hidden mb-6">
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-sm font-black uppercase text-gray-800 tracking-wide">FACULTY WORKLOAD SUMMARY (PERIODS)</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-[#f8fafc] text-gray-600 uppercase font-black text-[10px]">
+                        <tr>
+                            <th class="p-4 py-3 border-b">FACULTY</th>
+                            <th class="p-4 py-3 border-b text-center">TOTAL PERIODS</th>
+                            <th class="p-4 py-3 border-b text-center text-green-600">ASSIGNED</th>
+                            <th class="p-4 py-3 border-b text-center text-red-600">UNASSIGNED</th>
+                            <th class="p-4 py-3 border-b text-center">% ASSIGNED</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y border-b font-bold text-gray-700">
+        `;
+        let grandTotal = 0, grandAssigned = 0, grandUnassigned = 0;
 
-            document.getElementById('lecturer-tasks-pending').innerHTML = pendingHtml || '<p class="text-[10px] text-gray-500 italic p-2">No pending tasks.</p>';
-            
-            const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === currentLecturerId);
-            const lFac = window.getFaculty(lect);
-            
-            let eventsHtml = '';
-            localDB.events.forEach(e => {
-                if(e.targetRole === 'ALL' || e.targetRole === lFac) {
-                    const myStatus = e.responses[currentLecturerId];
-                    if(!myStatus) {
-                        eventsHtml += `<div class="bg-white p-3 rounded shadow-sm border-l-4 border-yellow-500">
-                            <span class="text-[8px] font-bold text-yellow-800 uppercase">${e.type} | ${e.date}</span>
-                            <h4 class="text-xs font-black text-gray-800 mb-2">${e.title}</h4>
-                            <div class="grid grid-cols-2 gap-1">
-                                <button onclick="window.markAttendance('${e.id}', 'Attended')" class="bg-green-100 hover:bg-green-200 text-green-800 py-1 rounded text-[8px] font-bold">✅ Attending</button>
-                                <button onclick="window.markAttendance('${e.id}', 'Excused')" class="bg-gray-100 hover:bg-gray-200 text-gray-800 py-1 rounded text-[8px] font-bold">🗓️ Excused</button>
-                                <button onclick="window.markAttendance('${e.id}', 'Sick')" class="bg-blue-100 hover:bg-blue-200 text-blue-800 py-1 rounded text-[8px] font-bold">🤒 Sick Leave</button>
-                                <button onclick="window.markAttendance('${e.id}', 'Absent')" class="bg-red-100 hover:bg-red-200 text-red-800 py-1 rounded text-[8px] font-bold">❌ Absent</button>
-                            </div>
-                        </div>`;
+        displayFaculties.forEach(f => {
+            if (!facStats[f]) return;
+            let fTotalWCH = facStats[f].unassigned + facStats[f].pt + facStats[f].ft;
+            let fAssignedWCH = facStats[f].pt + facStats[f].ft;
+            let fUnassignedWCH = facStats[f].unassigned;
+
+            if(fTotalWCH > 0) { 
+                let pct = Math.round((fAssignedWCH / fTotalWCH) * 100);
+                grandTotal += fTotalWCH;
+                grandAssigned += fAssignedWCH;
+                grandUnassigned += fUnassignedWCH;
+
+                facSummaryHtml += `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="p-4 py-3 text-gray-800">${f}</td>
+                    <td class="p-4 py-3 text-center text-gray-800">${fTotalWCH.toFixed(1)}</td>
+                    <td class="p-4 py-3 text-center text-green-600">${fAssignedWCH.toFixed(1)}</td>
+                    <td class="p-4 py-3 text-center text-red-600">${fUnassignedWCH.toFixed(1)}</td>
+                    <td class="p-4 py-3 text-center text-gray-600">${pct}%</td>
+                </tr>
+                `;
+            }
+        });
+
+        let grandPct = grandTotal > 0 ? Math.round((grandAssigned/grandTotal)*100) : 0;
+        facSummaryHtml += `
+                    </tbody>
+                    <tfoot class="bg-[#f8fafc] font-black text-xs text-gray-800">
+                        <tr>
+                            <td class="p-4 py-3">UNIVERSITY TOTAL</td>
+                            <td class="p-4 py-3 text-center">${grandTotal.toFixed(1)}</td>
+                            <td class="p-4 py-3 text-center text-green-700">${grandAssigned.toFixed(1)}</td>
+                            <td class="p-4 py-3 text-center text-red-700">${grandUnassigned.toFixed(1)}</td>
+                            <td class="p-4 py-3 text-center">${grandPct}%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        `;
+        const summaryContainer = document.getElementById('summary-table-container');
+        if (summaryContainer) summaryContainer.innerHTML = facSummaryHtml;
+
+        // Task Analytics
+        let taskCompleted = 0, taskPending = 0;
+        let facTaskStats = {};
+        FACULTIES.forEach(f => facTaskStats[f] = { totalTasks: 0, completedTasks: 0 });
+
+        localDB.tasks.forEach(t => {
+            t.assignees.forEach(aId => {
+                const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === aId);
+                if(lect) {
+                    const fac = window.getFaculty(lect);
+                    if(facTaskStats[fac]) facTaskStats[fac].totalTasks++;
+                    
+                    let pct = 0;
+                    if(t.subtasks && t.subtasks.length > 0) {
+                        t.subtasks.forEach(st => { if(st.completedBy.includes(aId)) pct += st.pct; });
+                    } else if (t.completedBy && t.completedBy.includes(aId)) {
+                        pct = 100;
                     }
+                    
+                    if(pct === 100) { taskCompleted++; if(facTaskStats[fac]) facTaskStats[fac].completedTasks++; }
+                    else { taskPending++; }
                 }
             });
-            document.getElementById('lecturer-events-pending').innerHTML = eventsHtml || '<p class="text-[10px] text-gray-500 italic p-2">No pending events.</p>';
+        });
 
-            const stars = Math.min(5, Math.floor(pts / 20));
-            document.getElementById('lecturer-stars').className = `star-rating s${stars}`;
-            document.getElementById('lecturer-points').innerText = `${pts} PTS`;
-
-            const banner = document.getElementById('lect-reminder-banner');
-            if(banner) banner.style.display = hasOverdue ? 'block' : 'none';
-
-            const pCount = (pendingHtml.match(/<div class="bg-white p-3 rounded-lg shadow-sm border-l-4/g) || []).length;
-            document.getElementById('lect-pending-count').innerText = pCount;
-            
-            const btnWeekly = document.getElementById('btn-submit-weekly');
-            if(btnWeekly) {
-                const hasAssignedMod = Object.values(localDB.assignments).some(a => a.id === currentLecturerId);
-                btnWeekly.style.display = hasAssignedMod ? 'flex' : 'none';
-            }
-            
-            // Personal Progress Chart
-            if(charts.lectOwnProg) charts.lectOwnProg.destroy();
-            const canvasOwnProg = document.getElementById('lect-own-chart');
-            if(canvasOwnProg) {
-                charts.lectOwnProg = new Chart(canvasOwnProg, {
-                    type: 'doughnut',
-                    data: { labels: ['Completed Tasks', 'Pending Tasks'], datasets: [{ data: [ownCompTasks, ownPendTasks], backgroundColor: ['#22c55e', '#f97316'] }] },
+        const drawTaskPie = (canvasId, refObj) => {
+            const canvas = document.getElementById(canvasId);
+            if(canvas) {
+                charts[refObj] = new Chart(canvas, {
+                    type: 'pie',
+                    data: { labels: ['Completed', 'Pending'], datasets: [{ data: [taskCompleted, taskPending], backgroundColor: ['#3b82f6', '#f59e0b'] }] },
                     options: { responsive: true, maintainAspectRatio: false }
                 });
             }
-
-            // Also Refresh Coordination Dropdown if it exists
-            const coordMyRole = document.getElementById('coord-my-role-select');
-            if(coordMyRole) {
-                let myOpts = '<option value="">-- Select Your Coordinated Item --</option>';
-                localDB.coordinators.forEach(c => {
-                    if(c.lectId === currentLecturerId) {
-                        myOpts += `<option value="${c.type}: ${c.item}">${c.type}: ${c.item}</option>`;
-                    }
-                });
-                coordMyRole.innerHTML = myOpts;
-                window.loadCoordChecklist();
-            }
         };
-
-        window.markSubTaskDone = (taskId, subIdx) => {
-            const t = localDB.tasks.find(x => x.id === taskId);
-            if(t && t.subtasks[subIdx]) {
-                if(!t.subtasks[subIdx].completedBy.includes(currentLecturerId)) {
-                    t.subtasks[subIdx].completedBy.push(currentLecturerId);
-                    window.saveLocal(true);
-                    let tot = 0;
-                    t.subtasks.forEach(st => { if(st.completedBy.includes(currentLecturerId)) tot += st.pct; });
-                    if(tot === 100) simulateEmail(t.senderRole, "Task Completed", `Lecturer ${currentLecturerId} finished task: ${t.title}`);
-                    window.refreshWorkspaceData();
-                }
-            }
-        };
-
-        window.markLegacyTaskDone = (taskId) => {
-            const t = localDB.tasks.find(x => x.id === taskId);
-            if(t) {
-                if(!t.completedBy) t.completedBy = [];
-                if(!t.completedBy.includes(currentLecturerId)) {
-                    t.completedBy.push(currentLecturerId);
-                    window.saveLocal(true);
-                    simulateEmail(t.senderRole, "Task Completed", `Lecturer ${currentLecturerId} finished task: ${t.title}`);
-                    window.refreshWorkspaceData();
-                    window.showToast("Task Completed! Points added.", "success");
-                }
-            }
-        };
-
-        window.renderExamTable = () => {
-            const tbody = document.getElementById('exam-table-body');
-            if(!tbody) return;
-
-            const facFilter = document.getElementById('exam-fac-filter').value;
-            const statFilter = document.getElementById('exam-status-filter').value;
-            const searchQ = document.getElementById('examSearch').value.toLowerCase();
-
-            let html = '';
-            let pending = 0, progress = 0, complete = 0;
-            let facScores = {}; 
-
-            localDB.modules.forEach(m => {
-                const rawMCode = window.getSafeVal(m, ['ModuleCode']);
-                const mCode = window.makeSafeId(rawMCode);
-                const mName = window.getSafeVal(m, ['ModuleName']);
-                const fac = window.getFaculty(m);
-                const prog = window.getSafeVal(m, ['ProgramName']);
-                
-                const ass = localDB.assignments[mCode];
-                const lectName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['Lecturer Name'] || 'Unknown') : 'Unassigned';
-
-                const mSearch = String(mCode).toLowerCase().includes(searchQ) || String(mName).toLowerCase().includes(searchQ) || String(lectName).toLowerCase().includes(searchQ);
-                const mFac = facFilter === 'ALL' || String(fac).includes(facFilter);
-
-                if(mSearch && mFac) {
-                    if(!localDB.exam_progress) localDB.exam_progress = {};
-                    if(!localDB.exam_progress[mCode]) localDB.exam_progress[mCode] = { paper: false, marking: false, modKit: false, vetted: false, mAssigned: false, mReturned: false };
-                    
-                    // Migrate old data gracefully
-                    if(typeof localDB.exam_progress[mCode].vetted === 'undefined') localDB.exam_progress[mCode].vetted = false;
-                    if(typeof localDB.exam_progress[mCode].mAssigned === 'undefined') localDB.exam_progress[mCode].mAssigned = false;
-                    if(typeof localDB.exam_progress[mCode].mReturned === 'undefined') localDB.exam_progress[mCode].mReturned = false;
-
-                    const p = localDB.exam_progress[mCode];
-                    
-                    let score = 0;
-                    if(p.paper) score += 20;
-                    if(p.marking) score += 15;
-                    if(p.modKit) score += 15;
-                    if(p.vetted) score += 15;
-                    if(p.mAssigned) score += 15;
-                    if(p.mReturned) score += 20;
-
-                    let sTag = 'Pending';
-                    if(score === 100) { sTag = 'Complete'; complete++; }
-                    else if(score > 0) { sTag = 'Progress'; progress++; }
-                    else { pending++; }
-
-                    if(!facScores[fac]) facScores[fac] = { total: 0, score: 0 };
-                    facScores[fac].total++;
-                    facScores[fac].score += (score === 100 ? 1 : 0); 
-
-                    if(statFilter !== 'ALL') {
-                        if(statFilter === 'Pending' && score > 0) return;
-                        if(statFilter === 'Progress' && (score === 0 || score === 100)) return;
-                        if(statFilter === 'Complete' && score < 100) return;
-                    }
-
-                    const renderDropdown = (type, state, timestamp) => {
-                        const tsHtml = state && timestamp ? `<br><span class="text-[7px] text-gray-500">${new Date(timestamp).toLocaleDateString()}</span>` : '';
-                        return `
-                            <select onchange="window.updateExamStatus('${mCode}', '${type}', this.value)" class="w-full p-1 border rounded text-[8px] font-bold outline-none ${state ? 'bg-green-100 text-green-800 border-green-300' : 'bg-gray-50 text-gray-600'}">
-                                <option value="false" ${!state ? 'selected' : ''}>Pending</option>
-                                <option value="true" ${state ? 'selected' : ''}>Received</option>
-                            </select>
-                            ${tsHtml}
-                        `;
-                    };
-
-                    html += `<tr class="hover:bg-green-50 border-b border-gray-100 transition">
-                        <td class="p-3">
-                            <b class="text-royal-blue">${mCode}</b><br>
-                            <span class="text-[9px] text-gray-600">${mName}</span>
-                        </td>
-                        <td class="p-3 text-[9px]">${prog} <br> <span class="font-bold text-gray-500">${window.getSafeVal(m, ['OfferedBatch'])}</span></td>
-                        <td class="p-3 text-[9px]">Students: <b>${window.getSafeVal(m, ['NoofStudents']) || 0}</b> <br> Fac: ${fac}</td>
-                        <td class="p-3 font-bold text-[9px]">${lectName}</td>
-                        <td class="p-2 text-center">${renderDropdown('paper', p.paper, p.ts_paper)}</td>
-                        <td class="p-2 text-center">${renderDropdown('marking', p.marking, p.ts_marking)}</td>
-                        <td class="p-2 text-center">${renderDropdown('modKit', p.modKit, p.ts_modKit)}</td>
-                        <td class="p-2 text-center">
-                            <select onchange="window.updateExamStatus('${mCode}', 'vetted', this.value)" class="w-full p-1 border rounded text-[8px] font-bold outline-none ${p.vetted ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-gray-50 text-gray-600'}">
-                                <option value="false" ${!p.vetted ? 'selected' : ''}>No</option>
-                                <option value="true" ${p.vetted ? 'selected' : ''}>Vetted</option>
-                            </select>
-                            ${p.vetted && p.ts_vetted ? `<br><span class="text-[7px] text-gray-500">${new Date(p.ts_vetted).toLocaleDateString()}</span>` : ''}
-                        </td>
-                        <td class="p-2 text-center">
-                            <select onchange="window.updateExamStatus('${mCode}', 'mAssigned', this.value)" class="w-full p-1 border rounded text-[8px] font-bold outline-none ${p.mAssigned ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-gray-50 text-gray-600'}">
-                                <option value="false" ${!p.mAssigned ? 'selected' : ''}>Not Sent</option>
-                                <option value="true" ${p.mAssigned ? 'selected' : ''}>Sent</option>
-                            </select>
-                            ${p.mAssigned && p.ts_mAssigned ? `<br><span class="text-[7px] text-gray-500">${new Date(p.ts_mAssigned).toLocaleDateString()}</span>` : ''}
-                        </td>
-                        <td class="p-2 text-center">
-                            <select onchange="window.updateExamStatus('${mCode}', 'mReturned', this.value)" class="w-full p-1 border rounded text-[8px] font-bold outline-none ${p.mReturned ? 'bg-green-100 text-green-800 border-green-300' : 'bg-gray-50 text-gray-600'}">
-                                <option value="false" ${!p.mReturned ? 'selected' : ''}>Pending</option>
-                                <option value="true" ${p.mReturned ? 'selected' : ''}>Returned</option>
-                            </select>
-                            ${p.mReturned && p.ts_mReturned ? `<br><span class="text-[7px] text-gray-500">${new Date(p.ts_mReturned).toLocaleDateString()}</span>` : ''}
-                        </td>
-                        <td class="p-3 text-center">
-                            <div class="w-full bg-gray-200 rounded-full h-2.5 shadow-inner mt-1">
-                                <div class="bg-green-600 h-2.5 rounded-full" style="width: ${score}%"></div>
-                            </div>
-                            <span class="text-[8px] font-black text-gray-600">${score}%</span>
-                        </td>
-                    </tr>`;
-                }
-            });
-
-            tbody.innerHTML = html || '<tr><td colspan="11" class="p-10 text-center text-gray-400 font-bold italic">No records match criteria.</td></tr>';
-
-            const penEl = document.getElementById('exam-stat-pending'); if(penEl) penEl.innerText = pending;
-            const proEl = document.getElementById('exam-stat-progress'); if(proEl) proEl.innerText = progress;
-            const comEl = document.getElementById('exam-stat-complete'); if(comEl) comEl.innerText = complete;
-
-            // Top Faculty
-            let topFac = "N/A"; let maxPct = -1;
-            Object.keys(facScores).forEach(f => {
-                if(facScores[f].total > 0) {
-                    let pct = facScores[f].score / facScores[f].total;
-                    if(pct > maxPct) { maxPct = pct; topFac = f; }
-                }
-            });
-            const topFacEl = document.getElementById('exam-top-fac'); if(topFacEl) topFacEl.innerText = maxPct >= 0 ? `${topFac} (${Math.round(maxPct*100)}%)` : 'Awaiting Data';
-
-            // Exam Charts
-            if(charts.examPie) charts.examPie.destroy();
-            if(charts.examBar) charts.examBar.destroy();
-
-            if(document.getElementById('examPieChart')) {
-                charts.examPie = new Chart(document.getElementById('examPieChart'), {
-                    type: 'doughnut',
-                    data: { labels: ['Pending', 'In Progress', 'Fully Completed'], datasets: [{ data: [pending, progress, complete], backgroundColor: ['#ef4444', '#eab308', '#22c55e'] }] },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-            }
-
-            if(document.getElementById('examBarChart')) {
-                const fLabels = Object.keys(facScores);
-                const fData = fLabels.map(f => facScores[f].total > 0 ? Math.round((facScores[f].score / facScores[f].total)*100) : 0);
-                charts.examBar = new Chart(document.getElementById('examBarChart'), {
+        drawTaskPie('taskCompletionChart', 'taskComp');
+        drawTaskPie('taskTabCompletionChart', 'taskTabComp');
+        
+        const drawFacDil = (canvasId, refObj) => {
+            const canvas = document.getElementById(canvasId);
+            if(canvas) {
+                const facPercents = displayFaculties.map(f => facTaskStats[f]?.totalTasks > 0 ? Math.round((facTaskStats[f].completedTasks / facTaskStats[f].totalTasks)*100) : 0);
+                charts[refObj] = new Chart(canvas, {
                     type: 'bar',
-                    data: { labels: fLabels, datasets: [{ label: '% Completed Modules', backgroundColor: '#16a34a', data: fData }] },
+                    data: { labels: displayFaculties, datasets: [{ label: '% Tasks Completed', backgroundColor: '#8b5cf6', data: facPercents }] },
                     options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } } }
                 });
             }
         };
+        drawFacDil('facDiligentChart', 'facDil');
+        drawFacDil('taskTabFacDiligentChart', 'taskTabFac');
 
-        window.updateExamStatus = (mCode, type, valStr) => {
-            const isTrue = valStr === 'true';
-            if(!localDB.exam_progress) localDB.exam_progress = {};
-            if(!localDB.exam_progress[mCode]) localDB.exam_progress[mCode] = { paper: false, marking: false, modKit: false, vetted: false, mAssigned: false, mReturned: false };
-            
-            localDB.exam_progress[mCode][type] = isTrue;
-            if(isTrue) {
-                localDB.exam_progress[mCode][`ts_${type}`] = new Date().toISOString();
-            } else {
-                delete localDB.exam_progress[mCode][`ts_${type}`];
-            }
-            
-            window.saveLocal(true);
-            window.renderExamTable();
-            window.updateAnalytics(); 
-        };
-
-        window.updateAnalytics = () => {
-            if (localDB.modules.length === 0 && localDB.lecturers.length === 0) return;
-            
-            const viewFilter = document.getElementById('facView')?.value || 'ALL';
-            let displayFaculties = FACULTIES;
-            if (viewFilter !== 'ALL') displayFaculties = FACULTIES.filter(f => String(f).includes(viewFilter));
-
-            let unassignedCount = 0;
-            let workloadData = {}; 
-            let facStats = {}; 
-            let focusStats = { "Teaching": 0, "Research": 0, "Part-Time": 0 };
-            let facDetailedStats = {};
-            
-            FACULTIES.forEach(f => {
-                facStats[f] = { pt: 0, ft: 0, unassigned: 0 };
-                facDetailedStats[f] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0, ftSameWch: 0, ptSameWch: 0, otherFacWch: 0 };
+        // Timetable Analytics
+        if(document.getElementById('ttProgressPieChart')) {
+            const totalSched = localDB.timetable.length;
+            const totalRequired = activeMods.length; 
+            charts.ttPie = new Chart(document.getElementById('ttProgressPieChart'), {
+                type: 'pie',
+                data: { labels: ['Scheduled Slots', 'Remaining Need (Est.)'], datasets: [{ data: [totalSched, Math.max(0, totalRequired - totalSched)], backgroundColor: ['#a855f7', '#e2e8f0'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
             });
-
-            let seenCombinedCodes = new Set();
-            let totalWchForKPI = 0, unassignedWchForKPI = 0;
+        }
+        
+        const ttCompList = document.getElementById('tt-prog-status-list');
+        if(ttCompList) {
+            let pListHtml = '';
+            const allProgs = [...new Set(window.getFilteredModules().map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
+            const compList = localDB.settings.completed_tts || [];
             
-            localDB.modules.forEach(m => {
-                const rawMCode = window.getSafeVal(m, ['ModuleCode']);
-                const mCode = window.makeSafeId(rawMCode);
-                const mFac = window.getFaculty(m);
-                
-                if (!facDetailedStats[mFac]) facDetailedStats[mFac] = { offered: 0, assigned: 0, unassigned: 0, ftSame: 0, ptSame: 0, otherFac: 0, ftSameWch: 0, ptSameWch: 0, otherFacWch: 0 };
-                if (!facStats[mFac]) facStats[mFac] = { pt: 0, ft: 0, unassigned: 0 };
-
-                facDetailedStats[mFac].offered++;
-                
-                let wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours'])) || 0;
-                const assignment = localDB.assignments[mCode] || { id: '', mode: (window.getSafeVal(m, ['CombinedBatch']) ? 'Combined' : 'Individual') };
-                
-                if (viewFilter === 'ALL' || String(mFac).includes(viewFilter)) totalWchForKPI += wch;
-
-                if (!assignment.id || assignment.id === '') {
-                    if (viewFilter === 'ALL' || String(mFac).includes(viewFilter)) { unassignedCount++; unassignedWchForKPI += wch; }
-                    facDetailedStats[mFac].unassigned++; facStats[mFac].unassigned += wch; 
-                } else {
-                    facDetailedStats[mFac].assigned++;
-                    let actualWch = wch;
-                    if (assignment.mode === 'Combined') {
-                        if (seenCombinedCodes.has(mCode)) actualWch = 0;
-                        else seenCombinedCodes.add(mCode);
-                    }
-
-                    const assignedLect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) === assignment.id);
-                    if (assignedLect) {
-                        const lFac = window.getFaculty(assignedLect);
-                        const typeStr = String(window.getSafeVal(assignedLect, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
-                        const isPartTime = typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting');
-                        
-                        if (isPartTime) facStats[mFac].pt += actualWch; else facStats[mFac].ft += actualWch; 
-
-                        if (String(lFac).toUpperCase() === String(mFac).toUpperCase()) {
-                            if (isPartTime) { facDetailedStats[mFac].ptSame++; facDetailedStats[mFac].ptSameWch += actualWch; } 
-                            else { facDetailedStats[mFac].ftSame++; facDetailedStats[mFac].ftSameWch += actualWch; }
-                        } else {
-                            facDetailedStats[mFac].otherFac++; facDetailedStats[mFac].otherFacWch += actualWch;
-                        }
-                    } else {
-                        facStats[mFac].unassigned += actualWch; facDetailedStats[mFac].unassigned++; 
-                    }
-                }
-            });
-
-            let activeMods = localDB.modules, activeLects = localDB.lecturers;
-            if (viewFilter !== 'ALL') {
-                activeMods = activeMods.filter(m => String(window.getFaculty(m)).includes(viewFilter));
-                activeLects = activeLects.filter(l => String(window.getFaculty(l)).includes(viewFilter));
-            }
-            
-            if(document.getElementById('stat-total-mods')) document.getElementById('stat-total-mods').innerText = activeMods.length;
-            if(document.getElementById('stat-total-staff')) document.getElementById('stat-total-staff').innerText = activeLects.length;
-            if(document.getElementById('stat-assigned-pct')) document.getElementById('stat-assigned-pct').innerText = (totalWchForKPI > 0 ? Math.round(((totalWchForKPI - unassignedWchForKPI) / totalWchForKPI) * 100) : 0) + '%';
-            if(document.getElementById('stat-unassigned-wch')) document.getElementById('stat-unassigned-wch').innerText = unassignedWchForKPI.toFixed(1);
-
-            localDB.lecturers.forEach(l => {
-                const fac = window.getFaculty(l);
-                const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID']));
-                const typeStr = String(window.getSafeVal(l, ['LecturerType', 'Type', 'Status']) || '').toLowerCase();
-                const focusStr = String(window.getSafeVal(l, ['AcademicFocus', 'Focus', 'Category', 'LecturerCategory']) || '').toLowerCase();
-                
-                workloadData[id] = { 
-                    name: window.getSafeVal(l, ['LecturerName', 'FullName']), 
-                    wch: 0, target: window.getDefaultTarget(l), 
-                    isPartTime: typeStr.includes('part') || typeStr === 'pt' || typeStr.includes('visiting'), 
-                    isResearch: focusStr.includes('research') || focusStr === 'res',
-                    fac: fac 
-                };
-            });
-
-            seenCombinedCodes.clear();
-            localDB.modules.forEach(m => {
-                const mCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
-                const assignment = localDB.assignments[mCode] || { id: '', mode: 'Individual' };
-                let wch = parseFloat(window.getSafeVal(m, ['WCH', 'WeeklyContactHours', 'Credit', 'Hours'])) || 0;
-
-                if (assignment.id && assignment.id !== '') {
-                    if (assignment.mode === 'Combined') {
-                        if (seenCombinedCodes.has(mCode)) wch = 0; else seenCombinedCodes.add(mCode);
-                    }
-                    if (workloadData[assignment.id]) workloadData[assignment.id].wch += wch;
-                }
-            });
-
-            let idleCount = 0, ftOverCount = 0;
-            Object.values(workloadData).forEach(data => {
-                if (viewFilter !== 'ALL' && !String(data.fac).includes(viewFilter)) return;
-                if (data.isPartTime) focusStats["Part-Time"] += data.wch;
-                else { if (data.isResearch) focusStats["Research"] += data.wch; else focusStats["Teaching"] += data.wch; }
-
-                if (data.wch === 0) idleCount++; 
-                else if (!data.isPartTime && data.wch > data.target) ftOverCount++; 
-            });
-
-            if(document.getElementById('hdr-unassigned')) document.getElementById('hdr-unassigned').innerText = unassignedCount;
-            if(document.getElementById('hdr-idle')) document.getElementById('hdr-idle').innerText = idleCount;
-            if(document.getElementById('hdr-overload')) document.getElementById('hdr-overload').innerText = ftOverCount;
-            
-            // --- CHARTS GENERATION ---
-            if (charts.faculty) charts.faculty.destroy();
-            if (charts.focus) charts.focus.destroy();
-            if (charts.assignmentDetails) charts.assignmentDetails.destroy();
-            if (charts.taskComp) charts.taskComp.destroy();
-            if (charts.facDil) charts.facDil.destroy();
-            if (charts.ttPie) charts.ttPie.destroy();
-            if (charts.taskTabComp) charts.taskTabComp.destroy();
-            if (charts.taskTabFac) charts.taskTabFac.destroy();
-            
-            if(document.getElementById('facultyChart')) {
-                charts.faculty = new Chart(document.getElementById('facultyChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: displayFaculties,
-                        datasets: [
-                            { label: 'Unassigned', backgroundColor: '#dc2626', data: displayFaculties.map(f => facStats[f]?.unassigned || 0) },
-                            { label: 'Part-Time', backgroundColor: '#d4af37', data: displayFaculties.map(f => facStats[f]?.pt || 0) },
-                            { label: 'Full-Time', backgroundColor: '#004d40', data: displayFaculties.map(f => facStats[f]?.ft || 0) }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }, plugins: { legend: { position: 'top' } } }
-                });
-            }
-
-            if(document.getElementById('focusChart')) {
-                charts.focus = new Chart(document.getElementById('focusChart'), {
-                    type: 'doughnut',
-                    data: { labels: ['Teaching', 'Research', 'Part-Time'], datasets: [{ data: [focusStats["Teaching"], focusStats["Research"], focusStats["Part-Time"]], backgroundColor: ['#0d47a1', '#4a148c', '#d4af37'] }] },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-            }
-            
-            if(document.getElementById('assignmentDetailsChart')) {
-                charts.assignmentDetails = new Chart(document.getElementById('assignmentDetailsChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: displayFaculties,
-                        datasets: [
-                            { label: 'FT (Same Fac)', backgroundColor: '#0d47a1', data: displayFaculties.map(f => facDetailedStats[f]?.ftSameWch || 0) },
-                            { label: 'PT (Same Fac)', backgroundColor: '#4a148c', data: displayFaculties.map(f => facDetailedStats[f]?.ptSameWch || 0) },
-                            { label: 'Cross-Assigned', backgroundColor: '#004d40', data: displayFaculties.map(f => facDetailedStats[f]?.otherFacWch || 0) }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } }, plugins: { tooltip: { mode: 'index', intersect: false } } }
-                });
-            }
-
-            // Generate Faculty Summary Cards (Royal Spin Animation)
-            let cardsHtml = '';
-            displayFaculties.forEach((f, idx) => {
-                if (!facDetailedStats[f]) return;
-                const stats = facDetailedStats[f];
-                if(stats.offered > 0) {
-                    cardsHtml += `
-                        <div class="royal-spin-card" onclick="window.showFacultyDetails('${f}')" title="Click to filter by ${f}">
-                            <div class="royal-spin-inner">
-                                <div class="absolute -right-4 -top-4 opacity-10 text-6xl">🏛️</div>
-                                <h4 class="text-[11px] md:text-xs font-black mb-2 border-b border-white/30 pb-1 tracking-widest uppercase">${f}</h4>
-                                <div class="grid grid-cols-1 gap-1.5 text-[10px] md:text-[11px] font-bold">
-                                    <div class="flex justify-between items-center"><span class="opacity-80">Offered Modules:</span> <span class="bg-white/20 px-1.5 rounded">${stats.offered}</span></div>
-                                    <div class="flex justify-between items-center text-green-300"><span class="opacity-80">Assigned:</span> <span class="bg-black/20 px-1.5 rounded">${stats.assigned}</span></div>
-                                    <div class="flex justify-between items-center text-red-300"><span class="opacity-80">Unassigned:</span> <span class="bg-black/20 px-1.5 rounded">${stats.unassigned}</span></div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-            });
-            const cardsContainer = document.getElementById('faculty-cards-container');
-            if(cardsContainer) cardsContainer.innerHTML = cardsHtml || '<p class="text-[10px] text-gray-500 italic col-span-full">No module data available to generate cards.</p>';
-
-            // Generate Faculty Workload Summary Table
-            let facSummaryHtml = `
-            <div class="bg-white rounded-lg shadow-md border-t-8 border-[#004d40] overflow-hidden mb-6">
-                <div class="p-4 border-b border-gray-200">
-                    <h3 class="text-sm font-black uppercase text-gray-800 tracking-wide">FACULTY WORKLOAD SUMMARY (PERIODS)</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-xs">
-                        <thead class="bg-[#f8fafc] text-gray-600 uppercase font-black text-[10px]">
-                            <tr>
-                                <th class="p-4 py-3 border-b">FACULTY</th>
-                                <th class="p-4 py-3 border-b text-center">TOTAL PERIODS</th>
-                                <th class="p-4 py-3 border-b text-center text-green-600">ASSIGNED</th>
-                                <th class="p-4 py-3 border-b text-center text-red-600">UNASSIGNED</th>
-                                <th class="p-4 py-3 border-b text-center">% ASSIGNED</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y border-b font-bold text-gray-700">
-            `;
-            let grandTotal = 0, grandAssigned = 0, grandUnassigned = 0;
-
-            displayFaculties.forEach(f => {
-                if (!facStats[f]) return;
-                let fTotalWCH = facStats[f].unassigned + facStats[f].pt + facStats[f].ft;
-                let fAssignedWCH = facStats[f].pt + facStats[f].ft;
-                let fUnassignedWCH = facStats[f].unassigned;
-
-                if(fTotalWCH > 0) { 
-                    let pct = Math.round((fAssignedWCH / fTotalWCH) * 100);
-                    grandTotal += fTotalWCH;
-                    grandAssigned += fAssignedWCH;
-                    grandUnassigned += fUnassignedWCH;
-
-                    facSummaryHtml += `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 py-3 text-gray-800">${f}</td>
-                        <td class="p-4 py-3 text-center text-gray-800">${fTotalWCH.toFixed(1)}</td>
-                        <td class="p-4 py-3 text-center text-green-600">${fAssignedWCH.toFixed(1)}</td>
-                        <td class="p-4 py-3 text-center text-red-600">${fUnassignedWCH.toFixed(1)}</td>
-                        <td class="p-4 py-3 text-center text-gray-600">${pct}%</td>
-                    </tr>
-                    `;
-                }
-            });
-
-            let grandPct = grandTotal > 0 ? Math.round((grandAssigned/grandTotal)*100) : 0;
-            facSummaryHtml += `
-                        </tbody>
-                        <tfoot class="bg-[#f8fafc] font-black text-xs text-gray-800">
-                            <tr>
-                                <td class="p-4 py-3">UNIVERSITY TOTAL</td>
-                                <td class="p-4 py-3 text-center">${grandTotal.toFixed(1)}</td>
-                                <td class="p-4 py-3 text-center text-green-700">${grandAssigned.toFixed(1)}</td>
-                                <td class="p-4 py-3 text-center text-red-700">${grandUnassigned.toFixed(1)}</td>
-                                <td class="p-4 py-3 text-center">${grandPct}%</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-            `;
-            const summaryContainer = document.getElementById('summary-table-container');
-            if (summaryContainer) summaryContainer.innerHTML = facSummaryHtml;
-
-            // Task Analytics
-            let taskCompleted = 0, taskPending = 0;
-            let facTaskStats = {};
-            FACULTIES.forEach(f => facTaskStats[f] = { totalTasks: 0, completedTasks: 0 });
-
-            localDB.tasks.forEach(t => {
-                t.assignees.forEach(aId => {
-                    const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === aId);
-                    if(lect) {
-                        const fac = window.getFaculty(lect);
-                        if(facTaskStats[fac]) facTaskStats[fac].totalTasks++;
-                        
-                        let pct = 0;
-                        if(t.subtasks && t.subtasks.length > 0) {
-                            t.subtasks.forEach(st => { if(st.completedBy.includes(aId)) pct += st.pct; });
-                        } else if (t.completedBy && t.completedBy.includes(aId)) {
-                            pct = 100;
-                        }
-                        
-                        if(pct === 100) { taskCompleted++; if(facTaskStats[fac]) facTaskStats[fac].completedTasks++; }
-                        else { taskPending++; }
-                    }
-                });
-            });
-
-            const drawTaskPie = (canvasId, refObj) => {
-                const canvas = document.getElementById(canvasId);
-                if(canvas) {
-                    charts[refObj] = new Chart(canvas, {
-                        type: 'pie',
-                        data: { labels: ['Completed', 'Pending'], datasets: [{ data: [taskCompleted, taskPending], backgroundColor: ['#3b82f6', '#f59e0b'] }] },
-                        options: { responsive: true, maintainAspectRatio: false }
-                    });
-                }
-            };
-            drawTaskPie('taskCompletionChart', 'taskComp');
-            drawTaskPie('taskTabCompletionChart', 'taskTabComp');
-            
-            const drawFacDil = (canvasId, refObj) => {
-                const canvas = document.getElementById(canvasId);
-                if(canvas) {
-                    const facPercents = displayFaculties.map(f => facTaskStats[f]?.totalTasks > 0 ? Math.round((facTaskStats[f].completedTasks / facTaskStats[f].totalTasks)*100) : 0);
-                    charts[refObj] = new Chart(canvas, {
-                        type: 'bar',
-                        data: { labels: displayFaculties, datasets: [{ label: '% Tasks Completed', backgroundColor: '#8b5cf6', data: facPercents }] },
-                        options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } } }
-                    });
-                }
-            };
-            drawFacDil('facDiligentChart', 'facDil');
-            drawFacDil('taskTabFacDiligentChart', 'taskTabFac');
-
-            // Timetable Analytics
-            if(document.getElementById('ttProgressPieChart')) {
-                const totalSched = localDB.timetable.length;
-                const totalRequired = activeMods.length; 
-                charts.ttPie = new Chart(document.getElementById('ttProgressPieChart'), {
-                    type: 'pie',
-                    data: { labels: ['Scheduled Slots', 'Remaining Need (Est.)'], datasets: [{ data: [totalSched, Math.max(0, totalRequired - totalSched)], backgroundColor: ['#a855f7', '#e2e8f0'] }] },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-            }
-            
-            const ttCompList = document.getElementById('tt-prog-status-list');
-            if(ttCompList) {
-                let pListHtml = '';
-                const allProgs = [...new Set(window.getFilteredModules().map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
-                const compList = localDB.settings.completed_tts || [];
-                
-                allProgs.forEach(p => {
-                    const isCompClass = compList.includes(`CLASS_${p}`);
-                    const isCompExam = compList.includes(`EXAM_${p}`);
-                    pListHtml += `<div class="flex justify-between items-center bg-white p-2 rounded border border-gray-200">
-                        <span class="text-[9px] font-bold text-gray-700 w-1/2 truncate" title="${p}">${p}</span>
-                        <div class="flex gap-2">
-                            <span class="text-[8px] font-bold px-1.5 py-0.5 rounded ${isCompClass ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">Class TT: ${isCompClass ? 'Done' : 'Pending'}</span>
-                            <span class="text-[8px] font-bold px-1.5 py-0.5 rounded ${isCompExam ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">Exam TT: ${isCompExam ? 'Done' : 'Pending'}</span>
-                        </div>
-                    </div>`;
-                });
-                ttCompList.innerHTML = pListHtml || '<p class="text-[10px] text-gray-500 italic text-center p-4">No programs available.</p>';
-            }
-
-            // Render Coord Cards 
-            let submittedCoordHtml = '';
-            let pendingCoordHtml = '';
-            let coordDataFacs = {};
-            FACULTIES.forEach(f => coordDataFacs[f] = { total: 0, submitted: 0 });
-
-            localDB.coordinators.forEach(c => {
-                const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === c.lectId);
-                const fac = window.getFaculty(lect);
-                const name = lect ? window.getSafeVal(lect, ['LecturerName']) : 'Unknown';
-                if(coordDataFacs[fac]) coordDataFacs[fac].total++;
-                const hasReport = localDB.coordination_reports.some(r => r.target === `${c.type}: ${c.item}`);
-                const cardItem = `<div class="p-2 border-b flex justify-between"><span><b>${name}</b> (${c.item})</span> <span class="text-gray-500">${fac}</span></div>`;
-                if(hasReport) { if(coordDataFacs[fac]) coordDataFacs[fac].submitted++; submittedCoordHtml += cardItem; } 
-                else { pendingCoordHtml += cardItem; }
-            });
-
-            const slist = document.getElementById('coord-submitted-list');
-            const plist = document.getElementById('coord-pending-list');
-            if(slist) slist.innerHTML = submittedCoordHtml || '<p class="p-2 italic">No submissions yet.</p>';
-            if(plist) plist.innerHTML = pendingCoordHtml || '<p class="p-2 italic">All caught up!</p>';
-
-            if(charts.coordPie) charts.coordPie.destroy();
-            if(charts.coordBar) charts.coordBar.destroy();
-            const totalC = localDB.coordinators.length;
-            const totalSub = localDB.coordination_reports.length; 
-            const totalPend = Math.max(0, totalC - totalSub);
-
-            if(document.getElementById('coordPieChart')) {
-                charts.coordPie = new Chart(document.getElementById('coordPieChart'), {
-                    type: 'pie',
-                    data: { labels: ['Submitted', 'Pending'], datasets: [{ data: [totalSub, totalPend], backgroundColor: ['#22c55e', '#ef4444'] }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
-                });
-            }
-
-            if(document.getElementById('coordBarChart')) {
-                charts.coordBar = new Chart(document.getElementById('coordBarChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: displayFaculties,
-                        datasets: [
-                            { label: 'Assigned Roles', backgroundColor: '#94a3b8', data: displayFaculties.map(f => coordDataFacs[f]?.total || 0) },
-                            { label: 'Submitted Reports', backgroundColor: '#ec4899', data: displayFaculties.map(f => coordDataFacs[f]?.submitted || 0) }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-            }
-
-            // Lecturer Cards
-            let htmlIdle = '', htmlFtUnder = '', htmlFtOver = '';
-            let htmlFtMet = '', htmlPtMet = '', htmlPtUnder = '';
-            
-            Object.values(workloadData).forEach(data => {
-                if (viewFilter !== 'ALL' && !String(data.fac).includes(viewFilter)) return;
-                const isIdle = data.wch === 0;
-                const typeBadge = `<span class="px-1.5 py-0.5 rounded text-[7px] font-bold text-white ${data.wch > data.target ? 'bg-purple-600' : (isIdle ? 'bg-orange-500' : 'bg-blue-500')}">${data.isPartTime ? 'PT' : 'FT'}</span>`;
-                const rwTag = `<span class="font-black text-[9px] bg-gray-200 px-1 rounded ml-1 text-gray-700">(RW: ${data.wch.toFixed(1)})</span>`;
-                
-                const listItem = `
-                    <div class="flex justify-between items-center py-1.5 border-b border-gray-200 hover:bg-gray-50 transition">
-                        <div class="pr-2">
-                            <span class="font-bold text-gray-800 break-words clickable-name" title="Click to view full workload slip" onclick="window.openHRView('${Object.keys(workloadData).find(key => workloadData[key] === data)}')">${data.name}</span> ${rwTag}<br>
-                            <span class="text-[8px] md:text-[9px] text-gray-500">${data.fac} | Target: ${data.target}h ${typeBadge}</span>
-                        </div>
-                        <span class="font-black text-sm ${data.wch > data.target ? 'text-purple-600' : (isIdle ? 'text-orange-500' : 'text-blue-600')}">${data.wch.toFixed(1)}</span>
+            allProgs.forEach(p => {
+                const isCompClass = compList.includes(`CLASS_${p}`);
+                const isCompExam = compList.includes(`EXAM_${p}`);
+                pListHtml += `<div class="flex justify-between items-center bg-white p-2 rounded border border-gray-200">
+                    <span class="text-[9px] font-bold text-gray-700 w-1/2 truncate" title="${p}">${p}</span>
+                    <div class="flex gap-2">
+                        <span class="text-[8px] font-bold px-1.5 py-0.5 rounded ${isCompClass ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">Class TT: ${isCompClass ? 'Done' : 'Pending'}</span>
+                        <span class="text-[8px] font-bold px-1.5 py-0.5 rounded ${isCompExam ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">Exam TT: ${isCompExam ? 'Done' : 'Pending'}</span>
                     </div>
-                `;
-                
-                if (isIdle) htmlIdle += listItem; 
-                else if (!data.isPartTime) {
-                    if (data.wch < data.target) htmlFtUnder += listItem; 
-                    else if (data.wch > data.target) htmlFtOver += listItem; 
-                    else htmlFtMet += listItem; 
-                } else { 
-                    if (data.wch < data.target) htmlPtUnder += listItem; 
-                    else htmlPtMet += listItem; 
-                }
+                </div>`;
             });
+            ttCompList.innerHTML = pListHtml || '<p class="text-[10px] text-gray-500 italic text-center p-4">No programs available.</p>';
+        }
 
-            if(document.getElementById('list-idle')) {
-                document.getElementById('list-idle').innerHTML = htmlIdle || '<p class="text-gray-400 p-2 text-[10px] italic">No idle lecturers.</p>';
-                document.getElementById('list-ft-under').innerHTML = htmlFtUnder || '<p class="text-gray-400 p-2 text-[10px] italic">No underloaded FT staff.</p>';
-                document.getElementById('list-ft-over').innerHTML = htmlFtOver || '<p class="text-gray-400 p-2 text-[10px] italic">No overloaded FT staff.</p>';
-                document.getElementById('list-ft-met').innerHTML = htmlFtMet || '<p class="text-gray-400 p-2 text-[10px] italic">No FT staff met target.</p>';
-                document.getElementById('list-pt-met').innerHTML = htmlPtMet || '<p class="text-gray-400 p-2 text-[10px] italic">No PT staff met target.</p>';
-                document.getElementById('list-pt-under').innerHTML = htmlPtUnder || '<p class="text-gray-400 p-2 text-[10px] italic">No underloaded PT staff.</p>';
+        // Render Coord Cards 
+        let submittedCoordHtml = '';
+        let pendingCoordHtml = '';
+        let coordDataFacs = {};
+        FACULTIES.forEach(f => coordDataFacs[f] = { total: 0, submitted: 0 });
+
+        localDB.coordinators.forEach(c => {
+            const lect = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === c.lectId);
+            const fac = window.getFaculty(lect);
+            const name = lect ? window.getSafeVal(lect, ['LecturerName']) : 'Unknown';
+            if(coordDataFacs[fac]) coordDataFacs[fac].total++;
+            const hasReport = localDB.coordination_reports.some(r => r.target === `${c.type}: ${c.item}`);
+            const cardItem = `<div class="p-2 border-b flex justify-between"><span><b>${name}</b> (${c.item})</span> <span class="text-gray-500">${fac}</span></div>`;
+            if(hasReport) { if(coordDataFacs[fac]) coordDataFacs[fac].submitted++; submittedCoordHtml += cardItem; } 
+            else { pendingCoordHtml += cardItem; }
+        });
+
+        const slist = document.getElementById('coord-submitted-list');
+        const plist = document.getElementById('coord-pending-list');
+        if(slist) slist.innerHTML = submittedCoordHtml || '<p class="p-2 italic">No submissions yet.</p>';
+        if(plist) plist.innerHTML = pendingCoordHtml || '<p class="p-2 italic">All caught up!</p>';
+
+        if(charts.coordPie) charts.coordPie.destroy();
+        if(charts.coordBar) charts.coordBar.destroy();
+        const totalC = localDB.coordinators.length;
+        const totalSub = localDB.coordination_reports.length; 
+        const totalPend = Math.max(0, totalC - totalSub);
+
+        if(document.getElementById('coordPieChart')) {
+            charts.coordPie = new Chart(document.getElementById('coordPieChart'), {
+                type: 'pie',
+                data: { labels: ['Submitted', 'Pending'], datasets: [{ data: [totalSub, totalPend], backgroundColor: ['#22c55e', '#ef4444'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+            });
+        }
+
+        if(document.getElementById('coordBarChart')) {
+            charts.coordBar = new Chart(document.getElementById('coordBarChart'), {
+                type: 'bar',
+                data: {
+                    labels: displayFaculties,
+                    datasets: [
+                        { label: 'Assigned Roles', backgroundColor: '#94a3b8', data: displayFaculties.map(f => coordDataFacs[f]?.total || 0) },
+                        { label: 'Submitted Reports', backgroundColor: '#ec4899', data: displayFaculties.map(f => coordDataFacs[f]?.submitted || 0) }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // Lecturer Cards
+        let htmlIdle = '', htmlFtUnder = '', htmlFtOver = '';
+        let htmlFtMet = '', htmlPtMet = '', htmlPtUnder = '';
+        
+        Object.values(workloadData).forEach(data => {
+            if (viewFilter !== 'ALL' && !String(data.fac).includes(viewFilter)) return;
+            const isIdle = data.wch === 0;
+            const typeBadge = `<span class="px-1.5 py-0.5 rounded text-[7px] font-bold text-white ${data.wch > data.target ? 'bg-purple-600' : (isIdle ? 'bg-orange-500' : 'bg-blue-500')}">${data.isPartTime ? 'PT' : 'FT'}</span>`;
+            const rwTag = `<span class="font-black text-[9px] bg-gray-200 px-1 rounded ml-1 text-gray-700">(RW: ${data.wch.toFixed(1)})</span>`;
+            
+            const listItem = `
+                <div class="flex justify-between items-center py-1.5 border-b border-gray-200 hover:bg-gray-50 transition">
+                    <div class="pr-2">
+                        <span class="font-bold text-gray-800 break-words clickable-name" title="Click to view full workload slip" onclick="window.openHRView('${Object.keys(workloadData).find(key => workloadData[key] === data)}')">${data.name}</span> ${rwTag}<br>
+                        <span class="text-[8px] md:text-[9px] text-gray-500">${data.fac} | Target: ${data.target}h ${typeBadge}</span>
+                    </div>
+                    <span class="font-black text-sm ${data.wch > data.target ? 'text-purple-600' : (isIdle ? 'text-orange-500' : 'text-blue-600')}">${data.wch.toFixed(1)}</span>
+                </div>
+            `;
+            
+            if (isIdle) htmlIdle += listItem; 
+            else if (!data.isPartTime) {
+                if (data.wch < data.target) htmlFtUnder += listItem; 
+                else if (data.wch > data.target) htmlFtOver += listItem; 
+                else htmlFtMet += listItem; 
+            } else { 
+                if (data.wch < data.target) htmlPtUnder += listItem; 
+                else htmlPtMet += listItem; 
             }
+        });
+
+        if(document.getElementById('list-idle')) {
+            document.getElementById('list-idle').innerHTML = htmlIdle || '<p class="text-gray-400 p-2 text-[10px] italic">No idle lecturers.</p>';
+            document.getElementById('list-ft-under').innerHTML = htmlFtUnder || '<p class="text-gray-400 p-2 text-[10px] italic">No underloaded FT staff.</p>';
+            document.getElementById('list-ft-over').innerHTML = htmlFtOver || '<p class="text-gray-400 p-2 text-[10px] italic">No overloaded FT staff.</p>';
+            document.getElementById('list-ft-met').innerHTML = htmlFtMet || '<p class="text-gray-400 p-2 text-[10px] italic">No FT staff met target.</p>';
+            document.getElementById('list-pt-met').innerHTML = htmlPtMet || '<p class="text-gray-400 p-2 text-[10px] italic">No PT staff met target.</p>';
+            document.getElementById('list-pt-under').innerHTML = htmlPtUnder || '<p class="text-gray-400 p-2 text-[10px] italic">No underloaded PT staff.</p>';
+        }
+    };
+
+    window.masterReset = () => {
+        if(confirm("DANGER: Wipes ALL local data. Proceed?")) {
+            localDB = { lecturers: [], modules: [], assignments: {}, timetable: [], exam_timetable: [], rooms: [], students: [], settings: { timeslots: localDB.settings.timeslots, roomList: localDB.settings.roomList, completed_tts: [] }, coordinators: [], coordination_reports: [], tasks: [], requests: [], exam_progress: {} };
+            window.saveLocal(true);
+            location.reload();
+        }
+    };
+
+    window.printMasterReport = (type) => {
+        const thead = document.getElementById('print-table-head');
+        const tbody = document.getElementById('print-table-body');
+        const subtitle = document.getElementById('print-report-subtitle');
+        const filterInfo = document.getElementById('print-filter-info');
+        const dateSpan = document.getElementById('print-date');
+        
+        document.getElementById('print-content-custom').innerHTML = '';
+
+        dateSpan.innerText = new Date().toLocaleString();
+        
+        let badgesHtml = '';
+        let rowsHtml = '';
+        const addBadge = (label, val) => {
+            if(val && val !== '' && val !== 'ALL') badgesHtml += `<span class="print-filter-badge">${label}: <b>${val}</b></span>`;
         };
 
-        window.masterReset = () => {
-            if(confirm("DANGER: Wipes ALL local data. Proceed?")) {
-                localDB = { lecturers: [], modules: [], assignments: {}, timetable: [], exam_timetable: [], rooms: [], students: [], settings: { timeslots: localDB.settings.timeslots, roomList: localDB.settings.roomList, completed_tts: [] }, coordinators: [], coordination_reports: [], tasks: [], requests: [], exam_progress: {} };
-                window.saveLocal(true);
-                location.reload();
-            }
-        };
-
-        window.printMasterReport = (type) => {
-            const thead = document.getElementById('print-table-head');
-            const tbody = document.getElementById('print-table-body');
-            const subtitle = document.getElementById('print-report-subtitle');
-            const filterInfo = document.getElementById('print-filter-info');
-            const dateSpan = document.getElementById('print-date');
+        if (type === 'lecturers') {
+            subtitle.innerText = "Lecturers Master Data Inquiry";
+            const data = window.getFilteredLecturers();
             
-            document.getElementById('print-content-custom').innerHTML = '';
-
-            dateSpan.innerText = new Date().toLocaleString();
+            addBadge("Faculty View", document.getElementById('facView')?.value);
+            addBadge("Search", document.getElementById('lectSearch').value);
+            addBadge("Filter Faculty", document.getElementById('lect-filter-fac').value);
+            addBadge("Category", document.getElementById('lect-filter-cat').value);
+            addBadge("Type", document.getElementById('lect-filter-type').value);
             
-            let badgesHtml = '';
-            let rowsHtml = '';
-            const addBadge = (label, val) => {
-                if(val && val !== '' && val !== 'ALL') badgesHtml += `<span class="print-filter-badge">${label}: <b>${val}</b></span>`;
-            };
+            thead.innerHTML = `<tr><th>Faculty</th><th>ID</th><th>Name</th><th>Category</th><th>Type</th><th>Mobile</th></tr>`;
+            data.forEach(l => { rowsHtml += `<tr><td>${window.getFaculty(l)}</td><td>${window.getSafeVal(l, ['LecturerID', 'NationalID'])}</td><td>${window.getSafeVal(l, ['LecturerName', 'FullName'])}</td><td>${window.getSafeVal(l, ['LecturerCategory', 'Category'])}</td><td>${window.getSafeVal(l, ['LecturerType', 'Type'])}</td><td>${window.getSafeVal(l, ['MobileNumber', 'Mobile', 'Phone']) || '-'}</td></tr>`; });
+        } else if (type === 'modules') {
+            subtitle.innerText = "Modules Master Data Inquiry";
+            const data = window.getFilteredModules();
+            addBadge("Faculty View", document.getElementById('facView')?.value);
+            addBadge("Search", document.getElementById('modSearch').value);
+            
+            thead.innerHTML = `<tr><th>Faculty</th><th>Code</th><th>Name</th><th>Program</th><th>Batch</th><th>Campus</th><th>Modality</th><th>WCH</th></tr>`;
+            data.forEach(m => { rowsHtml += `<tr><td>${window.getFaculty(m)}</td><td>${window.getSafeVal(m, ['ModuleCode'])}</td><td>${window.getSafeVal(m, ['ModuleName', 'ModuleTitle'])}</td><td>${window.getSafeVal(m, ['ProgramName'])}</td><td>${window.getSafeVal(m, ['OfferedBatch'])}</td><td>${window.getSafeCampus(m)}</td><td>${window.getSafeVal(m, ['Modality'])}</td><td>${window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']) || 0}</td></tr>`; });
+        } else if (type === 'students') {
+            subtitle.innerText = "Students Master Data Inquiry";
+            const data = localDB.students; 
+            addBadge("Search", document.getElementById('stuSearch').value);
+            
+            thead.innerHTML = `<tr><th>Student ID</th><th>Name</th><th>Program</th><th>Semester</th><th>Batch</th><th>Mode</th></tr>`;
+            data.forEach(s => { rowsHtml += `<tr><td>${window.getSafeVal(s, ['StudentID', 'ID'])}</td><td>${window.getSafeVal(s, ['FullName', 'Name'])}</td><td>${window.getSafeVal(s, ['EnrolledProgram', 'Program'])}</td><td>${window.getSafeVal(s, ['Semester'])}</td><td>${window.getSafeVal(s, ['Batch'])}</td><td>${window.getSafeVal(s, ['StudyMode', 'Mode'])}</td></tr>`; });
+        } else if (type === 'timetable' || type === 'exam_timetable') {
+            
+            const isExam = type === 'exam_timetable';
+            subtitle.innerText = isExam ? "Master Exam Timetable Data" : "Master Class Timetable Data";
+            
+            const targetArray = isExam ? localDB.exam_timetable : localDB.timetable;
+            const fProg = document.getElementById(isExam ? 'exam-tt-export-prog' : 'tt-export-prog')?.value || 'ALL';
+            const fBatch = document.getElementById(isExam ? 'exam-tt-export-batch' : 'tt-export-batch')?.value || 'ALL';
+            
+            addBadge("Program", fProg);
+            addBadge("Batch", fBatch);
 
-            if (type === 'lecturers') {
-                subtitle.innerText = "Lecturers Master Data Inquiry";
-                const data = window.getFilteredLecturers();
-                
-                addBadge("Faculty View", document.getElementById('facView')?.value);
-                addBadge("Search", document.getElementById('lectSearch').value);
-                addBadge("Filter Faculty", document.getElementById('lect-filter-fac').value);
-                addBadge("Category", document.getElementById('lect-filter-cat').value);
-                addBadge("Type", document.getElementById('lect-filter-type').value);
-                
-                thead.innerHTML = `<tr><th>Faculty</th><th>ID</th><th>Name</th><th>Category</th><th>Type</th><th>Mobile</th></tr>`;
-                data.forEach(l => { rowsHtml += `<tr><td>${window.getFaculty(l)}</td><td>${window.getSafeVal(l, ['LecturerID', 'NationalID'])}</td><td>${window.getSafeVal(l, ['LecturerName', 'FullName'])}</td><td>${window.getSafeVal(l, ['LecturerCategory', 'Category'])}</td><td>${window.getSafeVal(l, ['LecturerType', 'Type'])}</td><td>${window.getSafeVal(l, ['MobileNumber', 'Mobile', 'Phone']) || '-'}</td></tr>`; });
-            } else if (type === 'modules') {
-                subtitle.innerText = "Modules Master Data Inquiry";
-                const data = window.getFilteredModules();
-                addBadge("Faculty View", document.getElementById('facView')?.value);
-                addBadge("Search", document.getElementById('modSearch').value);
-                
-                thead.innerHTML = `<tr><th>Faculty</th><th>Code</th><th>Name</th><th>Program</th><th>Batch</th><th>Campus</th><th>Modality</th><th>WCH</th></tr>`;
-                data.forEach(m => { rowsHtml += `<tr><td>${window.getFaculty(m)}</td><td>${window.getSafeVal(m, ['ModuleCode'])}</td><td>${window.getSafeVal(m, ['ModuleName', 'ModuleTitle'])}</td><td>${window.getSafeVal(m, ['ProgramName'])}</td><td>${window.getSafeVal(m, ['OfferedBatch'])}</td><td>${window.getSafeCampus(m)}</td><td>${window.getSafeVal(m, ['Modality'])}</td><td>${window.getSafeVal(m, ['WeeklyContactHours', 'WCH', 'Credit', 'Hours']) || 0}</td></tr>`; });
-            } else if (type === 'students') {
-                subtitle.innerText = "Students Master Data Inquiry";
-                const data = localDB.students; 
-                addBadge("Search", document.getElementById('stuSearch').value);
-                
-                thead.innerHTML = `<tr><th>Student ID</th><th>Name</th><th>Program</th><th>Semester</th><th>Batch</th><th>Mode</th></tr>`;
-                data.forEach(s => { rowsHtml += `<tr><td>${window.getSafeVal(s, ['StudentID', 'ID'])}</td><td>${window.getSafeVal(s, ['FullName', 'Name'])}</td><td>${window.getSafeVal(s, ['EnrolledProgram', 'Program'])}</td><td>${window.getSafeVal(s, ['Semester'])}</td><td>${window.getSafeVal(s, ['Batch'])}</td><td>${window.getSafeVal(s, ['StudyMode', 'Mode'])}</td></tr>`; });
-            } else if (type === 'timetable' || type === 'exam_timetable') {
-                
-                const isExam = type === 'exam_timetable';
-                subtitle.innerText = isExam ? "Master Exam Timetable Data" : "Master Class Timetable Data";
-                
-                const targetArray = isExam ? localDB.exam_timetable : localDB.timetable;
-                const fProg = document.getElementById(isExam ? 'exam-tt-export-prog' : 'tt-export-prog')?.value || 'ALL';
-                const fBatch = document.getElementById(isExam ? 'exam-tt-export-batch' : 'tt-export-batch')?.value || 'ALL';
-                
-                addBadge("Program", fProg);
-                addBadge("Batch", fBatch);
+            let filteredModules = window.getFilteredModules();
+            if(fProg !== 'ALL') filteredModules = filteredModules.filter(m => window.getSafeVal(m, ['ProgramName']) === fProg);
+            if(fBatch !== 'ALL') filteredModules = filteredModules.filter(m => window.getSafeVal(m, ['OfferedBatch']) === fBatch);
+            
+            const progs = [...new Set(filteredModules.map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
+            
+            let gridHtml = '';
 
-                let filteredModules = window.getFilteredModules();
-                if(fProg !== 'ALL') filteredModules = filteredModules.filter(m => window.getSafeVal(m, ['ProgramName']) === fProg);
-                if(fBatch !== 'ALL') filteredModules = filteredModules.filter(m => window.getSafeVal(m, ['OfferedBatch']) === fBatch);
+            if(isExam) {
+                gridHtml = `<table class="w-full border-collapse border-2 border-green-800 text-xs text-center mt-4">
+                    <thead class="bg-green-200"><tr><th class="border border-green-400 p-2">Date</th><th class="border border-green-400 p-2">Time Slot</th><th class="border border-green-400 p-2">Module Details</th><th class="border border-green-400 p-2">Venue</th></tr></thead><tbody>`;
                 
-                const progs = [...new Set(filteredModules.map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
+                let validEntries = targetArray.filter(t => progs.includes(t.program));
                 
-                let gridHtml = '';
-
-                if(isExam) {
-                    gridHtml = `<table class="w-full border-collapse border-2 border-green-800 text-xs text-center mt-4">
-                        <thead class="bg-green-200"><tr><th class="border border-green-400 p-2">Date</th><th class="border border-green-400 p-2">Time Slot</th><th class="border border-green-400 p-2">Module Details</th><th class="border border-green-400 p-2">Venue</th></tr></thead><tbody>`;
+                validEntries.sort((a,b) => new Date(a.day) - new Date(b.day) || a.tsIndex - b.tsIndex).forEach(t => {
+                    const ts = localDB.settings.timeslots[t.tsIndex];
+                    const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === t.modCode);
+                    const mName = m ? window.getSafeVal(m, ['ModuleName']) : '';
+                    const batch = m ? window.getSafeVal(m, ['OfferedBatch']) : '';
+                    const students = m ? window.getSafeVal(m, ['NoofStudents']) || 0 : 0;
                     
-                    let validEntries = targetArray.filter(t => progs.includes(t.program));
-                    
-                    validEntries.sort((a,b) => new Date(a.day) - new Date(b.day) || a.tsIndex - b.tsIndex).forEach(t => {
-                        const ts = localDB.settings.timeslots[t.tsIndex];
-                        const m = localDB.modules.find(mod => window.makeSafeId(window.getSafeVal(mod, ['ModuleCode'])) === t.modCode);
-                        const mName = m ? window.getSafeVal(m, ['ModuleName']) : '';
-                        const batch = m ? window.getSafeVal(m, ['OfferedBatch']) : '';
-                        const students = m ? window.getSafeVal(m, ['NoofStudents']) || 0 : 0;
-                        
-                        gridHtml += `<tr>
-                            <td class="border border-green-400 p-2 font-bold">${t.day}</td>
-                            <td class="border border-green-400 p-2">${ts.start} - ${ts.end}</td>
-                            <td class="border border-green-400 p-2 text-left">
-                                <b>${t.modCode}</b> - <span class="text-[9px] text-gray-600">${mName}</span><br>
-                                <span class="text-[8px] text-gray-500">${t.program} | ${batch} | 👥 ${students}</span>
-                            </td>
-                            <td class="border border-green-400 p-2 text-green-800 font-bold">${t.room}</td>
-                        </tr>`;
-                    });
-                    gridHtml += `</tbody></table>`;
-                    if(validEntries.length === 0) gridHtml = '<p class="text-center p-4 italic text-gray-500">No exam schedules found for this filter.</p>';
+                    gridHtml += `<tr>
+                        <td class="border border-green-400 p-2 font-bold">${t.day}</td>
+                        <td class="border border-green-400 p-2">${ts.start} - ${ts.end}</td>
+                        <td class="border border-green-400 p-2 text-left">
+                            <b>${t.modCode}</b> - <span class="text-[9px] text-gray-600">${mName}</span><br>
+                            <span class="text-[8px] text-gray-500">${t.program} | ${batch} | 👥 ${students}</span>
+                        </td>
+                        <td class="border border-green-400 p-2 text-green-800 font-bold">${t.room}</td>
+                    </tr>`;
+                });
+                gridHtml += `</tbody></table>`;
+                if(validEntries.length === 0) gridHtml = '<p class="text-center p-4 italic text-gray-500">No exam schedules found for this filter.</p>';
 
-                } else {
-                    gridHtml = `<table class="w-full border-collapse border-2 border-gray-800 text-xs text-center mt-4">
-                        <thead class="bg-gray-200"><tr><th class="border border-gray-400 p-2">Program</th>`;
-                    localDB.settings.timeslots.forEach(ts => gridHtml += `<th class="border border-gray-400 p-1">${ts.start}-${ts.end}</th>`);
-                    gridHtml += `</tr></thead><tbody>`;
+            } else {
+                gridHtml = `<table class="w-full border-collapse border-2 border-gray-800 text-xs text-center mt-4">
+                    <thead class="bg-gray-200"><tr><th class="border border-gray-400 p-2">Program</th>`;
+                localDB.settings.timeslots.forEach(ts => gridHtml += `<th class="border border-gray-400 p-1">${ts.start}-${ts.end}</th>`);
+                gridHtml += `</tr></thead><tbody>`;
 
-                    progs.forEach(p => {
-                        gridHtml += `<tr><td class="border border-gray-400 p-2 font-bold bg-gray-50 text-[10px] w-48">${p}</td>`;
-                        localDB.settings.timeslots.forEach((ts, idx) => {
-                            const entries = targetArray.filter(e => e.program === p && e.tsIndex == idx);
-                            let cellData = '';
-                            entries.forEach(e => {
-                                const lName = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === e.lectId)?.['Lecturer Name'] || 'TBA';
-                                cellData += `<div class="bg-blue-50 border border-blue-200 rounded p-1 mb-1 text-[8px] leading-tight">
-                                    <strong>${e.modCode}</strong><br>${lName}<br>Rm: ${e.room} <br>${e.day} <br>[${e.mode}]
-                                </div>`;
-                            });
-                            gridHtml += `<td class="border border-gray-400 p-1 align-top min-w-[80px]">${cellData}</td>`;
+                progs.forEach(p => {
+                    gridHtml += `<tr><td class="border border-gray-400 p-2 font-bold bg-gray-50 text-[10px] w-48">${p}</td>`;
+                    localDB.settings.timeslots.forEach((ts, idx) => {
+                        const entries = targetArray.filter(e => e.program === p && e.tsIndex == idx);
+                        let cellData = '';
+                        entries.forEach(e => {
+                            const lName = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === e.lectId)?.['Lecturer Name'] || 'TBA';
+                            cellData += `<div class="bg-blue-50 border border-blue-200 rounded p-1 mb-1 text-[8px] leading-tight">
+                                <strong>${e.modCode}</strong><br>${lName}<br>Rm: ${e.room} <br>${e.day} <br>[${e.mode}]
+                            </div>`;
                         });
-                        gridHtml += `</tr>`;
+                        gridHtml += `<td class="border border-gray-400 p-1 align-top min-w-[80px]">${cellData}</td>`;
                     });
-                    gridHtml += `</tbody></table>`;
-                    if(progs.length === 0) gridHtml = '<p class="text-center p-4 italic text-gray-500">No class schedules found for this filter.</p>';
-                }
-
-                document.getElementById('print-content-custom').innerHTML = gridHtml;
+                    gridHtml += `</tr>`;
+                });
+                gridHtml += `</tbody></table>`;
+                if(progs.length === 0) gridHtml = '<p class="text-center p-4 italic text-gray-500">No class schedules found for this filter.</p>';
             }
 
-            if(type !== 'timetable' && type !== 'exam_timetable') {
-                if(badgesHtml === '') badgesHtml = '<span class="print-filter-badge">Showing All Records</span>';
-                filterInfo.innerHTML = badgesHtml;
-                tbody.innerHTML = rowsHtml || '<tr><td colspan="10" class="text-center py-4">No records found for the applied filters.</td></tr>';
-            }
+            document.getElementById('print-content-custom').innerHTML = gridHtml;
+        }
 
-            document.title = `Official_Report_${type.toUpperCase()}_${new Date().getTime()}`;
-            document.body.classList.add('is-printing-master');
+        if(type !== 'timetable' && type !== 'exam_timetable') {
+            if(badgesHtml === '') badgesHtml = '<span class="print-filter-badge">Showing All Records</span>';
+            filterInfo.innerHTML = badgesHtml;
+            tbody.innerHTML = rowsHtml || '<tr><td colspan="10" class="text-center py-4">No records found for the applied filters.</td></tr>';
+        }
+
+        document.title = `Official_Report_${type.toUpperCase()}_${new Date().getTime()}`;
+        document.body.classList.add('is-printing-master');
+        
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('is-printing-master');
+            document.title = "Presidential Executive Workload Portal";
+            document.getElementById('print-content-custom').innerHTML = '';
+        }, 500);
+    };
+
+    window.exportAnalyticsPDF = async () => {
+        const btn = event.currentTarget;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="animate-spin inline-block mr-2">🔄</span> Generating...';
+        btn.disabled = true;
+
+        const element = document.getElementById('analytics-export-area');
+        
+        try {
+            const canvas = await html2canvas(element, { scale: 1.5, useCORS: true });
+            const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
             
-            setTimeout(() => {
-                window.print();
-                document.body.classList.remove('is-printing-master');
-                document.title = "Presidential Executive Workload Portal";
-                document.getElementById('print-content-custom').innerHTML = '';
-            }, 500);
-        };
+            const imgWidth = 210; 
+            const pageHeight = 297;  
+            const imgHeight = canvas.height * imgWidth / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
 
-        window.exportAnalyticsPDF = async () => {
-            const btn = event.currentTarget;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<span class="animate-spin inline-block mr-2">🔄</span> Generating...';
-            btn.disabled = true;
+            pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
 
-            const element = document.getElementById('analytics-export-area');
-            
-            try {
-                const canvas = await html2canvas(element, { scale: 1.5, useCORS: true });
-                const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-                
-                const imgWidth = 210; 
-                const pageHeight = 297;  
-                const imgHeight = canvas.height * imgWidth / canvas.width;
-                let heightLeft = imgHeight;
-                let position = 0;
-
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
                 pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
                 heightLeft -= pageHeight;
-
-                while (heightLeft >= 0) {
-                    position = heightLeft - imgHeight;
-                    pdf.addPage();
-                    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-                }
-
-                pdf.save(`Analytics_Dashboard_${new Date().toISOString().split('T')[0]}.pdf`);
-                window.showToast("Analytics Report Downloaded Successfully.", "success");
-            } catch (error) {
-                console.error(error);
-                window.showToast("Failed to generate PDF.", "error");
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
             }
-        };
 
-        window.showFacultyDetails = (facName) => {
-            document.getElementById('facView').value = facName;
-            window.triggerAllRenders();
-            document.getElementById('lecturer-lists-anchor').scrollIntoView({behavior: 'smooth'});
-        };
+            pdf.save(`Analytics_Dashboard_${new Date().toISOString().split('T')[0]}.pdf`);
+            window.showToast("Analytics Report Downloaded Successfully.", "success");
+        } catch (error) {
+            console.error(error);
+            window.showToast("Failed to generate PDF.", "error");
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    };
 
-    </script>
-    </body>
-    </html>
+    window.showFacultyDetails = (facName) => {
+        document.getElementById('facView').value = facName;
+        window.triggerAllRenders();
+        document.getElementById('lecturer-lists-anchor').scrollIntoView({behavior: 'smooth'});
+    };
+
+</script>
+</body>
+</html>
