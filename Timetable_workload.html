@@ -1491,7 +1491,7 @@
         }
     };
     
-    let charts = { faculty: null, focus: null, assignmentDetails: null, taskComp: null, facDil: null, examPie: null, examBar: null, ttPie: null, eventBar: null, eventPie: null, coordPie: null, coordBar: null, minfoPie: null, wrBar: null, wrPie: null }; 
+    let charts = { faculty: null, focus: null, assignmentDetails: null, taskComp: null, facDil: null, examPie: null, examBar: null, ttPie: null, eventBar: null, eventPie: null, coordPie: null, coordBar: null, minfoPie: null, wrBar: null, wrPie: null, lectWorkloadBar: null, lectWorkloadPie: null }; 
     let hrBarChartInstance = null;
     let hrPieChartInstance = null;
     let currentLecturerId = null;
@@ -1625,7 +1625,8 @@
                 }
             });
         } else {
-             Swal.fire({title: 'Edit Mode Locked', text: 'Editing feature is simulation only for this demo.', icon: 'info'});
+            // For edits, we trigger the 2FA modal instead of blocking
+            document.getElementById('m-2fa').style.display = 'flex';
         }
     };
 
@@ -2576,7 +2577,10 @@
             create: false, placeholder: "🔍 Search & Verify Identity...",
             options: opts, valueField: 'value', labelField: 'text', searchField: ['text']
         });
-        window.tsLect.on('change', val => { currentLecturerId = val; });
+        window.tsLect.on('change', val => { 
+            currentLecturerId = val; 
+            window.renderLecturerWorkspace();
+        });
     };
 
     window.populateStudentDropdown = () => {
@@ -3148,7 +3152,8 @@
     };
 
     window.populateTimetableDropdowns = () => {
-        const progs = [...new Set(window.getFilteredModules().map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
+        const progs = [...new Set(window.getFilteredModules().
+map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
         const pf1 = document.getElementById('tt-prog-filter');
         const pf2 = document.getElementById('exam-tt-prog-filter');
         let html = '<option value="">-- All Programs --</option>';
@@ -3257,7 +3262,7 @@
                         }
                     }
 
-                    const lName = e.lectId ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === e.lectId)?.['Lecturer Name'] || 'Unknown') : 'TBA';
+                    const lName = e.lectId ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === e.lectId)?.['LecturerName'] || 'Unknown') : 'TBA';
                     blocks += `<div class="assigned-block" title="${e.mode}">
                         <strong>${e.modCode}</strong><span>${lName}</span>
                         <span class="text-gray-500 font-bold mt-0.5">Rm: ${e.room}</span>
@@ -3348,7 +3353,7 @@
                     const students = m ? window.getSafeVal(m, ['NoofStudents']) || 0 : 0;
                     
                     const ass = localDB.assignments[e.modCode];
-                    const lName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['Lecturer Name'] || 'TBA') : 'TBA';
+                    const lName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['LecturerName'] || 'TBA') : 'TBA';
                     
                     blocks += `<div class="assigned-block border-green-400 bg-green-50" title="Invigilator: ${lName}">
                         <strong class="text-green-800">${e.modCode}</strong>
@@ -3762,6 +3767,62 @@
         `;
         const summaryContainer = document.getElementById('summary-table-container');
         if (summaryContainer) summaryContainer.innerHTML = facSummaryHtml;
+
+        // Render Task Completion Chart
+        if(charts.taskComp) charts.taskComp.destroy();
+        if(document.getElementById('taskCompletionChart')) {
+            charts.taskComp = new Chart(document.getElementById('taskCompletionChart'), {
+                type: 'bar',
+                data: { labels: ['Student Requests', 'Staff Requests', 'Overtime Approvals'], datasets: [{ label: 'Pending', data: [12, 5, 3], backgroundColor: '#f59e0b' }, { label: 'Resolved', data: [45, 18, 20], backgroundColor: '#10b981' }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+            });
+        }
+
+        // Render TT Completion Chart
+        let ttTotal = localDB.modules.length;
+        let ttAssigned = localDB.timetable.length;
+        let ttPct = ttTotal > 0 ? Math.round((ttAssigned / ttTotal) * 100) : 0;
+        if(ttPct > 100) ttPct = 100;
+        if(charts.ttPie) charts.ttPie.destroy();
+        if(document.getElementById('ttProgressPieChart')) {
+            charts.ttPie = new Chart(document.getElementById('ttProgressPieChart'), {
+                type: 'doughnut',
+                data: { labels: ['Scheduled', 'Unscheduled'], datasets: [{ data: [ttPct, 100-ttPct], backgroundColor: ['#8b5cf6', '#e2e8f0'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // Faculty Diligence
+        if(charts.facDil) charts.facDil.destroy();
+        if(document.getElementById('facDiligentChart')) {
+            charts.facDil = new Chart(document.getElementById('facDiligentChart'), {
+                type: 'bar',
+                data: { labels: ['KSL', 'KED', 'KEMS', 'KIRK'], datasets: [{ label: 'Avg Task Turnaround (Days)', data: [1.2, 2.5, 0.8, 3.1], backgroundColor: '#6366f1' }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        // Program TT Status List
+        const progStatusEl = document.getElementById('tt-prog-status-list');
+        if(progStatusEl) {
+            let pHtml = '';
+            const allProgs = [...new Set(localDB.modules.map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
+            allProgs.forEach(p => {
+                const isClassPub = localDB.settings.completed_tts && localDB.settings.completed_tts.includes(`CLASS_${p}`);
+                const isExamPub = localDB.settings.completed_tts && localDB.settings.completed_tts.includes(`EXAM_${p}`);
+                
+                pHtml += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border border-gray-100 text-[10px]">
+                    <span class="font-bold text-teal-800 w-1/2 truncate" title="${p}">${p}</span>
+                    <div class="flex gap-2">
+                        <span class="${isClassPub ? 'text-green-600 font-bold' : 'text-gray-400'}">CLASS: ${isClassPub ? '✅' : '⏳'}</span>
+                        <span class="${isExamPub ? 'text-green-600 font-bold' : 'text-gray-400'}">EXAM: ${isExamPub ? '✅' : '⏳'}</span>
+                    </div>
+                </div>`;
+            });
+            progStatusEl.innerHTML = pHtml || '<p class="text-xs text-gray-500 italic p-2">No programs defined.</p>';
+        }
+
+        window.renderTasksAndRequests();
     };
 
     window.masterReset = () => {
@@ -3873,7 +3934,7 @@
                         const entries = targetArray.filter(e => e.program === p && e.tsIndex == idx);
                         let cellData = '';
                         entries.forEach(e => {
-                            const lName = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === e.lectId)?.['Lecturer Name'] || 'TBA';
+                            const lName = localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === e.lectId)?.['LecturerName'] || 'TBA';
                             cellData += `<div class="bg-blue-50 border border-blue-200 rounded p-1 mb-1 text-[8px] leading-tight">
                                 <strong>${e.modCode}</strong><br>${lName}<br>Rm: ${e.room} <br>${e.day} <br>[${e.mode}]
                             </div>`;
@@ -3950,6 +4011,253 @@
         window.triggerAllRenders();
         document.getElementById('lecturer-lists-anchor').scrollIntoView({behavior: 'smooth'});
     };
+
+    // --- LECTURER SPECIFIC FUNCTIONS ---
+    window.renderLecturerWorkspace = () => {
+        if(!currentLecturerId) return;
+        const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === currentLecturerId);
+        if(!l) return;
+        
+        const fac = window.getFaculty(l);
+        document.getElementById('lecturer-workspace-name').innerText = `${window.getSafeVal(l, ['LecturerName'])} | ${fac}`;
+
+        let totalHrs = 0;
+        let myMods = [];
+        localDB.modules.forEach(m => {
+            const mCode = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+            if(localDB.assignments[mCode] && localDB.assignments[mCode].id === currentLecturerId) {
+                const wch = parseFloat(window.getSafeVal(m, ['WCH'])) || 0;
+                totalHrs += wch;
+                myMods.push({code: mCode, name: window.getSafeVal(m, ['ModuleName']), wch: wch});
+            }
+        });
+
+        const target = window.getDefaultTarget(l);
+        let pts = 0;
+        if(totalHrs > 0) {
+            pts = Math.min(500, Math.round((totalHrs / target) * 100)); 
+            if(totalHrs > target) pts += 50; 
+        }
+        document.getElementById('lecturer-points').innerText = `${pts} PTS`;
+        
+        let sClass = 's0';
+        if(pts > 100) sClass = 's1'; if(pts > 200) sClass = 's2';
+        if(pts > 300) sClass = 's3'; if(pts > 400) sClass = 's4';
+        if(pts > 450) sClass = 's5';
+        document.getElementById('lecturer-stars').className = `star-rating ${sClass}`;
+
+        if(charts.lectWorkloadBar) charts.lectWorkloadBar.destroy();
+        charts.lectWorkloadBar = new Chart(document.getElementById('lectWorkloadBar'), {
+            type: 'bar',
+            data: { labels: ['Hours'], datasets: [{label: 'My Load', data:[totalHrs], backgroundColor:'#0d47a1'}, {label: 'Target', data:[target], backgroundColor:'#cbd5e1'}] },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false }
+        });
+
+        if(charts.lectWorkloadPie) charts.lectWorkloadPie.destroy();
+        charts.lectWorkloadPie = new Chart(document.getElementById('lectWorkloadPie'), {
+            type: 'doughnut',
+            data: { labels: myMods.map(m=>m.code), datasets: [{data: myMods.map(m=>m.wch), backgroundColor: ['#0d47a1', '#004d40', '#d4af37', '#4a148c', '#f59e0b']}] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+
+        const reqSelect = document.getElementById('wr-mod-select');
+        if(reqSelect) {
+            let opts = '<option value="">-- Select Module --</option>';
+            myMods.forEach(m => opts += `<option value="${m.code}">${m.code} - ${m.name}</option>`);
+            reqSelect.innerHTML = opts;
+            if(myMods.length > 0) document.getElementById('btn-submit-weekly').style.display = 'flex';
+        }
+
+        renderLecturerTasks();
+    };
+
+    const renderLecturerTasks = () => {
+        const pendingArea = document.getElementById('lecturer-tasks-pending');
+        const reqArea = document.getElementById('lecturer-my-requests');
+        let pCount = 0;
+        let pHtml = '';
+        let rHtml = '';
+
+        localDB.requests.forEach(r => {
+            if(r.lectId === currentLecturerId) {
+                const isPending = r.status === 'Pending';
+                if(isPending) {
+                    pCount++;
+                    pHtml += `<div class="bg-white p-2 border border-red-200 rounded shadow-sm text-[10px]">
+                        <div class="flex justify-between font-bold text-red-700"><span>🚨 ${r.type}</span><span>${new Date(r.date).toLocaleDateString()}</span></div>
+                        <div class="mt-1 font-black">${r.title}</div>
+                        <div class="text-gray-500 mt-1">${r.status}</div>
+                    </div>`;
+                }
+                rHtml += `<div class="bg-white p-2 border rounded shadow-sm text-[10px] mb-1">
+                    <div class="flex justify-between font-bold text-gray-700"><span>${r.type}</span><span class="${isPending ? 'text-orange-500' : 'text-green-500'}">${r.status}</span></div>
+                    <div class="mt-1">${r.title}</div>
+                </div>`;
+            }
+        });
+
+        document.getElementById('lect-pending-count').innerText = pCount;
+        if(pCount > 0) document.getElementById('lect-reminder-banner').classList.remove('hidden');
+        else document.getElementById('lect-reminder-banner').classList.add('hidden');
+
+        pendingArea.innerHTML = pHtml || '<p class="text-[10px] text-gray-500 italic text-center p-4">No pending actions required. You are all caught up!</p>';
+        reqArea.innerHTML = rHtml || '<p class="text-[10px] text-gray-500 italic text-center">No requests submitted yet.</p>';
+    };
+
+    window.openRequestModal = () => document.getElementById('request-modal').style.display = 'flex';
+    window.closeRequestModal = () => document.getElementById('request-modal').style.display = 'none';
+
+    window.submitRequest = () => {
+        if(!currentLecturerId) return alert("Verify Identity First.");
+        const title = document.getElementById('req-title').value;
+        const details = document.getElementById('req-details').value;
+        if(!title || !details) return alert("Title and details are required.");
+
+        localDB.requests.push({
+            id: Math.random().toString(36).substr(2,9),
+            lectId: currentLecturerId,
+            type: document.getElementById('req-type').value,
+            targetRole: document.getElementById('req-target-role').value,
+            title: title,
+            details: details,
+            status: 'Pending',
+            date: new Date().toISOString()
+        });
+
+        window.saveLocal(true);
+        window.closeRequestModal();
+        window.showToast("Request Submitted to Admin", "success");
+        renderLecturerTasks();
+        window.triggerAllRenders();
+    };
+
+    window.openWeeklyModal = () => document.getElementById('weekly-report-modal').style.display = 'flex';
+    window.closeWeeklyModal = () => document.getElementById('weekly-report-modal').style.display = 'none';
+
+    window.submitWeeklyReport = () => {
+        if(!currentLecturerId) return alert("Verify Identity First.");
+        const mod = document.getElementById('wr-mod-select').value;
+        const date = document.getElementById('wr-date').value;
+        if(!mod || !date) return alert("Module and Date are required.");
+
+        localDB.weekly_reports.push({
+            id: Math.random().toString(36).substr(2,9),
+            lectId: currentLecturerId,
+            modCode: mod,
+            date: date,
+            sched: document.getElementById('wr-hrs-sched').value || 0,
+            taken: document.getElementById('wr-hrs-taken').value || 0,
+            can: document.getElementById('wr-hrs-can').value || 0,
+            reason: document.getElementById('wr-can-reason').value,
+            moodle: document.getElementById('wr-moodle').checked,
+            isims: document.getElementById('wr-isims').checked,
+            assign: document.getElementById('wr-assign').checked,
+            exam: document.getElementById('wr-exam').checked,
+            submittedAt: new Date().toISOString()
+        });
+
+        window.saveLocal(true);
+        window.closeWeeklyModal();
+        window.showToast("Weekly Report Submitted", "success");
+    };
+
+    window.renderTasksAndRequests = () => {
+        const stuArea = document.getElementById('admin-student-requests');
+        const staffArea = document.getElementById('admin-staff-requests');
+        if(!stuArea || !staffArea) return;
+
+        let sHtml = '', stHtml = '';
+        localDB.requests.forEach(r => {
+            if(r.status === 'Pending') {
+                const card = `<div class="bg-white p-3 rounded shadow-sm border border-l-4 border-l-red-500 mb-2">
+                    <div class="flex justify-between items-start text-xs font-bold mb-1">
+                        <span class="text-gray-800">${r.title}</span>
+                        <span class="text-gray-500 text-[9px]">${new Date(r.date).toLocaleDateString()}</span>
+                    </div>
+                    <div class="text-[10px] text-gray-600 mb-2">Type: ${r.type} | ID: ${r.lectId}</div>
+                    <div class="flex gap-2">
+                        <button onclick="window.resolveRequest('${r.id}')" class="bg-green-100 text-green-700 px-2 py-1 rounded text-[9px] font-bold hover:bg-green-200">✅ Mark Resolved</button>
+                        <button onclick="window.openGoogleChat('${r.lectId}')" class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[9px] font-bold hover:bg-blue-200">💬 Message</button>
+                    </div>
+                </div>`;
+                
+                // Simple logic: if lectId starts with 'S', it's likely a student
+                if(String(r.lectId).startsWith('S')) sHtml += card;
+                else stHtml += card;
+            }
+        });
+
+        stuArea.innerHTML = sHtml || '<p class="text-[10px] text-gray-500 italic text-center pt-10">No pending student requests.</p>';
+        staffArea.innerHTML = stHtml || '<p class="text-[10px] text-gray-500 italic text-center pt-10">No pending staff requests.</p>';
+    };
+
+    window.resolveRequest = (id) => {
+        const req = localDB.requests.find(r => r.id === id);
+        if(req) {
+            req.status = 'Resolved';
+            window.saveLocal(true);
+            window.renderTasksAndRequests();
+            if(currentLecturerId) window.renderLecturerTasks();
+            window.showToast("Request marked as resolved", "success");
+        }
+    };
+    
+    // 2FA Security logic placeholder
+    let current2faAction = null;
+    let current2faId = null;
+
+    window.init2FA = (actionType, id) => {
+        current2faAction = actionType;
+        current2faId = id;
+        
+        if(actionType.includes('delete')) {
+            document.getElementById('2fa-action-text').innerText = `DANGER: You are about to permanently delete ID: ${id}`;
+        } else {
+            document.getElementById('2fa-action-text').innerText = `Action: Edit Record ID: ${id}`;
+        }
+        
+        document.getElementById('2fa-code').value = '';
+        document.getElementById('m-2fa').style.display = 'flex';
+        // Simulate OTP sending
+        simulateEmail(activeRole, "Your Portal OTP", "Your One Time Password is: 123456");
+    };
+
+    window.confirm2FA = () => {
+        const code = document.getElementById('2fa-code').value;
+        if(code === '123456' || code === '000000') { // Default bypass codes for simulation
+            document.getElementById('m-2fa').style.display = 'none';
+            execute2faAction();
+        } else {
+            alert("Invalid OTP Code. Please check your email.");
+        }
+    };
+
+    function execute2faAction() {
+        if(!current2faAction || !current2faId) return;
+        
+        if(current2faAction === 'delete_lect') {
+            localDB.lecturers = localDB.lecturers.filter(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID', 'NationalID'])) !== current2faId);
+            for (let key in localDB.assignments) { if (localDB.assignments[key].id === current2faId) localDB.assignments[key].id = ''; }
+            window.saveLocal(true); window.triggerAllRenders();
+            window.showToast("Lecturer Deleted Successfully", "success");
+        } else if(current2faAction === 'delete_mod') {
+            localDB.modules = localDB.modules.filter(m => window.makeSafeId(window.getSafeVal(m, ['ModuleCode', 'Code'])) !== current2faId);
+            delete localDB.assignments[current2faId];
+            localDB.timetable = localDB.timetable.filter(t => t.modCode !== current2faId);
+            localDB.exam_timetable = localDB.exam_timetable.filter(t => t.modCode !== current2faId);
+            window.saveLocal(true); window.triggerAllRenders();
+            window.showToast("Module Deleted Successfully", "success");
+        } else if(current2faAction === 'delete_stu') {
+            localDB.students = localDB.students.filter(s => window.makeSafeId(window.getSafeVal(s, ['StudentID', 'ID'])) !== current2faId);
+            window.saveLocal(true); window.renderStudentsTab();
+            window.showToast("Student Deleted Successfully", "success");
+        } else if (current2faAction.includes('edit')) {
+            Swal.fire({title: 'Edit Mode Enabled', text: 'Edit functionality is simulated in this view.', icon: 'info'});
+        }
+        
+        current2faAction = null;
+        current2faId = null;
+    }
 
 </script>
 </body>
