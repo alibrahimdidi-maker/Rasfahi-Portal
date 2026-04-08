@@ -1,0 +1,2636 @@
+<!DOCTYPE html>
+<html lang="dv" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presidential Executive Workload & Timetable Portal</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
+    <script>
+        document.addEventListener('contextmenu', e => e.preventDefault()); 
+        document.addEventListener('keydown', e => {
+            if (e.key === 'F12') e.preventDefault();
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) e.preventDefault();
+            if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's' || e.key === 'P' || e.key === 'p')) e.preventDefault();
+        });
+        document.addEventListener('dragstart', e => { if(!e.target.classList.contains('draggable-mod')) e.preventDefault(); }); 
+        
+        window.addEventListener('beforeunload', (e) => {
+            if(window.pendingSync) {
+                e.preventDefault();
+                e.returnValue = "You have unsaved changes syncing to the cloud. Are you sure you want to leave?";
+            }
+        });
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;600;800&display=swap');
+        
+        :root { 
+            --royal-green: #004d40; 
+            --gold: #d4af37; 
+            --royal-blue: #0d47a1; 
+            --royal-purple: #4a148c; 
+            --bg-light: #f8fafc;
+            --text-dark: #1e293b;
+        }
+        
+        body { 
+            background: var(--bg-light); 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            overflow-x: hidden;
+            -webkit-user-select: none; 
+            -moz-user-select: none; 
+            -ms-user-select: none; 
+            user-select: none; 
+        }
+        
+        input, textarea, select, .ts-control, .ts-dropdown {
+            -webkit-user-select: auto; 
+            -moz-user-select: auto; 
+            -ms-user-select: auto; 
+            user-select: auto;
+        }
+
+        .clickable-name { cursor: pointer; transition: all 0.3s ease; position: relative; display: inline-block; }
+        .clickable-name:hover { color: var(--royal-blue); text-decoration: underline; text-decoration-color: var(--gold); text-decoration-thickness: 2px; text-underline-offset: 4px; transform: scale(1.02); background-color: #f0f9ff; padding: 0 4px; border-radius: 4px; }
+
+        .bg-gradient-royal { background: linear-gradient(135deg, var(--royal-green), var(--royal-blue), var(--royal-purple)); }
+        
+        .btn-gold { background: linear-gradient(45deg, #bf953f, #fcf6ba, #b38728); color: black; font-weight: 800; border: 1px solid rgba(0,0,0,0.1); transition: all 0.3s ease; cursor: pointer; }
+        .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+
+        .btn-royal-blue { background: linear-gradient(135deg, #0d47a1, #1976d2); color: white; box-shadow: 0 4px 15px rgba(13, 71, 161, 0.3); transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-royal-blue:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(13, 71, 161, 0.5); background: linear-gradient(135deg, #1565c0, #1e88e5); animation: royalShimmerBlue 1.5s infinite alternate; }
+
+        .btn-royal-green { background: linear-gradient(135deg, #004d40, #00695c); color: white; box-shadow: 0 4px 15px rgba(0, 77, 64, 0.3); transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-royal-green:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 77, 64, 0.5); background: linear-gradient(135deg, #00695c, #00796b); animation: royalShimmerGreen 1.5s infinite alternate; }
+
+        /* އައު ޑިޒައިން: ގަދަ ފެހި އަދި ގަދަ ނޫ މިކްސް، ރަތް ފޮންޓް */
+        .btn-mix-huru { 
+            background: linear-gradient(45deg, #004d00, #000080) !important; 
+            color: #ffcccc !important; 
+            font-weight: 800 !important; 
+            border: 2px solid rgba(212, 175, 55, 0.6) !important; 
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); 
+            transition: 0.3s; 
+            cursor: pointer; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .btn-mix-huru:hover { 
+            transform: scale(1.03); 
+            box-shadow: 0 5px 20px rgba(255,0,0,0.3); 
+            color: #ffffff !important;
+        }
+
+        .text-royal-gold { color: #d4af37 !important; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); }
+
+        @keyframes royalShimmerBlue { 0% { filter: drop-shadow(0 0 2px rgba(25, 118, 210, 0.5)); } 100% { filter: drop-shadow(0 0 10px rgba(25, 118, 210, 0.9)); } }
+        @keyframes royalShimmerGreen { 0% { filter: drop-shadow(0 0 2px rgba(0, 105, 92, 0.5)); } 100% { filter: drop-shadow(0 0 10px rgba(0, 105, 92, 0.9)); } }
+        
+        .card { background: white; border-radius: 12px; border-top: 5px solid var(--royal-green); box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
+        
+        .royal-spin-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            background: #fff;
+            padding: 3px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s;
+        }
+        .royal-spin-card:hover {
+            transform: scale(1.05) translateY(-5px);
+            box-shadow: 0 20px 30px rgba(0,0,0,0.2);
+            z-index: 50;
+        }
+        .royal-spin-card::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(transparent, transparent, rgba(212, 175, 55, 0.9), var(--royal-blue), transparent 30%);
+            animation: rotate 3s linear infinite;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .royal-spin-card:hover::before { opacity: 1; }
+        .royal-spin-inner {
+            position: relative;
+            background: linear-gradient(145deg, #0d47a1, #1e3a8a);
+            border-radius: 14px;
+            height: 100%;
+            width: 100%;
+            z-index: 1;
+            padding: 1.25rem;
+            color: #d4af37;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+
+        .tab-btn { padding: 12px 16px; font-weight: 800; cursor: pointer; border-bottom: 4px solid transparent; color: #64748b; transition: 0.3s; white-space: nowrap; }
+        .tab-btn.active { border-bottom: 4px solid var(--royal-green); color: var(--royal-green); background-color: #f1f5f9; border-radius: 8px 8px 0 0; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; } 
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center; padding: 10px; }
+        .modal-content { background: white; width: 100%; max-width: 1100px; max-height: 95vh; overflow-y: auto; border-radius: 15px; border-top: 8px solid var(--royal-green); }
+        
+        .exam-toggle-btn { transition: all 0.2s; }
+        .exam-toggle-btn.active { background-color: #10b981; color: white; border-color: #059669; }
+        .exam-toggle-btn.pending { background-color: #f3f4f6; color: #9ca3af; border-color: #d1d5db; }
+        .exam-toggle-btn:hover { transform: scale(1.05); }
+
+        .pt-badge { background-color: var(--gold); color: black; box-shadow: 0 2px 4px rgba(212, 175, 55, 0.4); }
+
+        #report-frame { display: none; width: 210mm; min-height: 297mm; background: white; position: fixed; left: -9999px; box-sizing: border-box; padding: 0; }
+        .pdf-border-outer { border: 10px solid var(--royal-green); padding: 4px; box-sizing: border-box; height: 100%; width: 100%; background: white; }
+        .pdf-border-inner { border: 4px solid var(--royal-blue); padding: 15mm; box-sizing: border-box; height: 100%; width: 100%; background: white; }
+        
+        #master-print-frame { display: none; background: white; width: 100%; min-height: 100vh; position: absolute; top: 0; left: 0; z-index: 99999; padding: 20mm; box-sizing: border-box; }
+        .print-royal-header { text-align: center; border-bottom: 4px double var(--royal-green); padding-bottom: 15px; margin-bottom: 20px; }
+        .print-royal-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 900; color: var(--royal-green); text-transform: uppercase; letter-spacing: 2px; }
+        .print-royal-subtitle { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 800; color: var(--royal-blue); text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
+        .print-filter-badge { display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #334155; margin: 2px; }
+        .print-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        .print-table th, .print-table td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; }
+        .print-table th { background-color: #f8fafc; font-weight: bold; color: var(--royal-green); text-transform: uppercase; font-size: 9px; }
+        .print-table tr:nth-child(even) { background-color: #f8fafc; }
+
+        #loader { display: flex; position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 999999; flex-direction: column; align-items: center; justify-content: center; }
+        .pulse-green { height: 10px; width: 10px; background-color: #4ade80; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.7); } 70% { box-shadow: 0 0 0 6px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+        .pulse-orange { height: 10px; width: 10px; background-color: #f97316; border-radius: 50%; display: inline-block; animation: pulseOr 2s infinite; }
+        @keyframes pulseOr { 0% { box-shadow: 0 0 0 0 rgba(249,115,22,0.7); } 70% { box-shadow: 0 0 0 6px rgba(249,115,22,0); } 100% { box-shadow: 0 0 0 0 rgba(249,115,22,0); } }
+
+        .ts-control { border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.5rem; font-size: 0.75rem; background-color: white; }
+        .tom-select-assign .ts-control { padding: 0.25rem; font-size: 9px; min-height: 28px; }
+        .ts-dropdown { font-size: 10px; border-radius: 0.5rem; overflow: hidden; z-index: 9999; }
+        .ts-wrapper.disabled .ts-control { background-color: #f3f4f6; opacity: 0.7; cursor: not-allowed; }
+
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: #1e293b; color: #fff; padding: 14px 24px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideIn 0.3s ease-out forwards; display: flex; align-items: center; gap: 10px; min-width: 250px; pointer-events: auto; }
+        .toast.success { border-left: 5px solid #4ade80; }
+        .toast.warning { border-left: 5px solid #f97316; }
+        .toast.info { border-left: 5px solid #3b82f6; }
+        .toast.error { border-left: 5px solid #ef4444; }
+        
+        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateX(120%); } }
+
+        /* --- TIMETABLE EXCEL GRID STYLES --- */
+        .tt-grid-wrapper { display: flex; flex-direction: column; width: 100%; border: 2px solid #0f172a; background: white; overflow: auto; max-height: 65vh; position: relative; }
+        .tt-row { display: flex; min-width: max-content; border-bottom: 1px solid #cbd5e1; }
+        .tt-header-row { position: sticky; top: 0; z-index: 20; background: var(--royal-purple); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .tt-cell { flex: 0 0 120px; border-right: 1px solid #cbd5e1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60px; padding: 4px; background: white; position: relative; transition: 0.2s; }
+        .tt-header-cell { flex: 0 0 120px; border-right: 1px solid #6b21a8; display: flex; flex-direction: column; text-align: center; color: white; position: relative;}
+        .tt-time-top { font-weight: 900; font-size: 12px; padding: 4px; border-bottom: 1px solid #6b21a8; background: #581c87; }
+        .tt-time-bot { font-weight: 600; font-size: 10px; padding: 2px; color: #d8b4fe; background: #4c1d95; }
+        .tt-col-del { position: absolute; top: 2px; right: 2px; color: #fca5a5; font-size: 10px; cursor: pointer; display: none;}
+        .tt-header-cell:hover .tt-col-del { display: block; }
+        
+        .tt-cell-course { flex: 0 0 180px; background: var(--bg-light); position: sticky; left: 100px; z-index: 10; border-right: 3px solid #0f172a; font-weight: 900; font-size: 11px; text-transform: uppercase; color: var(--royal-green); justify-content: center; align-items: flex-start; padding-left: 10px; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
+        .tt-header-course { flex: 0 0 180px; background: #0f172a; color: #d4af37; position: sticky; left: 100px; z-index: 30; border-right: 3px solid #0f172a; justify-content: center; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* އައު ވެނިއު ކޮލަމް */
+        .tt-cell-venue { flex: 0 0 100px; background: #e2e8f0; position: sticky; left: 0; z-index: 15; border-right: 1px solid #cbd5e1; font-weight: bold; font-size: 10px; text-transform: uppercase; color: #1e293b; display: flex; justify-content: center; align-items: center; padding: 4px; border-bottom: 1px solid #cbd5e1; outline: none; transition: 0.3s;}
+        .tt-cell-venue:focus { background: #fff; border: 2px solid var(--gold); }
+        .tt-header-venue { flex: 0 0 100px; background: #1e293b; color: #fff; position: sticky; left: 0; z-index: 35; border-right: 1px solid #0f172a; display: flex; justify-content: center; align-items: center; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+        
+        .tt-cell.drag-over { background-color: #dbeafe; border: 2px dashed var(--royal-blue); }
+        .tt-cell.occupied { background-color: #f1f5f9; }
+        
+        .draggable-mod { background: white; border: 1px solid #94a3b8; border-left: 4px solid var(--royal-blue); padding: 8px; border-radius: 6px; font-size: 10px; cursor: grab; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: 0.2s; margin-bottom: 6px; }
+        .draggable-mod:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); transform: translateY(-1px); border-color: var(--royal-blue); }
+        .draggable-mod:active { cursor: grabbing; opacity: 0.8; }
+        
+        .assigned-block { background: linear-gradient(135deg, #e0e7ff, #c7d2fe); border: 1px solid #818cf8; border-radius: 6px; padding: 4px; font-size: 9px; width: 100%; height: 100%; box-shadow: inset 0 1px 0 rgba(255,255,255,0.5); display: flex; flex-direction: column; justify-content: center; text-align: center; position: relative; }
+        .assigned-block .del-btn { position: absolute; top: -6px; right: -6px; background: #ef4444; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; font-weight: bold; text-align: center; line-height: 14px; cursor: pointer; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 5;}
+        .assigned-block:hover .del-btn { display: block; }
+        .assigned-block strong { color: var(--royal-blue); font-size: 10px; }
+
+        /* Star Rating */
+        .star-rating { color: #d1d5db; font-size: 24px; letter-spacing: 2px; }
+        .star-rating.s1 { background: linear-gradient(90deg, #d4af37 20%, #d1d5db 20%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .star-rating.s2 { background: linear-gradient(90deg, #d4af37 40%, #d1d5db 40%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .star-rating.s3 { background: linear-gradient(90deg, #d4af37 60%, #d1d5db 60%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .star-rating.s4 { background: linear-gradient(90deg, #d4af37 80%, #d1d5db 80%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .star-rating.s5 { background: linear-gradient(90deg, #d4af37 100%, #d1d5db 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .royal-sheet-print { border: 4px double #d4af37; padding: 20px; background: #fffdf7; }
+        
+        .tp-table th, .tp-table td { border: 1px solid #cbd5e1; padding: 8px; text-align: center; }
+        .tp-table th { background-color: var(--royal-blue); color: white; font-weight: 600; }
+
+        @media print {
+            body.is-printing > :not(#report-frame) { display: none !important; }
+            body.is-printing { background: white; }
+            #report-frame { display: block !important; position: relative !important; left: 0 !important; top: 0 !important; width: 100% !important; margin: 0 !important; }
+            
+            body.is-printing-master > :not(#master-print-frame) { display: none !important; }
+            body.is-printing-master { background: white; }
+            #master-print-frame { display: block !important; }
+            #master-print-frame table { page-break-inside: auto; width: 100%; border-collapse: collapse; font-size: 10px;}
+            #master-print-frame th, #master-print-frame td { border: 1px solid #ccc; padding: 6px; }
+            #master-print-frame th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; }
+            .modal-overlay { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div id="loader" style="display: flex;">
+    <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-royal-green mb-4"></div>
+    <p class="font-bold text-royal-green uppercase tracking-widest text-sm text-center px-4" id="loader-text">Initializing System...</p>
+</div>
+
+<div id="login-screen" class="min-h-screen bg-gradient-royal flex flex-col items-center justify-center p-4 relative" style="display: none;">
+    <div class="absolute bottom-4 text-center opacity-50 hover:opacity-100 transition-opacity cursor-default z-10">
+        <p class="text-[9px] font-bold uppercase tracking-widest text-gold mb-0.5">Designed & Developed by</p>
+        <p class="text-xs font-black tracking-wider text-white mb-1">Ali Ibrahim Didi <span class="text-gray-300 font-bold text-[10px] tracking-normal">| +960 7791550</span></p>
+        <p class="text-[8px] font-bold text-gray-400 tracking-widest uppercase">Copyright © RASFAHI<br>Reg No: MED.03.IP.CR.26.EW5889</p>
+    </div>
+    
+    <div class="bg-white p-6 md:p-10 rounded-2xl shadow-2xl w-full max-w-md text-center border-t-8 border-gold">
+        <h1 class="text-2xl md:text-3xl font-black text-[#004d40] uppercase tracking-tighter mb-2">Workload Portal</h1>
+        <p class="text-[10px] md:text-xs text-gray-500 font-bold mb-8 uppercase tracking-widest">Authorized Access Only</p>
+        
+        <div class="space-y-4 text-left">
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Role (Auto-Detected)</label>
+                <select id="login-role" disabled class="w-full p-3 border-2 border-gray-200 bg-gray-50 rounded-lg font-bold text-sm outline-none text-gray-600 cursor-not-allowed"></select>
+                <p class="text-[8px] text-gray-400 mt-1">Role auto-selected based on email.</p>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Email Address</label>
+                <input type="email" id="login-email" class="w-full p-3 border-2 border-gray-200 rounded-lg font-bold text-sm outline-none focus:border-gold" placeholder="admin.ksl@domain.com" oninput="window.detectFacultyFromEmail()">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-600 uppercase">Password</label>
+                <input type="password" id="login-password" class="w-full p-3 border-2 border-gray-200 rounded-lg font-bold text-sm outline-none focus:border-gold" placeholder="••••••••">
+            </div>
+            <button onclick="window.handleLogin()" class="btn-mix-huru w-full py-4 rounded-xl mt-4 uppercase tracking-widest text-sm shadow-lg">Secure Login</button>
+        </div>
+    </div>
+</div>
+
+<div id="app-screen" style="display: none;">
+    <header class="bg-gradient-royal p-4 md:p-8 text-white text-center shadow-lg relative">
+        <div class="hidden md:block absolute top-4 left-6 text-left opacity-60 hover:opacity-100 transition-opacity cursor-default z-20">
+            <p class="text-[9px] font-bold uppercase tracking-widest text-gold mb-0.5">Designed & Developed by</p>
+            <p class="text-xs font-black tracking-wider text-white mb-1">Ali Ibrahim Didi <span class="text-gray-300 font-bold text-[10px] tracking-normal">| +960 7791550</span></p>
+            <div class="bg-black/30 inline-block px-2 py-0.5 rounded border border-white/10">
+                <p class="text-[8px] font-bold text-gray-300 tracking-widest uppercase">© RASFAHI (Reg No: MED.03.IP.CR.26.EW5889)</p>
+            </div>
+        </div>
+        <div class="absolute top-4 right-4 md:top-6 md:right-8 flex flex-col items-end gap-2 z-10">
+            <div id="sync-status" class="bg-white/20 px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 transition-all">
+                <span id="cloud-pulse" class="pulse-green"></span> 
+                <span id="cloud-txt">Connected</span> | 👤 <span id="user-badge" class="text-gold uppercase"></span>
+            </div>
+            <button onclick="window.handleLogout()" class="text-[10px] uppercase font-bold text-red-300 hover:text-white transition">Logout &rarr;</button>
+        </div>
+
+        <h1 class="text-xl md:text-4xl font-black uppercase tracking-tighter mb-4 mt-12 md:mt-0 text-gold">Executive Workload & Analytics</h1>
+        
+        <div id="header-stats" class="flex justify-center gap-2 md:gap-4 flex-wrap max-w-4xl mx-auto">
+            <div class="bg-red-600/90 px-3 py-2 md:px-4 md:py-2 rounded-xl shadow-inner flex items-center gap-2">
+                <span class="text-lg md:text-2xl">⚠️</span>
+                <div class="text-left"><p class="text-[8px] md:text-[9px] uppercase font-bold text-red-200">Unassigned</p><h3 id="hdr-unassigned" class="text-base md:text-xl font-black">0</h3></div>
+            </div>
+            <div class="bg-orange-500/90 px-3 py-2 md:px-4 md:py-2 rounded-xl shadow-inner flex items-center gap-2">
+                <span class="text-lg md:text-2xl">⏳</span>
+                <div class="text-left"><p class="text-[8px] md:text-[9px] uppercase font-bold text-orange-200">Idle Staff</p><h3 id="hdr-idle" class="text-base md:text-xl font-black">0</h3></div>
+            </div>
+            <div class="bg-purple-600/90 px-3 py-2 md:px-4 md:py-2 rounded-xl shadow-inner flex items-center gap-2">
+                <span class="text-lg md:text-2xl">📈</span>
+                <div class="text-left"><p class="text-[8px] md:text-[9px] uppercase font-bold text-purple-200">Overloaded</p><h3 id="hdr-overload" class="text-base md:text-xl font-black">0</h3></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-2 md:px-4 py-6 md:py-8">
+        
+        <div id="lecturer-dashboard" class="hidden card overflow-hidden shadow-xl mb-8 border-t-8 border-royal-blue">
+            <div class="bg-blue-50 p-6 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-blue-100">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-royal-blue rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-inner">👨‍🏫</div>
+                    <div>
+                        <h2 class="text-xl font-black text-royal-blue uppercase">Personal Workspace</h2>
+                        <p class="text-xs text-gray-600 font-bold" id="lecturer-workspace-name">Select Profile Below</p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2 w-full md:w-auto">
+                    <select id="lecturerSelectStandalone" class="w-full text-sm md:text-base cursor-pointer p-2 border rounded outline-none focus:border-royal-blue shadow-sm">
+                        <option value="">-- Verify & Select Your Identity --</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="lect-reminder-banner" class="hidden bg-red-100 text-red-800 p-3 text-center text-xs font-bold border-b border-red-200 shadow-sm transition">
+                <div class="flex items-center justify-center gap-2">
+                    <span class="text-lg animate-bounce">⚠️</span>
+                    <span>މުހިންމު ހަނދާންކޮށްދިނުމެއް: ބައެއް މަސައްކަތްތަކުގެ ސުންގަޑި ފަހަނައަޅައި ގޮސްފައިވާތީ، ވީހާވެސް އަވަހަކަށް ނިންމަވައިދެއްވުން އެދެމެވެ.</span>
+                </div>
+            </div>
+
+            <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 bg-white">
+                <div class="space-y-4">
+                    <button onclick="window.viewPersonalTimetable('lecturer')" class="btn-mix-huru w-full py-4 rounded-xl font-black uppercase text-xs shadow-md flex justify-center items-center gap-2">
+                        🗓️ Print My Timetable
+                    </button>
+                    <button onclick="window.viewPersonalExamTimetable('lecturer')" class="btn-mix-huru w-full py-4 rounded-xl font-black uppercase text-xs shadow-md flex justify-center items-center gap-2">
+                        📝 Print Exam Timetable
+                    </button>
+                    <button onclick="window.openRequestModal()" class="w-full py-4 rounded-xl font-black uppercase text-xs shadow-md bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 transition flex justify-center items-center gap-2">
+                        📩 Submit General Request
+                    </button>
+                    <button onclick="window.openWeeklyModal()" class="w-full py-4 rounded-xl font-black uppercase text-xs shadow-md bg-purple-50 border-2 border-purple-200 text-purple-800 hover:bg-purple-100 transition flex justify-center items-center gap-2" id="btn-submit-weekly" style="display:none;">
+                        📝 Submit Weekly Report
+                    </button>
+                    
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 border-b pb-1">Performance Rating</h3>
+                        <div class="flex items-center justify-between">
+                            <div id="lecturer-stars" class="star-rating s0">★★★★★</div>
+                            <h4 class="text-lg font-black text-gold" id="lecturer-points">0 PTS</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <h3 class="text-xs font-black text-royal-green uppercase mb-3 border-b border-gray-300 pb-2 flex justify-between">
+                                <span>Pending Tasks</span>
+                                <span class="text-[9px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full" id="lect-pending-count">0</span>
+                            </h3>
+                            <div id="lecturer-tasks-pending" class="space-y-3 max-h-48 overflow-y-auto pr-2"></div>
+                        </div>
+                        
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                            <h3 class="text-xs font-black text-royal-blue uppercase mb-3 border-b border-blue-300 pb-2">My Progress Overview</h3>
+                            <div class="h-48"><canvas id="lect-own-chart"></canvas></div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                        <h3 class="text-xs font-black text-yellow-800 uppercase mb-3 border-b border-yellow-300 pb-2">Pending Event Invitations</h3>
+                        <div id="lecturer-events-pending" class="space-y-3 max-h-48 overflow-y-auto pr-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="student-dashboard" class="hidden card p-8 md:p-12 text-center max-w-xl mx-auto border-t-8 border-gold shadow-xl mb-8">
+            <div class="text-4xl mb-4">🎓</div>
+            <h2 class="text-lg md:text-xl font-black text-[#004d40] uppercase tracking-wider mb-2">Student Portal</h2>
+            <p class="text-xs text-gray-500 mb-8 font-bold">Select your ID/Name to view your enrolled course timetables.</p>
+            <select id="studentSelectStandalone" class="w-full text-sm md:text-base cursor-pointer mb-4">
+                <option value="">-- Search & Select Your Name --</option>
+            </select>
+            <div class="flex flex-col md:flex-row gap-2 justify-center mb-4">
+                <button onclick="window.viewPersonalTimetable('student')" class="btn-mix-huru px-6 py-3 rounded-xl font-black uppercase text-xs w-full">🗓️ Class Timetable</button>
+                <button onclick="window.viewPersonalExamTimetable('student')" class="btn-mix-huru px-6 py-3 rounded-xl font-black uppercase text-xs w-full">📝 Exam Timetable</button>
+            </div>
+        </div>
+
+        <div id="main-dashboard-controls">
+            <div class="card p-4 md:p-5 mb-6 md:mb-8 bg-gray-50 flex flex-col xl:flex-row justify-between items-center gap-4 border-l-4 border-royal-blue shadow-sm">
+                <div class="flex flex-wrap justify-center gap-2 items-center">
+                    <button onclick="window.generateDummies('lect')" class="btn-gold px-3 py-1.5 rounded shadow text-[9px] md:text-[10px]">1. Sample Lecturers</button>
+                    <button onclick="window.generateDummies('mod')" class="btn-gold px-3 py-1.5 rounded shadow text-[9px] md:text-[10px]">2. Sample Modules</button>
+                    <button onclick="window.generateDummies('stu')" class="btn-gold px-3 py-1.5 rounded shadow text-[9px] md:text-[10px]">3. Sample Students</button>
+                    
+                    <label class="ml-2 text-[9px] md:text-[10px] font-bold bg-white border-2 border-dashed border-blue-400 text-blue-800 px-3 py-1.5 rounded cursor-pointer hover:bg-blue-50 transition">
+                        ☁️ UL LECTURERS <input type="file" accept=".csv" onchange="window.importData('lecturers', event)" class="hidden">
+                    </label>
+                    <label class="text-[9px] md:text-[10px] font-bold bg-white border-2 border-dashed border-purple-400 text-purple-800 px-3 py-1.5 rounded cursor-pointer hover:bg-purple-50 transition">
+                        ☁️ UL MODULES <input type="file" accept=".csv" onchange="window.importData('modules', event)" class="hidden">
+                    </label>
+                    <label class="text-[9px] md:text-[10px] font-bold bg-white border-2 border-dashed border-green-400 text-green-800 px-3 py-1.5 rounded cursor-pointer hover:bg-green-50 transition">
+                        ☁️ UL STUDENTS <input type="file" accept=".csv" onchange="window.importData('students', event)" class="hidden">
+                    </label>
+                </div>
+
+                <div class="flex flex-col gap-2 w-full xl:w-auto">
+                    <div class="flex gap-2 justify-center xl:justify-end">
+                        <button onclick="window.saveLocal(false)" class="btn-royal-blue px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2">💾 Save to Local</button>
+                        <button onclick="window.triggerCloudPushSync()" class="btn-royal-green px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2">☁️ Push Work to Cloud</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-controls" class="hidden card p-4 mb-6 bg-red-50 border-t-4 border-red-600 flex-col lg:flex-row justify-between items-center gap-4">
+                <div>
+                    <h3 class="font-black text-red-800 uppercase text-xs">Academic Affairs (Global Admin)</h3>
+                    <p class="text-[9px] text-red-600 font-bold">Full authorization enabled. Manage master imports or reset system.</p>
+                </div>
+                <div class="flex gap-2 flex-wrap justify-center items-center">
+                    <button onclick="window.masterReset()" class="bg-red-700 hover:bg-red-800 text-white font-bold px-4 py-2 rounded shadow text-[9px] transition uppercase ml-2">
+                        🚨 Master Reset System
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap justify-center border-b mb-4 md:mb-6 gap-2 overflow-x-auto px-2" id="main-tabs-container">
+                <div class="tab-btn active text-[9px] md:text-[10px]" onclick="window.switchTab('analytics')" id="tbtn-analytics">📊 Analytics</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('matrix')" id="tbtn-matrix">📋 Assignment Matrix</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('staff')" id="tbtn-staff">👨‍🏫 Staff Targets</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('timetable')" id="tbtn-timetable">🗓️ Timetable Manager</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('exam-tt')" id="tbtn-exam-tt">📝 Exam Timetable</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('tasks')" id="tbtn-tasks">✅ Tasks & Bulk Email</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('exam')" id="tbtn-exam">📑 Exam Unit Tracking</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('coordinators')" id="tbtn-coordinators">👨‍💼 Coordinators</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('events')" id="tbtn-events">🎉 Events</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('weekly')" id="tbtn-weekly">📝 Weekly Reports</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('research')" id="tbtn-research">🔬 Research Tracker</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('tp')" id="tbtn-tp">🏫 TP Observation</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('studata')" id="tbtn-studata">🎓 Students</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('lectdata')" id="tbtn-lectdata">👨‍💼 Lecturers</div>
+                <div class="tab-btn text-[9px] md:text-[10px]" onclick="window.switchTab('moddata')" id="tbtn-moddata">📚 Modules</div>
+            </div>
+
+            <div id="tab-analytics" class="tab-content active">
+                <div class="flex justify-between items-center mb-6 border-b pb-4">
+                    <div>
+                        <h2 class="text-xl font-black text-royal-green uppercase tracking-wider">Enterprise Analytics Dashboard</h2>
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Real-time faculty performance, workload, and tasks.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="facView" onchange="window.triggerAllRenders();" class="p-2 border rounded text-xs font-bold outline-none"></select>
+                        <button onclick="window.exportAnalyticsPDF()" class="btn-mix-huru px-4 py-2 rounded text-[10px] font-bold shadow-md flex items-center gap-2 transition hover:scale-105">
+                            📄 Download PDF
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="card p-4 border-l-4 border-l-royal-green text-center">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-gray-500">Total Modules</p>
+                        <h3 id="stat-total-mods" class="text-2xl font-black text-royal-green mt-1">0</h3>
+                    </div>
+                    <div class="card p-4 border-l-4 border-l-royal-blue text-center">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-gray-500">Total Staff</p>
+                        <h3 id="stat-total-staff" class="text-2xl font-black text-royal-blue mt-1">0</h3>
+                    </div>
+                    <div class="card p-4 border-l-4 border-l-green-500 text-center">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-gray-500">Overall Assigned %</p>
+                        <h3 id="stat-assigned-pct" class="text-2xl font-black text-green-600 mt-1">0%</h3>
+                    </div>
+                    <div class="card p-4 border-l-4 border-l-red-500 text-center">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-gray-500">Unassigned WCH</p>
+                        <h3 id="stat-unassigned-wch" class="text-2xl font-black text-red-600 mt-1">0</h3>
+                    </div>
+                </div>
+
+                <div id="analytics-export-area" class="bg-white p-2">
+                    
+                    <div class="card p-4 mb-6 border-t-4 border-royal-green">
+                        <h3 class="text-xs font-black uppercase text-royal-green mb-2 tracking-wide">FACULTY WIDE WORKLOAD (PERIODS)</h3>
+                        <div class="h-64 md:h-80"><canvas id="facultyChart"></canvas></div>
+                        <div id="faculty-quick-filters" class="flex flex-wrap justify-center gap-2 mt-4"></div>
+                    </div>
+
+                    <div class="mb-6 mt-6">
+                        <h3 class="text-xs font-black uppercase text-royal-blue mb-3 border-b-2 border-gray-200 pb-1">Faculty Module Assignment Analytics</h3>
+                        <div id="faculty-cards-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6"></div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                        <div class="card p-4">
+                            <h3 class="text-xs font-black uppercase text-royal-blue mb-2">Faculty Wide Academic Focus</h3>
+                            <div class="h-48 md:h-56"><canvas id="focusChart"></canvas></div>
+                        </div>
+                        <div class="card p-4">
+                            <h3 class="text-xs font-black uppercase text-royal-purple mb-2">Lecturer Deployment Source by Faculty</h3>
+                            <div class="h-48 md:h-56"><canvas id="assignmentDetailsChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div id="summary-table-container" class="mb-6"></div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                        <div class="card p-4 border-t-4 border-yellow-500">
+                            <h3 class="text-xs font-black uppercase text-gray-800 mb-2 tracking-wide">Tasks Completion Progress</h3>
+                            <div class="h-48"><canvas id="taskCompletionChart"></canvas></div>
+                        </div>
+                        <div class="card p-4 border-t-4 border-purple-500">
+                            <h3 class="text-xs font-black uppercase text-gray-800 mb-2 tracking-wide">Class Scheduling Progress (Overall)</h3>
+                            <div class="h-48"><canvas id="ttProgressPieChart"></canvas></div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                        <div class="card p-4 border-t-4 border-indigo-500">
+                            <h3 class="text-xs font-black uppercase text-indigo-900 mb-2 tracking-wide">Task Diligence by Faculty</h3>
+                            <div class="h-48"><canvas id="facDiligentChart"></canvas></div>
+                        </div>
+                        <div class="card p-4 border-t-4 border-teal-500">
+                            <h3 class="text-xs font-black uppercase text-teal-900 mb-2 tracking-wide">Program TT Completion Status</h3>
+                            <div id="tt-prog-status-list" class="max-h-48 overflow-y-auto space-y-1 mt-4 text-[10px]"></div>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xs font-black uppercase text-royal-blue mb-3 border-b-2 border-gray-200 pb-1 mt-8" id="lecturer-lists-anchor">Lecturer Workload Status Lists</h3>
+                    <p class="text-[9px] text-gray-500 mb-2 font-bold px-2">Hint: Click on any staff name below to instantly view and print their workload slip.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="card p-4 border-t-4 border-orange-500 bg-orange-50/30">
+                            <h3 class="text-[10px] font-black uppercase text-orange-600 mb-2 border-b pb-1">Idle Lecturers (0 Hrs)</h3>
+                            <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-idle"></div>
+                        </div>
+                        <div class="card p-4 border-t-4 border-blue-500 bg-blue-50/30">
+                            <h3 class="text-[10px] font-black uppercase text-blue-600 mb-2 border-b pb-1">FT Underloaded (< Target)</h3>
+                            <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-ft-under"></div>
+                        </div>
+                        <div class="card p-4 border-t-4 border-purple-600 bg-purple-50/30">
+                            <h3 class="text-[10px] font-black uppercase text-purple-700 mb-2 border-b pb-1">FT Overloaded (> Target)</h3>
+                            <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-ft-over"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="card p-4 border-t-4 border-green-500 bg-green-50/30">
+                            <h3 class="text-[10px] font-black uppercase text-green-700 mb-2 border-b pb-1">FT Load Met (== Target)</h3>
+                            <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-ft-met"></div>
+                        </div>
+                        <div class="card p-4 border-t-4 border-teal-500 bg-teal-50/30">
+                            <h3 class="text-[10px] font-black uppercase text-teal-700 mb-2 border-b pb-1">PT Load Met (>= Target)</h3>
+                            <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-pt-met"></div>
+                        </div>
+                        <div class="card p-4 border-t-4 border-yellow-500 bg-yellow-50/30">
+                            <h3 class="text-[10px] font-black uppercase text-yellow-700 mb-2 border-b pb-1">PT Underloaded (< Target)</h3>
+                            <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-pt-under"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-matrix" class="tab-content">
+                <div class="card p-4">
+                    <div class="flex justify-between gap-2 mb-4">
+                        <input type="text" id="mSearch" placeholder="Search Modules..." class="p-2 border rounded text-xs flex-1 outline-none" onkeyup="window.renderMatrix()">
+                    </div>
+                    <div class="overflow-x-auto max-h-[600px] pb-24">
+                        <table class="w-full text-left text-[10px] min-w-[800px]">
+                            <thead class="bg-royal-blue text-white sticky top-0">
+                                <tr>
+                                    <th class="p-2">Status</th><th class="p-2">Program</th><th class="p-2">Module</th>
+                                    <th class="p-2 text-center">WCH</th><th class="p-2">Faculty</th><th class="p-2 text-center w-[250px]">Assign Lecturer</th>
+                                    <th class="p-2">Sync Mode</th><th id="th-actions" class="p-2 text-center hidden">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="matrix-body" class="divide-y bg-white"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="tab-staff" class="tab-content">
+                <div class="card p-4">
+                    <h2 class="font-black text-royal-green uppercase text-xs mb-4">Staff Workload Targets</h2>
+                    <div class="bg-gray-50 p-3 rounded-lg border flex gap-2 mb-4">
+                        <select id="staff-filter-fac" onchange="window.renderStaffTargets()" class="p-2 border rounded text-xs flex-1 outline-none"></select>
+                        <select id="staff-filter-cat" onchange="window.renderStaffTargets()" class="p-2 border rounded text-xs flex-1 outline-none"></select>
+                        <select id="staff-filter-type" onchange="window.renderStaffTargets()" class="p-2 border rounded text-xs flex-1 outline-none"></select>
+                        <input type="text" id="staff-search" onkeyup="window.renderStaffTargets()" placeholder="Search Staff..." class="p-2 border rounded text-xs flex-1 outline-none">
+                    </div>
+                    <div class="overflow-x-auto max-h-[600px]">
+                        <table class="w-full text-left text-[10px] min-w-[800px]">
+                            <thead class="bg-gray-100 text-gray-600 uppercase">
+                                <tr>
+                                    <th class="p-2">Lecturer Name & ID</th><th class="p-2">Faculty</th><th class="p-2">Category & Type</th><th class="p-2 text-center">Assigned Target (Hrs)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staff-target-body" class="divide-y bg-white"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="tab-timetable" class="tab-content">
+                <div class="card overflow-hidden border-t-8 border-purple-800 flex flex-col h-[85vh]">
+                    <div class="p-3 bg-purple-50 border-b flex justify-between items-center gap-3 shrink-0">
+                        <div>
+                            <h2 class="font-black text-purple-900 uppercase text-lg">Class Timetable Builder</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.openTTSettingsModal('CLASS')" class="bg-white border border-purple-300 text-purple-800 px-3 py-1.5 rounded text-[10px] font-bold shadow-sm">⚙️ Setup</button>
+                            <select id="tt-day-select" onchange="window.renderTimetableGrid()" class="p-1.5 border-2 border-purple-400 rounded text-xs font-black text-purple-900 outline-none">
+                                <option value="Sunday">Sunday</option><option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option><option value="Saturday">Saturday</option>
+                            </select>
+                            <select id="tt-export-prog" class="p-1.5 border rounded text-[9px] outline-none"></select>
+                            <select id="tt-export-batch" class="p-1.5 border rounded text-[9px] outline-none"></select>
+                            <button onclick="window.printMasterReport('timetable')" class="btn-mix-huru px-4 py-1.5 rounded text-[10px]">🖨️ Export PDF</button>
+                        </div>
+                    </div>
+                    <div class="flex flex-1 overflow-hidden bg-gray-100">
+                        <div class="w-[280px] bg-white border-r flex flex-col shrink-0">
+                            <div class="p-3 border-b bg-gray-50 shrink-0">
+                                <select id="tt-prog-filter" onchange="window.renderTimetableModules(); window.renderTimetableGrid();" class="w-full p-2 border rounded text-xs mb-2 outline-none focus:border-purple-500 font-bold text-royal-blue shadow-sm"></select>
+                                <input type="text" id="tt-mod-search" placeholder="Search Module..." onkeyup="window.renderTimetableModules()" class="w-full p-1.5 text-[10px] border rounded mb-2 outline-none">
+                                <button onclick="window.markTTComplete('CLASS')" class="btn-mix-huru w-full py-1.5 rounded font-black text-[9px] uppercase shadow transition">📢 Publish Program</button>
+                                <p id="tt-class-pub-status" class="text-[8px] text-purple-800 font-bold mt-1 text-center"></p>
+                            </div>
+                            <div class="p-2 overflow-y-auto flex-1" id="draggable-modules-list"></div>
+                        </div>
+                        <div class="flex-1 overflow-auto relative p-2" id="tt-grid-container-scroll">
+                            <div class="tt-grid-wrapper" id="tt-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-exam-tt" class="tab-content">
+                <div class="card overflow-hidden border-t-8 border-green-800 flex flex-col h-[85vh]">
+                    <div class="p-3 bg-green-50 border-b flex justify-between items-center gap-3 shrink-0">
+                        <div>
+                            <h2 class="font-black text-green-900 uppercase text-lg">Exam Timetable Builder</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.openTTSettingsModal('EXAM')" class="bg-white border border-green-300 text-green-800 px-3 py-1.5 rounded text-[10px] font-bold shadow-sm">⚙️ Setup</button>
+                            <input type="date" id="exam-tt-date" onchange="window.renderExamTimetableGrid()" class="p-1.5 border-2 border-green-400 rounded text-xs font-black outline-none">
+                            <select id="exam-tt-export-prog" class="p-1.5 border rounded text-[9px] outline-none"></select>
+                            <select id="exam-tt-export-batch" class="p-1.5 border rounded text-[9px] outline-none"></select>
+                            <button onclick="window.printMasterReport('exam_timetable')" class="btn-mix-huru px-4 py-1.5 rounded text-[10px]">🖨️ Export PDF</button>
+                        </div>
+                    </div>
+                    <div class="flex flex-1 overflow-hidden bg-gray-100">
+                        <div class="w-[280px] bg-white border-r flex flex-col shrink-0">
+                            <div class="p-3 border-b bg-gray-50 shrink-0">
+                                <select id="exam-tt-prog-filter" onchange="window.renderExamTimetableModules(); window.renderExamTimetableGrid();" class="w-full p-2 border rounded text-xs mb-2 outline-none focus:border-green-500 font-bold text-royal-blue shadow-sm"></select>
+                                <input type="text" id="exam-tt-mod-search" placeholder="Search Module..." onkeyup="window.renderExamTimetableModules()" class="w-full p-1.5 text-[10px] border rounded mb-2 outline-none">
+                                <button onclick="window.markTTComplete('EXAM')" class="btn-mix-huru w-full py-1.5 rounded font-black text-[9px] uppercase shadow transition">📢 Publish Exam Schedule</button>
+                                <p id="tt-exam-pub-status" class="text-[8px] text-green-800 font-bold mt-1 text-center"></p>
+                            </div>
+                            <div class="p-2 overflow-y-auto flex-1" id="draggable-exam-modules-list"></div>
+                        </div>
+                        <div class="flex-1 overflow-auto relative p-2" id="exam-tt-grid-container-scroll">
+                            <div class="tt-grid-wrapper" id="exam-tt-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-tasks" class="tab-content">
+                <div class="card p-6 border-t-8 border-blue-700 shadow-lg">
+                    <h2 class="text-xl font-black text-blue-900 uppercase mb-4">✅ Task Management & Bulk Notification</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <h3 class="text-xs font-black uppercase text-gray-800 mb-2 tracking-wide">Tasks Completion Progress</h3>
+                            <div class="h-48"><canvas id="taskTabCompletionChart"></canvas></div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <h3 class="text-xs font-black uppercase text-indigo-900 mb-2 tracking-wide">Task Diligence by Faculty</h3>
+                            <div class="h-48"><canvas id="taskTabFacDiligentChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-gray-50 p-4 rounded border relative">
+                            <h3 class="text-sm font-bold mb-2 uppercase text-blue-900 border-b pb-1">Assign New Task & Notify</h3>
+                            <input type="text" id="task-title" class="w-full p-2 border rounded mb-2 text-xs outline-none focus:border-royal-blue" placeholder="Task Title (e.g. Submit Marksheets)">
+                            
+                            <div class="flex gap-2 mb-2">
+                                <input type="date" id="task-date" class="w-full p-2 border rounded text-xs outline-none focus:border-royal-blue">
+                                <input type="time" id="task-time" class="w-full p-2 border rounded text-xs outline-none focus:border-royal-blue">
+                                <select id="task-recur" class="p-2 border rounded text-xs flex-1 outline-none text-gray-700 focus:border-royal-blue">
+                                    <option value="None">No Recurrence</option>
+                                    <option value="Weekly">Weekly</option>
+                                    <option value="Monthly">Monthly</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-2 p-2 bg-white border rounded">
+                                <label class="text-[9px] font-bold text-gray-500 uppercase block mb-1">Attach Files (Optional)</label>
+                                <div id="task-files-container" class="space-y-1">
+                                    <input type="file" multiple class="text-[9px] w-full file:mr-2 file:py-1 file:px-2 file:border-0 file:text-[9px] file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 rounded">
+                                </div>
+                            </div>
+
+                            <div id="subtasks-container" class="mb-2"></div>
+                            <button onclick="window.addSubTaskField()" class="text-[10px] bg-blue-100 text-blue-700 px-3 py-1 rounded mb-2 font-bold hover:bg-blue-200 transition">+ Add Subtask Checklist</button>
+                            
+                            <div class="max-h-32 overflow-y-auto border p-2 bg-white mb-2 text-[10px] rounded">
+                                <label class="font-bold border-b block pb-1 mb-1"><input type="checkbox" id="task-sel-all" onchange="window.toggleAllTaskAssignees()"> Select All Lecturers</label>
+                                <div id="task-assignees-list"></div>
+                            </div>
+                            
+                            <div class="mb-2 p-2 bg-white border rounded">
+                                <label class="text-[9px] font-bold text-gray-500 uppercase block mb-1">Bulk Email Notification List (Auto-Filled)</label>
+                                <textarea id="task-bulk-emails" rows="3" class="w-full p-2 border rounded outline-none text-[9px] text-gray-600 bg-gray-50 focus:bg-white" placeholder="Emails will appear here automatically, or you can paste them manually..."></textarea>
+                            </div>
+                            
+                            <button onclick="window.assignTask()" class="btn-royal-blue hover:bg-blue-800 text-white px-4 py-2 rounded text-xs w-full shadow transition font-bold uppercase">Assign Task & Send Bulk Emails</button>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded border">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="text-sm font-bold uppercase text-blue-900">Incoming Requests</h3>
+                                <select id="req-filter-type" onchange="window.renderRequestsList()" class="text-xs p-1 border rounded outline-none"><option value="ALL">All</option><option value="Pending Approvals">Pending</option></select>
+                            </div>
+                            <div id="requests-list" class="max-h-96 overflow-y-auto pr-1 space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-exam" class="tab-content"><div class="card p-6 border-t-8 border-green-700 shadow-lg"><div class="flex justify-between mb-4 border-b pb-2"><h2 class="text-xl font-black text-green-900 uppercase">Exam Unit Preparation & Tracking</h2><button onclick="window.openExamRequestModal()" class="btn-mix-huru px-4 py-2 rounded text-[10px]">✉️ Send Exam Request</button></div><div class="flex gap-2 mb-4 bg-gray-50 p-3 rounded"><input type="text" id="examSearch" onkeyup="window.renderExamTable()" placeholder="Search..." class="p-2 border rounded flex-1 text-xs outline-none"><select id="exam-fac-filter" onchange="window.renderExamTable()" class="p-2 border rounded text-xs outline-none"></select><select id="exam-status-filter" onchange="window.renderExamTable()" class="p-2 border rounded text-xs outline-none"><option value="ALL">All Status</option><option value="Pending">Pending</option><option value="Progress">In Progress</option><option value="Complete">Complete</option></select></div><div class="grid grid-cols-3 gap-4 mb-6 text-center"><div class="bg-red-50 p-3 rounded border"><span class="text-2xl font-bold text-red-700" id="exam-stat-pending">0</span><br><span class="text-[10px] font-black uppercase text-red-900">Pending</span></div><div class="bg-yellow-50 p-3 rounded border"><span class="text-2xl font-bold text-yellow-700" id="exam-stat-progress">0</span><br><span class="text-[10px] font-black uppercase text-yellow-900">In Progress</span></div><div class="bg-green-50 p-3 rounded border"><span class="text-2xl font-bold text-green-700" id="exam-stat-complete">0</span><br><span class="text-[10px] font-black uppercase text-green-900">Complete</span></div></div><div class="grid grid-cols-2 gap-4 mb-6"><div class="border p-3 rounded h-48"><canvas id="examPieChart"></canvas></div><div class="border p-3 rounded h-48"><canvas id="examBarChart"></canvas></div></div><div class="overflow-x-auto max-h-[600px] border rounded"><table class="w-full text-left text-[10px] min-w-[1200px]"><thead class="bg-green-800 text-white sticky top-0"><tr><th class="p-3">Module</th><th class="p-3">Program/Batch</th><th class="p-3">Faculty/Stu</th><th class="p-3">Lecturer</th><th class="p-3 text-center">Paper Rcvd</th><th class="p-3 text-center">Scheme</th><th class="p-3 text-center">Mod Kit</th><th class="p-3 text-center">Vetted</th><th class="p-3 text-center">Assigned</th><th class="p-3 text-center">Returned</th><th class="p-3 text-center">Overall</th></tr></thead><tbody id="exam-table-body" class="bg-white divide-y"></tbody></table></div></div></div>
+
+            <div id="tab-coordinators" class="tab-content">
+                <div class="card p-6 border-t-8 border-pink-700 shadow-lg text-royal-gold">
+                    <div class="flex justify-between border-b pb-4 mb-4"><div><h2 class="text-xl font-black uppercase">👨‍💼 Coordinator Management & Checklists</h2></div><button onclick="window.printRoyalSheet()" class="btn-mix-huru px-4 py-2 rounded text-[10px]">🖨️ Print Royal Sheet</button></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-gray-800">
+                        <div class="space-y-6">
+                            <div class="bg-pink-50 p-4 rounded border">
+                                <h3 class="text-xs font-black uppercase text-pink-800 mb-3 border-b pb-2">Assign Coordinator</h3>
+                                <select id="coord-lect-select" class="w-full p-2 border rounded mb-2 text-xs outline-none"></select>
+                                <select id="coord-type-select" class="w-full p-2 border rounded mb-2 text-xs outline-none"><option value="Batch">Batch</option><option value="Module">Module</option></select>
+                                <input type="text" id="coord-item-input" placeholder="Name/Code" class="w-full p-2 border rounded mb-2 text-xs outline-none">
+                                <button onclick="window.assignCoordinator()" class="w-full btn-mix-huru py-2 rounded font-bold">Assign Coordinator</button>
+                            </div>
+                            <div class="bg-white p-4 rounded border"><div class="h-48"><canvas id="coordPieChart"></canvas></div></div>
+                        </div>
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-white p-4 rounded border relative">
+                                <select id="coord-my-role-select" onchange="window.loadCoordChecklist()" class="absolute top-2 right-2 p-1 border rounded text-[9px] bg-pink-50 outline-none"></select>
+                                <h3 class="text-xs font-black uppercase text-royal-blue mb-4 border-b pb-2">Coordinator Quality Checklist</h3>
+                                <div id="coord-checklist-area" class="space-y-4 text-[10px] opacity-50 transition">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <label class="flex items-center gap-2 p-2 bg-gray-50 border rounded cursor-pointer hover:bg-blue-50"><input type="checkbox" id="chk-moodle"> Moodle Active</label>
+                                        <label class="flex items-center gap-2 p-2 bg-gray-50 border rounded cursor-pointer hover:bg-blue-50"><input type="checkbox" id="chk-notes"> Notes Uploaded</label>
+                                        <label class="flex items-center gap-2 p-2 bg-gray-50 border rounded cursor-pointer hover:bg-blue-50"><input type="checkbox" id="chk-isims"> iSIMS Marked</label>
+                                        <label class="flex items-center gap-2 p-2 bg-gray-50 border rounded cursor-pointer hover:bg-blue-50"><input type="checkbox" id="chk-feedback"> Feedback Eval</label>
+                                    </div>
+                                    <textarea id="chk-arc" rows="3" class="w-full p-2 border rounded text-xs outline-none focus:border-red-400" placeholder="Complaints..."></textarea>
+                                    <div class="flex justify-between border-t pt-3"><span id="chk-status-txt" class="italic text-gray-500">Select item above</span><button onclick="window.saveCoordChecklist()" class="btn-mix-huru px-6 py-2 rounded shadow">Submit Report</button></div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4"><div class="bg-green-50 p-4 border rounded h-48 flex flex-col"><h3 class="text-[9px] font-black uppercase text-green-800 border-b pb-1 mb-2">Submitted</h3><div id="coord-submitted-list" class="flex-1 overflow-y-auto text-[9px] space-y-1"></div></div><div class="bg-red-50 p-4 border rounded h-48 flex flex-col"><h3 class="text-[9px] font-black uppercase text-red-800 border-b pb-1 mb-2">Pending</h3><div id="coord-pending-list" class="flex-1 overflow-y-auto text-[9px] space-y-1"></div></div></div>
+                        </div>
+                    </div>
+                    <div class="mt-8 border-t pt-4 grid grid-cols-3 gap-4"><div class="h-48"><canvas id="coordTasksBarChart"></canvas></div><div class="h-48"><canvas id="coordTasksPieChart"></canvas></div><div class="h-48"><canvas id="coordSummaryChart"></canvas></div></div>
+                </div>
+            </div>
+
+            <div id="tab-events" class="tab-content">
+                <div class="card p-6 border-t-8 border-indigo-700 shadow-lg">
+                    <h2 class="text-lg font-black text-indigo-900 uppercase border-b pb-2 mb-4">Events & Attendance Management</h2>
+                    <div class="mb-6 p-4 bg-indigo-50 border rounded grid grid-cols-4 gap-2 items-end">
+                        <select id="ev-type" class="p-2 border rounded text-xs outline-none focus:border-indigo-500"><option value="Meeting">Meeting</option><option value="Scientific Forum">Forum</option></select>
+                        <input type="text" id="ev-title" class="p-2 border rounded text-xs col-span-2 outline-none focus:border-indigo-500" placeholder="Title">
+                        <input type="date" id="ev-date" class="p-2 border rounded text-xs outline-none focus:border-indigo-500">
+                        <div class="col-span-4 flex justify-between border-t pt-2 mt-2"><label class="text-xs"><input type="checkbox" id="ev-target-all" checked onchange="document.getElementById('ev-target-fac').disabled=this.checked;"> All Faculties</label><select id="ev-target-fac" disabled class="p-1 border rounded text-[9px] outline-none ml-2"></select><button onclick="window.createEvent()" class="bg-indigo-700 text-white px-6 py-2 rounded text-xs uppercase font-bold shadow transition hover:bg-indigo-800">Create Event & Send Invites</button></div>
+                    </div>
+                    <div class="flex justify-between mb-2"><h3 class="text-xs font-black text-gray-800 uppercase tracking-wide">Attendance Analytics</h3><select id="ev-select-chart" onchange="window.renderEventsTab()" class="p-1.5 border rounded text-[9px] shadow-sm outline-none"></select></div>
+                    <div class="grid grid-cols-3 gap-4 mb-4"><div class="col-span-2 border p-2 h-64"><canvas id="eventBarChart"></canvas></div><div class="border p-2 h-64"><canvas id="eventPieChart"></canvas></div></div>
+                    <div class="grid grid-cols-2 gap-4"><div class="bg-green-50 p-4 border rounded"><h4 class="text-[10px] font-black text-green-800 mb-2 border-b pb-1">Attended <span id="ev-count-att">0</span></h4><div id="ev-list-attended" class="max-h-64 overflow-y-auto text-[10px]"></div></div><div class="bg-red-50 p-4 border rounded"><h4 class="text-[10px] font-black text-red-800 mb-2 border-b pb-1">Absent/No RSVP <span id="ev-count-abs">0</span></h4><div id="ev-list-absent" class="max-h-64 overflow-y-auto text-[10px]"></div></div></div>
+                </div>
+            </div>
+
+            <div id="tab-weekly" class="tab-content">
+                <div class="card p-6 border-t-8 border-teal-700 shadow-lg">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4 gap-4">
+                        <div>
+                            <h2 class="text-xl font-black text-teal-900 uppercase tracking-wide flex items-center gap-2"><span>📝</span> Weekly Academic Reports</h2>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Track class delivery, cancellations, and academic tasks.</p>
+                        </div>
+                        <button onclick="window.requestWeeklyReports()" class="btn-mix-huru px-4 py-2 rounded text-[10px] font-bold uppercase shadow-md flex items-center gap-2 transition hover:scale-105">
+                            🔔 Send Automated Request to All
+                        </button>
+                    </div>
+
+                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4 flex gap-2">
+                        <select id="wr-filter-fac" onchange="window.renderWeeklyReports()" class="p-2 border rounded outline-none focus:border-teal-500 text-xs"><option value="ALL">All Faculties</option></select>
+                        <input type="text" id="wr-search" onkeyup="window.renderWeeklyReports()" placeholder="🔍 Search Lecturer or Module..." class="p-2 border rounded outline-none focus:border-teal-500 flex-1 text-xs">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="border rounded-xl p-4 text-center bg-white shadow-sm">
+                            <h3 class="text-[10px] font-black mb-2 uppercase text-teal-800 tracking-wide">Overall Submission Status</h3>
+                            <div class="h-48"><canvas id="weeklyPieChart"></canvas></div>
+                        </div>
+                        <div class="border rounded-xl p-4 text-center bg-white shadow-sm">
+                            <h3 class="text-[10px] font-black mb-2 uppercase text-teal-800 tracking-wide">Submissions By Faculty</h3>
+                            <div class="h-48"><canvas id="weeklyBarChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[600px] border border-gray-200 rounded-lg shadow-sm">
+                        <table class="w-full text-left text-[10px] min-w-[1000px]">
+                            <thead class="sticky top-0 bg-teal-800 text-white uppercase shadow-sm">
+                                <tr>
+                                    <th class="p-3 border-r border-teal-700">Lecturer</th>
+                                    <th class="p-3 border-r border-teal-700">Module</th>
+                                    <th class="p-3 text-center border-r border-teal-700">Week Of</th>
+                                    <th class="p-3 text-center border-r border-teal-700">Hrs Taken</th>
+                                    <th class="p-3 text-center border-r border-teal-700">Hrs Cancelled</th>
+                                    <th class="p-3 border-r border-teal-700">Cancel Reason</th>
+                                    <th class="p-3 text-center border-r border-teal-700">System Logs</th>
+                                    <th class="p-3 text-center">Assessments</th>
+                                </tr>
+                            </thead>
+                            <tbody id="wr-table-body" class="divide-y bg-white">
+                                <tr><td colspan="8" class="p-10 text-center text-gray-400 font-bold italic">Loading Data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-research" class="tab-content">
+                <div class="card p-6 border-t-8 border-royal-blue shadow-lg">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <div>
+                            <h2 class="text-xl font-black text-royal-blue uppercase">🔬 Research Student Tracking</h2>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Manage topics, thesis progress, and munaqasha readiness.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-gray-50 border border-gray-200 p-4 rounded-xl shadow-sm relative">
+                            <h3 class="text-xs font-black mb-3 uppercase text-royal-green border-b pb-1">Assign Research Task</h3>
+                            
+                            <label class="text-[9px] font-bold text-gray-600 uppercase">Student</label>
+                            <select id="res-stu-select" class="w-full p-2 border rounded text-xs mb-2 outline-none focus:border-royal-blue"></select>
+                            
+                            <label class="text-[9px] font-bold text-gray-600 uppercase">Research Topic / Title</label>
+                            <input type="text" id="res-task-title" placeholder="e.g. Impact of AI on Education" class="w-full p-2 border rounded text-xs mb-2 outline-none focus:border-royal-blue">
+                            
+                            <label class="text-[9px] font-bold text-gray-600 uppercase">Evaluation Sections & Percentages</label>
+                            <div id="res-parts-container" class="space-y-1 mb-2 bg-white p-2 border rounded">
+                                <div class="flex gap-1 res-part-row">
+                                    <input type="text" placeholder="Part (e.g. Chapter 1)" class="w-2/3 p-1.5 text-[10px] border rounded outline-none">
+                                    <input type="number" placeholder="Weight %" class="w-1/3 p-1.5 text-[10px] border rounded outline-none">
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mb-3">
+                                <button onclick="window.addResPart()" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition">+ Add Section</button>
+                                <button onclick="window.remResPart()" class="bg-red-100 text-red-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition">- Remove</button>
+                            </div>
+                            
+                            <label class="text-[9px] font-bold text-gray-600 uppercase block mb-1">Attach Guidelines / Files</label>
+                            <input type="file" multiple id="res-file" class="text-[9px] w-full mb-3 file:mr-2 file:py-1 file:px-2 file:border-0 file:bg-gray-200 file:text-gray-700 file:rounded hover:bg-gray-300 transition cursor-pointer">
+                            
+                            <label class="text-[9px] font-bold text-gray-600 uppercase block mb-1">Paragraph Instructions</label>
+                            <textarea id="res-para" placeholder="Write detailed instructions here..." rows="3" class="w-full p-2 border rounded text-[10px] mb-3 outline-none focus:border-royal-blue"></textarea>
+                            
+                            <button onclick="window.saveResearchTask()" class="btn-royal-blue w-full py-2 rounded font-bold text-xs uppercase tracking-wide shadow-md hover:scale-[1.02] transition">Create Research Task</button>
+                        </div>
+
+                        <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="border border-gray-200 p-4 rounded-xl text-center bg-white shadow-sm">
+                                <h3 class="text-[10px] font-black uppercase text-gray-700 mb-2 tracking-wide">Topic Progress Overview</h3>
+                                <div class="h-48"><canvas id="resBarChart"></canvas></div>
+                            </div>
+                            <div class="border border-gray-200 p-4 rounded-xl text-center bg-white shadow-sm">
+                                <h3 class="text-[10px] font-black uppercase text-gray-700 mb-2 tracking-wide">Viva (Munaqasha) Readiness</h3>
+                                <div class="h-48"><canvas id="resPieChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xs font-black mb-3 uppercase text-royal-blue border-b pb-1">Research Pipeline Status Boards</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                        <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl shadow-sm text-[9px] h-48 flex flex-col">
+                            <b class="text-blue-800 uppercase border-b border-blue-200 pb-1 mb-1 block">Approved Topics</b>
+                            <div id="res-list-app" class="flex-1 overflow-y-auto space-y-1"></div>
+                        </div>
+                        <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-xl shadow-sm text-[9px] h-48 flex flex-col">
+                            <b class="text-yellow-800 uppercase border-b border-yellow-200 pb-1 mb-1 block">Under Review / Working</b>
+                            <div id="res-list-rev" class="flex-1 overflow-y-auto space-y-1"></div>
+                        </div>
+                        <div class="bg-red-50 border border-red-200 p-3 rounded-xl shadow-sm text-[9px] h-48 flex flex-col">
+                            <b class="text-red-800 uppercase border-b border-red-200 pb-1 mb-1 block">Returned / Revisions</b>
+                            <div id="res-list-ret" class="flex-1 overflow-y-auto space-y-1"></div>
+                        </div>
+                        <div class="bg-green-50 border-2 border-green-400 p-3 rounded-xl shadow-sm text-[9px] h-48 flex flex-col">
+                            <b class="text-green-800 uppercase border-b border-green-300 pb-1 mb-1 block">Ready for Munaqasha</b>
+                            <div id="res-list-viva" class="flex-1 overflow-y-auto space-y-1"></div>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xs font-black mb-3 uppercase text-gold border-b pb-1">Royal Student Info Cards (Research)</h3>
+                    <div id="res-royal-cards" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+                </div>
+            </div>
+
+            <div id="tab-tp" class="tab-content">
+                <div class="card p-6 border-t-8 border-royal-green shadow-lg">
+                    <div class="flex justify-between items-center mb-6 border-b pb-2">
+                        <div>
+                            <h2 class="text-xl font-black text-royal-green uppercase">🏫 Teaching Practice (TP) Observation</h2>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Dynamic marking form for class observations.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.addTpRow()" class="btn-gold px-4 py-2 rounded text-[10px] font-bold shadow-md hover:scale-105 transition">+ Add Assessment Row</button>
+                            <button onclick="window.addTpCol()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-[10px] font-bold shadow-md transition">+ Add Column (Fixed)</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white border-2 border-gray-200 p-6 rounded-2xl mb-6 shadow-sm">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div><label class="text-[10px] font-bold uppercase text-gray-500 block mb-1">Student Name / ID</label><input type="text" id="tp-student" placeholder="e.g. S123456" class="w-full p-2 border rounded text-xs outline-none focus:border-royal-green bg-gray-50 focus:bg-white transition"></div>
+                            <div><label class="text-[10px] font-bold uppercase text-gray-500 block mb-1">Date of Observation</label><input type="date" id="tp-date" class="w-full p-2 border rounded text-xs outline-none focus:border-royal-green bg-gray-50 focus:bg-white transition"></div>
+                            <div><label class="text-[10px] font-bold uppercase text-gray-500 block mb-1">Module / Subject</label><input type="text" id="tp-module" placeholder="e.g. ENG101" class="w-full p-2 border rounded text-xs outline-none focus:border-royal-green bg-gray-50 focus:bg-white transition"></div>
+                        </div>
+                        
+                        <div class="overflow-x-auto border rounded-xl mb-4 shadow-inner">
+                            <table class="w-full tp-table text-[10px] bg-white" id="tp-obs-table">
+                                <thead>
+                                    <tr>
+                                        <th contenteditable="true" class="bg-royal-green text-white p-3 border font-bold uppercase tracking-wide">Criteria / Area of Evaluation</th>
+                                        <th contenteditable="true" class="bg-royal-green text-white p-3 border w-24 font-bold uppercase tracking-wide">Max Marks</th>
+                                        <th contenteditable="true" class="bg-royal-green text-white p-3 border w-24 font-bold uppercase tracking-wide">Obtained</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="hover:bg-gray-50 transition"><td contenteditable="true" class="p-3 border outline-none focus:bg-white">Lesson Plan & Preparation</td><td contenteditable="true" class="tp-max p-3 border font-bold text-gray-600 bg-gray-50 text-center outline-none focus:bg-white" onkeyup="window.calcTp()">10</td><td contenteditable="true" class="tp-obt p-3 border font-black text-royal-blue bg-yellow-50/50 text-center outline-none focus:bg-white focus:ring-2 focus:ring-gold" onkeyup="window.calcTp()">0</td></tr>
+                                    <tr class="hover:bg-gray-50 transition"><td contenteditable="true" class="p-3 border outline-none focus:bg-white">Classroom Management</td><td contenteditable="true" class="tp-max p-3 border font-bold text-gray-600 bg-gray-50 text-center outline-none focus:bg-white" onkeyup="window.calcTp()">10</td><td contenteditable="true" class="tp-obt p-3 border font-black text-royal-blue bg-yellow-50/50 text-center outline-none focus:bg-white focus:ring-2 focus:ring-gold" onkeyup="window.calcTp()">0</td></tr>
+                                    <tr class="hover:bg-gray-50 transition"><td contenteditable="true" class="p-3 border outline-none focus:bg-white">Subject Knowledge Delivery</td><td contenteditable="true" class="tp-max p-3 border font-bold text-gray-600 bg-gray-50 text-center outline-none focus:bg-white" onkeyup="window.calcTp()">20</td><td contenteditable="true" class="tp-obt p-3 border font-black text-royal-blue bg-yellow-50/50 text-center outline-none focus:bg-white focus:ring-2 focus:ring-gold" onkeyup="window.calcTp()">0</td></tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="bg-gray-100 font-black text-xs border-t-2 border-gray-300">
+                                        <td class="text-right p-3 uppercase text-gray-600">Overall Score:</td>
+                                        <td id="tp-tot-max" class="p-3 text-center text-gray-600">40</td>
+                                        <td id="tp-tot-obt" class="p-3 text-center text-red-600 text-lg transition-colors duration-300">0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        
+                        <label class="text-[10px] font-bold uppercase text-gray-500 block mb-1">Observation Notes / Feedback</label>
+                        <textarea id="tp-notes" placeholder="Write detailed constructive feedback for the student here..." rows="4" class="w-full p-3 border rounded text-xs mb-4 outline-none focus:border-royal-green bg-gray-50 focus:bg-white transition shadow-inner"></textarea>
+                        
+                        <div class="flex flex-col md:flex-row justify-between items-center border-t-2 border-gray-100 pt-4 gap-4">
+                            <div class="w-full md:w-auto">
+                                <label class="text-[10px] font-bold uppercase text-gray-500 block mb-1">Observer Name</label>
+                                <input type="text" id="tp-lecturer" placeholder="Enter Full Name" class="p-2 border rounded text-xs outline-none focus:border-royal-green bg-gray-50 focus:bg-white transition w-full md:w-64">
+                            </div>
+                            <button onclick="window.saveTpForm()" class="btn-royal-green px-8 py-3 rounded-lg text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 hover:scale-[1.02] transition w-full md:w-auto justify-center">💾 Save & Submit Form</button>
+                        </div>
+                    </div>
+                    
+                    <h3 class="text-xs font-black uppercase text-royal-blue mb-3 border-b-2 border-gray-200 pb-1">Saved Observations Archive</h3>
+                    <div id="tp-saved-list" class="space-y-3 max-h-80 overflow-y-auto text-[10px] pr-2 pb-4"></div>
+                </div>
+            </div>
+
+            <div id="tab-studata" class="tab-content"><div class="card p-4"><div class="flex justify-between mb-4"><h2 class="font-black text-royal-green uppercase text-sm">Students Master Data</h2><div class="flex gap-2"><button onclick="window.exportCSV(localDB.students, 'Students.csv')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-[10px] transition font-bold shadow-sm">📥 Export CSV</button><button onclick="window.printMasterReport('students')" class="bg-gray-800 text-white px-3 py-2 rounded text-[10px] transition font-bold shadow-sm">🖨️ Print</button><button onclick="window.openAddStudentModal()" class="btn-mix-huru px-3 py-2 rounded text-[10px]" id="btn-add-stu">+ Add Student</button></div></div><div class="bg-gray-50 p-3 rounded flex gap-2 mb-4"><input type="text" id="stuSearch" onkeyup="window.renderStudentsTab()" placeholder="Search ID/Name..." class="p-2 border rounded text-xs flex-1 outline-none focus:border-royal-green"><select id="stu-filter-prog" onchange="window.renderStudentsTab()" class="p-2 border rounded text-xs outline-none focus:border-royal-green"></select></div><div class="overflow-x-auto max-h-[600px] border rounded shadow-sm"><table class="w-full text-left text-[10px]"><thead class="bg-[#004d40] text-white sticky top-0"><tr><th class="p-2 border-r border-[#003b30]">ID</th><th class="p-2 border-r border-[#003b30]">Name</th><th class="p-2 border-r border-[#003b30]">Program</th><th class="p-2 border-r border-[#003b30]">Sem</th><th class="p-2 border-r border-[#003b30]">Batch</th><th class="p-2 border-r border-[#003b30]">Mode</th><th class="p-2 text-center" id="th-stu-actions">Action</th></tr></thead><tbody id="studata-body" class="divide-y bg-white"></tbody></table></div></div></div>
+            <div id="tab-lectdata" class="tab-content"><div class="card p-4"><div class="flex justify-between mb-4"><h2 class="font-black text-royal-green uppercase text-sm">Lecturers Master Data</h2><div class="flex gap-2"><button onclick="window.exportLecturersCSV()" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-[10px] transition font-bold shadow-sm">📥 Export CSV</button><button onclick="window.printMasterReport('lecturers')" class="bg-gray-800 text-white px-3 py-2 rounded text-[10px] transition font-bold shadow-sm">🖨️ Print</button><button onclick="window.openAddLecturerModal()" class="btn-mix-huru px-3 py-2 rounded text-[10px]" id="btn-add-lect">+ Add Lecturer</button></div></div><div class="bg-gray-50 p-3 rounded flex gap-2 mb-4"><input type="text" id="lectSearch" onkeyup="window.renderLectDataTab()" placeholder="Search Name/ID..." class="p-2 border rounded text-xs flex-1 outline-none focus:border-royal-green"><select id="lect-filter-fac" onchange="window.renderLectDataTab()" class="p-2 border rounded text-xs outline-none focus:border-royal-green"></select><select id="lect-filter-cat" onchange="window.renderLectDataTab()" class="p-2 border rounded text-xs outline-none focus:border-royal-green"></select></div><div class="overflow-x-auto max-h-[600px] border rounded shadow-sm"><table class="w-full text-left text-[10px]"><thead class="bg-[#004d40] text-white sticky top-0"><tr><th class="p-2 border-r border-[#003b30]">Faculty</th><th class="p-2 border-r border-[#003b30]">ID</th><th class="p-2 border-r border-[#003b30]">Name</th><th class="p-2 border-r border-[#003b30]">Category</th><th class="p-2 border-r border-[#003b30]">Type</th><th class="p-2 border-r border-[#003b30]">Mobile</th><th class="p-2 text-center">Action</th></tr></thead><tbody id="lectdata-body" class="divide-y bg-white"></tbody></table></div></div></div>
+            <div id="tab-moddata" class="tab-content"><div class="card p-4"><div class="flex justify-between mb-4"><h2 class="font-black text-royal-green uppercase text-sm">Modules Master Data</h2><div class="flex gap-2"><button onclick="window.exportModulesCSV()" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-[10px] transition font-bold shadow-sm">📥 Export CSV</button><button onclick="window.printMasterReport('modules')" class="bg-gray-800 text-white px-3 py-2 rounded text-[10px] transition font-bold shadow-sm">🖨️ Print</button><button onclick="window.openAddModuleModal()" class="btn-mix-huru px-3 py-2 rounded text-[10px]" id="btn-add-mod">+ Add Module</button></div></div><div class="bg-gray-50 p-3 rounded flex gap-2 mb-4 flex-wrap"><input type="text" id="modSearch" onkeyup="window.renderModDataTab()" placeholder="Search Code/Name..." class="p-2 border rounded text-xs flex-1 min-w-[200px] outline-none focus:border-royal-green"><select id="mod-filter-fac" onchange="window.renderModDataTab()" class="p-2 border rounded text-xs outline-none focus:border-royal-green"></select><select id="mod-filter-prog" onchange="window.renderModDataTab()" class="p-2 border rounded text-xs outline-none focus:border-royal-green"></select></div><div class="overflow-x-auto max-h-[600px] border rounded shadow-sm"><table class="w-full text-left text-[10px] min-w-[1200px]"><thead class="bg-[#004d40] text-white sticky top-0"><tr><th class="p-2 border-r border-[#003b30]">Session</th><th class="p-2 border-r border-[#003b30]">Program</th><th class="p-2 border-r border-[#003b30]">Batch</th><th class="p-2 border-r border-[#003b30]">Faculty</th><th class="p-2 border-r border-[#003b30]">Campus</th><th class="p-2 border-r border-[#003b30]">Code</th><th class="p-2 border-r border-[#003b30]">Name</th><th class="p-2 text-center border-r border-[#003b30]">WCH</th><th class="p-2 text-center">Action</th></tr></thead><tbody id="moddata-body" class="divide-y bg-white"></tbody></table></div></div></div>
+
+        </div>
+    </main>
+</div>
+
+<div id="m-2fa" class="modal-overlay"><div class="modal-content p-6 max-w-sm"><h2 class="text-red-600 font-black mb-2">🔐 2FA</h2><p id="2fa-action-text" class="text-xs mb-4 text-gray-700"></p><input type="text" id="2fa-code" class="w-full p-2 border rounded mb-4 text-center tracking-widest font-bold outline-none focus:border-red-500" placeholder="Enter OTP"><div class="flex justify-end gap-2"><button onclick="document.getElementById('m-2fa').style.display='none'" class="px-4 py-2 bg-gray-200 rounded text-[10px] font-bold hover:bg-gray-300">Cancel</button><button onclick="window.confirm2FA()" class="bg-red-600 text-white px-4 py-2 rounded text-[10px] font-bold hover:bg-red-700 shadow">Verify</button></div></div></div>
+
+<div id="module-info-modal" class="modal-overlay"><div class="modal-content p-6 max-w-2xl relative"><button onclick="document.getElementById('module-info-modal').style.display='none'" class="absolute top-4 right-4 text-2xl text-gray-400 hover:text-red-600">&times;</button><h2 id="m-info-code" class="text-xl font-black text-royal-blue">MOD</h2><p id="m-info-title" class="text-xs mb-4 text-gray-600 font-bold"></p><div class="grid grid-cols-2 gap-4 mb-4"><div class="border p-3 rounded bg-blue-50" id="m-info-lecturers"></div><div class="border p-3 rounded bg-green-50" id="m-info-programs"></div><div class="border p-3 rounded h-48 bg-white"><canvas id="m-info-pie"></canvas></div><div class="border p-3 rounded bg-white"><h3 class="text-[10px] font-black mb-2 border-b pb-1 text-gray-600 uppercase">Weekly Schedule</h3><div id="m-info-schedule" class="text-[10px] space-y-1"></div></div></div><div class="border p-3 rounded bg-gray-50"><h3 class="text-[10px] font-black border-b pb-1 mb-2 text-gray-600 uppercase flex justify-between"><span>Registered Students</span><span id="m-info-stu-count" class="text-royal-blue"></span></h3><div id="m-info-students" class="grid grid-cols-2 gap-2 text-[9px] max-h-40 overflow-y-auto pr-2"></div></div></div></div>
+
+<div id="student-info-modal" class="modal-overlay"><div class="modal-content p-6 max-w-2xl relative"><button onclick="document.getElementById('student-info-modal').style.display='none'" class="absolute top-4 right-4 text-2xl text-gray-400 hover:text-red-600">&times;</button><h2 id="s-info-name" class="text-lg font-black text-royal-green">Name</h2><p id="s-info-id" class="text-xs mb-4 font-bold text-gray-500"></p><div class="grid grid-cols-3 gap-2 mb-4"><div class="border p-3 rounded text-center bg-gray-50" id="s-info-core"></div><div class="border p-3 rounded text-center bg-blue-50" id="s-info-add"></div><div class="border p-3 rounded text-center bg-green-50" id="s-info-wch"></div></div><div class="border rounded overflow-hidden"><table class="w-full text-left text-[10px]"><thead class="bg-gray-100 text-gray-700"><tr><th class="p-2">Code</th><th class="p-2">Title</th><th class="p-2 text-center">WCH</th></tr></thead><tbody id="s-info-mods" class="divide-y bg-white"></tbody></table></div></div></div>
+
+<div id="exam-request-modal" class="modal-overlay"><div class="modal-content p-6 max-w-lg"><h2 class="font-black text-green-800 mb-4 text-lg">Exam Request</h2><select id="exam-req-type" class="w-full p-2 border rounded mb-3 text-xs outline-none focus:border-green-500"><option value="Request Paper">Request Paper</option><option value="Request Scheme">Request Scheme</option><option value="Reminder">Reminder</option></select><select id="exam-req-lect" class="w-full p-2 border rounded mb-3 text-xs outline-none focus:border-green-500"></select><input type="text" id="exam-req-title" class="w-full p-2 border rounded mb-3 text-xs outline-none focus:border-green-500" placeholder="Subject / Details"><input type="file" class="w-full mb-4 text-[9px] border p-1 rounded file:bg-green-50 file:border-0 file:rounded"><div class="flex justify-end gap-2"><button onclick="document.getElementById('exam-request-modal').style.display='none'" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded text-[10px] font-bold transition">Cancel</button><button onclick="window.sendExamRequest()" class="btn-mix-huru px-6 py-2 rounded text-[10px]">Send</button></div></div></div>
+
+<div id="request-modal" class="modal-overlay"><div class="modal-content p-6 max-w-lg"><h2 class="font-black text-royal-blue mb-4 text-lg">General Request</h2><select id="req-type" class="w-full p-2 border rounded mb-3 text-xs outline-none focus:border-royal-blue"><option value="Leave">Leave Request</option><option value="Overtime">Overtime Approval</option><option value="Resource">Resource Request</option></select><select id="req-target-role" class="w-full p-2 border rounded mb-3 text-xs outline-none focus:border-royal-blue"><option value="ALL">Global Admin</option><option value="EXAM">Exam Unit</option><option value="FACULTY">Faculty Dean</option></select><input type="text" id="req-title" class="w-full p-2 border rounded mb-3 text-xs outline-none focus:border-royal-blue" placeholder="Subject Line"><textarea id="req-details" class="w-full p-3 border rounded mb-4 text-xs outline-none focus:border-royal-blue" rows="4" placeholder="Detailed description..."></textarea><div class="flex justify-end gap-2"><button onclick="document.getElementById('request-modal').style.display='none'" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded text-[10px] font-bold transition">Cancel</button><button onclick="window.submitRequest()" class="btn-mix-huru px-6 py-2 rounded text-[10px]">Submit</button></div></div></div>
+
+<div id="settings-modal" class="modal-overlay"><div class="modal-content p-6 max-w-2xl"><h2 class="font-black text-royal-purple mb-4 text-lg">Timetable Configuration</h2><input type="hidden" id="setting-type-flag"><div class="grid grid-cols-2 gap-6"><div class="border p-4 rounded bg-gray-50"><h3 class="text-xs font-bold mb-3 uppercase border-b pb-1 text-gray-700">Timeslots</h3><div id="settings-timeslots-list" class="space-y-2 mb-3 text-[10px]"></div><div class="flex gap-2"><input type="time" id="new-ts-start" class="w-full p-2 border rounded text-[10px] outline-none focus:border-purple-500"><input type="time" id="new-ts-end" class="w-full p-2 border rounded text-[10px] outline-none focus:border-purple-500"><button onclick="window.addTimeslot()" class="btn-mix-huru px-3 rounded font-black">+</button></div></div><div class="border p-4 rounded bg-gray-50"><h3 class="text-xs font-bold mb-3 uppercase border-b pb-1 text-gray-700">Venues & Rooms</h3><div id="settings-rooms-list" class="space-y-2 mb-3 text-[10px]"></div><div class="flex gap-2"><input type="text" id="new-room-name" class="w-full p-2 border rounded text-[10px] outline-none focus:border-purple-500" placeholder="Add Room"><button onclick="window.addRoom()" class="btn-mix-huru px-3 rounded font-black">+</button></div></div></div><button onclick="window.saveTTSettings()" class="w-full mt-6 btn-royal-blue py-3 rounded-lg text-xs font-bold uppercase tracking-widest shadow-lg hover:scale-[1.01] transition">Save Settings</button></div></div>
+
+<div id="report-frame"><div class="pdf-border-outer"><div class="pdf-border-inner" id="report-content-area"></div></div></div>
+<div id="master-print-frame"><div class="print-royal-header"><h1 class="print-royal-title">Official Master Data Report</h1><h2 id="print-report-subtitle" class="print-royal-subtitle"></h2><div id="print-filter-info" class="mt-4 text-[10px] flex gap-2 justify-center font-bold"></div></div><div id="print-content-custom"></div><table class="print-table" id="print-table-container"><thead id="print-table-head"></thead><tbody id="print-table-body"></tbody></table><div class="mt-12 text-center text-[9px] font-bold text-gray-400 uppercase tracking-widest">Generated securely by Presidential Executive Portal | Timestamp: <span id="print-date"></span></div></div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Firebase Config (Replace with secure keys in prod)
+    const firebaseConfig = { 
+        apiKey: "AIzaSyDh-pcU3quxlFJxDg_SwkrRCoMPyD48dBc", 
+        authDomain: "timetableworkload.firebaseapp.com", 
+        projectId: "timetableworkload", 
+        storageBucket: "timetableworkload.firebasestorage.app", 
+        messagingSenderId: "892740792502", 
+        appId: "1:892740792502:web:28889a143bacf58c02f617" 
+    };
+
+    let app, auth, dbCloud;
+    window.pendingSync = false;
+    
+    // Master Local Database Structure (Expanded)
+    let localDB = { 
+        lecturers: [], modules: [], assignments: {}, timetable: [], exam_timetable: [], rooms: [], students: [],
+        events: [], weekly_reports: [], tasks: [], requests: [], exam_progress: {}, coordinators: [], coordination_reports: [],
+        research_tasks: [], tp_forms: [], 
+        settings: {
+            timeslots: [
+                { start: "08:10", end: "09:00" }, { start: "09:00", end: "10:00" }, { start: "10:10", end: "11:00" },
+                { start: "11:00", end: "12:00" }, { start: "12:10", end: "13:00" }, { start: "13:00", end: "14:00" },
+                { start: "14:10", end: "15:00" }, { start: "15:00", end: "16:00" }, { start: "16:10", end: "17:00" }
+            ],
+            roomList: ["Main Hall", "Lab 1", "CR-101", "CR-102", "Auditorium", "Library"], completed_tts: []
+        }
+    };
+    
+    let charts = { faculty: null, focus: null, assignmentDetails: null, taskComp: null, facDil: null, examPie: null, examBar: null, ttPie: null, eventBar: null, eventPie: null, coordPie: null, coordBar: null, minfoPie: null, lectOwnProg: null, taskTabComp: null, taskTabFac: null, coordTasksBar: null, coordTasksPie: null, coordSummary: null, weeklyPie: null, weeklyBar: null, resBar: null, resPie: null }; 
+    
+    let currentLecturerId = null; 
+    let currentStudentId = null; 
+    let activeRole = 'ALL';
+    let autoSyncTimeout;
+    const FACULTIES = ["KED", "KSL", "KEMS", "KIRK", "KAL", "KQS", "FET", "FIT", "FAH", "FHTS", "SN", "SM", "CHS", "CPS", "CCE", "FMC", "FAG", "FLS", "SOL", "SOD"];
+
+    // ----------------------------------------
+    // UTILITIES & CORE LOGIC
+    // ----------------------------------------
+    window.makeSafeId = (id) => id ? String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase() : `UNKNOWN-${Math.floor(Math.random()*10000)}`;
+
+    window.getSafeVal = (row, keys) => {
+        if (!row || typeof row !== 'object') return '';
+        for (let k of Object.keys(row)) {
+            let ck = String(k).toLowerCase().replace(/[\s\n\r\.\-\_]/g, '');
+            for (let pk of keys) { if (ck.includes(String(pk).toLowerCase().replace(/[\s\n\r\.\-\_]/g, ''))) return row[k] || ''; }
+        }
+        return '';
+    };
+
+    window.getFaculty = (row) => {
+        const raw = window.getSafeVal(row, ['Kulliyyah', 'ParentKulliyya', 'Faculty', 'Centre']);
+        if (!raw) return 'UNKNOWN';
+        const match = FACULTIES.find(f => String(raw).toUpperCase().includes(String(f).toUpperCase()));
+        return match || String(raw).trim();
+    };
+
+    window.getSafeCampus = (row) => window.getSafeVal(row, ['Campus', 'MALE', 'Male']) || 'MALE';
+
+    window.getDefaultTarget = (l) => {
+        if (l.custom_target) return parseInt(l.custom_target); 
+        const t = String(window.getSafeVal(l, ['LecturerType', 'Type'])).toLowerCase();
+        const c = String(window.getSafeVal(l, ['LecturerCategory', 'Category'])).toLowerCase();
+        if (c.includes('dean')) return 1;
+        if (t.includes('part') || c.includes('research') || c === 'res') return 9;
+        return 15; 
+    };
+
+    window.showToast = (msg, type = 'info') => {
+        const c = document.getElementById('toast-container'); if(!c) return;
+        const t = document.createElement('div'); t.className = `toast ${type}`;
+        const icon = type === 'success' ? '✅' : (type === 'warning' ? '⚠️' : (type === 'error' ? '❌' : 'ℹ️'));
+        t.innerHTML = `<span>${icon}</span> <span>${msg}</span>`;
+        c.appendChild(t);
+        setTimeout(() => { t.style.animation = 'fadeOut 0.3s ease-out forwards'; setTimeout(() => t.remove(), 300); }, 3500);
+    };
+
+    const simulateEmail = (to, sub, body) => window.showToast(`📧 Secure Email sent to ${to}`, "info");
+
+    window.saveLocal = (silent = false) => {
+        try {
+            Object.keys(localDB).forEach(k => localStorage.setItem(`wl_${k}`, JSON.stringify(localDB[k])));
+            if (!silent) window.showToast("Data Saved Securely to Local Storage.", "success");
+            window.pendingSync = true;
+            triggerAutoSync();
+        } catch (e) { if(!silent) window.showToast("Storage Error: Browser limit reached.", "error"); }
+    };
+
+    const loadLocalCache = () => {
+        Object.keys(localDB).forEach(k => {
+            const data = localStorage.getItem(`wl_${k}`);
+            if(data) {
+                if(k === 'settings') Object.assign(localDB.settings, JSON.parse(data));
+                else localDB[k] = JSON.parse(data);
+            }
+        });
+        if(!localDB.research_tasks) localDB.research_tasks = [];
+        if(!localDB.tp_forms) localDB.tp_forms = [];
+    };
+
+    function triggerAutoSync() {
+        clearTimeout(autoSyncTimeout);
+        document.getElementById('cloud-pulse').className = "pulse-orange";
+        document.getElementById('cloud-txt').innerText = "Syncing...";
+        autoSyncTimeout = setTimeout(() => {
+            if (navigator.onLine) {
+                document.getElementById('cloud-pulse').className = "pulse-green";
+                document.getElementById('cloud-txt').innerText = "Synced";
+                window.pendingSync = false;
+            } else {
+                document.getElementById('cloud-pulse').className = "h-2 w-2 rounded-full bg-red-500";
+                document.getElementById('cloud-txt').innerText = "Offline";
+            }
+        }, 1500); 
+    }
+
+    // ----------------------------------------
+    // TAB ROUTING & RENDERING
+    // ----------------------------------------
+    window.switchTab = (tabId) => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'border-b-[4px]', 'border-royal-green', 'bg-gray-100'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        const b = document.getElementById(`tbtn-${tabId}`); if(b) b.classList.add('active', 'border-b-[4px]', 'border-royal-green', 'bg-gray-100');
+        const c = document.getElementById(`tab-${tabId}`); if(c) c.classList.add('active');
+        
+        if(tabId==='analytics') window.updateAnalytics();
+        else if(tabId==='matrix') window.renderMatrix();
+        else if(tabId==='staff') window.renderStaffTargets();
+        else if(tabId==='timetable') { window.populateTimetableDropdowns(); window.renderTimetableModules(); window.renderTimetableGrid(); }
+        else if(tabId==='exam-tt') { window.populateTimetableDropdowns(); window.renderExamTimetableModules(); window.renderExamTimetableGrid(); }
+        else if(tabId==='tasks') window.renderTasksTab();
+        else if(tabId==='weekly') window.renderWeeklyReports();
+        else if(tabId==='research') window.renderResearchTab();
+        else if(tabId==='tp') window.renderTpTab();
+        else if(tabId==='exam') window.renderExamTable();
+        else if(tabId==='coordinators') window.renderCoordinationTab();
+        else if(tabId==='events') window.renderEventsTab();
+        else if(tabId==='studata') window.renderStudentsTab();
+        else if(tabId==='lectdata') window.renderLectDataTab();
+        else if(tabId==='moddata') window.renderModDataTab();
+    };
+
+    window.triggerAllRenders = () => {
+        window.renderMatrix(); window.renderStaffTargets(); window.updateAnalytics(); window.populateDynamicFilters();
+        window.renderLectDataTab(); window.renderModDataTab(); window.renderStudentsTab();
+        window.populateTimetableDropdowns(); window.renderTimetableModules(); window.renderTimetableGrid();
+        window.renderExamTimetableModules(); window.renderExamTimetableGrid(); window.renderExamTable();
+        window.renderLecturerWorkspace(); window.renderRequestsList(); window.renderEventsTab();
+        window.renderWeeklyReports(); window.renderCoordinationTab(); window.renderTasksTab();
+        window.renderResearchTab(); window.renderTpTab();
+    };
+
+    // ----------------------------------------
+    // DATA FILTERING
+    // ----------------------------------------
+    window.getFilteredModules = () => {
+        if(activeRole === 'ALL' || activeRole === 'EXAM') {
+            const fV = document.getElementById('facView')?.value;
+            if(fV && fV !== 'ALL') return localDB.modules.filter(m => String(window.getFaculty(m)).includes(fV));
+            return localDB.modules;
+        }
+        if(activeRole === 'STUDENT') {
+            const s = localDB.students.find(sx => window.makeSafeId(window.getSafeVal(sx, ['StudentID'])) === currentStudentId);
+            if(s) {
+                const sP = window.getSafeVal(s, ['EnrolledProgram']); const sB = window.getSafeVal(s, ['Batch']);
+                return localDB.modules.filter(m => window.getSafeVal(m, ['ProgramName']) === sP && (window.getSafeVal(m, ['OfferedBatch']) === sB || window.getSafeVal(m, ['OfferedBatch']) === ''));
+            }
+            return [];
+        }
+        return localDB.modules.filter(m => String(window.getFaculty(m)).includes(activeRole));
+    };
+
+    window.getFilteredLecturers = () => {
+        if(activeRole === 'ALL' || activeRole === 'EXAM') {
+            const fV = document.getElementById('facView')?.value;
+            if(fV && fV !== 'ALL') return localDB.lecturers.filter(l => String(window.getFaculty(l)).includes(fV));
+            return localDB.lecturers;
+        }
+        return localDB.lecturers.filter(l => String(window.getFaculty(l)).includes(activeRole));
+    };
+
+    // ----------------------------------------
+    // AUTHENTICATION & LOGIN
+    // ----------------------------------------
+    window.detectFacultyFromEmail = () => {
+        const email = document.getElementById('login-email').value.toLowerCase().trim();
+        const prefix = email.split('@')[0];
+        let role = 'LECTURER';
+        if (prefix === 'academic.affairs') role = 'ALL';
+        else if (prefix === 'examinations') role = 'EXAM';
+        else if (/^ium\d+$/.test(prefix)) role = 'STUDENT';
+        else {
+            const fMatch = FACULTIES.find(f => prefix === f.toLowerCase());
+            if(fMatch) role = fMatch;
+        }
+        document.getElementById('login-role').value = role;
+    };
+
+    window.handleLogin = () => {
+        const email = document.getElementById('login-email').value.trim();
+        const pass = document.getElementById('login-password').value.trim();
+        if(email === '' || pass === '') return window.showToast("Enter Email and Password", "error");
+        
+        window.detectFacultyFromEmail();
+        activeRole = document.getElementById('login-role').value;
+        
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-screen').style.display = 'block';
+        document.getElementById('loader').style.display = 'flex';
+        
+        setTimeout(() => {
+            loadLocalCache();
+            if (activeRole === 'STUDENT') {
+                document.getElementById('student-dashboard').style.display = 'block';
+                document.getElementById('main-tabs-container').style.display = 'none';
+            } else if (activeRole === 'LECTURER') {
+                document.getElementById('lecturer-dashboard').style.display = 'block';
+                document.getElementById('main-tabs-container').style.display = 'none'; 
+            } else {
+                document.getElementById('main-dashboard-controls').style.display = 'block';
+                document.getElementById('header-stats').style.display = 'flex';
+                if(activeRole === 'ALL') document.getElementById('admin-controls').style.display = 'flex';
+                
+                let viewOpts = `<option value="ALL">Global View (All Facs)</option>`;
+                FACULTIES.forEach(f => viewOpts += `<option value="${f}">${f}</option>`);
+                if(document.getElementById('facView')) document.getElementById('facView').innerHTML = viewOpts;
+                
+                window.switchTab('analytics');
+            }
+            
+            document.getElementById('user-badge').innerText = activeRole;
+            window.populateLecturerDropdown();
+            window.populateStudentDropdown();
+            window.triggerAllRenders();
+            document.getElementById('loader').style.display = 'none';
+            window.showToast(`Portal Unlocked. Access Level: ${activeRole}`, "success");
+        }, 800);
+    };
+
+    window.handleLogout = () => {
+        if(confirm("Are you sure you want to log out?")) location.reload();
+    };
+
+    // ----------------------------------------
+    // UI DROPDOWNS & DYNAMIC COMBOBOXES
+    // ----------------------------------------
+    window.populateLecturerDropdown = () => {
+        const sel = document.getElementById('lecturerSelectStandalone'); if(!sel) return;
+        let opts = [];
+        localDB.lecturers.forEach(l => {
+            const id = window.getSafeVal(l, ['LecturerID']); const name = window.getSafeVal(l, ['LecturerName']);
+            if(id && name) opts.push({value: window.makeSafeId(id), text: `${name} [${id}]`});
+        });
+        if(window.tsLect) window.tsLect.destroy();
+        window.tsLect = new TomSelect(sel, { create: false, placeholder: "🔍 Verify Identity...", options: opts, valueField: 'value', labelField: 'text', searchField: ['text'] });
+        window.tsLect.on('change', val => { currentLecturerId = val; window.renderLecturerWorkspace(); window.loadCoordChecklist(); });
+    };
+
+    window.populateStudentDropdown = () => {
+        const sel = document.getElementById('studentSelectStandalone'); if(!sel) return;
+        let opts = [];
+        localDB.students.forEach(s => {
+            const id = window.getSafeVal(s, ['StudentID']); const name = window.getSafeVal(s, ['FullName']);
+            if(id && name) opts.push({value: window.makeSafeId(id), text: `${name} [${id}]`});
+        });
+        if(window.tsStu) window.tsStu.destroy();
+        window.tsStu = new TomSelect(sel, { create: false, placeholder: "🔍 Search Student ID...", options: opts, valueField: 'value', labelField: 'text', searchField: ['text'] });
+        window.tsStu.on('change', val => { currentStudentId = val; if(activeRole === 'STUDENT') window.renderStudentsTab(); });
+    };
+
+    // ----------------------------------------
+    // FEATURE: RESEARCH TRACKING (NEW & FULL)
+    // ----------------------------------------
+    window.addResPart = () => {
+        document.getElementById('res-parts-container').insertAdjacentHTML('beforeend', `<div class="flex gap-1 res-part-row mt-1"><input type="text" placeholder="Part Name" class="w-2/3 p-1.5 text-[10px] border rounded outline-none focus:border-royal-blue"><input type="number" placeholder="Weight %" class="w-1/3 p-1.5 text-[10px] border rounded outline-none focus:border-royal-blue"></div>`);
+    };
+    window.remResPart = () => { const rs = document.querySelectorAll('.res-part-row'); if(rs.length > 1) rs[rs.length-1].remove(); };
+    
+    window.saveResearchTask = () => {
+        const stuId = document.getElementById('res-stu-select').value;
+        const title = document.getElementById('res-task-title').value;
+        if(!stuId || !title) return alert("Student and Title are required");
+        
+        const parts = [];
+        document.querySelectorAll('.res-part-row').forEach(row => {
+            const n = row.children[0].value, w = parseFloat(row.children[1].value) || 0;
+            if(n) parts.push({ name: n, weight: w, completed: false });
+        });
+
+        localDB.research_tasks.push({ id: 'RES_' + Date.now(), stuId: stuId, title: title, parts: parts, status: 'Approved', progress: 0, date: new Date().toISOString() });
+        window.saveLocal(true); window.renderResearchTab(); window.showToast("Research Task Created.", "success");
+        document.getElementById('res-task-title').value = ''; document.getElementById('res-para').value = '';
+    };
+    
+    window.renderResearchTab = () => {
+        let aH='', rH='', retH='', vH=''; let cApp=0, cRev=0, cRet=0, cViva=0;
+        
+        localDB.research_tasks.forEach(rt => {
+            const stu = localDB.students.find(s => s.StudentID === rt.stuId);
+            const stuName = stu ? stu.FullName : rt.stuId;
+
+            const cardHtml = `<div class="bg-white p-2 border border-gray-200 rounded shadow-sm hover:shadow-md transition mb-2">
+                <b class="text-royal-blue block truncate" title="${rt.title}">${rt.title}</b>
+                <span class="text-gray-500 font-bold">${stuName}</span>
+                <div class="mt-1 flex justify-between items-center">
+                    <span class="text-[8px] bg-gray-100 px-1 rounded">${rt.progress}%</span>
+                    <select onchange="window.updateResStatus('${rt.id}', this.value)" class="text-[8px] border outline-none rounded bg-gray-50">
+                        <option value="Approved" ${rt.status==='Approved'?'selected':''}>Approved</option>
+                        <option value="Under Review" ${rt.status==='Under Review'?'selected':''}>Review</option>
+                        <option value="Returned" ${rt.status==='Returned'?'selected':''}>Returned</option>
+                        <option value="Ready for Munaqasha" ${rt.status==='Ready for Munaqasha'?'selected':''}>Viva Ready</option>
+                    </select>
+                </div>
+            </div>`;
+
+            if(rt.status==='Approved'){ aH+=cardHtml; cApp++; } else if(rt.status==='Under Review'){ rH+=cardHtml; cRev++; }
+            else if(rt.status==='Returned'){ retH+=cardHtml; cRet++; } else if(rt.status==='Ready for Munaqasha'){ vH+=cardHtml; cViva++; }
+        });
+
+        document.getElementById('res-list-app').innerHTML = aH || '<p class="italic text-gray-400 p-2 text-center">No active topics.</p>'; 
+        document.getElementById('res-list-rev').innerHTML = rH || '<p class="italic text-gray-400 p-2 text-center">None under review.</p>';
+        document.getElementById('res-list-ret').innerHTML = retH || '<p class="italic text-gray-400 p-2 text-center">None returned.</p>'; 
+        document.getElementById('res-list-viva').innerHTML = vH || '<p class="italic text-gray-400 p-2 text-center">None ready for Viva.</p>';
+        
+        let sOpts = '<option value="">-- Select Student --</option>';
+        localDB.students.forEach(s => sOpts += `<option value="${s.StudentID}">${s.FullName} (${s.StudentID})</option>`);
+        const sel = document.getElementById('res-stu-select'); if(sel) sel.innerHTML = sOpts;
+
+        let rCards = '';
+        localDB.research_tasks.forEach(rt => {
+            const stu = localDB.students.find(s => s.StudentID === rt.stuId);
+            const stuName = stu ? stu.FullName : rt.stuId;
+            
+            // Randomize progress for demo visual if parts exist
+            if(rt.parts && rt.parts.length > 0) {
+                let totalW = 0, compW = 0;
+                rt.parts.forEach(p => { totalW += p.weight; if(p.completed) compW += p.weight; });
+                if(totalW > 0) rt.progress = Math.round((compW/totalW)*100);
+            }
+
+            let pColor = rt.progress === 100 ? 'bg-green-500' : 'bg-gold';
+
+            rCards += `<div class="card p-4 border-t-4 border-gold shadow-md hover:scale-105 transition cursor-pointer relative" onclick="window.showToast('Open detailed student view coming soon.', 'info')">
+                <span class="absolute top-2 right-2 text-[8px] font-black uppercase text-gray-400 border px-1 rounded">${rt.status}</span>
+                <h4 class="font-black text-royal-blue text-xs mb-1 truncate pr-10" title="${rt.title}">${rt.title}</h4>
+                <p class="text-[10px] text-gray-600 mb-1"><b>Name:</b> ${stuName}</p>
+                <p class="text-[10px] text-gray-600 mb-3"><b>ID:</b> ${rt.stuId}</p>
+                <div class="w-full bg-gray-200 rounded-full h-2 shadow-inner"><div class="${pColor} h-2 rounded-full" style="width: ${rt.progress}%"></div></div>
+                <p class="text-[9px] text-right mt-1 font-bold ${rt.progress===100?'text-green-600':'text-gold'}">${rt.progress}% Completed</p>
+            </div>`;
+        });
+        document.getElementById('res-royal-cards').innerHTML = rCards || '<p class="text-xs text-gray-500 italic p-4 col-span-full text-center border-dashed border-2 rounded">No research students being tracked currently.</p>';
+
+        // Render Charts
+        if(charts.resBar) charts.resBar.destroy();
+        const ctxB = document.getElementById('resBarChart');
+        if(ctxB) {
+            charts.resBar = new Chart(ctxB, { 
+                type: 'bar', 
+                data: { labels: ['Approved', 'In Review', 'Returned', 'Viva Ready'], datasets: [{label: 'No. of Students', data: [cApp, cRev, cRet, cViva], backgroundColor: '#d4af37', borderRadius: 4}] }, 
+                options: {responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales: {y:{beginAtZero:true, ticks:{stepSize:1}}}} 
+            });
+        }
+        
+        if(charts.resPie) charts.resPie.destroy();
+        const ctxP = document.getElementById('resPieChart');
+        if(ctxP) {
+            charts.resPie = new Chart(ctxP, { 
+                type: 'doughnut', 
+                data: { labels: ['Ready for Munaqasha', 'Still Working'], datasets: [{data: [cViva, cApp+cRev+cRet], backgroundColor: ['#004d40', '#cbd5e1'], borderWidth:0}] }, 
+                options: {responsive:true, maintainAspectRatio:false, cutout: '70%'} 
+            });
+        }
+    };
+
+    window.updateResStatus = (id, newStatus) => {
+        const rt = localDB.research_tasks.find(r => r.id === id);
+        if(rt) {
+            rt.status = newStatus;
+            window.saveLocal(true);
+            window.renderResearchTab();
+            window.showToast("Status Updated", "success");
+        }
+    };
+
+
+    // ==========================================
+    // MODULE 3: TEACHING PRACTICE (TP) OBSERVATION
+    // ==========================================
+    window.addTpRow = () => {
+        const tbody = document.querySelector('#tp-obs-table tbody');
+        if(!tbody) return;
+        tbody.insertAdjacentHTML('beforeend', `<tr class="hover:bg-gray-50 transition"><td contenteditable="true" class="p-2 border outline-none focus:bg-white">New Assessment Criteria</td><td contenteditable="true" class="tp-max p-2 border font-bold text-gray-600 bg-gray-50 text-center outline-none focus:bg-white" onkeyup="window.calcTp()">10</td><td contenteditable="true" class="tp-obt p-2 border font-black text-royal-blue bg-yellow-50 text-center outline-none focus:bg-white" onkeyup="window.calcTp()">0</td></tr>`);
+        window.calcTp();
+    };
+
+    window.addTpCol = () => {
+        window.showToast("Note: Columns are standardized to 'Criteria', 'Max', and 'Obtained' for system calculation integrity. Please add new Rows for additional criteria.", "warning");
+    };
+
+    window.calcTp = () => {
+        let maxTotal = 0, obtTotal = 0;
+        document.querySelectorAll('.tp-max').forEach(el => maxTotal += parseFloat(el.innerText) || 0);
+        document.querySelectorAll('.tp-obt').forEach(el => obtTotal += parseFloat(el.innerText) || 0);
+        
+        document.getElementById('tp-tot-max').innerText = maxTotal; 
+        
+        const obtEl = document.getElementById('tp-tot-obt');
+        obtEl.innerText = obtTotal;
+        
+        const pct = maxTotal > 0 ? (obtTotal / maxTotal) * 100 : 0;
+        if(pct >= 50) { obtEl.classList.remove('text-red-600'); obtEl.classList.add('text-green-700'); }
+        else { obtEl.classList.remove('text-green-700'); obtEl.classList.add('text-red-600'); }
+    };
+
+    window.saveTpForm = () => {
+        const stu = document.getElementById('tp-student').value.trim();
+        const date = document.getElementById('tp-date').value || new Date().toISOString().split('T')[0];
+        const mod = document.getElementById('tp-module').value.trim();
+        const notes = document.getElementById('tp-notes').value.trim();
+        const observer = document.getElementById('tp-lecturer').value.trim();
+        const max = document.getElementById('tp-tot-max').innerText;
+        const obt = document.getElementById('tp-tot-obt').innerText;
+
+        if(!stu) return alert("Student Name / ID is mandatory to save the form.");
+
+        localDB.tp_forms.push({
+            id: 'TP_' + Date.now(),
+            student: stu,
+            date: date,
+            module: mod,
+            notes: notes,
+            observer: observer,
+            maxMarks: max,
+            obtained: obt
+        });
+
+        window.saveLocal(true);
+        window.renderTpTab();
+        window.showToast("Teaching Practice Observation Form Saved and Submitted.", "success");
+        
+        // Reset form
+        document.getElementById('tp-student').value = '';
+        document.getElementById('tp-module').value = '';
+        document.getElementById('tp-notes').value = '';
+        document.querySelectorAll('.tp-obt').forEach(el => el.innerText = '0');
+        window.calcTp();
+    };
+
+    window.renderTpTab = () => {
+        const listEl = document.getElementById('tp-saved-list');
+        if(!listEl) return;
+
+        let html = '';
+        // Sort newest first
+        const sortedForms = [...localDB.tp_forms].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+        sortedForms.forEach(f => {
+            const pct = Math.round((parseFloat(f.obtained) / parseFloat(f.maxMarks)) * 100) || 0;
+            const statusColor = pct >= 50 ? 'text-green-600' : 'text-red-600';
+            const badge = pct >= 50 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+
+            html += `<div class="bg-white p-3 border border-gray-200 rounded-xl shadow-sm mb-3 hover:shadow-md transition">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <b class="text-royal-blue text-xs block">${f.student}</b>
+                        <span class="text-gray-500 font-bold text-[9px]">${f.module || 'N/A'} | Observed: ${f.date}</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-black text-lg ${statusColor}">${f.obtained} <span class="text-gray-400 text-[10px] font-bold">/ ${f.maxMarks}</span></div>
+                        <span class="text-[8px] font-black uppercase px-1 rounded ${badge}">${pct}% Score</span>
+                    </div>
+                </div>
+                <div class="bg-gray-50 p-2 rounded text-[9px] text-gray-700 italic border border-dashed border-gray-300">
+                    "${f.notes || 'No specific notes provided.'}"
+                </div>
+                <div class="text-[8px] text-right text-gray-400 font-bold mt-1 uppercase tracking-widest">Observer: ${f.observer || 'System Admin'}</div>
+            </div>`;
+        });
+
+        listEl.innerHTML = html || '<p class="text-gray-500 italic p-4 text-center border-dashed border-2 rounded">No observation forms saved yet.</p>';
+    };
+
+
+    // ==========================================
+    // MODULE 4: TASKS & BULK EMAIL AUTOMATION
+    // ==========================================
+    window.addSubTaskField = () => {
+        const container = document.getElementById('subtasks-container');
+        const div = document.createElement('div');
+        div.className = "flex gap-2 mb-1 subtask-row";
+        div.innerHTML = `
+            <input type="text" class="w-full p-2 border rounded text-[10px] subtask-input outline-none focus:border-blue-500 bg-gray-50" placeholder="Subtask / Checklist item description">
+            <button onclick="this.parentElement.remove()" class="text-red-500 px-3 font-black bg-red-50 hover:bg-red-100 rounded transition">&times;</button>
+        `;
+        container.appendChild(div);
+    };
+
+    window.toggleAllTaskAssignees = () => {
+        const checkAll = document.getElementById('task-sel-all').checked;
+        document.querySelectorAll('.task-assign-chk').forEach(cb => cb.checked = checkAll);
+        window.updateBulkEmailList();
+    };
+
+    window.updateBulkEmailList = () => {
+        let emails = [];
+        document.querySelectorAll('.task-assign-chk:checked').forEach(cb => {
+            // Generating a standard email format based on Lecturer ID for bulk sending
+            emails.push(cb.value.toLowerCase() + "@ium.edu.mv");
+        });
+        document.getElementById('task-bulk-emails').value = emails.join(', ');
+    };
+
+    window.renderTasksTab = () => {
+        const listEl = document.getElementById('task-assignees-list');
+        if(!listEl) return;
+        
+        let html = '';
+        window.getFilteredLecturers().forEach(l => {
+            const id = window.makeSafeId(window.getSafeVal(l, ['LecturerID']));
+            const name = window.getSafeVal(l, ['LecturerName']);
+            html += `<label class="block mb-1 hover:bg-blue-50 p-1.5 rounded cursor-pointer transition border-b border-gray-100">
+                <input type="checkbox" class="task-assign-chk mr-2" value="${id}" onchange="window.updateBulkEmailList()"> 
+                <span class="font-bold text-gray-700">${name}</span> <span class="text-gray-400 text-[8px]">(${id})</span>
+            </label>`;
+        });
+        listEl.innerHTML = html;
+        window.updateAnalytics(); 
+    };
+
+    window.assignTask = () => {
+        const title = document.getElementById('task-title').value;
+        const date = document.getElementById('task-date').value;
+        const time = document.getElementById('task-time').value;
+        const recur = document.getElementById('task-recur').value;
+        const emails = document.getElementById('task-bulk-emails').value;
+        
+        const subtasks = Array.from(document.querySelectorAll('.subtask-input')).map(input => input.value).filter(val => val.trim() !== '');
+        const assignees = Array.from(document.querySelectorAll('.task-assign-chk:checked')).map(cb => cb.value);
+
+        if(!title || assignees.length === 0) return alert("Task Title and at least one Assignee are required.");
+
+        const taskIdBase = Math.random().toString(36).substr(2,9);
+        const deadline = date ? `${date}T${time || '23:59'}:00` : new Date(Date.now() + 86400000).toISOString(); // Default tomorrow
+
+        assignees.forEach(lId => {
+            const taskObj = {
+                id: `${taskIdBase}_${lId}`,
+                lectId: lId,
+                title: title,
+                deadline: deadline,
+                recurrence: recur,
+                subtasks: subtasks.map(desc => ({ desc: desc, done: false })),
+                status: 'Pending',
+                createdAt: new Date().toISOString()
+            };
+            localDB.tasks.push(taskObj);
+        });
+
+        window.saveLocal(true);
+        
+        // Display Bulk Email Simulation
+        if(emails) simulateEmail('Bulk Mailing List', `New Assigned Task: ${title}`, `Task details and subtasks dispatched to: ${emails}`);
+        
+        window.showToast(`Task assigned to ${assignees.length} staff. Notifications sent.`, "success");
+        
+        // Reset
+        document.getElementById('task-title').value = '';
+        document.getElementById('task-date').value = '';
+        document.getElementById('task-time').value = '';
+        document.getElementById('subtasks-container').innerHTML = '';
+        document.getElementById('task-bulk-emails').value = '';
+        document.getElementById('task-sel-all').checked = false;
+        window.toggleAllTaskAssignees();
+        
+        window.updateAnalytics();
+    };
+
+
+    // ==========================================
+    // MODULE 5: AUTOMATED WEEKLY REPORTS
+    // ==========================================
+    window.requestWeeklyReports = () => {
+        // Automatically creates a pending task for ALL lecturers for Friday 23:59
+        const friday = new Date();
+        friday.setDate(friday.getDate() + (5 + 7 - friday.getDay()) % 7); // Next Friday
+        friday.setHours(23, 59, 0, 0);
+
+        const taskIdBase = 'AUTO_WR_' + Date.now();
+        let assignedCount = 0;
+
+        localDB.lecturers.forEach(l => {
+            const lId = window.makeSafeId(window.getSafeVal(l, ['LecturerID']));
+            
+            // Avoid duplicates for the same week
+            const exists = localDB.tasks.some(t => t.lectId === lId && t.title.includes('Weekly Delivery Report') && t.status === 'Pending');
+            
+            if(!exists) {
+                localDB.tasks.push({
+                    id: `${taskIdBase}_${lId}`,
+                    lectId: lId,
+                    title: 'Submit Weekly Delivery Report',
+                    deadline: friday.toISOString(),
+                    recurrence: 'Weekly',
+                    subtasks: [
+                        {desc: 'Update Moodle Links & Notes', done: false},
+                        {desc: 'Mark ISIMS Attendance', done: false},
+                        {desc: 'Fill Report Form in Portal', done: false}
+                    ],
+                    status: 'Pending',
+                    createdAt: new Date().toISOString()
+                });
+                assignedCount++;
+            }
+        });
+
+        if(assignedCount > 0) {
+            window.saveLocal(true);
+            window.renderTasksTab();
+            simulateEmail('All Academic Staff', `Action Required: Weekly Report`, `Please submit your weekly delivery report by ${friday.toLocaleString()}`);
+            window.showToast(`Automated Weekly Report task sent to ${assignedCount} staff members.`, "success");
+        } else {
+            window.showToast("All staff already have pending weekly report tasks.", "info");
+        }
+    };
+
+    window.openWeeklyModal = () => {
+        if(!currentLecturerId) return alert("Please select your Identity first.");
+        
+        const select = document.getElementById('wr-mod-select');
+        let html = '';
+        localDB.modules.forEach(m => {
+            const code = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+            if(localDB.assignments[code] && localDB.assignments[code].id === currentLecturerId) {
+                html += `<option value="${code}">${code} - ${window.getSafeVal(m, ['ModuleName'])}</option>`;
+            }
+        });
+        if(html === '') {
+            alert("You have no assigned modules to report on."); return;
+        }
+        select.innerHTML = html;
+        document.getElementById('weekly-report-modal').style.display = 'flex';
+    };
+    
+    window.closeWeeklyModal = () => document.getElementById('weekly-report-modal').style.display = 'none';
+
+    window.submitWeeklyReport = () => {
+        const modCode = document.getElementById('wr-mod-select').value;
+        const date = document.getElementById('wr-date').value;
+        const hrsSched = document.getElementById('wr-hrs-sched').value;
+        const hrsTaken = document.getElementById('wr-hrs-taken').value;
+        const hrsCan = document.getElementById('wr-hrs-can').value;
+        const reason = document.getElementById('wr-can-reason').value;
+        
+        const moodle = document.getElementById('wr-moodle').checked;
+        const isims = document.getElementById('wr-isims').checked;
+        const assign = document.getElementById('wr-assign').checked;
+        const exam = document.getElementById('wr-exam').checked;
+
+        if(!modCode || !date || !hrsSched) return alert("Please fill the required fields.");
+
+        const m = localDB.modules.find(mx => window.makeSafeId(window.getSafeVal(mx, ['ModuleCode'])) === modCode);
+        const fac = m ? window.getFaculty(m) : 'UNKNOWN';
+
+        const report = {
+            id: Math.random().toString(36).substr(2,9),
+            lectId: currentLecturerId,
+            fac: fac,
+            modCode: modCode,
+            date: date,
+            hrsSched: hrsSched,
+            hrsTaken: hrsTaken,
+            hrsCan: hrsCan,
+            reason: reason,
+            moodle: moodle,
+            isims: isims,
+            assign: assign,
+            exam: exam,
+            timestamp: new Date().toISOString()
+        };
+
+        localDB.weekly_reports.push(report);
+
+        // Auto-complete the associated task if it exists
+        const autoTask = localDB.tasks.find(t => t.lectId === currentLecturerId && t.title.includes('Weekly Delivery Report') && t.status === 'Pending');
+        if(autoTask) {
+            autoTask.status = 'Completed';
+            autoTask.subtasks.forEach(st => st.done = true);
+        }
+
+        window.saveLocal(true);
+        window.closeWeeklyModal();
+        
+        simulateEmail(`Academic Affairs & ${fac} Dean`, `Weekly Report Submitted: ${modCode}`, `Lecturer ${currentLecturerId} has submitted their weekly delivery report.`);
+        window.showToast("Weekly Report Submitted Successfully.", "success");
+        window.renderWeeklyReports();
+        window.renderLecturerWorkspace(); // Refresh stars/points
+    };
+
+    window.renderWeeklyReports = () => {
+        const tbody = document.getElementById('wr-table-body');
+        if(!tbody) return;
+
+        const facFilter = document.getElementById('wr-filter-fac').value;
+        const searchQ = document.getElementById('wr-search').value.toLowerCase();
+
+        let html = '';
+        let tSub = 0;
+        let facCounts = {};
+        FACULTIES.forEach(f => facCounts[f] = 0);
+
+        // Sort newest first
+        const sortedReports = [...localDB.weekly_reports].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        sortedReports.forEach(r => {
+            const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
+            const lName = l ? window.getSafeVal(l, ['LecturerName']) : r.lectId;
+            
+            const matchSearch = r.modCode.toLowerCase().includes(searchQ) || lName.toLowerCase().includes(searchQ);
+            const matchFac = facFilter === 'ALL' || r.fac.includes(facFilter);
+
+            if(matchSearch && matchFac) {
+                tSub++;
+                if(facCounts[r.fac] !== undefined) facCounts[r.fac]++;
+
+                const tick = (val) => val ? '✅' : '❌';
+                const canClass = parseInt(r.hrsCan) > 0 ? 'bg-red-50 text-red-800' : 'text-gray-600 italic';
+
+                html += `<tr class="hover:bg-teal-50 border-b border-gray-100 transition">
+                    <td class="p-3 border-r border-gray-100"><b class="text-royal-blue">${lName}</b><br><span class="text-[8px] text-gray-500 font-bold uppercase">${r.fac}</span></td>
+                    <td class="p-3 border-r border-gray-100 font-black text-teal-800">${r.modCode}</td>
+                    <td class="p-3 border-r border-gray-100 text-center font-bold">${r.date}</td>
+                    <td class="p-3 border-r border-gray-100 text-center text-green-600 font-black text-lg">${r.hrsTaken}</td>
+                    <td class="p-3 border-r border-gray-100 text-center text-red-600 font-black text-lg">${r.hrsCan}</td>
+                    <td class="p-3 border-r border-gray-100 text-[9px] ${canClass}">${r.reason || '-'}</td>
+                    <td class="p-3 border-r border-gray-100 text-center text-xs space-y-1">
+                        <div class="bg-gray-50 rounded border px-2 py-0.5">Moodle: ${tick(r.moodle)}</div>
+                        <div class="bg-gray-50 rounded border px-2 py-0.5">iSIMS: ${tick(r.isims)}</div>
+                    </td>
+                    <td class="p-3 text-center text-xs space-y-1">
+                        <div class="bg-gray-50 rounded border px-2 py-0.5">Assign: ${tick(r.assign)}</div>
+                        <div class="bg-gray-50 rounded border px-2 py-0.5">Exam: ${tick(r.exam)}</div>
+                    </td>
+                </tr>`;
+            }
+        });
+        tbody.innerHTML = html || '<tr><td colspan="8" class="p-8 text-center text-gray-500 italic">No weekly reports found matching criteria.</td></tr>';
+
+        // Update Charts
+        if(charts.weeklyPie) charts.weeklyPie.destroy();
+        const pCtx = document.getElementById('weeklyPieChart');
+        if(pCtx) {
+            let totalAssignedMods = 0;
+            Object.values(localDB.assignments).forEach(a => { if(a.id) totalAssignedMods++; });
+            const estPending = Math.max(0, totalAssignedMods - tSub);
+
+            charts.weeklyPie = new Chart(pCtx, {
+                type: 'doughnut', 
+                data: {
+                    labels: ['Submitted', 'Pending/Overdue'], 
+                    datasets: [{data: [tSub, estPending], backgroundColor: ['#0d9488', '#cbd5e1'], borderWidth: 0}]
+                }, 
+                options: {responsive: true, maintainAspectRatio: false, cutout: '70%'}
+            });
+        }
+        
+        if(charts.weeklyBar) charts.weeklyBar.destroy();
+        const bCtx = document.getElementById('weeklyBarChart');
+        if(bCtx) {
+            let labels = []; let data = [];
+            FACULTIES.forEach(f => { if(facCounts[f] > 0) { labels.push(f); data.push(facCounts[f]); }});
+            if(labels.length === 0) { labels = ['None']; data = [0]; }
+
+            charts.weeklyBar = new Chart(bCtx, {
+                type: 'bar', 
+                data: { labels: labels, datasets: [{label: 'Reports Submitted', data: data, backgroundColor: '#0f766e', borderRadius: 4}] }, 
+                options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true, ticks:{stepSize:1}}}}
+            });
+        }
+    };
+
+
+    // ==========================================
+    // MODULE 6: TIMETABLE EXCEL GRID LOGIC
+    // ==========================================
+    window.populateTimetableDropdowns = () => {
+        const progs = [...new Set(window.getFilteredModules().map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
+        const pf1 = document.getElementById('tt-prog-filter');
+        const pf2 = document.getElementById('exam-tt-prog-filter');
+        let html = '<option value="">-- View All Programs --</option>';
+        progs.forEach(p => html += `<option value="${p}">${p}</option>`);
+        if(pf1) pf1.innerHTML = html;
+        if(pf2) pf2.innerHTML = html;
+        
+        const ef1 = document.getElementById('tt-export-prog');
+        const ef2 = document.getElementById('exam-tt-export-prog');
+        if(ef1) ef1.innerHTML = html;
+        if(ef2) ef2.innerHTML = html;
+
+        const batches = [...new Set(window.getFilteredModules().map(m => window.getSafeVal(m, ['OfferedBatch'])))].filter(Boolean);
+        let bHtml = '<option value="ALL">All Batches</option>';
+        batches.forEach(b => bHtml += `<option value="${b}">${b}</option>`);
+        const eb1 = document.getElementById('tt-export-batch');
+        const eb2 = document.getElementById('exam-tt-export-batch');
+        if(eb1) eb1.innerHTML = bHtml;
+        if(eb2) eb2.innerHTML = bHtml;
+    };
+
+    window.markTTComplete = (type) => {
+        const prog = type === 'CLASS' ? document.getElementById('tt-prog-filter').value : document.getElementById('exam-tt-prog-filter').value;
+        if(!prog) return alert("Please select a specific program from the dropdown first to publish it.");
+        
+        if(!localDB.settings.completed_tts) localDB.settings.completed_tts = [];
+        const entry = `${type}_${prog}`;
+        
+        if(!localDB.settings.completed_tts.includes(entry)) {
+            localDB.settings.completed_tts.push(entry);
+            window.saveLocal(true);
+            window.updateAnalytics();
+        } 
+        
+        simulateEmail(`Students & Staff (${prog})`, `[${type}] Timetable Published`, `The official timetable for ${prog} is now live on the portal.`);
+        
+        const statusEl = document.getElementById(type === 'CLASS' ? 'tt-class-pub-status' : 'tt-exam-pub-status');
+        if(statusEl) statusEl.innerText = `Published: ${new Date().toLocaleDateString()} ✅`;
+        window.showToast(`${type} Timetable for ${prog} Published Successfully.`, "success");
+    };
+
+    window.renderTimetableModules = () => {
+        const pane = document.getElementById('draggable-modules-list'); if(!pane) return;
+        const search = document.getElementById('tt-mod-search').value.toLowerCase();
+        const prog = document.getElementById('tt-prog-filter').value;
+        
+        let html = '';
+        window.getFilteredModules().forEach(m => {
+            const code = window.getSafeVal(m, ['ModuleCode']);
+            const safeCode = window.makeSafeId(code);
+            const name = window.getSafeVal(m, ['ModuleName']);
+            const p = window.getSafeVal(m, ['ProgramName']);
+            
+            if((prog === '' || p === prog) && (code.toLowerCase().includes(search) || name.toLowerCase().includes(search))) {
+                const isAssigned = localDB.assignments[safeCode] && localDB.assignments[safeCode].id !== '';
+                const dotColor = isAssigned ? 'bg-green-500' : 'bg-red-500 animate-pulse';
+                const statusTxt = isAssigned ? 'Assigned' : 'Unassigned';
+
+                html += `<div class="draggable-mod relative hover:border-royal-blue" draggable="true" ondragstart="window.dragMod(event, '${safeCode}', '${p}')">
+                    <div class="absolute top-2 right-2 w-2 h-2 rounded-full ${dotColor}" title="${statusTxt}"></div>
+                    <strong class="text-royal-blue">${code}</strong><br>
+                    <span class="text-[9px] text-gray-700 leading-tight block mt-1">${name}</span>
+                    <span class="text-[8px] font-bold text-gray-400 mt-1 block">${p}</span>
+                </div>`;
+            }
+        });
+        pane.innerHTML = html || '<p class="text-[9px] italic text-gray-500 p-2 text-center">No modules match criteria.</p>';
+        
+        const statusEl = document.getElementById('tt-class-pub-status');
+        if(statusEl) {
+            if(prog && localDB.settings.completed_tts.includes(`CLASS_${prog}`)) statusEl.innerText = "Status: Published ✅";
+            else statusEl.innerText = "Status: Draft (Auto-saving)";
+        }
+    };
+
+    window.renderTimetableGrid = () => {
+        const grid = document.getElementById('tt-grid'); if(!grid) return;
+        const day = document.getElementById('tt-day-select').value;
+        let progs = [...new Set(window.getFilteredModules().map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
+        
+        const filterProg = document.getElementById('tt-prog-filter').value;
+        if(filterProg) progs = [filterProg]; 
+
+        let html = `<div class="tt-header-row tt-row">
+            <div class="tt-header-venue border-r border-royal-purple">Venue</div>
+            <div class="tt-header-course flex items-center border-r border-royal-purple">Program / Batch</div>`;
+        localDB.settings.timeslots.forEach((ts, idx) => {
+            html += `<div class="tt-header-cell">
+                <div class="tt-time-top">${ts.start}</div><div class="tt-time-bot">to ${ts.end}</div>
+                <span class="tt-col-del" title="Delete Time Column" onclick="window.removeTimeslotAndRender(${idx}, 'CLASS')">✖</span>
+                </div>`;
+            });
+            html += `</div>`;
+
+            progs.forEach(p => {
+                let defaultVenue = "TBA";
+                let progEntries = localDB.timetable.filter(e => e.day === day && e.program === p);
+                if(progEntries.length > 0) defaultVenue = progEntries[0].room;
+
+                html += `<div class="tt-row group hover:bg-gray-50 transition">
+                    <div class="tt-cell-venue text-royal-blue" contenteditable="true" onblur="window.updateRowVenue(this, '${p}', '${day}', 'CLASS')" title="Click to edit venue for this row">${defaultVenue}</div>
+                    <div class="tt-cell-course flex text-royal-green" title="${p}">${p}</div>`;
+                
+                localDB.settings.timeslots.forEach((ts, idx) => {
+                    const entries = localDB.timetable.filter(e => e.day === day && e.program === p && e.tsIndex == idx);
+                    let blocks = '';
+                    entries.forEach(e => {
+                        const lName = e.lectId ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === e.lectId)?.['LecturerName'] || 'Unknown') : 'TBA';
+                        blocks += `<div class="assigned-block hover:shadow-md transition" title="${e.mode}">
+                            <strong>${e.modCode}</strong><span class="text-[9px] truncate">${lName}</span>
+                            <span class="text-gray-500 font-bold mt-0.5">Rm: ${e.room}</span>
+                            <span class="text-[7px] bg-white border border-purple-200 rounded px-1 mt-0.5 inline-block text-purple-700 uppercase tracking-widest">${e.mode}</span>
+                            <span class="del-btn" onclick="window.delTTEntry('${e.id}', 'CLASS')">&times;</span>
+                        </div>`;
+                    });
+                    const isOccupied = entries.length > 0 ? 'occupied' : '';
+                    html += `<div class="tt-cell ${isOccupied}" ondragover="window.allowDrop(event)" ondragleave="window.dragLeave(event)" ondrop="window.dropMod(event, '${p}', ${idx}, '${day}', 'CLASS')">${blocks}</div>`;
+                });
+                html += `</div>`;
+            });
+            grid.innerHTML = html;
+        };
+
+        window.renderExamTimetableModules = () => {
+            const pane = document.getElementById('draggable-exam-modules-list'); if(!pane) return;
+            const search = document.getElementById('exam-tt-mod-search').value.toLowerCase();
+            const prog = document.getElementById('exam-tt-prog-filter').value;
+            
+            let html = '';
+            window.getFilteredModules().forEach(m => {
+                const code = window.getSafeVal(m, ['ModuleCode']);
+                const safeCode = window.makeSafeId(code);
+                const name = window.getSafeVal(m, ['ModuleName']);
+                const p = window.getSafeVal(m, ['ProgramName']);
+                const students = window.getSafeVal(m, ['NoofStudents']) || 0;
+                
+                if((prog === '' || p === prog) && (code.toLowerCase().includes(search) || name.toLowerCase().includes(search))) {
+                    const allSameCodes = localDB.modules.filter(mx => window.makeSafeId(window.getSafeVal(mx, ['ModuleCode'])) === safeCode);
+                    const hasCrossFac = new Set(allSameCodes.map(mx => window.getFaculty(mx))).size > 1;
+                    const cfBadge = hasCrossFac ? `<span class="bg-purple-100 border border-purple-300 text-purple-700 px-1 rounded text-[7px] font-bold uppercase">Cross-Fac</span>` : '';
+
+                    html += `<div class="draggable-mod relative border-l-4 border-green-500 hover:border-green-600" draggable="true" ondragstart="window.dragMod(event, '${safeCode}', '${p}')">
+                        <strong class="text-green-800">${code}</strong> ${cfBadge}<br>
+                        <span class="text-[9px] text-gray-700 leading-tight block mt-1">${name}</span>
+                        <span class="text-[8px] font-bold text-gray-500 mt-1 flex justify-between border-t pt-1 border-gray-100"><span>${p}</span><span class="text-royal-blue">👥 ${students}</span></span>
+                    </div>`;
+                }
+            });
+            pane.innerHTML = html || '<p class="text-[9px] italic text-gray-500 p-2 text-center">No modules match criteria.</p>';
+            
+            const statusEl = document.getElementById('tt-exam-pub-status');
+            if(statusEl) {
+                if(prog && localDB.settings.completed_tts.includes(`EXAM_${prog}`)) {
+                    statusEl.innerText = "Status: Published ✅"; 
+                } else {
+                    statusEl.innerText = "Status: Draft (Auto-saving)";
+                }
+            }
+        };
+
+        window.renderExamTimetableGrid = () => {
+            const grid = document.getElementById('exam-tt-grid'); if(!grid) return;
+            const dateRaw = document.getElementById('exam-tt-date').value;
+            const dateObj = dateRaw ? new Date(dateRaw) : new Date();
+            const dateStr = dateObj.toISOString().split('T')[0]; 
+            
+            let progs = [...new Set(window.getFilteredModules().map(m => window.getSafeVal(m, ['ProgramName'])))].filter(Boolean);
+            const filterProg = document.getElementById('exam-tt-prog-filter').value;
+            if(filterProg) progs = [filterProg];
+
+            let html = `<div class="tt-header-row tt-row shadow-md">
+                <div class="tt-header-venue border-r border-green-700 bg-[#064e3b] text-gold">Venue</div>
+                <div class="tt-header-course flex items-center bg-[#064e3b] text-white border-r border-green-700">Program / Batch</div>`;
+            localDB.settings.timeslots.forEach((ts, idx) => {
+                html += `<div class="tt-header-cell border-green-700">
+                    <div class="tt-time-top bg-[#047857] text-white">${ts.start}</div><div class="tt-time-bot bg-[#059669] text-green-100">to ${ts.end}</div>
+                    <span class="tt-col-del" title="Delete Time Column" onclick="window.removeTimeslotAndRender(${idx}, 'EXAM')">✖</span>
+                </div>`;
+            });
+            html += `</div>`;
+
+            progs.forEach(p => {
+                let defaultVenue = "TBA";
+                let progEntries = localDB.exam_timetable.filter(e => e.day === dateStr && e.program === p);
+                if(progEntries.length > 0) defaultVenue = progEntries[0].room;
+
+                html += `<div class="tt-row group hover:bg-green-50 transition">
+                    <div class="tt-cell-venue text-green-900 bg-green-100/50" contenteditable="true" onblur="window.updateRowVenue(this, '${p}', '${dateStr}', 'EXAM')" title="Click to edit venue for this row">${defaultVenue}</div>
+                    <div class="tt-cell-course flex text-green-800 bg-white" title="${p}">${p}</div>`;
+                
+                localDB.settings.timeslots.forEach((ts, idx) => {
+                    const entries = localDB.exam_timetable.filter(e => e.day === dateStr && e.program === p && e.tsIndex == idx);
+                    let blocks = '';
+                    entries.forEach(e => {
+                        const m = localDB.modules.find(mx => window.makeSafeId(window.getSafeVal(mx, ['ModuleCode'])) === e.modCode);
+                        const students = m ? window.getSafeVal(m, ['NoofStudents']) || 0 : 0;
+                        
+                        const ass = localDB.assignments[e.modCode];
+                        const lName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['LecturerName'] || 'TBA') : 'TBA';
+                        
+                        blocks += `<div class="assigned-block border-green-500 bg-green-50 hover:shadow-md transition" title="Invigilator: ${lName}">
+                            <strong class="text-green-900">${e.modCode}</strong>
+                            <span class="text-[9px] text-gray-700 bg-white border rounded px-1 mt-0.5">👥 ${students}</span>
+                            <span class="text-gray-600 font-bold mt-1 text-[8px] uppercase">Ven: ${e.room}</span>
+                            <span class="del-btn" onclick="window.delTTEntry('${e.id}', 'EXAM')">&times;</span>
+                        </div>`;
+                    });
+                    const isOccupied = entries.length > 0 ? 'occupied' : '';
+                    html += `<div class="tt-cell border-gray-200 ${isOccupied}" ondragover="window.allowDrop(event)" ondragleave="window.dragLeave(event)" ondrop="window.dropMod(event, '${p}', ${idx}, '${dateStr}', 'EXAM')">${blocks}</div>`;
+                });
+                html += `</div>`;
+            });
+            grid.innerHTML = html;
+        };
+
+        window.updateRowVenue = (element, prog, dayOrDate, type) => {
+            const newVenue = element.innerText.trim() || 'TBA';
+            const targetArray = type === 'CLASS' ? localDB.timetable : localDB.exam_timetable;
+            let updated = false;
+            
+            targetArray.forEach(t => {
+                if(t.program === prog && t.day === dayOrDate) {
+                    t.room = newVenue;
+                    updated = true;
+                }
+            });
+            
+            if(updated) {
+                window.saveLocal(true);
+                if(type === 'CLASS') window.renderTimetableGrid();
+                else window.renderExamTimetableGrid();
+                window.showToast("Row Venue Updated Globally", "success");
+            }
+        };
+
+        window.removeTimeslotAndRender = (idx, type) => {
+            if(confirm("Remove this entire time column? Scheduled modules inside it will be lost.")) {
+                localDB.settings.timeslots.splice(idx, 1);
+                if(type === 'CLASS') {
+                    localDB.timetable = localDB.timetable.filter(t => t.tsIndex != idx); 
+                    localDB.timetable.forEach(t => { if(t.tsIndex > idx) t.tsIndex--; });
+                    window.saveLocal(true); window.renderTimetableGrid();
+                } else {
+                    localDB.exam_timetable = localDB.exam_timetable.filter(t => t.tsIndex != idx); 
+                    localDB.exam_timetable.forEach(t => { if(t.tsIndex > idx) t.tsIndex--; });
+                    window.saveLocal(true); window.renderExamTimetableGrid();
+                }
+            }
+        };
+
+        window.dragMod = (e, code, prog) => {
+            e.dataTransfer.setData("modCode", code);
+            e.dataTransfer.setData("progName", prog);
+        };
+        window.allowDrop = (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
+        window.dragLeave = (e) => { e.currentTarget.classList.remove('drag-over'); };
+        
+        window.dropMod = (e, targetProg, tsIndex, day, type) => {
+            e.preventDefault(); 
+            e.currentTarget.classList.remove('drag-over');
+            
+            const code = e.dataTransfer.getData("modCode");
+            const originProg = e.dataTransfer.getData("progName");
+            if(!code) return;
+
+            if(originProg !== targetProg) {
+                if(!confirm(`Warning: You are dropping a module from [${originProg}] into the [${targetProg}] row. Continue?`)) return;
+            }
+
+            const ass = localDB.assignments[code];
+            const lectId = ass ? ass.id : null;
+            
+            let mode = "Face to Face";
+            if(type === 'CLASS') {
+                const modeInput = prompt("Enter Mode:\n1: Face to Face\n2: Online\n3: Blended", "1");
+                if(modeInput === null) return;
+                if(modeInput === "2") mode = "Online";
+                else if(modeInput === "3") mode = "Blended";
+            }
+
+            let currentVenue = "TBA";
+            const targetArray = type === 'CLASS' ? localDB.timetable : localDB.exam_timetable;
+            const existingInRow = targetArray.find(t => t.day === day && t.program === targetProg);
+            if(existingInRow) currentVenue = existingInRow.room;
+
+            let roomPrompt = `Available Venues/Rooms:\n`;
+            localDB.settings.roomList.forEach((r, i) => roomPrompt += `${i+1}: ${r}\n`);
+            roomPrompt += `\nEnter Venue/Room Number or Name (Default: ${currentVenue}):`;
+            
+            let roomInput = prompt(roomPrompt, currentVenue);
+            if(roomInput === null) return; 
+            
+            let finalRoom = roomInput;
+            const rIndex = parseInt(roomInput) - 1;
+            if(!isNaN(rIndex) && localDB.settings.roomList[rIndex]) finalRoom = localDB.settings.roomList[rIndex];
+
+            let hasClash = false;
+            let clashMsg = "";
+            
+            targetArray.forEach(t => {
+                if(t.day === day && t.tsIndex == tsIndex) {
+                    if(t.room === finalRoom && mode !== "Online" && finalRoom !== "TBA") {
+                        hasClash = true; clashMsg += `- Venue [${finalRoom}] is already booked by ${t.modCode}.\n`;
+                    }
+                    if(type === 'CLASS' && lectId && t.lectId === lectId) {
+                        hasClash = true; clashMsg += `- Assigned Lecturer is already teaching ${t.modCode} at this time.\n`;
+                    }
+                    if(t.program === targetProg) {
+                        hasClash = true; clashMsg += `- Students in [${targetProg}] already have a scheduling conflict (${t.modCode}) at this time.\n`;
+                    }
+                }
+            });
+
+            if(hasClash) { alert(`⛔ CLASH DETECTED. CANNOT ASSIGN:\n\n${clashMsg}`); return; }
+
+            targetArray.push({ 
+                id: Math.random().toString(36).substr(2,9), 
+                modCode: code, program: targetProg, tsIndex: tsIndex, 
+                day: day, lectId: lectId, room: finalRoom, mode: mode
+            });
+            
+            window.saveLocal(true);
+            
+            if(localDB.settings.completed_tts.includes(`${type}_${targetProg}`)) {
+                simulateEmail(`Students & Staff (${targetProg})`, `[${type}] Timetable Amended`, `Changes have been made to the schedule for ${code}.`);
+            }
+
+            if(type === 'CLASS') window.renderTimetableGrid(); else window.renderExamTimetableGrid();
+            window.showToast("Scheduled Successfully", "success");
+        };
+
+        window.delTTEntry = (id, type) => {
+            if(type === 'CLASS') {
+                localDB.timetable = localDB.timetable.filter(t => t.id !== id);
+                window.saveLocal(true); window.renderTimetableGrid();
+            } else {
+                localDB.exam_timetable = localDB.exam_timetable.filter(t => t.id !== id);
+                window.saveLocal(true); window.renderExamTimetableGrid();
+            }
+        };
+
+
+        // ==========================================
+        // MODULE 7: EXAM TRACKING
+        // ==========================================
+        const EXAM_STEPS = ['paper', 'scheme', 'modkit', 'vetted', 'assign', 'returned'];
+        
+        window.renderExamTable = () => {
+            const tbody = document.getElementById('exam-table-body');
+            if(!tbody) return;
+
+            const facFilter = document.getElementById('exam-fac-filter');
+            if(facFilter && facFilter.options.length === 1) {
+                let fOpts = '<option value="ALL">All Faculties</option>';
+                FACULTIES.forEach(f => fOpts += `<option value="${f}">${f}</option>`);
+                facFilter.innerHTML = fOpts;
+            }
+
+            const searchQ = document.getElementById('examSearch').value.toLowerCase();
+            const facVal = document.getElementById('exam-fac-filter').value;
+            const statusVal = document.getElementById('exam-status-filter').value;
+
+            let html = '';
+            let tPend = 0, tProg = 0, tComp = 0;
+
+            localDB.modules.forEach(m => {
+                const code = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+                const name = window.getSafeVal(m, ['ModuleName']);
+                const prog = window.getSafeVal(m, ['ProgramName']);
+                const batch = window.getSafeVal(m, ['OfferedBatch']);
+                const fac = window.getFaculty(m);
+                const students = window.getSafeVal(m, ['NoofStudents']) || 0;
+
+                const ass = localDB.assignments[code];
+                const lName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['LecturerName'] || 'TBA') : 'Unassigned';
+
+                const matchSearch = code.toLowerCase().includes(searchQ) || name.toLowerCase().includes(searchQ) || lName.toLowerCase().includes(searchQ) || prog.toLowerCase().includes(searchQ);
+                const matchFac = facVal === 'ALL' || fac.includes(facVal);
+
+                if (!matchSearch || !matchFac) return;
+
+                if(!localDB.exam_progress[code]) localDB.exam_progress[code] = { paper:false, scheme:false, modkit:false, vetted:false, assign:false, returned:false };
+                const progData = localDB.exam_progress[code];
+
+                const completedSteps = EXAM_STEPS.filter(s => progData[s]).length;
+                const totalSteps = EXAM_STEPS.length;
+                const pct = Math.round((completedSteps / totalSteps) * 100);
+
+                let statusCategory = 'Pending';
+                if(pct === 100) statusCategory = 'Complete';
+                else if(pct > 0) statusCategory = 'Progress';
+
+                if(statusVal !== 'ALL' && statusCategory !== statusVal) return;
+
+                if(statusCategory === 'Complete') tComp++;
+                else if(statusCategory === 'Progress') tProg++;
+                else tPend++;
+
+                const buildToggle = (step) => {
+                    const isActive = progData[step];
+                    const btnClass = isActive ? 'active' : 'pending';
+                    const icon = isActive ? '✅' : '⏳';
+                    const action = isActive ? "Mark Pending" : "Mark Complete";
+                    return `<button onclick="window.toggleExamStep('${code}', '${step}')" title="${action}" class="exam-toggle-btn ${btnClass} w-8 h-8 rounded-full shadow-sm text-[10px] flex items-center justify-center mx-auto border border-gray-300 hover:border-gray-500">${icon}</button>`;
+                };
+
+                let pctColor = 'text-red-500';
+                if(pct === 100) pctColor = 'text-green-600';
+                else if(pct >= 50) pctColor = 'text-yellow-600';
+
+                html += `<tr class="hover:bg-green-50 border-b border-gray-100 transition">
+                    <td class="p-3 border-r border-gray-100"><b class="text-royal-blue text-xs">${code}</b><br><span class="text-[9px] text-gray-600">${name}</span></td>
+                    <td class="p-3 border-r border-gray-100 text-[10px]"><b>${prog}</b><br><span class="text-gray-500">${batch}</span></td>
+                    <td class="p-3 border-r border-gray-100 text-[10px]"><span class="bg-gray-100 px-1 rounded border">${fac}</span><br><span class="mt-1 inline-block">👥 ${students} Students</span></td>
+                    <td class="p-3 border-r border-gray-100 text-[10px] font-bold text-gray-800">${lName}</td>
+                    <td class="p-2 border-r border-gray-100 bg-gray-50/50">${buildToggle('paper')}</td>
+                    <td class="p-2 border-r border-gray-100 bg-gray-50/50">${buildToggle('scheme')}</td>
+                    <td class="p-2 border-r border-gray-100 bg-gray-50/50">${buildToggle('modkit')}</td>
+                    <td class="p-2 border-r border-gray-100">${buildToggle('vetted')}</td>
+                    <td class="p-2 border-r border-gray-100">${buildToggle('assign')}</td>
+                    <td class="p-2 border-r border-gray-100 bg-red-50/30">${buildToggle('returned')}</td>
+                    <td class="p-3 text-center">
+                        <div class="relative w-12 h-12 mx-auto flex items-center justify-center rounded-full border-4 ${pct===100?'border-green-500':(pct>0?'border-yellow-400':'border-gray-200')}">
+                            <span class="font-black text-[10px] ${pctColor}">${pct}%</span>
+                        </div>
+                    </td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html || '<tr><td colspan="11" class="p-8 text-center text-gray-500 italic">No exam records found matching criteria.</td></tr>';
+
+            const sPend = document.getElementById('exam-stat-pending');
+            const sProg = document.getElementById('exam-stat-progress');
+            const sComp = document.getElementById('exam-stat-complete');
+            if(sPend) sPend.innerText = tPend;
+            if(sProg) sProg.innerText = tProg;
+            if(sComp) sComp.innerText = tComp;
+
+            window.updateExamCharts();
+        };
+
+        window.toggleExamStep = (code, step) => {
+            if(!localDB.exam_progress[code]) localDB.exam_progress[code] = { paper:false, scheme:false, modkit:false, vetted:false, assign:false, returned:false };
+            
+            const currentState = localDB.exam_progress[code][step];
+            localDB.exam_progress[code][step] = !currentState;
+            
+            window.saveLocal(true);
+            window.renderExamTable();
+
+            if(!currentState) {
+                const m = localDB.modules.find(mx => window.makeSafeId(window.getSafeVal(mx, ['ModuleCode'])) === code);
+                const fac = m ? window.getFaculty(m) : 'Unknown';
+                let stepName = step;
+                if(step==='paper') stepName="Exam Paper Received";
+                else if(step==='scheme') stepName="Marking Scheme Received";
+                else if(step==='modkit') stepName="Moderation Kit Completed";
+                else if(step==='vetted') stepName="Paper Vetted & Ready";
+                else if(step==='assign') stepName="Marking Assigned";
+                else if(step==='returned') stepName="Marks Returned to Exam Unit";
+
+                simulateEmail(`Exam Unit & ${fac} Dean`, `Exam Tracking Update: ${code}`, `Step [${stepName}] has been marked as COMPLETE.`);
+                window.showToast("Exam Step Updated & Notified", "success");
+            }
+        };
+
+        window.updateExamCharts = () => {
+            if(charts.examPie) charts.examPie.destroy();
+            if(charts.examBar) charts.examBar.destroy();
+
+            const sPend = parseInt(document.getElementById('exam-stat-pending')?.innerText || 0);
+            const sProg = parseInt(document.getElementById('exam-stat-progress')?.innerText || 0);
+            const sComp = parseInt(document.getElementById('exam-stat-complete')?.innerText || 0);
+
+            const pieCanvas = document.getElementById('examPieChart');
+            if(pieCanvas) {
+                charts.examPie = new Chart(pieCanvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Pending', 'In Progress', 'Completed'],
+                        datasets: [{ data: [sPend, sProg, sComp], backgroundColor: ['#ef4444', '#f59e0b', '#22c55e'], borderWidth: 0 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } } }
+                });
+            }
+
+            let facData = {};
+            FACULTIES.forEach(f => facData[f] = { total: 0, comp: 0 });
+
+            localDB.modules.forEach(m => {
+                const code = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+                const fac = window.getFaculty(m);
+                if(facData[fac]) {
+                    facData[fac].total++;
+                    const prog = localDB.exam_progress[code];
+                    if(prog && EXAM_STEPS.every(s => prog[s])) facData[fac].comp++;
+                }
+            });
+
+            let labels = []; let data = []; let topFac = ''; let topScore = -1;
+            FACULTIES.forEach(f => {
+                if(facData[f].total > 0) {
+                    labels.push(f);
+                    const score = (facData[f].comp / facData[f].total) * 100;
+                    data.push(score);
+                    if(score > topScore) { topScore = score; topFac = f; }
+                }
+            });
+
+            const tfEl = document.getElementById('exam-top-fac');
+            if(tfEl) tfEl.innerText = topScore >= 0 ? `${topFac} (${Math.round(topScore)}%)` : 'N/A';
+
+            const barCanvas = document.getElementById('examBarChart');
+            if(barCanvas && labels.length > 0) {
+                charts.examBar = new Chart(barCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: '% Modules Fully Complete', data: data, backgroundColor: '#22c55e', borderRadius: 4 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100, ticks: { callback: function(val){return val+"%"} } } }, plugins: { legend: { display: false } } }
+                });
+            }
+        };
+
+
+    // ==========================================
+    // MODULE 8: EVENTS AND ATTENDANCE
+    // ==========================================
+    window.createEvent = () => {
+        const type = document.getElementById('ev-type').value;
+        const title = document.getElementById('ev-title').value;
+        const date = document.getElementById('ev-date').value;
+        const isAll = document.getElementById('ev-target-all').checked;
+        const targetFac = document.getElementById('ev-target-fac').value;
+        
+        if(!title || !date) return alert("Title and Date are required.");
+        
+        const eventObj = {
+            id: Math.random().toString(36).substr(2,9),
+            title: title,
+            type: type,
+            date: date,
+            targetRole: isAll ? 'ALL' : targetFac,
+            responses: {} 
+        };
+        
+        localDB.events.push(eventObj);
+        window.saveLocal(true);
+        window.renderEventsTab();
+        
+        simulateEmail(eventObj.targetRole, `Invitation: ${type} - ${title}`, `You are invited to an event on ${date}. Please RSVP in your portal.`);
+        
+        document.getElementById('ev-title').value = '';
+        document.getElementById('ev-date').value = '';
+        window.showToast("Event created and invites sent.", "success");
+    };
+
+    window.renderEventsTab = () => {
+        const select = document.getElementById('ev-select-chart');
+        if(!select) return;
+        
+        const currVal = select.value;
+        let optHtml = '<option value="">Overall System Attendance</option>';
+        localDB.events.forEach(e => {
+            optHtml += `<option value="${e.id}">${e.date}: ${e.title}</option>`;
+        });
+        select.innerHTML = optHtml;
+        if(localDB.events.some(e => e.id === currVal)) select.value = currVal;
+        
+        const selEventId = select.value;
+        let stats = {};
+        FACULTIES.forEach(f => stats[f] = { attended: 0, absent: 0, excused: 0, sick: 0 });
+        
+        let listAttendedHtml = '';
+        let listAbsentHtml = '';
+        let countAtt = 0; let countAbs = 0;
+
+        localDB.lecturers.forEach(l => {
+            const lId = window.makeSafeId(window.getSafeVal(l, ['LecturerID']));
+            const lName = window.getSafeVal(l, ['LecturerName']);
+            const lFac = window.getFaculty(l);
+            
+            let shouldInclude = false;
+            let currentResponse = 'Absent'; 
+
+            if(selEventId === '') {
+                shouldInclude = true; 
+            } else {
+                const ev = localDB.events.find(e => e.id === selEventId);
+                if(ev && (ev.targetRole === 'ALL' || ev.targetRole === lFac)) {
+                    shouldInclude = true;
+                    if(ev.responses[lId]) currentResponse = ev.responses[lId];
+                }
+            }
+
+            if(shouldInclude) {
+                if(currentResponse === 'Attended') { stats[lFac].attended++; countAtt++; }
+                else if(currentResponse === 'Excused') { stats[lFac].excused++; countAbs++; }
+                else if(currentResponse === 'Sick') { stats[lFac].sick++; countAbs++; }
+                else { stats[lFac].absent++; countAbs++; }
+
+                const entry = `<div class="flex justify-between border-b border-gray-100 py-1 px-2 hover:bg-gray-50"><span><b class="text-royal-blue">${lName}</b> <span class="text-gray-400">(${lFac})</span></span> <span class="text-gray-500 font-bold">${currentResponse}</span></div>`;
+                if(currentResponse === 'Attended') listAttendedHtml += entry;
+                else listAbsentHtml += entry;
+            }
+        });
+
+        document.getElementById('ev-list-attended').innerHTML = listAttendedHtml || '<p class="italic text-gray-500 p-2 text-center">No attendees recorded.</p>';
+        document.getElementById('ev-list-absent').innerHTML = listAbsentHtml || '<p class="italic text-gray-500 p-2 text-center">No absentees.</p>';
+        document.getElementById('ev-count-att').innerText = countAtt;
+        document.getElementById('ev-count-abs').innerText = countAbs;
+
+        if(charts.eventBar) charts.eventBar.destroy();
+        if(charts.eventPie) charts.eventPie.destroy();
+
+        const canvasBar = document.getElementById('eventBarChart');
+        if(canvasBar) {
+            charts.eventBar = new Chart(canvasBar, {
+                type: 'bar',
+                data: {
+                    labels: FACULTIES,
+                    datasets: [
+                        { label: 'Attended', backgroundColor: '#22c55e', data: FACULTIES.map(f => stats[f].attended) },
+                        { label: 'Absent/No RSVP', backgroundColor: '#ef4444', data: FACULTIES.map(f => stats[f].absent) },
+                        { label: 'Excused', backgroundColor: '#9ca3af', data: FACULTIES.map(f => stats[f].excused) },
+                        { label: 'Sick Leave', backgroundColor: '#bef264', data: FACULTIES.map(f => stats[f].sick) }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+            });
+        }
+
+        const canvasPie = document.getElementById('eventPieChart');
+        if(canvasPie) {
+            let tAtt = 0, tAbs = 0, tExc = 0, tSick = 0;
+            FACULTIES.forEach(f => { tAtt += stats[f].attended; tAbs += stats[f].absent; tExc += stats[f].excused; tSick += stats[f].sick; });
+            
+            charts.eventPie = new Chart(canvasPie, {
+                type: 'pie',
+                data: {
+                    labels: ['Attended', 'Absent/No RSVP', 'Excused', 'Sick Leave'],
+                    datasets: [{ data: [tAtt, tAbs, tExc, tSick], backgroundColor: ['#22c55e', '#ef4444', '#9ca3af', '#bef264'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    };
+
+    window.markAttendance = (eventId, status) => {
+        if(!currentLecturerId) return alert("Verify Identity First.");
+        const ev = localDB.events.find(e => e.id === eventId);
+        if(ev) {
+            ev.responses[currentLecturerId] = status;
+            window.saveLocal(true);
+            window.renderLecturerWorkspace();
+            window.showToast(`Attendance RSVP Submitted: ${status}`, "success");
+        }
+    };
+
+    // ==========================================
+    // MODULE 9: MASTER PRINT AND EXPORT
+    // ==========================================
+    window.printMasterReport = (type) => {
+        const frame = document.getElementById('master-print-frame');
+        const titleEl = document.getElementById('print-report-subtitle');
+        const filterInfoEl = document.getElementById('print-filter-info');
+        const thead = document.getElementById('print-table-head');
+        const tbody = document.getElementById('print-table-body');
+        document.getElementById('print-date').innerText = new Date().toLocaleString();
+        document.getElementById('print-content-custom').innerHTML = ''; 
+        
+        let filterHtml = '';
+        let headHtml = '';
+        let bodyHtml = '';
+
+        if(type === 'students') {
+            titleEl.innerText = "Students Master List";
+            const progFilter = document.getElementById('stu-filter-prog').value;
+            const searchQ = document.getElementById('stuSearch').value;
+            if(progFilter) filterHtml += `<span class="print-filter-badge">Program: ${progFilter}</span>`;
+            if(searchQ) filterHtml += `<span class="print-filter-badge">Search: ${searchQ}</span>`;
+
+            headHtml = `<tr><th>Student ID</th><th>Full Name</th><th>Enrolled Program</th><th>Semester</th><th>Batch</th><th>Study Mode</th><th>Type</th></tr>`;
+            localDB.students.forEach(s => {
+                const prog = window.getSafeVal(s, ['EnrolledProgram']);
+                if(progFilter && prog !== progFilter) return;
+                bodyHtml += `<tr>
+                    <td><b>${window.getSafeVal(s, ['StudentID'])}</b></td>
+                    <td>${window.getSafeVal(s, ['FullName'])}</td>
+                    <td>${prog}</td>
+                    <td>${window.getSafeVal(s, ['Semester'])}</td>
+                    <td>${window.getSafeVal(s, ['Batch'])}</td>
+                    <td>${window.getSafeVal(s, ['StudyMode'])}</td>
+                    <td>${window.getSafeVal(s, ['Type'])}</td>
+                </tr>`;
+            });
+        }
+        else if (type === 'lecturers') {
+            titleEl.innerText = "Lecturers Master Data";
+            headHtml = `<tr><th>Faculty/Centre</th><th>Lecturer ID</th><th>Name</th><th>Category</th><th>Type</th><th>Mobile</th></tr>`;
+            window.getFilteredLecturers().forEach(l => {
+                bodyHtml += `<tr>
+                    <td>${window.getFaculty(l)}</td>
+                    <td><b>${window.getSafeVal(l, ['LecturerID'])}</b></td>
+                    <td>${window.getSafeVal(l, ['LecturerName'])}</td>
+                    <td>${window.getSafeVal(l, ['LecturerCategory'])}</td>
+                    <td>${window.getSafeVal(l, ['LecturerType'])}</td>
+                    <td>${window.getSafeVal(l, ['MobileNumber'])}</td>
+                </tr>`;
+            });
+        }
+        else if (type === 'modules') {
+            titleEl.innerText = "Modules Master Data";
+            headHtml = `<tr><th>Session</th><th>Program</th><th>Batch</th><th>Faculty</th><th>Campus</th><th>Mod Code</th><th>Name</th><th>WCH</th><th>Assignee</th></tr>`;
+            window.getFilteredModules().forEach(m => {
+                const code = window.makeSafeId(window.getSafeVal(m, ['ModuleCode']));
+                const ass = localDB.assignments[code];
+                const lName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['LecturerName'] || 'Assigned') : 'Unassigned';
+                
+                bodyHtml += `<tr>
+                    <td>${window.getSafeVal(m, ['Session'])}</td>
+                    <td>${window.getSafeVal(m, ['ProgramName'])}</td>
+                    <td>${window.getSafeVal(m, ['OfferedBatch'])}</td>
+                    <td>${window.getFaculty(m)}</td>
+                    <td>${window.getSafeCampus(m)}</td>
+                    <td><b>${window.getSafeVal(m, ['ModuleCode'])}</b></td>
+                    <td>${window.getSafeVal(m, ['ModuleName'])}</td>
+                    <td class="text-center">${window.getSafeVal(m, ['WCH'])}</td>
+                    <td class="${ass && ass.id ? 'text-green-700 font-bold' : 'text-red-700 italic'}">${lName}</td>
+                </tr>`;
+            });
+        }
+        else if (type === 'timetable') {
+            titleEl.innerText = "Class Timetable Master Report";
+            const progF = document.getElementById('tt-export-prog').value;
+            const batchF = document.getElementById('tt-export-batch').value;
+            filterHtml += `<span class="print-filter-badge">Program: ${progF === 'ALL' ? 'All' : progF}</span>`;
+            filterHtml += `<span class="print-filter-badge">Batch: ${batchF === 'ALL' ? 'All' : batchF}</span>`;
+            
+            let gridHtml = '';
+            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            
+            days.forEach(d => {
+                let dayEntries = localDB.timetable.filter(t => t.day === d);
+                if(progF !== 'ALL') dayEntries = dayEntries.filter(t => t.program === progF);
+                
+                if(dayEntries.length > 0) {
+                    gridHtml += `<h3 class="mt-6 mb-2 font-bold text-lg text-purple-900 border-b-2 border-purple-200 bg-purple-50 p-2">${d}</h3>`;
+                    gridHtml += `<table class="print-table mb-4 text-center"><thead><tr><th>Time</th><th>Program</th><th>Module</th><th>Lecturer</th><th>Room</th><th>Mode</th></tr></thead><tbody>`;
+                    
+                    dayEntries.sort((a,b) => a.tsIndex - b.tsIndex).forEach(t => {
+                        const ts = localDB.settings.timeslots[t.tsIndex];
+                        const lName = t.lectId ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === t.lectId)?.['LecturerName'] || 'TBA') : 'TBA';
+                        gridHtml += `<tr>
+                            <td><b>${ts.start} - ${ts.end}</b></td>
+                            <td>${t.program}</td>
+                            <td class="font-bold text-royal-blue">${t.modCode}</td>
+                            <td>${lName}</td>
+                            <td><b>${t.room}</b></td>
+                            <td>${t.mode}</td>
+                        </tr>`;
+                    });
+                    gridHtml += `</tbody></table>`;
+                }
+            });
+            document.getElementById('print-content-custom').innerHTML = gridHtml || '<p class="text-center mt-10 italic">No timetable entries found for criteria.</p>';
+            thead.innerHTML = ''; tbody.innerHTML = '';
+        }
+        else if (type === 'exam_timetable') {
+            titleEl.innerText = "Examination Timetable Master Report";
+            const progF = document.getElementById('exam-tt-export-prog').value;
+            const batchF = document.getElementById('exam-tt-export-batch').value;
+            filterHtml += `<span class="print-filter-badge">Program: ${progF === 'ALL' ? 'All' : progF}</span>`;
+            filterHtml += `<span class="print-filter-badge">Batch: ${batchF === 'ALL' ? 'All' : batchF}</span>`;
+            
+            let gridHtml = '';
+            const groupedByDate = {};
+            localDB.exam_timetable.forEach(t => {
+                if(progF !== 'ALL' && t.program !== progF) return;
+                if(!groupedByDate[t.day]) groupedByDate[t.day] = [];
+                groupedByDate[t.day].push(t);
+            });
+            
+            const sortedDates = Object.keys(groupedByDate).sort();
+            
+            sortedDates.forEach(dateStr => {
+                const entries = groupedByDate[dateStr];
+                if(entries.length > 0) {
+                    gridHtml += `<h3 class="mt-6 mb-2 font-bold text-lg text-green-900 border-b-2 border-green-200 bg-green-50 p-2">Date: ${dateStr}</h3>`;
+                    gridHtml += `<table class="print-table mb-4 text-center"><thead><tr><th>Time</th><th>Program</th><th>Module</th><th>Invigilator</th><th>Venue</th></tr></thead><tbody>`;
+                    
+                    entries.sort((a,b) => a.tsIndex - b.tsIndex).forEach(t => {
+                        const ts = localDB.settings.timeslots[t.tsIndex];
+                        const ass = localDB.assignments[t.modCode];
+                        const lName = ass && ass.id ? (localDB.lecturers.find(l => window.makeSafeId(window.getSafeVal(l, ['LecturerID'])) === ass.id)?.['LecturerName'] || 'TBA') : 'TBA';
+                        gridHtml += `<tr>
+                            <td><b>${ts.start} - ${ts.end}</b></td>
+                            <td>${t.program}</td>
+                            <td class="font-bold text-green-700">${t.modCode}</td>
+                            <td>${lName}</td>
+                            <td><b>${t.room}</b></td>
+                        </tr>`;
+                    });
+                    gridHtml += `</tbody></table>`;
+                }
+            });
+            document.getElementById('print-content-custom').innerHTML = gridHtml || '<p class="text-center mt-10 italic">No exam timetable entries found for criteria.</p>';
+            thead.innerHTML = ''; tbody.innerHTML = '';
+        }
+
+        filterInfoEl.innerHTML = filterHtml;
+        thead.innerHTML = headHtml;
+        tbody.innerHTML = bodyHtml;
+
+        document.title = `MasterReport_${type}_${new Date().getTime()}`;
+        document.body.classList.add('is-printing-master');
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('is-printing-master');
+        }, 500);
+    };
+
+</script>
+</body>
+</html>
