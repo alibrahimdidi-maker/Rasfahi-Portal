@@ -127,7 +127,7 @@
                 <span id="sync-status" style="color:var(--royal-gold);"><i class="fas fa-sync fa-spin"></i> <span lang-key="statusAutoSave">އޮޓޯ-ސޭވް ވަނީ...</span></span>
                 <span id="online-indicator" class="online-status"><i class="fas fa-wifi"></i> <span lang-key="statusOnline">އޮންލައިން</span></span>
                 <button class="action-btn" onclick="manualSave()"><i class="fas fa-save"></i> <span lang-key="saveBtn">ސޭވް</span></button>
-                <button class="action-btn" style="background:#8b0000;" onclick="exportExactPDF()"><i class="fas fa-file-pdf"></i> <span lang-key="pdfBtn">ޕީޑީއެފް އެކްސްޕޯރޓް</span></button>
+                <button class="action-btn" id="exportBtn" style="background:#8b0000;" onclick="exportExactPDF()"><i class="fas fa-file-pdf"></i> <span lang-key="pdfBtn">ޕީޑީއެފް އެކްސްޕޯރޓް</span></button>
                 <button class="action-btn" style="background:var(--dark-green)" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </div>
@@ -533,15 +533,20 @@
 
         /** --- EXACT CENTERED PDF GENERATOR WITH GREEN/BLUE BORDERS --- */
         function exportExactPDF() {
+            // Show loading state to the user
+            const pdfBtn = document.getElementById('exportBtn');
+            const originalBtnHtml = pdfBtn.innerHTML;
+            pdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ޕީޑީއެފް ތައްޔާރުކުރެވެނީ...';
+            pdfBtn.disabled = true;
+
             const printContainer = document.createElement('div');
             printContainer.id = 'print-template';
             
-            // Fix for RTL Canvas offset clipping - rendering on screen but hidden
-            printContainer.style.position = 'fixed';
+            // FIX: Using absolute positioning instead of fixed, and left instead of right to avoid RTL clipping issues in html2canvas
+            printContainer.style.position = 'absolute';
+            printContainer.style.left = '-9999px'; 
             printContainer.style.top = '0';
-            printContainer.style.right = '0'; 
-            printContainer.style.width = '210mm'; 
-            printContainer.style.zIndex = '-1000';
+            printContainer.style.width = '190mm'; // Proper A4 width considering margins
             printContainer.style.background = '#ffffff';
             printContainer.style.color = '#0A1128';
             printContainer.style.boxSizing = 'border-box';
@@ -562,7 +567,7 @@
             let comments = document.getElementById('observerComments').value.replace(/\n/g, '<br>');
 
             let html = `
-                <div style="padding: 10mm; box-sizing: border-box; width: 100%;">
+                <div style="box-sizing: border-box; width: 100%;">
                     <div style="border: 2px solid #0B6623; padding: 4px; border-radius: 8px; background: #fff; box-sizing: border-box;">
                         <div style="border: 2px solid #00008B; padding: 20px; border-radius: 5px; background: #fff; box-sizing: border-box;">
                             
@@ -662,16 +667,26 @@
             printContainer.innerHTML = html;
             document.body.appendChild(printContainer);
 
+            // Using standard margins in jsPDF options
             const opt = {
-                margin:       0, // Using inline html padding for exact rendering margin
+                margin:       10, 
                 filename:     `Observation_${stdName.replace(/\s+/g, '_')}_${dateStr.replace(/\//g, '-')}.pdf`,
                 image:        { type: 'jpeg', quality: 1.0 },
-                html2canvas:  { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+                html2canvas:  { scale: 2, useCORS: true, windowWidth: printContainer.scrollWidth },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
             html2pdf().set(opt).from(printContainer).save().then(() => {
                 document.body.removeChild(printContainer); 
+                // Restore Button State
+                pdfBtn.innerHTML = originalBtnHtml;
+                pdfBtn.disabled = false;
+            }).catch(err => {
+                console.error(err);
+                alert("PDF ޑައުންލޯޑް ކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެއެވެ.");
+                document.body.removeChild(printContainer);
+                pdfBtn.innerHTML = originalBtnHtml;
+                pdfBtn.disabled = false;
             });
         }
     </script>
