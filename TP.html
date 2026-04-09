@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="dv" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ރަސްފަހި ޓީޗިންގ ޕްރެކްޓިސް އިވެލުއޭޝަން</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Royal Theme Variables */
+        :root { --royal-blue: #00008B; --dark-blue: #0A1128; --royal-green: #0B6623; --dark-green: #064015; --royal-gold: #D4AF37; --royal-purple: #4B0082; --white: #FFFFFF; --bg-light: #F4F6F9; --text-dark: #333333; --shadow: 0 4px 15px rgba(0, 0, 0, 0.15); --border-radius: 12px; }
+        @font-face { font-family: 'Faruma'; src: local('Faruma'); }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Faruma', Arial, sans-serif; transition: all 0.3s ease; }
+        body { background-color: var(--bg-light); color: var(--text-dark); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        .noselect { user-select: none; -webkit-user-select: none; }
+        ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-track { background: var(--bg-light); } ::-webkit-scrollbar-thumb { background: var(--royal-blue); border-radius: 4px; }
+        
+        /* Login Screen */
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, var(--dark-blue), var(--royal-purple)); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .login-box { background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: var(--border-radius); box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 450px; text-align: center; border-top: 5px solid var(--royal-gold); }
+        .login-box h1 { color: var(--royal-blue); margin-bottom: 20px; font-size: 24px; }
+        .input-group { margin-bottom: 20px; text-align: right; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; margin-top: 5px; }
+        .btn-royal { background: var(--royal-green); color: var(--white); border: none; padding: 12px 20px; width: 100%; border-radius: 6px; font-size: 18px; cursor: pointer; font-weight: bold; }
+        .btn-royal:hover { background: var(--dark-green); box-shadow: 0 0 10px var(--royal-gold); }
+        .copyright-footer { margin-top: 25px; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 15px; }
+
+        /* App Layout */
+        #app-container { display: none; height: 100vh; flex-direction: column; }
+        .top-nav { background: var(--dark-blue); color: var(--royal-gold); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); z-index: 10; }
+        .nav-controls button { background: transparent; border: 1px solid var(--royal-gold); color: var(--royal-gold); padding: 5px 15px; border-radius: 4px; cursor: pointer; margin-left: 10px; }
+        .nav-controls button:hover, .nav-controls button.active { background: var(--royal-gold); color: var(--dark-blue); }
+        .status-indicators span { margin-right: 15px; font-size: 14px; } .online-status { color: #00FF00; } .offline-status { color: #FF0000; display: none; }
+        .workspace { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 250px; background: var(--royal-blue); color: var(--white); padding: 20px 0; overflow-y: auto; display: flex; flex-direction: column; }
+        .sidebar-item { padding: 15px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; }
+        .sidebar-item:hover, .sidebar-item.active { background: var(--royal-purple); border-right: 4px solid var(--royal-gold); }
+        .content-area { flex: 1; padding: 20px; overflow-y: auto; background: var(--bg-light); }
+        .section { display: none; animation: fadeIn 0.5s; } .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* UI Components */
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .royal-card { background: var(--white); padding: 20px; border-radius: var(--border-radius); box-shadow: var(--shadow); border-top: 4px solid var(--royal-green); }
+        .royal-card.gold-border { border-top-color: var(--royal-gold); } .royal-card.purple-border { border-top-color: var(--royal-purple); }
+        h2.royal-heading { color: var(--royal-blue); border-bottom: 2px solid var(--royal-gold); padding-bottom: 10px; margin-bottom: 20px; }
+        .signature-wrapper { border: 2px dashed var(--royal-blue); border-radius: 8px; background: #fff; margin-bottom: 10px; }
+        canvas.signature-pad { width: 100%; height: 200px; touch-action: none; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; } 
+        .form-group label { margin-bottom: 5px; font-weight: bold; color: var(--dark-blue); }
+        .form-group input, .form-group select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        .action-btn { background: var(--royal-blue); color: #fff; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; } .action-btn:hover { background: var(--royal-purple); }
+        .action-btn i { margin: 0 5px; }
+
+        /* Rubric Specific */
+        .total-score-board { position: sticky; top: 0; background: var(--dark-blue); color: var(--royal-gold); padding: 15px 20px; border-radius: 8px; font-size: 24px; text-align: left; direction: ltr; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 100; display: flex; justify-content: space-between; align-items: center; }
+        table.rubric-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: white;}
+        .rubric-table th, .rubric-table td { border: 1px solid #ccc; padding: 12px; text-align: center; }
+        .rubric-table th { background-color: var(--royal-blue); color: var(--white); font-size: 14px; position: sticky; top: 60px; z-index: 50; }
+        .rubric-table td.criteria-text { font-weight: bold; color: var(--dark-blue); width: 40%; font-size: 14px; }
+        .category-header { background-color: var(--royal-green) !important; color: var(--white); font-size: 18px; padding: 10px !important; }
+        input[type="radio"] { transform: scale(1.5); accent-color: var(--royal-gold); cursor: pointer; }
+
+        @media (max-width: 768px) { .workspace { flex-direction: column; } .sidebar { width: 100%; flex-direction: row; overflow-x: auto; padding: 10px; } .sidebar-item { padding: 10px; font-size: 14px; border-bottom: none; white-space: nowrap; } .top-nav { flex-direction: column; gap: 10px; } table.rubric-table { font-size: 12px; } }
+    </style>
+</head>
+<body class="noselect">
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h1 lang-key="loginTitle">ރަސްފަހި ޓީޗިންގ ޕްރެކްޓިސް އިވެލުއޭޝަން</h1>
+            <p style="color:var(--royal-purple); margin-bottom: 20px;" lang-key="loginSub">ލޮގިން ޕޯޓަލް</p>
+            <div class="input-group">
+                <label lang-key="emailLabel" style="display:block; text-align:inherit;">ޔޫސަރ ނޭމް (އީމެއިލް):</label>
+                <input type="text" id="username" lang-key="phEmail" placeholder="ali.ibrahim@ium.edu.mv" value="ali.ibrahim@ium.edu.mv">
+            </div>
+            <div class="input-group">
+                <label lang-key="passwordLabel" style="display:block; text-align:inherit;">ޕާސްވޯރޑް (ޓްރަޔަލް):</label>
+                <input type="password" id="password" lang-key="phPass" placeholder="@7791550" value="@7791550">
+            </div>
+            <button class="btn-royal" onclick="handleLogin()" lang-key="loginBtn">ލޮގިން ކުރައްވާ</button>
+            <p id="login-error" style="color:red; margin-top:10px; display:none;" lang-key="loginError">މަޢުލޫމާތު ނުބައި!</p>
+            <div class="copyright-footer">
+                <strong lang-key="softwareName">ރަސްފަހި ޓީޗިންގ ޕްރެކްޓިސް އިވެލުއޭޝަން ސޮފްޓްވެއަރ</strong><br>
+                <span lang-key="devName">ޑިވެލޮޕަރ: ޢަލީ އިބްރާހީމް ދީދީ</span> | <span>+9607791550</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container">
+        
+        <div class="top-nav">
+            <div class="nav-brand" style="font-size: 20px; font-weight: bold;">
+                <i class="fas fa-graduation-cap"></i> <span lang-key="softwareNameShort">ރަސްފަހި ޓީ.ޕީ</span>
+            </div>
+            <div class="nav-controls">
+                <button onclick="switchLanguage('dv')" class="active">ދިވެހި</button>
+                <button onclick="switchLanguage('en')">English</button>
+                <button onclick="switchLanguage('ar')">العربية</button>
+            </div>
+            <div class="status-indicators">
+                <span id="sync-status" style="color:var(--royal-gold);"><i class="fas fa-sync fa-spin"></i> <span lang-key="statusAutoSave">އޮޓޯ-ސޭވް ވަނީ...</span></span>
+                <span id="online-indicator" class="online-status"><i class="fas fa-wifi"></i> <span lang-key="statusOnline">އޮންލައިން</span></span>
+                <button class="action-btn" onclick="manualSave()"><i class="fas fa-save"></i> <span lang-key="saveBtn">ސޭވް</span></button>
+                <button class="action-btn" style="background:#8b0000;" onclick="exportExactPDF()"><i class="fas fa-file-pdf"></i> <span lang-key="pdfBtn">ޕީޑީއެފް އެކްސްޕޯރޓް</span></button>
+                <button class="action-btn" style="background:var(--dark-green)" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+
+        <div class="workspace">
+            <div class="sidebar">
+                <div class="sidebar-item active" onclick="showSection('dashboard')"><i class="fas fa-chart-line"></i> <span lang-key="menuDashboard">މެއިން ޑޭޝްބޯޑް</span></div>
+                <div class="sidebar-item" onclick="showSection('student-eval')"><i class="fas fa-user-graduate"></i> <span lang-key="menuStudent">ދަރިވަރުންގެ މަޢުލޫމާތު</span></div>
+                <div class="sidebar-item" onclick="showSection('observation-form')"><i class="fas fa-clipboard-check"></i> <span lang-key="menuObservation">ލެސަން އޮބްޒަރވޭޝަން</span></div>
+                <div class="sidebar-item" onclick="showSection('task-center')"><i class="fas fa-tasks"></i> <span lang-key="menuTasks">ޓާސްކް ސެންޓަރ</span></div>
+                <div class="sidebar-item" onclick="showSection('coordinator-admin')"><i class="fas fa-cogs"></i> <span lang-key="menuAdmin">އެޑްމިން ޕެނަލް</span></div>
+            </div>
+
+            <div class="content-area" id="export-content">
+                
+                <div id="dashboard" class="section active">
+                    <h2 class="royal-heading" lang-key="menuDashboard">މެއިން ޑޭޝްބޯޑް</h2>
+                    <div class="card-grid">
+                        <div class="royal-card">
+                            <h3 style="color:var(--royal-blue);"><i class="fas fa-trophy"></i> <span lang-key="dashBestStd">އެންމެ ރަނގަޅު ދަރިވަރު</span></h3>
+                            <p style="font-size:24px; margin-top:10px; font-weight:bold;">Aminath Shifa (TP2)</p>
+                            <p class="status-completed" lang-key="dashCompleted">95% ފުރިހަމަ</p>
+                        </div>
+                        <div class="royal-card gold-border">
+                            <h3 style="color:var(--royal-gold);"><i class="fas fa-star"></i> <span lang-key="dashBestSup">އެންމެ ހީވާގި ސުޕަވައިޒަރ</span></h3>
+                            <p style="font-size:24px; margin-top:10px; font-weight:bold;">Dr. Hassan Niyaz</p>
+                            <p class="status-ongoing" lang-key="dashOngoing">12 އޮބްޒަވޭޝަން ނިމިފައި</p>
+                        </div>
+                        <div class="royal-card purple-border">
+                            <h3 style="color:var(--royal-purple);"><i class="fas fa-school"></i> <span lang-key="dashActiveSchool">އެންމެ އެކްޓިވް ސްކޫލް</span></h3>
+                            <p style="font-size:24px; margin-top:10px; font-weight:bold;">Majeedhiyya School</p>
+                            <p style="color:gray;" lang-key="dashStudents">25 ދަރިވަރުން</p>
+                        </div>
+                    </div>
+                    <div class="card-grid">
+                        <div class="royal-card" style="width: 100%;"><h3 lang-key="chartTitleProgress">މަސައްކަތް ނިމެމުންދާ މިންވަރު</h3><canvas id="progressChart" height="100"></canvas></div>
+                        <div class="royal-card"><h3 lang-key="chartTitleSchools">ސްކޫލްތަކުގެ ތަފާސްހިސާބު</h3><canvas id="schoolPieChart" height="150"></canvas></div>
+                    </div>
+                </div>
+
+                <div id="student-eval" class="section">
+                    <h2 class="royal-heading" lang-key="menuStudent">ދަރިވަރުންގެ ފޯމު އަދި އެޓެންޑެންސް</h2>
+                    <div class="royal-card">
+                        <h3 style="margin-bottom: 15px;"><i class="fas fa-info-circle"></i> <span lang-key="formTitleInfo">ދަރިވަރުގެ މަޢުލޫމާތު</span></h3>
+                        <div class="form-grid">
+                            <div class="form-group"><label lang-key="lblFullName">ފުރިހަމަ ނަން</label><input type="text" id="stdName" lang-key="phFullName" placeholder="ދަރިވަރުގެ ނަން"></div>
+                            <div class="form-group"><label lang-key="lblIdCard">އައި.ޑީ ކާޑު / ދަރިވަރު ނަންބަރ</label><input type="text" id="stdID" placeholder="AXXXXXX / STU123"></div>
+                            <div class="form-group"><label lang-key="lblCourse">ކޯހުގެ ނަން / ބެޗް</label><input type="text" id="stdCourse" placeholder="B.Ed Primary / Batch 5"></div>
+                            <div class="form-group"><label lang-key="lblTpLevel">ޓީ.ޕީ ލެވެލް</label><select id="stdLevel"><option>TP 1</option><option>TP 2</option></select></div>
+                        </div>
+                        <hr style="margin:20px 0; border:1px solid #eee;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                            <h3 style="color:var(--royal-purple);"><i class="fas fa-calendar-check"></i> <span lang-key="formTitleLog">ޑެއިލީ އެޓެންޑެންސް އަދި ވޯކް ލޮގް</span></h3>
+                            <button class="action-btn" onclick="tickSessionComplete()" style="background:var(--royal-gold); color:var(--dark-blue);">
+                                <i class="fas fa-check-double"></i> <span lang-key="btnFinishSession">ސެޝަން ނިންމުން</span>
+                            </button>
+                        </div>
+                        <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                            <div class="form-group">
+                                <label lang-key="lblTodayTask">މިއަދު ކުރި މަސައްކަތް</label>
+                                <select id="dailyTaskDropdown" onchange="addDailyTask()">
+                                    <option value="" lang-key="optSelect">-- އިޚްތިޔާރު ކުރައްވާ --</option>
+                                    <option value="Meeting" lang-key="optMeeting">ކޯޑިނޭޝަން މީޓިންގ</option>
+                                    <option value="Class" lang-key="optClass">ކްލާސް ނެގުން</option>
+                                    <option value="Assist" lang-key="optAssist">މާސްޓަރ ޓީޗަރަށް އެހީވުން</option>
+                                    <option value="Supervision" lang-key="optSupervision">ސުޕަވިޝަން</option>
+                                </select>
+                            </div>
+                            <div class="form-group"><label lang-key="lblDetails">ތަފްސީލު</label><input type="text" lang-key="phDetails" placeholder="އިތުރު މަޢުލޫމާތު..."></div>
+                        </div>
+                        <div class="card-grid" style="margin-top: 20px;">
+                            <div><label style="font-weight:bold; color:var(--royal-blue); display:block;" lang-key="lblStudentSig">ދަރިވަރުގެ ސޮއި:</label><div class="signature-wrapper"><canvas id="studentSigPad" class="signature-pad"></canvas></div><button class="action-btn" onclick="clearSig('studentSigPad')" lang-key="btnClear">ސާފުކުރައްވާ</button></div>
+                            <div><label style="font-weight:bold; color:var(--royal-green); display:block;" lang-key="lblLecturerSig">ލެކްޗަރަރގެ ސޮއި:</label><div class="signature-wrapper"><canvas id="lecturerSigPad" class="signature-pad"></canvas></div><button class="action-btn" onclick="clearSig('lecturerSigPad')" lang-key="btnClear">ސާފުކުރައްވާ</button></div>
+                        </div>
+                        <button class="btn-royal" style="width:auto; margin-top:15px;" lang-key="btnSubmitForm"><i class="fas fa-cloud-upload-alt"></i> ފޯމު ސަބްމިޓް ކުރައްވާ</button>
+                    </div>
+                </div>
+
+                <div id="observation-form" class="section">
+                    <h2 class="royal-heading" lang-key="menuObservation">ލެސަން އޮބްޒަރވޭޝަން މާކިންގ ޝީޓް</h2>
+                    <div class="royal-card">
+                        <div class="total-score-board">
+                            <span><i class="fas fa-calculator"></i> <span lang-key="lblTotalMarks">Total Marks:</span></span>
+                            <span id="scoreDisplay">0 / 275</span>
+                        </div>
+                        <form id="rubricForm">
+                            <table class="rubric-table">
+                                <thead>
+                                    <tr>
+                                        <th lang-key="thCompetencies">COMPETENCIES</th>
+                                        <th lang-key="thScale1">Needs Imp. (1)</th>
+                                        <th lang-key="thScale2">Satisfactory (2)</th>
+                                        <th lang-key="thScale3">Good (3)</th>
+                                        <th lang-key="thScale4">Very Good (4)</th>
+                                        <th lang-key="thScale5">Excellent (5)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rubricBody">
+                                    </tbody>
+                            </table>
+                            <div style="margin-top: 20px;">
+                                <label style="font-weight: bold; color: var(--royal-blue);" lang-key="lblObserverComment">އޮބްޒަރވަރުގެ ކޮމެންޓް:</label><br>
+                                <textarea id="observerComments" style="width: 100%; height: 100px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-top: 10px;" lang-key="phComment" placeholder="ފާހަގަކުރުންތައް..."></textarea>
+                            </div>
+                            <button type="button" class="btn-royal" style="margin-top:15px;" onclick="submitRubricMarks()" lang-key="btnSaveMarks"><i class="fas fa-cloud-upload-alt"></i> މާކުސް ސޭވްކުރައްވާ</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="task-center" class="section">
+                    <h2 class="royal-heading" lang-key="menuTasks">ޓާސްކް އަދި އެކްޝަން ސެންޓަރ</h2>
+                    <div class="card-grid">
+                        <div class="royal-card"><h3 style="color:gray;"><i class="fas fa-play-circle"></i> <span lang-key="taskStarted">ފަށާފައިވާ ކަންކަން</span></h3><ul style="line-height:2; margin-top:10px;"><li>Lesson Plan 1 (20%)</li></ul></div>
+                        <div class="royal-card gold-border"><h3 style="color:var(--royal-gold);"><i class="fas fa-spinner"></i> <span lang-key="taskOngoing">ނިމެމުންދާ ކަންކަން</span></h3><ul style="line-height:2; margin-top:10px;"><li>Observation Form (80%)</li></ul></div>
+                        <div class="royal-card" style="border-top-color:var(--royal-green);"><h3 style="color:var(--royal-green);"><i class="fas fa-check-circle"></i> <span lang-key="taskCompleted">ނިމިފައިވާ ކަންކަން</span></h3><ul style="line-height:2; margin-top:10px;"><li>Coordination Meeting (100%)</li></ul></div>
+                    </div>
+                </div>
+
+                <div id="coordinator-admin" class="section">
+                    <h2 class="royal-heading" lang-key="menuAdmin">އެޑްމިން ޕެނަލް</h2>
+                    <div class="royal-card">
+                        <h3><i class="fas fa-file-csv"></i> <span lang-key="adminDataUpload">ޑޭޓާ އަޕްލޯޑް (CSV)</span></h3>
+                        <div class="form-grid" style="margin-top:15px;">
+                            <div class="form-group"><label lang-key="adminStudentCsv">ދަރިވަރުންގެ CSV</label><input type="file" accept=".csv"><a href="#" onclick="downloadDummyCSV('student')" style="font-size:12px; color:var(--royal-blue); margin-top:5px;" lang-key="adminDummy">ނަމޫނާ ޑައުންލޯޑް</a></div>
+                            <div class="form-group"><label lang-key="adminLecturerCsv">ލެކްޗަރަރުންގެ CSV</label><input type="file" accept=".csv"><a href="#" onclick="downloadDummyCSV('lecturer')" style="font-size:12px; color:var(--royal-blue); margin-top:5px;" lang-key="adminDummy">ނަމޫނާ ޑައުންލޯޑް</a></div>
+                        </div>
+                        <button class="action-btn" style="background:var(--royal-green)" lang-key="adminBtnUpload"><i class="fas fa-upload"></i> އަޕްލޯޑް ކުރައްވާ</button>
+                    </div>
+                    
+                    <div class="royal-card" style="margin-top: 20px; border-top-color: red;">
+                        <h3 style="color:red;"><i class="fas fa-exclamation-triangle"></i> <span lang-key="adminHardReset">ސިސްޓަމް ހާޑް ރީސެޓް</span></h3>
+                        <p lang-key="adminResetDesc">މުޅި ސޮފްޓްވެއަރގެ ޑޭޓާ ފޮހެލުމަށް 3 ވެރިފިކޭޝަން ފުރިހަމަކުރަންޖެހޭނެއެވެ.</p>
+                        <button class="action-btn" style="background:red; margin-top:10px;" onclick="threeStepHardReset()" lang-key="adminBtnReset">ހާޑް ރީސެޓް ފައްޓަވާ</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentLang = 'dv';
+
+        /** --- TRANSLATION DICTIONARY (UI & PDF SUPPORT) --- */
+        const translations = {
+            dv: {
+                loginTitle: "ރަސްފަހި ޓީޗިންގ ޕްރެކްޓިސް އިވެލުއޭޝަން", loginSub: "ލޮގިން ޕޯޓަލް", emailLabel: "ޔޫސަރ ނޭމް (އީމެއިލް):", passwordLabel: "ޕާސްވޯރޑް (ޓްރަޔަލް):", phEmail: "ali.ibrahim@ium.edu.mv", phPass: "@7791550", loginBtn: "ލޮގިން ކުރައްވާ", loginError: "މަޢުލޫމާތު ނުބައި!", softwareName: "ރަސްފަހި ޓީޗިންގ ޕްރެކްޓިސް އިވެލުއޭޝަން ސޮފްޓްވެއަރ", devName: "ޑިވެލޮޕަރ: ޢަލީ އިބްރާހީމް ދީދީ",
+                softwareNameShort: "ރަސްފަހި ޓީ.ޕީ", statusAutoSave: "އޮޓޯ-ސޭވް ވަނީ...", statusOnline: "އޮންލައިން", saveBtn: "ސޭވް", pdfBtn: "ޕީޑީއެފް އެކްސްޕޯރޓް",
+                menuDashboard: "މެއިން ޑޭޝްބޯޑް", menuStudent: "ދަރިވަރުންގެ މަޢުލޫމާތު", menuObservation: "ލެސަން އޮބްޒަރވޭޝަން", menuTasks: "ޓާސްކް ސެންޓަރ", menuAdmin: "އެޑްމިން ޕެނަލް",
+                dashBestStd: "އެންމެ ރަނގަޅު ދަރިވަރު", dashCompleted: "95% ފުރިހަމަ", dashBestSup: "އެންމެ ހީވާގި ސުޕަވައިޒަރ", dashOngoing: "12 އޮބްޒަވޭޝަން ނިމިފައި", dashActiveSchool: "އެންމެ އެކްޓިވް ސްކޫލް", dashStudents: "25 ދަރިވަރުން", chartTitleProgress: "މަސައްކަތް ނިމެމުންދާ މިންވަރު", chartTitleSchools: "ސްކޫލްތަކުގެ ތަފާސްހިސާބު",
+                formTitleInfo: "ދަރިވަރުގެ މަޢުލޫމާތު", lblFullName: "ފުރިހަމަ ނަން", phFullName: "ދަރިވަރުގެ ނަން", lblIdCard: "އައި.ޑީ ކާޑު / ދަރިވަރު ނަންބަރ", lblCourse: "ކޯހުގެ ނަން / ބެޗް", lblTpLevel: "ޓީ.ޕީ ލެވެލް", formTitleLog: "ޑެއިލީ އެޓެންޑެންސް އަދި ވޯކް ލޮގް", btnFinishSession: "ސެޝަން ނިންމުން", lblTodayTask: "މިއަދު ކުރި މަސައްކަތް", optSelect: "-- އިޚްތިޔާރު ކުރައްވާ --", optMeeting: "ކޯޑިނޭޝަން މީޓިންގ", optClass: "ކްލާސް ނެގުން", optAssist: "މާސްޓަރ ޓީޗަރަށް އެހީވުން", optSupervision: "ސުޕަވިޝަން", lblDetails: "ތަފްސީލު", phDetails: "އިތުރު މަޢުލޫމާތު...", lblStudentSig: "ދަރިވަރުގެ ސޮއި:", lblLecturerSig: "ލެކްޗަރަރގެ ސޮއި:", btnClear: "ސާފުކުރައްވާ", btnSubmitForm: "ފޯމު ސަބްމިޓް ކުރައްވާ",
+                lblTotalMarks: "ޖުމްލަ މާކުސް:", thCompetencies: "ކްރައިޓީރިއާ", thScale1: "ކުރިއަރުވަން ބޭނުންވޭ (1)", thScale2: "އާދައިގެ (2)", thScale3: "ރަނގަޅު (3)", thScale4: "ވަރަށް ރަނގަޅު (4)", thScale5: "ވަރަށް ފުރިހަމަ (5)", lblObserverComment: "އޮބްޒަރވަރުގެ ކޮމެންޓް:", phComment: "ފާހަގަކުރުންތައް...", btnSaveMarks: "މާކުސް ސޭވްކުރައްވާ",
+                taskStarted: "ފަށާފައިވާ ކަންކަން", taskOngoing: "ނިމެމުންދާ ކަންކަން", taskCompleted: "ނިމިފައިވާ ކަންކަން",
+                adminDataUpload: "ޑޭޓާ އަޕްލޯޑް (CSV)", adminStudentCsv: "ދަރިވަރުންގެ CSV", adminLecturerCsv: "ލެކްޗަރަރުންގެ CSV", adminDummy: "ނަމޫނާ ޑައުންލޯޑް", adminBtnUpload: "އަޕްލޯޑް ކުރައްވާ", adminHardReset: "ސިސްޓަމް ހާޑް ރީސެޓް", adminResetDesc: "މުޅި ސޮފްޓްވެއަރގެ ޑޭޓާ ފޮހެލުމަށް 3 ވެރިފިކޭޝަން ފުރިހަމަކުރަންޖެހޭނެއެވެ.", adminBtnReset: "ހާޑް ރީސެޓް ފައްޓަވާ"
+            },
+            en: {
+                loginTitle: "Rasfahi TP Evaluation", loginSub: "Login Portal", emailLabel: "Username (Email):", passwordLabel: "Password (Trial):", phEmail: "Enter email", phPass: "Enter password", loginBtn: "Login", loginError: "Invalid Credentials!", softwareName: "Rasfahi TP Evaluation Software", devName: "Dev: Ali Ibrahim Didi",
+                softwareNameShort: "Rasfahi TP", statusAutoSave: "Auto-saving...", statusOnline: "Online", saveBtn: "Save", pdfBtn: "Export PDF",
+                menuDashboard: "Main Dashboard", menuStudent: "Student Details", menuObservation: "Lesson Observation", menuTasks: "Task Center", menuAdmin: "Admin Panel",
+                dashBestStd: "Best Student", dashCompleted: "95% Completed", dashBestSup: "Most Active Supervisor", dashOngoing: "12 Obs. Done", dashActiveSchool: "Most Active School", dashStudents: "25 Students", chartTitleProgress: "Task Progress", chartTitleSchools: "School Statistics",
+                formTitleInfo: "Student Information", lblFullName: "Full Name", phFullName: "Enter Name", lblIdCard: "ID Card / Student No.", lblCourse: "Course / Batch", lblTpLevel: "TP Level", formTitleLog: "Daily Attendance & Log", btnFinishSession: "Finish Session", lblTodayTask: "Today's Task", optSelect: "-- Select Task --", optMeeting: "Coordination Meeting", optClass: "Class Teaching", optAssist: "Assisting Master Teacher", optSupervision: "Supervision", lblDetails: "Details", phDetails: "Additional info...", lblStudentSig: "Student Signature:", lblLecturerSig: "Lecturer Signature:", btnClear: "Clear", btnSubmitForm: "Submit Form",
+                lblTotalMarks: "Total Marks:", thCompetencies: "COMPETENCIES", thScale1: "Needs Imp. (1)", thScale2: "Satisfactory (2)", thScale3: "Good (3)", thScale4: "Very Good (4)", thScale5: "Excellent (5)", lblObserverComment: "Observer Comments:", phComment: "Write comments here...", btnSaveMarks: "Save Marks",
+                taskStarted: "Started Tasks", taskOngoing: "Ongoing Tasks", taskCompleted: "Completed Tasks",
+                adminDataUpload: "Data Upload (CSV)", adminStudentCsv: "Student CSV", adminLecturerCsv: "Lecturer CSV", adminDummy: "Download Dummy", adminBtnUpload: "Upload Data", adminHardReset: "System Hard Reset", adminResetDesc: "Requires 3-step verification to wipe all system data.", adminBtnReset: "Initiate Hard Reset"
+            },
+            ar: {
+                loginTitle: "برنامج تقييم التدريب العملي (رسفهي)", loginSub: "بوابة الدخول", emailLabel: "اسم المستخدم (البريد):", passwordLabel: "كلمة المرور:", phEmail: "أدخل البريد", phPass: "أدخل كلمة المرور", loginBtn: "تسجيل الدخول", loginError: "معلومات غير صحيحة!", softwareName: "برنامج تقييم التدريب العملي", devName: "المطور: علي إبراهيم ديدي",
+                softwareNameShort: "رسفهي TP", statusAutoSave: "جاري الحفظ...", statusOnline: "متصل", saveBtn: "حفظ", pdfBtn: "تصدير PDF",
+                menuDashboard: "اللوحة الرئيسية", menuStudent: "بيانات الطالب", menuObservation: "تقييم الدرس", menuTasks: "مركز المهام", menuAdmin: "لوحة الإدارة",
+                dashBestStd: "أفضل طالب", dashCompleted: "95% مكتمل", dashBestSup: "المشرف الأنشط", dashOngoing: "12 تقييم منجز", dashActiveSchool: "المدرسة الأنشط", dashStudents: "25 طالب", chartTitleProgress: "نسبة إنجاز المهام", chartTitleSchools: "إحصائيات المدارس",
+                formTitleInfo: "معلومات الطالب", lblFullName: "الاسم الكامل", phFullName: "أدخل الاسم", lblIdCard: "رقم الهوية / الطالب", lblCourse: "اسم الدورة", lblTpLevel: "مستوى التدريب", formTitleLog: "الحضور والسجل اليومي", btnFinishSession: "إنهاء الجلسة", lblTodayTask: "مهمة اليوم", optSelect: "-- اختر --", optMeeting: "اجتماع التنسيق", optClass: "التدريس", optAssist: "مساعدة المعلم الأساسي", optSupervision: "إشراف", lblDetails: "تفاصيل", phDetails: "معلومات إضافية...", lblStudentSig: "توقيع الطالب:", lblLecturerSig: "توقيع المحاضر:", btnClear: "مسح", btnSubmitForm: "إرسال النموذج",
+                lblTotalMarks: "مجموع الدرجات:", thCompetencies: "الكفاءات", thScale1: "يحتاج تحسين (1)", thScale2: "مقبول (2)", thScale3: "جيد (3)", thScale4: "جيد جدا (4)", thScale5: "ممتاز (5)", lblObserverComment: "ملاحظات المشرف:", phComment: "اكتب الملاحظات...", btnSaveMarks: "حفظ الدرجات",
+                taskStarted: "مهام مبدوءة", taskOngoing: "مهام جارية", taskCompleted: "مهام منجزة",
+                adminDataUpload: "رفع البيانات (CSV)", adminStudentCsv: "ملف الطلاب CSV", adminLecturerCsv: "ملف المحاضرين CSV", adminDummy: "تحميل نموذج", adminBtnUpload: "رفع", adminHardReset: "إعادة ضبط النظام", adminResetDesc: "يتطلب تحقق من 3 خطوات لمسح البيانات.", adminBtnReset: "بدء إعادة الضبط"
+            }
+        };
+
+        // PDF Specific Translations
+        const pdfDict = {
+            en: { ium: "Islamic University of Maldives", koe: "Kulliyyah of Education", title: "LESSON OBSERVATION FORM (KEY STAGE 1-5)", stdName: "Student Teacher's Name:", date: "Date:", id: "ID / Student No:", course: "Course / Batch:", total: "Total Marks Achieved:", comment: "Observer's Comments:", noComment: "No additional comments provided.", supSig: "Supervisor's Signature", stdSig: "Student's Signature" },
+            dv: { ium: "ދިވެހިރާއްޖޭގެ އިސްލާމީ ޔުނިވަރސިޓީ", koe: "ކުއްލިއްޔާ އޮފް އެޑިއުކޭޝަން", title: "ލެސަން އޮބްޒަރވޭޝަން ފޯމު (ކީ ސްޓޭޖް 1-5)", stdName: "ދަރިވަރުގެ ނަން:", date: "ތާރީޚު:", id: "އައި.ޑީ / ނަންބަރ:", course: "ކޯސް / ބެޗް:", total: "ޖުމްލަ މާކުސް:", comment: "އޮބްޒަރވަރުގެ ކޮމެންޓް:", noComment: "އިތުރު ކޮމެންޓެއް ނެތް.", supSig: "ސުޕަވައިޒަރގެ ސޮއި", stdSig: "ދަރިވަރުގެ ސޮއި" },
+            ar: { ium: "الجامعة الإسلامية بالمالديف", koe: "كلية التربية", title: "استمارة تقييم الدرس", stdName: "اسم الطالب المعلم:", date: "التاريخ:", id: "الرقم الجامعي:", course: "الدورة / الدفعة:", total: "مجموع الدرجات:", comment: "ملاحظات المشرف:", noComment: "لا توجد ملاحظات إضافية.", supSig: "توقيع المشرف", stdSig: "توقيع الطالب" }
+        };
+
+        function switchLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.nav-controls button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const isRTL = (lang === 'dv' || lang === 'ar');
+            document.body.dir = isRTL ? 'rtl' : 'ltr';
+            
+            document.querySelectorAll('.form-group, .total-score-board, th.category-header, td.criteria-text').forEach(el => {
+                el.style.textAlign = isRTL ? 'right' : 'left';
+            });
+            document.querySelectorAll('.total-score-board').forEach(el => { el.style.direction = 'ltr'; });
+
+            document.querySelectorAll('[lang-key]').forEach(elem => {
+                const key = elem.getAttribute('lang-key');
+                if (translations[lang] && translations[lang][key]) {
+                    if (elem.tagName === 'INPUT' || elem.tagName === 'TEXTAREA') elem.placeholder = translations[lang][key];
+                    else if (elem.tagName === 'OPTION') elem.innerText = translations[lang][key];
+                    else {
+                        if(elem.childNodes.length > 1) elem.lastChild.textContent = " " + translations[lang][key];
+                        else elem.innerText = translations[lang][key];
+                    }
+                }
+            });
+            initRubric(); 
+        }
+
+        /** --- RUBRIC CRITERIA (FULL 55) --- */
+        const criteriaList = [
+            { cat: { en: "PLANNING", dv: "ޕްލޭނިންގ (ފިލާވަޅު ރޭވުން)", ar: "التخطيط" } },
+            { id: "p1", en: "Delineates appropriate learning objectives", dv: "އެކަށީގެންވާ ލަރނިންގ އޮބްޖެކްޓިވްސް ކަނޑައެޅުން", ar: "يحدد أهداف التعلم المناسبة" },
+            { id: "p2", en: "Selects appropriate teaching strategies", dv: "އެކަށީގެންވާ ކިޔަވައިދިނުމުގެ ސްޓްރެޓަޖީތައް އިޚްތިޔާރުކުރުން", ar: "يختار استراتيجيات التدريس المناسبة" },
+            { id: "p3", en: "Uses effective learning activities and resources", dv: "ރަނގަޅު ހަރަކާތްތަކާއި ވަސީލަތްތައް ބޭނުންކުރުން", ar: "يستخدم أنشطة وموارد تعليمية فعالة" },
+            { id: "p4", en: "Caters to students diverse needs", dv: "ދަރިވަރުންގެ ތަފާތު ބޭނުންތަކަށް ރިޢާޔަތްކުރުން", ar: "يلبي الاحتياجات المتنوعة للطلاب" },
+            { id: "p5", en: "Addresses all elements of the curriculum", dv: "މަންހަޖުގެ ހުރިހާ ބައިތަކެއް ހިމެނުން", ar: "يتناول جميع عناصر المنهج" },
+            { id: "p6", en: "Assessment strategies and tools stated", dv: "އެސެސްމަންޓް ސްޓްރެޓަޖީތަކާއި ޓޫލްސް ބަޔާންކުރުން", ar: "استراتيجيات وأدوات التقييم المذكورة" },
+            { id: "p7", en: "Develops a workable time schedule", dv: "ވަގުތު ބެހިފައިވާ ރަނގަޅު ތާވަލެއް އެކުލަވާލުން", ar: "يضع جدولاً زمنياً عملياً" },
+            
+            { cat: { en: "LESSON IMPLEMENTATION", dv: "ލެސަން އިމްޕްލިމެންޓޭޝަން (ފިލާވަޅު ނެގުން)", ar: "تنفيذ الدرس" } },
+            { id: "i1", en: "Learning intentions shared with students", dv: "ލަރނިންގ އިންޓެންޝަންސް ދަރިވަރުންނާ ހިއްސާކުރުން", ar: "مشاركة نوايا التعلم مع الطلاب" },
+            { id: "i2", en: "Success criteria discussed with students", dv: "ސަކްސެސް ކްރައިޓީރިއާ ދަރިވަރުންނާ މަޝްވަރާކުރުން", ar: "مناقشة معايير النجاح مع الطلاب" },
+            { id: "i3", en: "Success criteria was displayed", dv: "ސަކްސެސް ކްރައިޓީރިއާ ފެންނަން ބެހެއްޓުން", ar: "تم عرض معايير النجاح" },
+            { id: "i4", en: "Learning intentions were displayed", dv: "ލަރނިންގ އިންޓެންޝަންސް ފެންނަން ބެހެއްޓުން", ar: "تم عرض نوايا التعلم" },
+            { id: "i5", en: "Success criteria was assessed in the lesson", dv: "ފިލާވަޅުގައި ސަކްސެސް ކްރައިޓީރިއާ އެސެސްކުރުން", ar: "تقييم معايير النجاح في الدرس" },
+            { id: "i6", en: "At least two key competencies were used", dv: "މަދުވެގެން ދެ ކީ ކޮމްޕިޓެންސީ ބޭނުންކުރުން", ar: "استخدام كفاءتين أساسيتين على الأقل" },
+            { id: "i7", en: "Key competencies shared with students", dv: "ކީ ކޮމްޕިޓެންސީސް ދަރިވަރުންނާ ހިއްސާކުރުން", ar: "مشاركة الكفاءات مع الطلاب" },
+            { id: "i8", en: "Lesson prepared to achieve at least one shared value", dv: "މަދުވެގެން އެއް ވެލިއު ޙާޞިލްކުރުމަށް ފިލާވަޅު ރޭވުން", ar: "إعداد الدرس لتحقيق قيمة مشتركة واحدة على الأقل" },
+            { id: "i9", en: "Class Arrangement", dv: "ކްލާސްރޫމް ތަރުތީބުކޮށްފައިވާ ގޮތް", ar: "ترتيب الفصل" },
+            { id: "i10", en: "Set induction: linked prior learning to new", dv: "ސެޓް އިންޑަކްޝަން: ކުރީގެ މަޢުލޫމާތާއި އައު ފިލާވަޅު ގުޅުވުން", ar: "التمهيد: ربط التعلم السابق بالجديد" },
+            { id: "i11", en: "Materials used appropriately", dv: "ވަސީލަތްތައް އެކަށީގެންވާ ގޮތަށް ބޭނުންކުރުން", ar: "استخدام المواد بشكل مناسب" },
+            { id: "i12", en: "Establishes a supportive learning environment", dv: "އެހީތެރި މާޙައުލެއް ޤާއިމުކުރުން", ar: "يؤسس بيئة تعليمية داعمة" },
+            { id: "i13", en: "Reinforces good behaviour", dv: "ރަނގަޅު އަޚްލާޤަށް ހިތްވަރުދިނުން", ar: "يعزز السلوك الجيد" },
+            { id: "i14", en: "Sustains students Interest", dv: "ދަރިވަރުންގެ ޝައުޤުވެރިކަން ދެމެހެއްޓުން", ar: "يحافظ على اهتمام الطلاب" },
+            { id: "i15", en: "Useful classroom discussions and exercises", dv: "ފައިދާހުރި މަޝްވަރާތަކާއި ފަރިތަކުރުންތައް", ar: "مناقشات وتمارين صفية مفيدة" },
+            { id: "i16", en: "Encourages Participation", dv: "ބައިވެރިވުމަށް ހިތްވަރުދިނުން", ar: "يشجع على المشاركة" },
+            { id: "i17", en: "Sets and enforces rules and routines", dv: "ޤަވާޢިދުތަކާއި ރޫޓީންތައް ހިފެހެއްޓުން", ar: "يضع ويطبق القواعد والروتين" },
+            { id: "i18", en: "Establishes interaction and rapport", dv: "ގުޅުން ބަދަހިކޮށް މުޢާމަލާތްކުރުން", ar: "يؤسس التفاعل والتواصل" },
+            { id: "i19", en: "Shows care and concern for students", dv: "ދަރިވަރުންނަށް އަޅާލުމާއި އޯގާތެރިކަން ދެއްކުން", ar: "يظهر الرعاية والاهتمام بالطلاب" },
+            { id: "i20", en: "Uses voice and language appropriately", dv: "އަޑާއި ބަސްމަގު އެކަށީގެންވާ ގޮތަށް ބޭނުންކުރުން", ar: "يستخدم الصوت واللغة بشكل مناسب" },
+            { id: "i21", en: "Gives proper feedback to students", dv: "ދަރިވަރުންނަށް ރަނގަޅު ފީޑްބެކް ދިނުން", ar: "يقدم تغذية راجعة مناسبة" },
+            { id: "i22", en: "Delivery of the lesson is clear and precise", dv: "ފިލާވަޅު ހުށަހަޅައިދޭ ގޮތް ސާފުކަން", ar: "تقديم الدرس واضح ودقيق" },
+            { id: "i23", en: "Uses ICT / media / resource", dv: "އައި.ސީ.ޓީ / މީޑިއާ / ވަސީލަތްތައް ބޭނުންކުރުން", ar: "يستخدم التكنولوجيا والوسائط" },
+            { id: "i24", en: "Relates information to prior knowledge", dv: "ކުރިން އެނގިފައިވާ މަޢުލޫމާތާ ގުޅުވުން", ar: "يربط المعلومات بالمعرفة السابقة" },
+            { id: "i25", en: "Shared up to date information", dv: "އައު މަޢުލޫމާތު ފޯރުކޮށްދިނުން", ar: "يشارك معلومات محدثة" },
+            { id: "i26", en: "Encourages students to answer different levels of questions", dv: "ތަފާތު ލެވެލްތަކުގެ ސުވާލަށް ޖަވާބުދިނުމަށް ހިތްވަރުދިނުން", ar: "يشجع على إجابة مستويات مختلفة من الأسئلة" },
+            { id: "i27", en: "Restates questions and answer when necessary", dv: "ބޭނުންވާ ޙާލަތުގައި ސުވާލާއި ޖަވާބު ތަކުރާރުކުރުން", ar: "يعيد صياغة الأسئلة والإجابات عند الضرورة" },
+            { id: "i28", en: "Organizes & monitors individual & group learning", dv: "ވަކިވަކި އަދި ގްރޫޕް މަސައްކަތް ބެލެހެއްޓުން", ar: "ينظم ويراقب التعلم الفردي والجماعي" },
+            { id: "i29", en: "Questions and responds appropriately", dv: "އެކަށީގެންވާ ގޮތަށް ސުވާލުކޮށް ޖަވާބުދިނުން", ar: "يسأل ويجيب بشكل مناسب" },
+            { id: "i30", en: "Gives clear explanations and instructions", dv: "ސާފު އިރުޝާދާއި ތަފްސީލު ދިނުން", ar: "يقدم تفسيرات وتعليمات واضحة" },
+            { id: "i31", en: "Presents with different levels of questions", dv: "ތަފާތު ފެންވަރުގެ ސުވާލުތައް ކުރިމަތިކުރުވުން", ar: "يطرح مستويات مختلفة من الأسئلة" },
+            { id: "i32", en: "Interacts and communicates with students appropriately", dv: "ދަރިވަރުންނާ ގުޅިގެން ރަނގަޅަށް މުޢާމަލާތްކުރުން", ar: "يتفاعل ويتواصل بشكل مناسب" },
+            { id: "i33", en: "Differentiated materials and tasks were used", dv: "ތަފާތު ފެންވަރަށް ޚާއްޞަ ތަކެއްޗާއި މަސައްކަތް ބޭނުންކުރުން", ar: "استخدام مواد ومهام متمايزة" },
+            { id: "i34", en: "Uses probing questions when necessary", dv: "ވިސްނުން ތަރައްޤީކުރާ (ޕްރޯބިންގ) ސުވާލު ކުރުން", ar: "يستخدم أسئلة استقصائية عند الضرورة" },
+            { id: "i35", en: "Establishes a collaborative environment", dv: "ގުޅިގެން މަސައްކަތްކުރާ މާޙައުލެއް ޤާއިމުކުރުން", ar: "يؤسس بيئة تعاونية" },
+            { id: "i36", en: "Maintains a good rapport with the students", dv: "ދަރިވަރުންނާއެކު ރަނގަޅު ގުޅުމެއް ބޭއްވުން", ar: "يحافظ على علاقة جيدة مع الطلاب" },
+            { id: "i37", en: "Presents a flexible learning environment", dv: "ފްލެކްސިބަލް މާޙައުލެއް ޤާއިމުކުރުން", ar: "يقدم بيئة تعليمية مرنة" },
+            { id: "i38", en: "Content applied to real world situations", dv: "ޙަޤީޤީ ދުނިޔޭގެ ކަންކަމާ ފިލާވަޅު ގުޅުވުން", ar: "تطبيق المحتوى على مواقف العالم الحقيقي" },
+            { id: "i39", en: "Relevant and appropriate information delivered", dv: "ގުޅޭ އަދި އެކަށީގެންވާ މަޢުލޫމާތު ފޯރުކޮށްދިނުން", ar: "تقديم معلومات ذات صلة ومناسبة" },
+            { id: "i40", en: "Presents relevant Examples relates to the content", dv: "މައުޟޫޢާ ގުޅޭ ނަމޫނާތައް ދެއްކުން", ar: "يقدم أمثلة ذات صلة بالمحتوى" },
+            { id: "i41", en: "Misconceptions are identified and addressed", dv: "ކުށް ހީތައް ދެނެގަނެ އެކަންކަން ރަނގަޅުކުރުން", ar: "تحديد المفاهيم الخاطئة ومعالجتها" },
+            { id: "i42", en: "Challenging and authentic activities are given", dv: "ޗެލެންޖިންގ އަދި އޮތެންޓިކް ހަރަކާތްތައް ދިނުން", ar: "تقديم أنشطة صعبة وأصيلة" },
+            { id: "i43", en: "Emphasizes on exploration and creativity", dv: "އުފެއްދުންތެރިކަމާއި ހޯދައިބެލުމަށް ބާރުއެޅުން", ar: "يؤكد على الاستكشاف والإبداع" },
+            
+            { cat: { en: "EVALUATION", dv: "އިވެލުއޭޝަން (ވަޒަންކުރުން)", ar: "التقييم" } },
+            { id: "e1", en: "Summarizes all the key points of the lesson", dv: "ފިލާވަޅުގެ މައިގަނޑު ނުކުތާތައް ޚުލާޞާކުރުން", ar: "يلخص جميع النقاط الرئيسية للدرس" },
+            { id: "e2", en: "Provide constructive feedback in a timely manner", dv: "ރަނގަޅު ވަގުތުގައި ބިނާކުރަނިވި ފީޑްބެކް ދިނުން", ar: "تقديم تغذية راجعة بناءة في الوقت المناسب" },
+            { id: "e3", en: "Achievement of learning objectives assessed", dv: "މަޤްޞަދު ޙާޞިލްވި މިންވަރު ވަޒަންކުރުން", ar: "تقييم تحقيق أهداف التعلم" },
+            { id: "e4", en: "Students understanding analyzed before, during, after", dv: "ފިލާވަޅުގެ ކުރިން، ތެރޭގައި، ފަހުން ދަރިވަރުންނަށް އެނގޭ މިންވަރު ބެލުން", ar: "تحليل فهم الطلاب قبل وأثناء وبعد الدرس" },
+            { id: "e5", en: "Tool used to assess is appropriate and accurate", dv: "ވަޒަންކުރުމަށް ބޭނުންކުރި ގޮތް އެކަށީގެންވުން", ar: "الأداة المستخدمة للتقييم مناسبة ودقيقة" }
+        ];
+
+        const maxScore = criteriaList.filter(c => !c.cat).length * 5; 
+
+        function initRubric() {
+            const tbody = document.getElementById('rubricBody');
+            tbody.innerHTML = ''; 
+            criteriaList.forEach(item => {
+                if (item.cat) {
+                    const tr = document.createElement('tr');
+                    const headerText = item.cat[currentLang] || item.cat.en;
+                    tr.innerHTML = `<th colspan="6" class="category-header" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${headerText}</th>`;
+                    tbody.appendChild(tr);
+                } else {
+                    const tr = document.createElement('tr');
+                    const criteriaText = item[currentLang] || item.en;
+                    let rowHTML = `<td class="criteria-text" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${criteriaText}</td>`;
+                    for (let i = 1; i <= 5; i++) {
+                        rowHTML += `<td><input type="radio" name="${item.id}" value="${i}" onchange="calculateRubricTotal()"></td>`;
+                    }
+                    tr.innerHTML = rowHTML;
+                    tbody.appendChild(tr);
+                }
+            });
+            calculateRubricTotal(); 
+        }
+
+        function calculateRubricTotal() {
+            let totalScore = 0;
+            document.querySelectorAll('#rubricForm input[type="radio"]:checked').forEach(r => totalScore += parseInt(r.value));
+            const scoreBoard = document.querySelector('.total-score-board');
+            document.getElementById('scoreDisplay').innerText = `${totalScore} / ${maxScore}`;
+            if(totalScore < (maxScore * 0.4)) scoreBoard.style.color = "#ff4d4d"; else if (totalScore >= (maxScore * 0.8)) scoreBoard.style.color = "#00FF00"; else scoreBoard.style.color = "var(--royal-gold)"; 
+        }
+
+        /** --- APP LOGIC --- */
+        document.addEventListener('contextmenu', e => e.preventDefault()); 
+        document.addEventListener('keydown', e => { if(e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) { e.preventDefault(); alert("ސެކިއުރިޓީ ފީޗަރ!"); return false; }});
+
+        function handleLogin() {
+            if(document.getElementById('username').value === "ali.ibrahim@ium.edu.mv" && document.getElementById('password').value === "@7791550") {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app-container').style.display = 'flex';
+                initCharts(); initSignaturePads(); switchLanguage('dv');
+                setInterval(() => { const s = document.getElementById('sync-status'); s.innerHTML = '<i class="fas fa-sync fa-spin"></i> ' + (translations[currentLang].statusAutoSave||"Saving..."); setTimeout(() => { s.innerHTML = '<i class="fas fa-check"></i> ' + (currentLang==='dv'?'ސޭވް ވެއްޖެ':'Saved'); }, 1500); }, 30000);
+            } else document.getElementById('login-error').style.display = 'block';
+        }
+
+        function logout() { document.getElementById('app-container').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; }
+        function showSection(sectionId) { document.querySelectorAll('.section').forEach(s => s.classList.remove('active')); document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active')); document.getElementById(sectionId).classList.add('active'); event.currentTarget.classList.add('active'); }
+
+        const canvases = {};
+        function initSignaturePads() {
+            ['studentSigPad', 'lecturerSigPad'].forEach(id => {
+                const canvas = document.getElementById(id); if(!canvas) return; const ctx = canvas.getContext('2d'); canvases[id] = { canvas, ctx, isDrawing: false };
+                canvas.width = canvas.parentElement.clientWidth; canvas.height = 200;
+                const startDrawing = (e) => { canvases[id].isDrawing = true; draw(e, id); }; const stopDrawing = () => { canvases[id].isDrawing = false; ctx.beginPath(); };
+                const draw = (e, id) => { if (!canvases[id].isDrawing) return; e.preventDefault(); const r = canvas.getBoundingClientRect(); const x = e.touches ? e.touches[0].clientX : e.clientX; const y = e.touches ? e.touches[0].clientY : e.clientY; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#00008B'; ctx.lineTo(x - r.left, y - r.top); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x - r.left, y - r.top); };
+                canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', (e) => draw(e, id)); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', (e) => draw(e, id), {passive: false}); canvas.addEventListener('touchend', stopDrawing);
+            });
+        }
+        function clearSig(id) { canvases[id].ctx.clearRect(0, 0, canvases[id].canvas.width, canvases[id].canvas.height); }
+
+        let completedSessions = 0; let progressChartInstance = null;
+        function initCharts() {
+            progressChartInstance = new Chart(document.getElementById('progressChart').getContext('2d'), { type: 'bar', data: { labels: ['Progress'], datasets: [{ label: 'Sessions %', data: [0], backgroundColor: '#0B6623' }] }, options: { scales: { y: { beginAtZero: true, max: 100 } } } });
+            new Chart(document.getElementById('schoolPieChart').getContext('2d'), { type: 'doughnut', data: { labels: ['Majeedhiyya', 'Aminiya', 'Iskandhar'], datasets: [{ data: [25, 15, 10], backgroundColor: ['#00008B', '#D4AF37', '#4B0082'] }] } });
+        }
+        function tickSessionComplete() {
+            completedSessions++; let total = completedSessions * 33.33; if (total > 100) total = 100;
+            alert((currentLang==='dv'?"ސެޝަން ފުރިހަމަވެއްޖެ! ":"Session Finished! Progress: ") + total.toFixed(2) + "%");
+            if(progressChartInstance) { progressChartInstance.data.datasets[0].data[0] = total; progressChartInstance.update(); }
+        }
+
+        function manualSave() { alert(currentLang==='dv'?"ސޭވްކުރެވިއްޖެ!":"Saved Successfully!"); }
+        function submitRubricMarks() { alert((currentLang==='dv'?"މާކުސް ސޭވްކުރެވިއްޖެ! ޖުމްލަ: ":"Marks Saved! Total: ") + document.getElementById('scoreDisplay').innerText); }
+        function addDailyTask() { const d = document.getElementById('dailyTaskDropdown'); if(d.value) { alert((currentLang==='dv'?"އިތުރުކުރެވިއްޖެ: ":"Task Added: ") + d.options[d.selectedIndex].text); d.value = ""; } }
+        function downloadDummyCSV(t) { const a = document.createElement("a"); a.href = encodeURI("data:text/csv;charset=utf-8,Name,ID\nSample,123"); a.download = t + ".csv"; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+        function threeStepHardReset() { if(prompt("Step 1 Password: (@7791550)") === "@7791550" && prompt("Step 2 Code: (DEAN2026)") === "DEAN2026" && confirm("Confirm?")) alert("Hard Reset Complete"); }
+
+        /** --- ROYAL PDF GENERATOR WITH DYNAMIC LANGUAGE SUPPORT --- */
+        function exportExactPDF() {
+            const printDiv = document.createElement('div');
+            printDiv.id = 'print-template';
+            printDiv.style.width = '210mm'; 
+            printDiv.style.padding = '15mm 20mm'; 
+            printDiv.style.background = '#ffffff';
+            printDiv.style.color = '#0A1128';
+            
+            // Handle Font and Direction dynamically based on currentLang
+            const isRTL = (currentLang === 'dv' || currentLang === 'ar');
+            printDiv.style.fontFamily = isRTL ? "'Faruma', Arial, sans-serif" : "'Times New Roman', Times, serif";
+            printDiv.style.direction = isRTL ? 'rtl' : 'ltr';
+            const align = isRTL ? 'right' : 'left';
+            const t = pdfDict[currentLang]; // Get current language text
+
+            const stdName = document.getElementById('stdName').value || '_______________________';
+            const stdID = document.getElementById('stdID').value || '________________';
+            const stdCourse = document.getElementById('stdCourse').value || '________________';
+            const dateStr = new Date().toLocaleDateString('en-GB');
+            let totalScore = document.getElementById('scoreDisplay').innerText.split('/')[0].trim();
+            let comments = document.getElementById('observerComments') ? document.getElementById('observerComments').value : "";
+
+            let html = `
+                <div style="border: 4px double #D4AF37; padding: 25px; border-radius: 8px; position: relative;">
+                    
+                    <div style="text-align:center; margin-bottom:20px; border-bottom: 3px solid #00008B; padding-bottom:15px;">
+                        <h3 style="margin:0; font-size:22px; color:#0A1128; font-family: 'Times New Roman', serif;">بسم الله الرحمن الرحيم</h3>
+                        <h4 style="margin:8px 0; font-size:18px; color:#D4AF37; text-transform: uppercase; letter-spacing: 1px;">${t.ium}</h4>
+                        <h4 style="margin:5px 0; font-size:16px; color:#4B0082;">${t.koe}</h4>
+                        <div style="margin-top: 15px;">
+                            <span style="background: #00008B; color: white; padding: 8px 20px; font-size: 16px; font-weight: bold; border-radius: 5px;">${t.title}</span>
+                        </div>
+                    </div>
+
+                    <table style="width:100%; margin-bottom:20px; font-size:14px; text-align:${align}; line-height: 1.8;" dir="${isRTL ? 'rtl' : 'ltr'}">
+                        <tr>
+                            <td style="width:60%;"><strong>${t.stdName}</strong> <span style="border-bottom:1px solid #D4AF37; padding: 0 15px; color:#00008B; font-weight:bold;">${stdName}</span></td>
+                            <td style="width:40%;"><strong>${t.date}</strong> <span style="border-bottom:1px solid #D4AF37; padding: 0 15px;">${dateStr}</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>${t.id}</strong> <span style="border-bottom:1px solid #D4AF37; padding: 0 15px;">${stdID}</span></td>
+                            <td><strong>${t.course}</strong> <span style="border-bottom:1px solid #D4AF37; padding: 0 15px;">${stdCourse}</span></td>
+                        </tr>
+                    </table>
+
+                    <table style="width:100%; border-collapse: collapse; font-size:11px;" border="1" bordercolor="#cccccc" dir="${isRTL ? 'rtl' : 'ltr'}">
+                        <thead>
+                            <tr style="background:#00008B; color:#ffffff;">
+                                <th style="padding:10px; text-align:${align}; width:45%; border-color:#00008B;">${translations[currentLang].thCompetencies || "COMPETENCIES"}</th>
+                                <th style="width:11%; border-color:#00008B;">${translations[currentLang].thScale5 || "5"}</th>
+                                <th style="width:11%; border-color:#00008B;">${translations[currentLang].thScale4 || "4"}</th>
+                                <th style="width:11%; border-color:#00008B;">${translations[currentLang].thScale3 || "3"}</th>
+                                <th style="width:11%; border-color:#00008B;">${translations[currentLang].thScale2 || "2"}</th>
+                                <th style="width:11%; border-color:#00008B;">${translations[currentLang].thScale1 || "1"}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            criteriaList.forEach(item => {
+                if (item.cat) {
+                    const catName = item.cat[currentLang] || item.cat.en;
+                    html += `<tr><th colspan="6" style="background:#F4F6F9; color:#0B6623; text-align:${align}; padding:8px 10px; font-size:13px; border-bottom: 2px solid #D4AF37;">${catName}</th></tr>`;
+                } else {
+                    const criName = item[currentLang] || item.en;
+                    let selectedVal = null;
+                    const radios = document.querySelectorAll(`input[name="${item.id}"]:checked`);
+                    if(radios.length > 0) selectedVal = parseInt(radios[0].value);
+                    const getCheck = (val) => selectedVal === val ? '<span style="font-size:16px; color:#D4AF37; font-weight:bold;">☑</span>' : '';
+
+                    html += `<tr>
+                        <td style="text-align:${align}; padding:6px 10px; color:#333;">${criName}</td>
+                        <td style="text-align:center; background:${selectedVal === 5 ? '#FFFDF0' : 'transparent'};">${getCheck(5)}</td>
+                        <td style="text-align:center; background:${selectedVal === 4 ? '#FFFDF0' : 'transparent'};">${getCheck(4)}</td>
+                        <td style="text-align:center; background:${selectedVal === 3 ? '#FFFDF0' : 'transparent'};">${getCheck(3)}</td>
+                        <td style="text-align:center; background:${selectedVal === 2 ? '#FFFDF0' : 'transparent'};">${getCheck(2)}</td>
+                        <td style="text-align:center; background:${selectedVal === 1 ? '#FFFDF0' : 'transparent'};">${getCheck(1)}</td>
+                    </tr>`;
+                }
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+
+                    <div style="margin-top:25px; font-size:14px; text-align:${align};" dir="${isRTL ? 'rtl' : 'ltr'}">
+                        <div style="background: #F4F6F9; padding: 15px; border-${align}: 5px solid #00008B; margin-bottom: 20px;">
+                            <p style="font-size:18px; margin:0; color:#0A1128;"><strong>${t.total}</strong> <span style="color:#D4AF37; font-size:22px; font-weight:bold; margin-left:10px;">${totalScore}</span> / 275</p>
+                        </div>
+                        
+                        <div style="border: 1px solid #D4AF37; padding: 15px; min-height: 80px; margin-bottom:30px; border-radius: 4px;">
+                            <strong style="color:#00008B; font-size:14px;">${t.comment}</strong><br>
+                            <p style="font-size:13px; color:#555; margin-top:8px;">${comments ? comments : `<em>${t.noComment}</em>`}</p>
+                        </div>
+
+                        <div style="display:flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; border-top: 1px dashed #ccc;">
+                            <div style="text-align:center; width:45%;">
+                                <div style="border-bottom: 1px solid #000; height: 30px; margin-bottom: 5px;"></div>
+                                <strong style="color:#00008B;">${t.supSig}</strong>
+                            </div>
+                            <div style="text-align:center; width:45%;">
+                                <div style="border-bottom: 1px solid #000; height: 30px; margin-bottom: 5px;"></div>
+                                <strong style="color:#00008B;">${t.stdSig}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            `;
+
+            printDiv.innerHTML = html;
+            document.body.appendChild(printDiv);
+
+            const opt = {
+                margin:       10, 
+                filename:     `Observation_${stdName.replace(/\s+/g, '_')}_${dateStr.replace(/\//g, '-')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(printDiv).save().then(() => {
+                document.body.removeChild(printDiv); 
+            });
+        }
+    </script>
+</body>
+</html>
