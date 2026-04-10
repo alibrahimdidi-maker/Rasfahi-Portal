@@ -6,6 +6,7 @@
     <title>ރަސްފަހި ޓީޗިންގ ޕްރެކްޓިސް އިވެލުއޭޝަން</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
@@ -92,6 +93,11 @@
         .rich-editor { min-height: 120px; border: 1px solid #ccc; border-radius: 0 0 6px 6px; padding: 15px; background: #fff; font-family: inherit; font-size: 15px; outline: none; overflow-y: auto; }
         .rich-editor:focus { border-color: var(--royal-blue); box-shadow: inset 0 0 5px rgba(0,0,139,0.1); }
 
+        /* Checkbox groups */
+        .checkbox-group { display:flex; flex-direction:column; gap:8px; background:#f9f9f9; padding:15px; border:1px solid #eee; border-radius:6px; max-height:150px; overflow-y:auto;}
+        .checkbox-group label { font-weight:normal; font-size:14px; cursor:pointer; display:flex; align-items:center; gap:8px; margin:0;}
+        .checkbox-group input[type="checkbox"] { width:auto; transform:scale(1.2); cursor:pointer;}
+
         /* Tables & Tasks */
         .data-table { width: 100%; border-collapse: collapse; min-width: 1000px; background:#fff; border-radius: 8px; overflow:hidden; box-shadow: var(--shadow);}
         .data-table th, .data-table td { border: 1px solid #e0e0e0; padding: 14px; text-align:center; vertical-align: middle;}
@@ -106,6 +112,7 @@
         .task-card { border-radius: 10px; padding: 18px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-right: 6px solid #ccc; background: #fff; flex-wrap: wrap; gap: 10px;}
         .task-card.pending { border-right-color: #FFA500; background: #fffdf5;}
         .task-card.approved { border-right-color: var(--royal-green); background: #f4fff4;}
+        .task-card.parked { border-right-color: #808080; background: #f5f5f5;}
         .task-badge { font-size: 12px; padding: 5px 10px; border-radius: 4px; font-weight: bold; }
 
         /* Task Splitter */
@@ -128,13 +135,6 @@
         .modal-overlay { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:100000; justify-content:center; align-items:center; }
         .modal-box { background:#fff; padding:30px; border-radius:12px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.5); border-top:5px solid var(--royal-purple); }
 
-        /* PDF Print Styling (Hidden during normal use) */
-        @media print {
-            body * { visibility: hidden; }
-            #pdf-print-container, #pdf-print-container * { visibility: visible; }
-            #pdf-print-container { position: absolute; left: 0; top: 0; width: 100%; }
-        }
-
         @media (max-width: 768px) { 
             .workspace { flex-direction: column; } 
             .sidebar { width: 100%; flex-direction: row; overflow-x: auto; padding: 10px; -webkit-overflow-scrolling: touch;} 
@@ -149,6 +149,7 @@
 
     <datalist id="allStudentsDatalist"></datalist>
     <datalist id="allSchoolsDatalist"></datalist>
+    <datalist id="allSupervisorsDatalist"></datalist>
 
     <div id="login-screen">
         <div class="login-box">
@@ -156,16 +157,24 @@
             <p style="color:var(--royal-purple); margin-bottom: 25px; font-weight:bold; font-size:18px;" lang-key="loginSub">ކްލައުޑް ލޮގިން ޕޯޓަލް</p>
             
             <div class="input-group">
-                <label lang-key="lblRole">ޔޫސަރ ރޯލް (ލޮގިން ވައްތަރު):</label>
-                <select id="userRole">
+                <label lang-key="emailLabel">ޔޫސަރ ނޭމް (އީމެއިލް):</label>
+                <input type="text" id="username" lang-key="phEmail" placeholder="ali.ibrahim@ium.edu.mv" oninput="autoDetectRole()">
+            </div>
+            
+            <div class="input-group">
+                <label lang-key="lblRole">ޔޫސަރ ރޯލް (އޮޓޯއިން ސެލެކްޓްވާނެ):</label>
+                <select id="userRole" disabled style="background:#f0f0f0; font-weight:bold; color:var(--royal-blue);">
                     <option value="admin" lang-key="roleAdmin">ފެކަލްޓީ ޑީން / ކޯޑިނޭޓަރ (އެޑްމިން)</option>
                     <option value="lecturer" lang-key="roleLecturer">ސުޕަވައިޒަރ / ލެކްޗަރަރ</option>
                     <option value="master" lang-key="roleMaster">މާސްޓަރ ޓީޗަރ (ސްކޫލް)</option>
                     <option value="student" lang-key="roleStudent">ދަރިވަރު (ސްޓޫޑެންޓް ޓީޗަރ)</option>
                 </select>
             </div>
-            <div class="input-group"><label lang-key="emailLabel">ޔޫސަރ ނޭމް (އީމެއިލް):</label><input type="text" id="username" placeholder="ali.ibrahim@ium.edu.mv" value="ali.ibrahim@ium.edu.mv"></div>
-            <div class="input-group"><label lang-key="passwordLabel">ޕާސްވޯރޑް (ޓްރަޔަލް):</label><input type="password" id="password" placeholder="@7791550" value="@7791550"></div>
+            
+            <div class="input-group">
+                <label lang-key="passwordLabel">ޕާސްވޯރޑް (ޓްރަޔަލް):</label>
+                <input type="password" id="password" lang-key="phPass" placeholder="@7791550" value="@7791550">
+            </div>
             <button class="btn-royal" onclick="handleLogin()" lang-key="loginBtn">ސިސްޓަމަށް ވަދެވަޑައިގަންނަވާ</button>
             <p id="login-error" style="color:red; margin-top:15px; display:none; font-weight:bold;" lang-key="loginError">މަޢުލޫމާތު ނުބައި! ޕާސްވޯރޑް ޗެކްކުރައްވާ.</p>
             
@@ -219,7 +228,7 @@
                         </div>
                         <div class="royal-card red-border">
                             <h3 style="color:#8b0000;"><i class="fas fa-exclamation-circle"></i> <span lang-key="dashInactiveSchool">ގުޅަންޖެހޭ ސްކޫލްތައް</span></h3>
-                            <ul style="margin-top:10px; line-height:1.6; color:#555; padding-left:20px;">
+                            <ul style="margin-top:10px; line-height:1.6; color:#555; padding-left:20px; text-align:inherit;">
                                 <li>Muhyiddin School (No Response)</li>
                                 <li>Kalaafaanu School (Pending)</li>
                             </ul>
@@ -228,25 +237,24 @@
 
                     <div class="card-grid">
                         <div class="royal-card">
-                            <h3 style="color:var(--royal-blue);"><i class="fas fa-chart-pie"></i> <span lang-key="chartLecturer">ލެކްޗަރަރުންގެ ޓީ.ޕީ ޕްރޮގްރެސް</span></h3>
+                            <h3 style="color:var(--royal-blue);"><i class="fas fa-chart-pie"></i> <span lang-key="chartLecturer">ލެކްޗަރަރުންގެ ޓީ.ޕީ ޓައިމްލައިން / ޕްރޮގްރެސް</span></h3>
                             <canvas id="lecturerProgressChart" height="200"></canvas>
                         </div>
                         <div class="royal-card gold-border">
-                            <h3 style="color:var(--royal-gold);"><i class="fas fa-tasks"></i> <span lang-key="lblCreateTask">އައު ޓާސްކް ކްރިއޭޓް ކުރުން</span></h3>
+                            <h3 style="color:var(--royal-gold);"><i class="fas fa-tasks"></i> <span lang-key="lblCreateTask">އައު ޓާސްކް ކްރިއޭޓް ކުރުން (+ Splitter)</span></h3>
                             <div class="form-group" style="margin-top:10px;">
                                 <input type="text" id="newTaskTitle" lang-key="phTaskName" placeholder="މައި ޓާސްކްގެ ނަން (މިސާލު: Lesson Plan)">
                                 
-                                <div style="display:flex; gap:10px; margin-top:15px;">
-                                    <select id="taskAssignTo" style="flex:1;">
-                                        <option value="student" lang-key="optToStudent">ދަރިވަރަށް ޙަވާލުކުރަން</option>
-                                        <option value="supervisor" lang-key="optToSupervisor">ސުޕަވައިޒަރަށް ޙަވާލުކުރަން</option>
-                                        <option value="master" lang-key="optToMaster">މާސްޓަރ ޓީޗަރަށް ޙަވާލުކުރަން</option>
-                                    </select>
-                                    <input type="text" list="allStudentsDatalist" placeholder="ނަން..." style="flex:1;">
+                                <div style="display:flex; gap:10px; margin-top:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                                    <div style="flex:1;">
+                                        <label lang-key="lblAssignTarget">ޙަވާލުކުރަނީ ކާކަށް؟</label>
+                                        <div class="checkbox-group">
+                                            <label><input type="checkbox" id="chkStudents" checked> ދަރިވަރުންނަށް (Students)</label>
+                                            <label><input type="checkbox" id="chkSup"> ސުޕަވައިޒަރުންނަށް (Supervisors)</label>
+                                            <label><input type="checkbox" id="chkMaster"> މާސްޓަރ ޓީޗަރުންނަށް (Master T.)</label>
+                                        </div>
+                                    </div>
                                 </div>
-                                
-                                <input type="file" id="newTaskFile" accept="*.*" style="margin-top:10px; padding:8px;">
-                                <small style="color:#888;" lang-key="lblFileLimit">ފައިލް ސައިޒް: 10MB އަށްވުރެ ބޮޑުނުކުރައްވާ.</small>
                                 
                                 <div id="taskSplitContainer" style="margin-top:15px;">
                                     <div class="task-row">
@@ -256,8 +264,16 @@
                                 </div>
                                 <div style="display:flex; justify-content:space-between; margin-top:10px;">
                                     <button class="action-btn small" onclick="addTaskRow()" style="background:var(--royal-purple);"><i class="fas fa-plus"></i> <span lang-key="btnAddPart">ބައެއް އިތުރުކުރޭ</span></button>
-                                    <button class="btn-royal" style="padding:10px 15px; width:auto;" onclick="createAdminTask()"><i class="fas fa-paper-plane"></i> <span lang-key="btnAssignTask">އެސައިންކުރޭ</span></button>
                                 </div>
+
+                                <div style="display:flex; gap:10px; margin-top:15px;">
+                                    <select id="newTaskLevel" style="flex:1;">
+                                        <option value="TP1">TP 1</option>
+                                        <option value="TP2">TP 2</option>
+                                        <option value="All">ހުރިހާ ލެވެލްއަކަށް</option>
+                                    </select>
+                                </div>
+                                <button class="btn-royal" style="margin-top:15px;" onclick="createAdminTask()"><i class="fas fa-paper-plane"></i> <span lang-key="btnAssignTask">ޓާސްކް އެސައިންކުރޭ</span></button>
                             </div>
                         </div>
                     </div>
@@ -268,25 +284,21 @@
                     
                     <div class="royal-card">
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:20px; gap:15px; background:var(--bg-light); padding:15px; border-radius:8px; border:1px solid #ddd;">
-                            <div style="display:flex; gap:15px; flex:1; min-width:300px;">
-                                <div style="flex:1;">
+                            <div style="display:flex; gap:15px; flex:1; min-width:300px; flex-wrap:wrap;">
+                                <div style="flex:1; min-width:150px;">
                                     <label style="font-weight:bold; font-size:13px; color:var(--dark-blue);" lang-key="lblFilterStudent">ދަރިވަރު ފިލްޓަރ:</label>
                                     <input type="text" id="filterStudentMarks" lang-key="phSearchStd" placeholder="ދަރިވަރު ނުވަތަ އައި.ޑީ ސަރޗް..." style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;" onkeyup="filterMarksTable()">
                                 </div>
-                                <div style="flex:1;">
+                                <div style="flex:1; min-width:150px;">
                                     <label style="font-weight:bold; font-size:13px; color:var(--dark-blue);" lang-key="lblFilterSchool">ސްކޫލް ފިލްޓަރ:</label>
                                     <select id="filterSchoolMarks" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;" onchange="filterMarksTable()">
                                         <option value="" lang-key="optAllSchools">ހުރިހާ ސްކޫލެއް</option>
                                     </select>
                                 </div>
-                                <div style="flex:1;">
+                                <div style="flex:1; min-width:150px;">
                                     <label style="font-weight:bold; font-size:13px; color:var(--dark-blue);" lang-key="lblFilterSup">ސުޕަވައިޒަރ ފިލްޓަރ:</label>
                                     <select id="filterSupervisorMarks" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;" onchange="filterMarksTable()">
                                         <option value="" lang-key="optAllSup">ހުރިހާ ސުޕަވައިޒަރުން</option>
-                                        <option value="Dr. Hassan Niyaz">Dr. Hassan Niyaz</option>
-                                        <option value="Ali Ibrahim Didi">Ali Ibrahim Didi</option>
-                                        <option value="Dr. Aishath Ali">Dr. Aishath Ali</option>
-                                        <option value="Mariyam Waheeda">Mariyam Waheeda</option>
                                     </select>
                                 </div>
                             </div>
@@ -327,6 +339,27 @@
                 <div id="coordinator-admin" class="section">
                     <h2 class="royal-heading" lang-key="menuAdmin">އެޑްމިން ޕެނަލް (ޑޭޓާ އަދި ސެޓަޕް)</h2>
                     
+                    <div class="royal-card" style="margin-bottom:20px;">
+                        <h3 style="color:var(--royal-blue);"><i class="fas fa-users-cog"></i> <span lang-key="lblAssignStd">ދަރިވަރުންނަށް ސުޕަވައިޒަރުން/މާސްޓަރ ޓީޗަރުން އެސައިންކުރުން</span></h3>
+                        <div class="form-grid" style="margin-top:15px; border:2px dashed var(--royal-gold); padding:20px; border-radius:8px; background:#fffdf5;">
+                            <div class="form-group">
+                                <label lang-key="thStudent">ދަރިވަރު ސެލެކްޓްކުރައްވާ:</label>
+                                <input type="text" list="allStudentsDatalist" id="assignStudent" placeholder="ދަރިވަރުގެ ނަން...">
+                            </div>
+                            <div class="form-group">
+                                <label lang-key="thSup">ސުޕަވައިޒަރ / ލެކްޗަރަރ:</label>
+                                <input type="text" list="allSupervisorsDatalist" id="assignSup" placeholder="ސުޕަވައިޒަރގެ ނަން ނުވަތަ އީމެއިލް...">
+                            </div>
+                            <div class="form-group">
+                                <label lang-key="roleMaster">މާސްޓަރ ޓީޗަރ:</label>
+                                <input type="text" id="assignMaster" placeholder="މާސްޓަރ ޓީޗަރގެ ނަން ނުވަތަ އީމެއިލް...">
+                            </div>
+                            <div class="form-group" style="justify-content:flex-end;">
+                                <button class="btn-royal" style="padding:12px;" onclick="alert('އެސައިން ކުރެވިއްޖެ!')"><i class="fas fa-link"></i> <span lang-key="btnAssignTask">އެސައިންކުރޭ</span></button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="royal-card">
                         <h3><i class="fas fa-database"></i> <span lang-key="adminDataUpload">ޑޭޓާ އަޕްލޯޑް އަދި އެކްސްޕޯރޓް</span></h3>
                         <div class="form-grid" style="margin-top:15px;">
@@ -369,7 +402,7 @@
                 </div>
 
                 <div id="amendModal" class="modal-overlay">
-                    <div class="modal-box">
+                    <div class="modal-box" style="direction:inherit;">
                         <h3 style="color:#8b0000; margin-top:0;"><i class="fas fa-edit"></i> މާކުސް ބަދަލުކުރުން (Amend)</h3>
                         <p id="amendStudentName" style="font-weight:bold; color:var(--royal-blue);"></p>
                         <div class="form-group" style="margin-top:15px;">
@@ -432,15 +465,6 @@
                         </div>
                     </div>
 
-                    <div class="royal-card" style="margin-bottom:25px;">
-                        <h3 style="color:var(--royal-blue);"><i class="fas fa-paper-plane"></i> ސުޕަވައިޒަރަށް / މާސްޓަރ ޓީޗަރަށް ފޮނުވާ (ރިކުއެސްޓް / ޓޭބަލް)</h3>
-                        <div class="form-group" style="margin-top:15px;">
-                            <input type="text" placeholder="ސުރުޚީ (މިސާލު: މާދަމާގެ ޓޭބަލް)">
-                            <input type="file" style="margin-top:10px;">
-                            <button class="btn-royal" style="margin-top:15px;" onclick="alert('ރިކުއެސްޓް ފޮނުވިއްޖެ!')">ފޮނުވާ</button>
-                        </div>
-                    </div>
-
                     <h3 style="color:var(--royal-purple); margin-bottom:15px;"><i class="fas fa-tasks"></i> ޙަވާލުކުރެވިފައިވާ ޓާސްކްތައް</h3>
                     <div class="card-grid" id="studentTaskArea">
                         <div class="task-card pending">
@@ -478,13 +502,16 @@
                             </div>
                             
                             <div class="form-group">
-                                <label>މަސައްކަތުގެ ތަފްސީލު / ރިފްލެކްޝަން:</label>
-                                <div class="editor-toolbar">
-                                    <button type="button" onclick="formatText('justifyRight')"><i class="fas fa-align-right"></i></button>
-                                    <button type="button" onclick="formatText('justifyCenter')"><i class="fas fa-align-center"></i></button>
-                                    <button type="button" onclick="formatText('justifyLeft')"><i class="fas fa-align-left"></i></button>
-                                    <button type="button" onclick="formatText('justifyFull')"><i class="fas fa-align-justify"></i></button>
+                                <label lang-key="lblDetails">މަސައްކަތުގެ ތަފްސީލު / ރިފްލެކްޝަން:</label>
+                                <div class="editor-toolbar" style="direction:ltr;">
                                     <button type="button" onclick="formatText('bold')"><i class="fas fa-bold"></i></button>
+                                    <button type="button" onclick="formatText('italic')"><i class="fas fa-italic"></i></button>
+                                    <button type="button" onclick="formatText('underline')"><i class="fas fa-underline"></i></button>
+                                    <button type="button" onclick="formatText('justifyLeft')"><i class="fas fa-align-left"></i></button>
+                                    <button type="button" onclick="formatText('justifyCenter')"><i class="fas fa-align-center"></i></button>
+                                    <button type="button" onclick="formatText('justifyRight')"><i class="fas fa-align-right"></i></button>
+                                    <button type="button" onclick="formatText('justifyFull')"><i class="fas fa-align-justify"></i></button>
+                                    <button type="button" onclick="formatText('insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
                                 </div>
                                 <div contenteditable="true" id="dailyLogDetails" class="rich-editor" dir="auto"></div>
                                 <p style="color:red; font-size:13px; margin-top:8px;"><i class="fas fa-info-circle"></i> މޫޑުލް (Moodle) އަށް އަޕްލޯރޑްކުރަންޖެހޭ ކަންކަން، މިތަނުން ކޮޕީ ޕޭސްޓް ހަދައިގެން މޫޑްލް އަށް ލުމަށް ހަނދާންކުރައްވާ!</p>
@@ -599,7 +626,7 @@
         const schoolsList = [
             "Majeedhiyya School", "Aminiya School", "Iskandhar School", "Dharumavantha School", "Hiriya School", "Huravee School", "Rehendhi School", "Ghazee School", "Kamil Didi Primary School", "Muhyiddin School", "CHSE", "Ahmadhiyya International", "Arabiyya School", "Thaajuddeen School", "Kalaafaanu School", "Imaduddin School", "Ghiyasuddin International", "Izzuddin School", "Billabong High", "Gateway International", "Brightway International", "Kangaroo Kids", "Jamaluddin School", "Mukulhasi School", "Villa International", "Salaahuddin School", "Madharusathul Ameer Ahmed", "Galolhu Madharusa", "Machangolhi Madharusa", "Ghaazee School"
         ];
-        const supervisors = ["Dr. Hassan Niyaz", "Ali Ibrahim Didi", "Dr. Aishath Ali", "Mariyam Waheeda"];
+        const supervisorsList = ["Dr. Hassan Niyaz", "Ali Ibrahim Didi", "Dr. Aishath Ali", "Mariyam Waheeda"];
         
         let allStudents = [];
         
@@ -614,6 +641,12 @@
                 if(schoolFilter) schoolFilter.innerHTML += `<option value="${school}">${school}</option>`;
             });
 
+            const supDatalist = document.getElementById('allSupervisorsDatalist');
+            if(supDatalist) {
+                supDatalist.innerHTML = '';
+                supervisorsList.forEach(sup => supDatalist.innerHTML += `<option value="${sup}">`);
+            }
+
             const stdDatalist = document.getElementById('allStudentsDatalist');
             const marksBody = document.getElementById('fullMarksBody');
             stdDatalist.innerHTML = ''; marksBody.innerHTML = '';
@@ -624,17 +657,15 @@
                 const lname = maldivianLastNames[Math.floor(Math.random() * maldivianLastNames.length)];
                 const fullName = `${fname} ${lname}`;
                 const studentID = `A${Math.floor(100000 + Math.random() * 900000)}`;
-                const sup = supervisors[Math.floor(Math.random() * supervisors.length)];
+                const sup = supervisorsList[Math.floor(Math.random() * supervisorsList.length)];
                 const school = schoolsList[Math.floor(Math.random() * schoolsList.length)];
                 
                 // HIGHEST SCORE LOGIC PREPARATION
-                // We generate random marks, but sometimes leave them blank (null) to simulate real-world where not all obs are done.
                 const rScore = () => Math.random() > 0.3 ? Math.floor(150 + Math.random() * 125) : null; 
                 
                 const tp1 = [rScore(), rScore(), rScore()];
                 const tp2 = [rScore(), rScore(), rScore()];
                 
-                // Find highest in each array
                 const tp1_high = Math.max(...tp1.filter(v => v !== null), 0);
                 const tp2_high = Math.max(...tp2.filter(v => v !== null), 0);
 
@@ -666,11 +697,11 @@
         let currentLang = 'dv';
         const translations = {
             dv: {
-                loginTitle: "ރަސްފަހި ޓީޗިންގ ޕްރެކްޓިސް އިވެލުއޭޝަން", loginSub: "ކްލައުޑް ލޮގިން ޕޯޓަލް", lblRole: "ޔޫސަރ ރޯލް (ލޮގިން ވައްތަރު):", roleAdmin: "ފެކަލްޓީ ޑީން / ކޯޑިނޭޓަރ (އެޑްމިން)", roleLecturer: "ސުޕަވައިޒަރ / ލެކްޗަރަރ", roleMaster: "މާސްޓަރ ޓީޗަރ (ސްކޫލް)", roleStudent: "ދަރިވަރު (ސްޓޫޑެންޓް ޓީޗަރ)", emailLabel: "ޔޫސަރ ނޭމް (އީމެއިލް):", passwordLabel: "ޕާސްވޯރޑް (ޓްރަޔަލް):", phEmail: "ali.ibrahim@ium.edu.mv", phPass: "@7791550", loginBtn: "ސިސްޓަމަށް ވަދެވަޑައިގަންނަވާ", loginError: "މަޢުލޫމާތު ނުބައި! ޕާސްވޯރޑް ޗެކްކުރައްވާ.", softwareName: "ރަސްފަހި ޓީޗިންގ ޕްރެކްޓިސް އިވެލުއޭޝަން ސޮފްޓްވެއަރ", devName: "ޑިވެލޮޕަރ: ޢަލީ އިބްރާހީމް ދީދީ",
+                loginTitle: "ރަސްފަހި ޓީޗިންގ ޕްރެކްޓިސް އިވެލުއޭޝަން", loginSub: "ކްލައުޑް ލޮގިން ޕޯޓަލް", lblRole: "ޔޫސަރ ރޯލް (އޮޓޯއިން ސެލެކްޓްވާނެ):", roleAdmin: "ފެކަލްޓީ ޑީން / ކޯޑިނޭޓަރ (އެޑްމިން)", roleLecturer: "ސުޕަވައިޒަރ / ލެކްޗަރަރ", roleMaster: "މާސްޓަރ ޓީޗަރ (ސްކޫލް)", roleStudent: "ދަރިވަރު (ސްޓޫޑެންޓް ޓީޗަރ)", emailLabel: "ޔޫސަރ ނޭމް (އީމެއިލް ޖައްސަވާ):", passwordLabel: "ޕާސްވޯރޑް (ޓްރަޔަލް):", phEmail: "ali.ibrahim@ium.edu.mv", phPass: "@7791550", loginBtn: "ސިސްޓަމަށް ވަދެވަޑައިގަންނަވާ", loginError: "މަޢުލޫމާތު ނުބައި! ޕާސްވޯރޑް ޗެކްކުރައްވާ.", softwareName: "ރަސްފަހި ޓީޗިންގ ޕްރެކްޓިސް އިވެލުއޭޝަން ސޮފްޓްވެއަރ", devName: "ޑިވެލޮޕަރ: ޢަލީ އިބްރާހީމް ދީދީ",
                 softwareNameShort: "ރަސްފަހި ޓީ.ޕީ", statusAutoSave: "ކްލައުޑަށް ސޭވްވަނީ...", statusOnline: "އޮންލައިން", saveBtn: "މެނުއަލް ސޭވް", btnLogout: "ލޮގްއައުޓް", pdfBtn: "ފޯމު ޕީޑީއެފް (EN)",
                 menuDashboard: "މެއިން ޑޭޝްބޯޑް (އެޑްމިން)", menuStudent: "ދަރިވަރުގެ ޑޭޝްބޯޑް / ޓާސްކް", menuObservation: "ލެސަން އޮބްޒަރވޭޝަން ފޯމު", menuTasks: "ޓާސްކް އަދި އެކްޝަން ސެންޓަރ", menuAdmin: "އެޑްމިން ޕެނަލް (ޑޭޓާ / ސެޓަޕް)", menuFormBank: "ފޯމު ބޭންކް އަދި މާކުސް އެމެންޑް",
                 dashBestStd: "އެންމެ ރަނގަޅު ދަރިވަރު", dashCompleted: "ޓީ.ޕީ ފުރިހަމަކޮށްފައި", dashBestSup: "އެންމެ ހީވާގި ސުޕަވައިޒަރ", dashOngoing: "12 އޮބްޒަވޭޝަން ނިމިފައި", dashActiveSchool: "އެންމެ އެކްޓިވް ސްކޫލް", dashInactiveSchool: "ގުޅަންޖެހޭ ސްކޫލްތައް", dashStudents: "25 ދަރިވަރުން ފޮނުވިފައި", chartLecturer: "ލެކްޗަރަރުންގެ ޓީ.ޕީ ޓައިމްލައިން / ޕްރޮގްރެސް", chartTitleProgress: "ދަރިވަރުން މަސައްކަތް ނިންމާ މިންވަރު", chartTitleSchools: "ސްކޫލްތަކުގެ ތަފާސްހިސާބު",
-                lblCreateTask: "އައު ޓާސްކް ކްރިއޭޓް ކުރުން (+ Splitter)", phTaskName: "މައި ޓާސްކްގެ ނަން (މިސާލު: Lesson Plan)", phSubTask: "ސަބް-ޓާސްކް 1...", btnAddPart: "ބައެއް އިތުރުކުރޭ", btnAssignTask: "އެސައިންކުރޭ", optToStudent: "ދަރިވަރަށް ޙަވާލުކުރަން", optToSupervisor: "ސުޕަވައިޒަރަށް ޙަވާލުކުރަން", optToMaster: "މާސްޓަރ ޓީޗަރަށް ޙަވާލުކުރަން", lblFileLimit: "ފައިލް ސައިޒް: 10MB އަށްވުރެ ބޮޑުނުކުރައްވާ.",
+                lblCreateTask: "އައު ޓާސްކް ކްރިއޭޓް ކުރުން (+ Splitter)", phTaskName: "މައި ޓާސްކްގެ ނަން (މިސާލު: Lesson Plan)", phSubTask: "ސަބް-ޓާސްކް 1...", btnAddPart: "ބައެއް އިތުރުކުރޭ", btnAssignTask: "އެސައިންކުރޭ", lblAssignTarget: "ޙަވާލުކުރަނީ ކާކަށް؟", lblAssignStd: "ދަރިވަރުންނަށް ސުޕަވައިޒަރުން/މާސްޓަރ ޓީޗަރުން އެސައިންކުރުން", lblFileLimit: "ފައިލް ސައިޒް: 10MB އަށްވުރެ ބޮޑުނުކުރައްވާ.",
                 marksTableTitle: "ހުރިހާ ދަރިވަރުންގެ މާކުސް ރިޕޯރޓް (TP1 & TP2)", lblFilterStudent: "ދަރިވަރު ފިލްޓަރ:", lblFilterSchool: "ސްކޫލް ފިލްޓަރ:", optAllSchools: "ހުރިހާ ސްކޫލެއް", lblFilterSup: "ސުޕަވައިޒަރ ފިލްޓަރ:", optAllSup: "ހުރިހާ ސުޕަވައިޒަރުން", btnExportCSV: "CSV / Excel އެކްސްޕޯރޓް", btnExportPDF: "PDF އެކްސްޕޯރޓް", thStudent: "ދަރިވަރުގެ ނަން", thID: "އައި.ޑީ", thSchool: "ސްކޫލް", thSup: "ސުޕަވައިޒަރ", thTP1Marks: "TP 1 (މާކުސް)", thTP2Marks: "TP 2 (މާކުސް)", thObs1: "Obs 1", thObs2: "Obs 2", thObs3: "Obs 3", thAction: "އެކްޝަން", lblObsNo: "އޮބްޒަވޭޝަން ނަންބަރ", formBankDesc: "މިއީ ކުރިން ފިލްކޮށްފައިވާ ފޯމުތަކެވެ. މާކުސް ބަދަލުކުރާނަމަ ސަބަބު ބަޔާންކޮށް ވެރިފިކޭޝަން ފުރިހަމަކުރަންޖެހޭނެއެވެ.", lblReceivedForms: "ލިބިފައިވާ އޮބްޒަވޭޝަން ފޯމުތައް",
                 lblFullName: "ދަރިވަރުގެ ފުރިހަމަ ނަން", phFullName: "ދަރިވަރުގެ ނަން", lblIdCard: "އައި.ޑީ / ސްޓޫޑެންޓް ނަންބަރ", lblCourse: "ކޯހުގެ ނަން / ބެޗް", lblTpLevel: "ޓީ.ޕީ ލެވެލް", formTitleLog: "ޑެއިލީ އެޓެންޑެންސް، ރިފްލެކްޝަން އަދި ވޯކް ލޮގް", btnFinishSession: "ލޮގް ސޭވްކޮށް ޕޮއިންޓް ހޯދާ", lblTodayTask: "މިއަދު ކުރި މަސައްކަތް (ޑްރޮޕްޑައުން އިން ޚިޔާރުކުރައްވާ)", optSelect: "-- އިޚްތިޔާރު ކުރައްވާ --", lblDetails: "މަސައްކަތުގެ ތަފްސީލު / ރިފްލެކްޝަން", phDetails: "މަސައްކަތުގެ ގޮޅިއަށް ލިޔުމަށް...", lblStudentSig: "ދަރިވަރުގެ ސޮއި (ޓަޗް):", lblLecturerSig: "ލެކްޗަރަރ / ސުޕަވައިޒަރގެ ސޮއި (ޓަޗް):", btnClear: "ސާފުކުރައްވާ", btnSubmitForm: "ފޯމު ސަބްމިޓް ކުރައްވާ",
                 lblTotalMarks: "ޖުމްލަ މާކުސް:", thCompetencies: "COMPETENCIES (ކްރައިޓީރިއާ)", thScale1: "ދަށް (1)", thScale2: "އާދައިގެ (2)", thScale3: "ރަނގަޅު (3)", thScale4: "ވަރަށް ރަނގަޅު (4)", thScale5: "ފުރިހަމަ (5)", 
@@ -680,11 +711,11 @@
                 lblTopic: "ޓޮޕިކް (މެނުއަލް)", lblModule: "މޮޑިއުލް (މެނުއަލް)", lblGrade: "ގްރޭޑް", lblSchool: "ސްކޫލް (ސަރޗް / ޑްރޮޕްޑައުން)", lblObsType: "އޮބްޒަވޭޝަން ވައްތަރު (ޓީޕީ 1 / 2)", lblMarksStatus: "މާކުސް ދެވޭ / ނުދެވޭ", optMarksEnable: "މާކުސް ދެވޭނެ (Final)", optMarksDisable: "މާކުސް ނުދެވޭނެ (Draft)", phSearchStd: "ދަރިވަރުގެ ނަން ނުވަތަ އައި.ޑީ އިން ސަރޗްކުރައްވާ (އޮޓޯ ފިލްކުރުމަށް)...", lblDate: "ތާރީޚް"
             },
             en: {
-                loginTitle: "Rasfahi TP Evaluation", loginSub: "Cloud Login Portal", lblRole: "User Role:", roleAdmin: "Faculty Dean / Coordinator (Admin)", roleLecturer: "Supervisor / Lecturer", roleMaster: "Master Teacher (School)", roleStudent: "Student (Student Teacher)", emailLabel: "Username (Email):", passwordLabel: "Password (Trial):", phEmail: "Enter email", phPass: "Enter password", loginBtn: "Login to System", loginError: "Invalid Credentials! Check password.", softwareName: "Rasfahi TP Evaluation Software", devName: "Dev: Ali Ibrahim Didi",
+                loginTitle: "Rasfahi TP Evaluation", loginSub: "Cloud Login Portal", lblRole: "User Role (Auto-Detected):", roleAdmin: "Faculty Dean / Coordinator (Admin)", roleLecturer: "Supervisor / Lecturer", roleMaster: "Master Teacher (School)", roleStudent: "Student (Student Teacher)", emailLabel: "Username (Email):", passwordLabel: "Password (Trial):", phEmail: "Enter email", phPass: "Enter password", loginBtn: "Login to System", loginError: "Invalid Credentials! Check password.", softwareName: "Rasfahi TP Evaluation Software", devName: "Dev: Ali Ibrahim Didi",
                 softwareNameShort: "Rasfahi TP", statusAutoSave: "Saving to Cloud...", statusOnline: "Online", saveBtn: "Manual Save", btnLogout: "Logout", pdfBtn: "Export PDF (EN)",
                 menuDashboard: "Main Dashboard (Admin)", menuStudent: "Student Dashboard / Tasks", menuObservation: "Lesson Observation Form", menuTasks: "Task & Action Center", menuAdmin: "Admin Panel (Data / Setup)", menuFormBank: "Form Bank & Amend Marks",
                 dashBestStd: "Best Student", dashCompleted: "TP Completed", dashBestSup: "Most Active Supervisor", dashOngoing: "12 Obs. Done", dashActiveSchool: "Most Active School", dashInactiveSchool: "Schools to Contact", dashStudents: "25 Students Sent", chartLecturer: "Lecturer TP Timeline / Progress", chartTitleProgress: "Student Task Progress", chartTitleSchools: "School Statistics",
-                lblCreateTask: "Create New Task (+ Splitter)", phTaskName: "Main Task Name (e.g. Lesson Plan)", phSubTask: "Sub-Task 1...", btnAddPart: "Add Part", btnAssignTask: "Assign Task", optToStudent: "Assign to Student", optToSupervisor: "Assign to Supervisor", optToMaster: "Assign to Master Teacher", lblFileLimit: "File Limit: Max 10MB.",
+                lblCreateTask: "Create New Task (+ Splitter)", phTaskName: "Main Task Name (e.g. Lesson Plan)", phSubTask: "Sub-Task 1...", btnAddPart: "Add Part", btnAssignTask: "Assign Task", lblAssignTarget: "Assign To:", lblAssignStd: "Assign Supervisors/Master Teachers to Students", lblFileLimit: "File Limit: Max 10MB.",
                 marksTableTitle: "All Students Marks Report (TP1 & TP2)", lblFilterStudent: "Filter Student:", lblFilterSchool: "Filter School:", optAllSchools: "All Schools", lblFilterSup: "Filter Supervisor:", optAllSup: "All Supervisors", btnExportCSV: "Export CSV / Excel", btnExportPDF: "Export PDF", thStudent: "Student Name", thID: "ID", thSchool: "School", thSup: "Supervisor", thTP1Marks: "TP 1 (Marks)", thTP2Marks: "TP 2 (Marks)", thObs1: "Obs 1", thObs2: "Obs 2", thObs3: "Obs 3", thAction: "Action", lblObsNo: "Observation No.", formBankDesc: "These are previously submitted forms. Amending marks requires a valid reason and verification code.", lblReceivedForms: "Received Observation Forms",
                 lblFullName: "Student Full Name", phFullName: "Enter Name", lblIdCard: "ID Card / Student No.", lblCourse: "Course / Batch", lblTpLevel: "TP Level", formTitleLog: "Daily Attendance, Reflection & Work Log", btnFinishSession: "Save Log & Earn Points", lblTodayTask: "Today's Task (Select from Dropdown)", optSelect: "-- Select Task --", lblDetails: "Task Details / Reflection", phDetails: "Write details here...", lblStudentSig: "Student Signature (Touch):", lblLecturerSig: "Supervisor Signature (Touch):", btnClear: "Clear", btnSubmitForm: "Submit Form",
                 lblTotalMarks: "Total Marks:", thCompetencies: "COMPETENCIES", thScale1: "Needs Imp. (1)", thScale2: "Satisfactory (2)", thScale3: "Good (3)", thScale4: "Very Good (4)", thScale5: "Excellent (5)", 
@@ -692,12 +723,21 @@
                 lblObserverComment: "Additional Notes & Comments:", phComment: "Write manual comments here...", btnSaveMarks: "Save Marks to Cloud",
                 adminDataUpload: "Data Upload & Export", adminStudentCsv: "Student CSV Upload / Download", adminDummy: "Download 300 Students (CSV)", adminBtnUpload: "Upload", adminHardReset: "System Hard Reset", adminResetDesc: "Requires 3-step verification to wipe all system data. Academic Affairs only.", adminBtnReset: "Initiate Hard Reset", lblLecInfo: "Lecturer Information Sheet",
                 lblTopic: "Topic (Manual)", lblModule: "Module (Manual)", lblGrade: "Grade", lblSchool: "School (Search / Dropdown)", lblObsType: "Observation Type", lblMarksStatus: "Marks Status", optMarksEnable: "Marks Enabled (Final)", optMarksDisable: "Draft Mode (No Marks)", phSearchStd: "Search by Student Name or ID (Auto-fill)...", lblDate: "Date"
+            },
+            ar: {
+                loginTitle: "برنامج تقييم التدريب العملي (رسفهي)", loginSub: "بوابة الدخول السحابية", lblRole: "دور المستخدم:", roleAdmin: "عميد / منسق (مسؤول)", roleLecturer: "مشرف / محاضر", roleMaster: "المعلم الأساسي (المدرسة)", roleStudent: "طالب (طالب معلم)", emailLabel: "اسم المستخدم (البريد):", passwordLabel: "كلمة المرور:", phEmail: "أدخل البريد", phPass: "أدخل كلمة المرور", loginBtn: "تسجيل الدخول", loginError: "معلومات غير صحيحة!", softwareName: "برنامج تقييم التدريب العملي", devName: "المطور: علي إبراهيم ديدي",
+                softwareNameShort: "رسفهي TP", statusAutoSave: "جاري الحفظ...", statusOnline: "متصل", saveBtn: "حفظ يدوي", btnLogout: "تسجيل خروج", pdfBtn: "تصدير PDF (EN)",
+                menuDashboard: "اللوحة الرئيسية (مسؤول)", menuStudent: "لوحة الطالب / المهام", menuObservation: "استمارة تقييم الدرس", menuTasks: "مركز المهام", menuAdmin: "لوحة الإدارة (البيانات)", menuFormBank: "بنك النماذج وتعديل الدرجات",
+                dashBestStd: "أفضل طالب", dashCompleted: "مكتمل", dashBestSup: "المشرف الأنشط", dashOngoing: "12 تقييم منجز", dashActiveSchool: "المدرسة الأنشط", dashInactiveSchool: "مدارس غير متصلة", dashStudents: "25 طالب", chartLecturer: "تقدم المحاضرين", chartTitleProgress: "نسبة إنجاز المهام", chartTitleSchools: "إحصائيات المدارس",
+                lblCreateTask: "إنشاء مهمة جديدة", phTaskName: "اسم المهمة الرئيسية", phSubTask: "مهمة فرعية 1...", btnAddPart: "إضافة جزء", btnAssignTask: "تعيين المهمة", lblAssignTarget: "تعيين إلى:", lblAssignStd: "تعيين المشرفين للطلاب", lblFileLimit: "حجم الملف: 10MB كحد أقصى.",
+                marksTableTitle: "تقرير درجات جميع الطلاب", lblFilterStudent: "تصفية الطلاب:", lblFilterSchool: "تصفية المدرسة:", optAllSchools: "جميع المدارس", lblFilterSup: "تصفية المشرف:", optAllSup: "جميع المشرفين", btnExportCSV: "تصدير CSV", btnExportPDF: "تصدير PDF", thStudent: "اسم الطالب", thID: "الرقم الجامعي", thSchool: "المدرسة", thSup: "المشرف", thTP1Marks: "TP1 درجات", thTP2Marks: "TP2 درجات", thObs1: "الملاحظة 1", thObs2: "الملاحظة 2", thObs3: "الملاحظة 3", thAction: "إجراء", lblObsNo: "رقم الملاحظة", formBankDesc: "تتطلب تعديل الدرجات سببًا ورمز تحقق.", lblReceivedForms: "النماذج المستلمة",
+                lblFullName: "اسم الطالب الكامل", phFullName: "أدخل الاسم", lblIdCard: "رقم الهوية / الطالب", lblCourse: "اسم الدورة / الدفعة", lblTpLevel: "مستوى التدريب", formTitleLog: "الحضور، التأمل، والسجل اليومي", btnFinishSession: "حفظ السجل وكسب النقاط", lblTodayTask: "مهمة اليوم (قائمة)", optSelect: "-- اختر --", lblDetails: "تفاصيل إضافية / تأمل", phDetails: "اكتب التفاصيل...", lblStudentSig: "توقيع الطالب (لمس):", lblLecturerSig: "توقيع المشرف (لمس):", btnClear: "مسح", btnSubmitForm: "إرسال النموذج",
+                lblTotalMarks: "مجموع الدرجات:", thCompetencies: "الكفاءات", thScale1: "يحتاج تحسين (1)", thScale2: "مقبول (2)", thScale3: "جيد (3)", thScale4: "جيد جدا (4)", thScale5: "ممتاز (5)", 
+                lblAutoSuggest: "الاقتراحات التلقائية والملاحظات:", phAutoSuggest: "ستظهر الملاحظات الأكاديمية هنا تلقائيًا...",
+                lblObserverComment: "ملاحظات إضافية:", phComment: "اكتب الملاحظات يدويًا...", btnSaveMarks: "حفظ الدرجات سحابياً",
+                adminDataUpload: "رفع وتصدير البيانات", adminStudentCsv: "رفع / تحميل ملف الطلاب", adminDummy: "تحميل بيانات 300 طالب", adminBtnUpload: "رفع", adminHardReset: "إعادة ضبط النظام", adminResetDesc: "يتطلب تحقق من 3 خطوات لمسح البيانات.", adminBtnReset: "بدء إعادة الضبط", lblLecInfo: "معلومات المحاضرين",
+                lblTopic: "موضوع (يدوي)", lblModule: "وحدة (يدوي)", lblGrade: "صف", lblSchool: "مدرسة (قائمة)", lblObsType: "نوع الملاحظة", lblMarksStatus: "حالة الدرجات", optMarksEnable: "مفعل (نهائي)", optMarksDisable: "مسودة (لا يوجد درجات)", phSearchStd: "البحث عن طالب (تعبئة تلقائية)...", lblDate: "تاريخ"
             }
-        };
-
-        const autoDict = {
-            dv: { excellent: "ވަރަށް ފުރިހަމަ މަސައްކަތެއް! މިއީ ނަމޫނާއެއްގެ ގޮތުގައި ބެލެވިދާނެ ކަމެއް.", improve: "މިބައި އިތުރަށް ތަރައްޤީކުރުމަށް، ޢަމަލީ ގޮތުން ދަރިވަރުން ބައިވެރިކުރެވޭނެ އުކުޅުތައް ބޭނުންކުރެއްވުން މުހިންމެވެ.", sTitle: "ފާހަގަކޮށްލެވޭ ރަނގަޅު ކަންތައްތައް:", iTitle: "އިތުރަށް ރަނގަޅުކުރަންޖެހޭ (ސަޖެސްޝަން):" },
-            en: { excellent: "Excellent work! Keep maintaining this high standard.", improve: "To improve this area, consider integrating more interactive and student-centered methods.", sTitle: "Key Strengths:", iTitle: "Areas for Improvement (Academic Suggestions):" }
         };
 
         const pdfDict = {
@@ -739,6 +779,15 @@
         window.addEventListener('offline', () => { document.getElementById('online-indicator').innerHTML = '<i class="fas fa-exclamation-circle"></i> އޮފްލައިން (ބްރައުޒަރަށް ސޭވްވަނީ)'; document.getElementById('online-indicator').className = 'offline-status'; });
 
         let currentRole = 'admin';
+
+        function autoDetectRole() {
+            const email = document.getElementById('username').value.toLowerCase();
+            const roleSelect = document.getElementById('userRole');
+            if(email.includes('agisa.ali')) roleSelect.value = 'admin';
+            else if(email.includes('ali.ibrahim')) roleSelect.value = 'lecturer';
+            else if(email.includes('master')) roleSelect.value = 'master';
+            else if(email.includes('ium00') || email.includes('student')) roleSelect.value = 'student';
+        }
 
         function handleLogin() {
             if(document.getElementById('username').value && document.getElementById('password').value === "@7791550") {
@@ -788,8 +837,8 @@
             showSection(defaultSection, sidebar.firstElementChild);
             
             if(currentRole==='admin' && allStudents.length > 0) {
-                // Find student with most maxed marks logic
-                document.getElementById('dashBestStudentName').innerText = `${allStudents[0].name}`;
+                const best = allStudents.reduce((prev, current) => (prev.tp1_high + prev.tp2_high > current.tp1_high + current.tp2_high) ? prev : current);
+                document.getElementById('dashBestStudentName').innerText = `${best.name}`;
             }
         }
 
@@ -955,7 +1004,7 @@
         function processCSV() { alert(currentLang==='dv'?"ސީއެސްވީ ޑޭޓާ ޕްރޮސެސްކުރެވި، ކްލައުޑަށް އަޕްލޯޑްވެއްޖެ.":"CSV Processed and Uploaded."); if(lecturerChart) { lecturerChart.data.datasets[0].data = [2, 15, 10, 5]; lecturerChart.update(); } }
         function threeStepHardReset() { if(currentRole !== 'admin') { alert("Access Denied!"); return;} if(prompt("Step 1 Password: (@7791550)") === "@7791550" && prompt("Step 2 Code: (DEAN2026)") === "DEAN2026" && confirm("Confirm Full Database Wipe?")) alert("Hard Reset Complete"); }
 
-        // --- 7. THE 55 CRITERIA RUBRIC (PRESERVED) ---
+        // --- 7. THE 55 CRITERIA RUBRIC (PRESERVED & MULTI-LANG) ---
         const criteriaList = [
             { cat: { dv: "ޕްލޭނިންގ (ފިލާވަޅު ރޭވުން)", en: "PLANNING", ar: "التخطيط" } },
             { id: "p1", dv: "އެކަށީގެންވާ ލަރނިންގ އޮބްޖެކްޓިވްސް ކަނޑައެޅުން", en: "Delineates appropriate learning objectives", ar: "يحدد أهداف التعلم المناسبة" }, { id: "p2", dv: "އެކަށީގެންވާ ކިޔަވައިދިނުމުގެ ސްޓްރެޓަޖީތައް އިޚްތިޔާރުކުރުން", en: "Selects appropriate teaching strategies", ar: "يختار استراتيجيات التدريس" }, { id: "p3", dv: "ރަނގަޅު ހަރަކާތްތަކާއި ވަސީލަތްތައް ބޭނުންކުރުން", en: "Uses effective learning activities and resources", ar: "يستخدم الموارد بشكل فعال" }, { id: "p4", dv: "ދަރިވަރުންގެ ތަފާތު ބޭނުންތަކަށް ރިޢާޔަތްކުރުން", en: "Caters to students diverse needs", ar: "يلبي احتياجات الطلاب" }, { id: "p5", dv: "މަންހަޖުގެ ހުރިހާ ބައިތަކެއް ހިމެނުން", en: "Addresses all elements of the curriculum", ar: "يتناول جميع عناصر المنهج" }, { id: "p6", dv: "އެސެސްމަންޓް ސްޓްރެޓަޖީތަކާއި ޓޫލްސް ބަޔާންކުރުން", en: "Assessment strategies and tools stated", ar: "استراتيجيات التقييم" }, { id: "p7", dv: "ވަގުތު ބެހިފައިވާ ރަނގަޅު ތާވަލެއް އެކުލަވާލުން", en: "Develops a workable time schedule", ar: "يضع جدولا زمنيا" },
@@ -1011,51 +1060,48 @@
             document.getElementById('autoSuggestions').value = (strengths?`--- ${t.sTitle} ---\n${strengths}\n`:"") + (suggestions?`--- ${t.iTitle} ---\n${suggestions}`:"");
         }
 
-        // --- 8. 100% RELIABLE PDF GENERATOR ---
-        // Creates a native print-friendly overlay to guarantee HTML2Canvas doesn't see a blank/scrolled-out element
+        // --- 8. BULLETPROOF PDF GENERATOR (Print Window Bypass for Zero Blanks) ---
+        // html2canvas fails frequently on hidden/scrolled content. The most robust way is creating a print iframe.
         function generateSafePDF(htmlContent, filename, orientation) {
             const pdfBtn = document.getElementById('exportBtn');
             const originalBtnHtml = pdfBtn ? pdfBtn.innerHTML : '';
             if(pdfBtn) { pdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ޕްރޮސެސްވަނީ...'; pdfBtn.disabled = true; }
 
-            // 1. Loading Overlay (Blocks interaction)
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.98); z-index:999999; display:flex; justify-content:center; align-items:center; flex-direction:column;';
-            overlay.innerHTML = '<h2 style="color:#00008B; font-family:Arial;"><i class="fas fa-spinner fa-spin"></i> Generating PDF... Please wait...</h2>';
-            document.body.appendChild(overlay);
-
-            // 2. Render Wrapper (Placed at the very top of the document body, absolutely positioned to be in the viewport)
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = htmlContent;
-            wrapper.style.cssText = `position:absolute; top:0; left:0; width:${orientation === 'landscape' ? '297mm' : '210mm'}; padding:15mm; background:#ffffff; z-index:999998; color:#000; box-sizing:border-box; font-family: Arial, sans-serif;`;
-            document.body.appendChild(wrapper);
-
-            // 3. Scroll window to top so html2canvas captures the absolute positioned element properly
-            window.scrollTo(0,0);
-
-            const opt = {
-                margin: 0, 
-                filename: filename, 
-                image: { type: 'jpeg', quality: 1.0 },
-                html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: wrapper.scrollWidth },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: orientation }
-            };
-
-            // 4. Slight delay to let images/canvas paint fully
-            setTimeout(() => {
-                html2pdf().set(opt).from(wrapper).save().then(() => {
-                    document.body.removeChild(wrapper); document.body.removeChild(overlay);
-                    if(pdfBtn) { pdfBtn.innerHTML = originalBtnHtml; pdfBtn.disabled = false; }
-                }).catch(err => {
-                    console.error(err);
-                    document.body.removeChild(wrapper); document.body.removeChild(overlay);
-                    if(pdfBtn) { pdfBtn.innerHTML = originalBtnHtml; pdfBtn.disabled = false; }
-                    alert("Error generating PDF.");
-                });
-            }, 800); 
+            // Using standard print dialog to Save as PDF natively. 100% guarantee no blanks.
+            const printWindow = window.open('', '', 'width=1000,height=800');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>${filename}</title>
+                    <style>
+                        @media print {
+                            @page { size: A4 ${orientation}; margin: 15mm; }
+                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin:0; padding:0;}
+                        }
+                        body { font-family: Arial, sans-serif; background: #fff; padding: 20px; }
+                        table { border-collapse: collapse; width: 100%; }
+                        th, td { border: 1px solid #ccc; padding: 8px; }
+                        .score-highest { background-color: #0B6623 !important; color: #fff !important; font-weight: bold; }
+                        .score-low { color: #555; }
+                    </style>
+                </head>
+                <body>
+                    ${htmlContent}
+                    <script>
+                        setTimeout(() => {
+                            window.print();
+                            window.close();
+                        }, 500);
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            
+            if(pdfBtn) { pdfBtn.innerHTML = originalBtnHtml; pdfBtn.disabled = false; }
         }
 
-        // --- Export Full Marks Table (English Only PDF to avoid Rendering bugs, No Percentages) ---
+        // --- Export Full Marks Table (English Only) ---
         function exportFullMarksTable(type) {
             if(type === 'csv') {
                 let csvContent = "data:text/csv;charset=utf-8,Student Name,ID,School,Supervisor,TP1_Obs1,TP1_Obs2,TP1_Obs3,TP2_Obs1,TP2_Obs2,TP2_Obs3\n";
@@ -1064,7 +1110,6 @@
                     if(rows[i].style.display !== 'none') {
                         let cols = rows[i].getElementsByTagName('td'); let rowData = [];
                         for(let j=0; j<cols.length; j++) {
-                            // Strip innerHTML for CSV, just get text
                             rowData.push(`"${cols[j].innerText.trim()}"`);
                         }
                         csvContent += rowData.join(",") + "\n";
@@ -1074,9 +1119,9 @@
                 document.body.appendChild(a); a.click(); document.body.removeChild(a);
             } else {
                 // ENGLISH ONLY PDF rendering (LTR)
-                const tableHtml = `<div style="font-family: Arial, sans-serif; direction:ltr; text-align:left;">
+                const tableHtml = `<div style="direction:ltr; text-align:left;">
                     <h2 style="color:#00008B; text-align:center; border-bottom:2px solid #D4AF37; padding-bottom:10px;">All Students Marks Report</h2>
-                    <table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:20px; text-align:center;" border="1" bordercolor="#ccc">
+                    <table style="font-size:12px; text-align:center;">
                         <tr style="background:#00008B; color:#fff;">
                             <th rowspan="2" style="padding:5px;">Student</th><th rowspan="2" style="padding:5px;">ID</th><th rowspan="2" style="padding:5px;">School</th><th rowspan="2" style="padding:5px;">Supervisor</th>
                             <th colspan="3" style="padding:5px; background:#4B0082;">TP1 (Marks)</th>
@@ -1089,30 +1134,30 @@
                         ${document.getElementById('fullMarksBody').innerHTML.replace(/text-align:right/g, 'text-align:left')}
                     </table>
                 </div>`;
-                generateSafePDF(tableHtml, 'All_Marks_Report.pdf', 'landscape');
+                generateSafePDF(tableHtml, 'All_Marks_Report', 'landscape');
             }
         }
 
         function exportLecturerInfoPDF() {
-            const tableHtml = `<div style="font-family: Arial, sans-serif; direction:ltr; text-align:left;">
+            const tableHtml = `<div style="direction:ltr; text-align:left;">
                 <h2 style="color:#00008B; text-align:center; border-bottom:2px solid #D4AF37; padding-bottom:10px;">Lecturer Information Sheet</h2>
-                <table style="width:100%; border-collapse:collapse; font-size:14px; margin-bottom:20px;" border="1" bordercolor="#ccc">
+                <table style="font-size:14px; margin-bottom:20px;">
                     <tr><td style="padding:8px; font-weight:bold; background:#F4F6F9; width:30%;">Name:</td><td style="padding:8px;">Dr. Hassan Niyaz</td></tr>
                     <tr><td style="padding:8px; font-weight:bold; background:#F4F6F9;">Phone / ID:</td><td style="padding:8px;">A000000 / +960 777XXXX</td></tr>
                     <tr><td style="padding:8px; font-weight:bold; background:#F4F6F9;">Faculty:</td><td style="padding:8px;">Kulliyyah of Education (Full-Time)</td></tr>
                 </table>
                 <h3 style="color:#00008B; margin-top:20px;">Assigned Students</h3>
-                <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:center;" border="1" bordercolor="#ccc">
+                <table style="font-size:12px; text-align:center;">
                     <tr style="background:#0B6623; color:#fff;"><th>Student</th><th>ID</th><th>Course</th><th>School</th></tr>
                     <tr><td>Aminath Shifa</td><td>STU001</td><td>B.Ed Primary</td><td>Majeedhiyya</td></tr>
                     <tr><td>Ali Zaeem</td><td>STU002</td><td>B.Ed Primary</td><td>Huravee</td></tr>
                 </table>
             </div>`;
-            generateSafePDF(tableHtml, 'Lecturer_Info.pdf', 'portrait');
+            generateSafePDF(tableHtml, 'Lecturer_Info', 'portrait');
         }
 
         function exportExactPDF() {
-            // USER CONSTRAINT: Export PDF Form ONLY in English to ensure 100% bug-free LTR rendering.
+            // USER CONSTRAINT: Export PDF Form ONLY in English to ensure 100% bug-free LTR rendering in native print.
             const t = pdfDict.en; 
             const stdName = document.getElementById('obsStdName').value || '_______________________';
             const stdID = document.getElementById('obsStdID').value || '________________';
@@ -1120,7 +1165,7 @@
             const dateStr = document.getElementById('obsDate').value || new Date().toLocaleDateString('en-GB');
             const gradeTopic = (document.getElementById('obsGrade').value || '') + ' / ' + (document.getElementById('obsTopic').value || '');
             const schoolMod = (document.getElementById('obsSchool').value || '') + ' / ' + (document.getElementById('obsModule').value || '');
-            const obsType = document.getElementById('obsTypeSelect').options[document.getElementById('obsTypeSelect').selectedIndex].text;
+            const obsType = document.getElementById('obsTypeSelect') ? document.getElementById('obsTypeSelect').options[document.getElementById('obsTypeSelect').selectedIndex].text : '';
             
             let totalScore = document.getElementById('scoreDisplay').innerText.split('/')[0].trim();
             if(document.getElementById('obsMarksStatus').value === 'disabled') totalScore = "DRAFT";
@@ -1132,7 +1177,7 @@
             const sigHtml = (img) => img ? `<img src="${img}" style="max-height:50px; display:block; margin:0 auto; margin-bottom:5px;">` : `<div style="height:50px;"></div>`;
 
             let html = `
-                <div style="font-family: Arial, sans-serif; direction: ltr; color:#000; text-align:left;">
+                <div style="direction: ltr; color:#000; text-align:left;">
                     <div style="border: 2px solid #00008B; padding: 15px; border-radius: 5px;">
                         <div style="text-align:center; border-bottom: 2px solid #00008B; padding-bottom:10px; margin-bottom:15px;">
                             <h3 style="margin:0; font-size:20px;">Bismillahi Rahmani Raheem</h3>
@@ -1141,14 +1186,14 @@
                             <div style="margin-top:10px;"><span style="background: #00008B; color: white; padding: 5px 15px; border-radius: 5px; font-weight:bold;">${t.title}</span></div>
                         </div>
 
-                        <table style="width:100%; margin-bottom:15px; font-size:12px; text-align:left; line-height:1.6;">
-                            <tr><td style="width:55%;"><strong>${t.stdName}</strong> ${stdName}</td><td style="width:45%;"><strong>${t.date}</strong> ${dateStr}</td></tr>
-                            <tr><td><strong>${t.id}</strong> ${stdID}</td><td><strong>${t.course}</strong> ${course}</td></tr>
-                            <tr><td><strong>${t.gradeTopic}</strong> ${gradeTopic}</td><td><strong>${t.schoolMod}</strong> ${schoolMod}</td></tr>
-                            <tr><td colspan="2"><strong>${t.obsType}</strong> ${obsType}</td></tr>
+                        <table style="margin-bottom:15px; font-size:12px; text-align:left; line-height:1.6; border:none;">
+                            <tr><td style="width:55%; border:none;"><strong>${t.stdName}</strong> ${stdName}</td><td style="width:45%; border:none;"><strong>${t.date}</strong> ${dateStr}</td></tr>
+                            <tr><td style="border:none;"><strong>${t.id}</strong> ${stdID}</td><td style="border:none;"><strong>${t.course}</strong> ${course}</td></tr>
+                            <tr><td style="border:none;"><strong>${t.gradeTopic}</strong> ${gradeTopic}</td><td style="border:none;"><strong>${t.schoolMod}</strong> ${schoolMod}</td></tr>
+                            <tr><td colspan="2" style="border:none;"><strong>${t.obsType}</strong> ${obsType}</td></tr>
                         </table>
 
-                        <table style="width:100%; border-collapse: collapse; font-size:10px; margin-bottom: 15px;" border="1" bordercolor="#cccccc">
+                        <table style="font-size:10px; margin-bottom: 15px;">
                             <thead><tr style="background:#00008B; color:#ffffff;">
                                 <th style="padding:8px; text-align:left; width:45%;">COMPETENCIES</th>
                                 <th>5</th><th>4</th><th>3</th><th>2</th><th>1</th>
@@ -1176,12 +1221,12 @@
                             <strong>Comments & Feedback:</strong><br>
                             <p style="font-size:11px; margin-top:5px; line-height:1.4;">${document.getElementById('autoSuggestions').value.replace(/\n/g, '<br>')}<br><br>${document.getElementById('observerComments').value.replace(/\n/g, '<br>')}</p>
                         </div>
-                        <table style="width:100%; text-align:center; font-size:12px;">
+                        <table style="text-align:center; font-size:12px; border:none;">
                             <tr>
-                                <td style="width:50%; padding:0 20px;">
+                                <td style="width:50%; padding:0 20px; border:none;">
                                     ${sigHtml(supSigData)}<div style="border-bottom: 1px solid #000; margin-bottom: 5px;"></div><strong>${t.supSig}</strong>
                                 </td>
-                                <td style="width:50%; padding:0 20px;">
+                                <td style="width:50%; padding:0 20px; border:none;">
                                     ${sigHtml(stdSigData)}<div style="border-bottom: 1px solid #000; margin-bottom: 5px;"></div><strong>${t.stdSig}</strong>
                                 </td>
                             </tr>
@@ -1189,7 +1234,7 @@
                     </div>
                 </div>
             `;
-            generateSafePDF(html, `Observation_${stdName.replace(/\s+/g, '_')}_${obsType}.pdf`, 'portrait');
+            generateSafePDF(html, `Observation_${stdName.replace(/\s+/g, '_')}`, 'portrait');
         }
     </script>
 </body>
