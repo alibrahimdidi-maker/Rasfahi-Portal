@@ -78,6 +78,10 @@
             text-transform: uppercase; letter-spacing: 2px;
         }
         .login-card button:hover { background: var(--royal-green); box-shadow: 0 10px 20px rgba(0, 77, 26, 0.4); transform: translateY(-2px); }
+        .login-card button:disabled { background: #9ca3af; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Error message display */
+        #login-error { color: var(--danger); font-size: 0.9rem; margin-bottom: 15px; display: none; font-weight: bold; }
 
         /* --- 3. APP LAYOUT & SIDEBAR --- */
         #app-container { display: none; flex: 1; flex-direction: row; height: 100vh; }
@@ -127,9 +131,12 @@
         }
         .nav-links li.active i { color: var(--royal-white); opacity: 1;}
 
-        .sync-badge { padding: 15px; background: #02060b; text-align: center; font-size: 0.9rem; color: #aaa; border-top: 1px solid rgba(255,255,255,0.1); white-space: nowrap;}
+        .sync-badge { padding: 15px; background: #02060b; text-align: center; font-size: 0.9rem; color: #aaa; border-top: 1px solid rgba(255,255,255,0.1); white-space: nowrap; display:flex; flex-direction:column; gap:5px;}
         .sync-online { color: var(--royal-green-light) !important; font-weight: bold;}
         .sidebar.collapsed .sync-badge span { display: none; }
+        
+        .logout-btn { background: none; border: 1px solid rgba(255,255,255,0.3); color: #ccc; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: 0.3s; margin-top: 5px;}
+        .logout-btn:hover { background: rgba(255,255,255,0.1); color: white; }
 
         /* --- 4. MAIN CONTENT AREA --- */
         .main-content { flex: 1; display: flex; flex-direction: column; background: var(--royal-white); position: relative; min-width: 0; }
@@ -238,10 +245,11 @@
                 <strong>Registration No:</strong> MED.03.IP.CR.26.EW5889
             </div>
 
-            <input type="text" id="login-user" placeholder="Username / ޔޫޒަރނޭމް">
+            <div id="login-error"></div>
+            <input type="text" id="login-user" placeholder="Email / އީމެއިލް އެޑްރެސް">
             <input type="password" id="login-pass" placeholder="Password / ޕާސްވޯޑް">
             
-            <button onclick="handleLogin()"><i class="fas fa-lock-open"></i> Access System</button>
+            <button id="login-btn" onclick="handleLogin()"><i class="fas fa-lock-open"></i> Access System</button>
         </div>
     </div>
 
@@ -265,7 +273,10 @@
                 <li onclick="switchStep(9, this)" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px;"><i class="fas fa-download"></i> <span>9. Review & Export</span></li>
                 <li onclick="switchStep(10, this)" style="background: rgba(10, 92, 39, 0.4); border-color: var(--royal-green-light);"><i class="fas fa-archive"></i> <span>10. އަރްޝީފް (Archive Bank)</span></li>
             </ul>
-            <div class="sync-badge" id="sync-status"><i class="fas fa-cloud"></i> <span id="sync-status-text">System Ready</span></div>
+            <div class="sync-badge" id="sync-status">
+                <div><i class="fas fa-cloud"></i> <span id="sync-status-text">System Ready</span></div>
+                <button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> <span>Log Out</span></button>
+            </div>
         </aside>
 
         <main class="main-content">
@@ -405,15 +416,6 @@ E-learning: Online synchronous and asynchronous learning. 60% Sync, 40% Async.</
                                 </tr>
                             </thead>
                             <tbody id="tbody-matrix">
-                                <tr>
-                                    <td><textarea class="rtl-input" rows="2">1. ނަމާދުގައްޔާއި ޖަނާޒާގައި ދިމާވާ ފިޤުހީ އިޚްތިލާފުތަކާއި ޒަމާނީ މައްސަލަތައް ޢިލްމީ ދަލީލުތަކުގެ އަލީގައި ދެނެގަނެ ޙައްލުކުރުން.</textarea></td>
-                                    <td><input type="text" class="ltr-input" value="✓" style="text-align:center;"></td>
-                                    <td><input type="text" class="ltr-input" style="text-align:center;"></td>
-                                    <td><input type="text" class="ltr-input" style="text-align:center;"></td>
-                                    <td><input type="text" class="ltr-input" style="text-align:center;"></td>
-                                    <td><input type="text" class="ltr-input" value="✓" style="text-align:center;"></td>
-                                    <td><button class="btn-danger" onclick="deleteRow(this)"><i class="fas fa-times"></i></button></td>
-                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -482,16 +484,20 @@ E-learning: Online synchronous and asynchronous learning. 60% Sync, 40% Async.</
                             <label>11.10 Assessment Tasks (Format: Task | Details (RTL) | Form | Length | Weightage)</label>
                             <textarea id="m-ass" class="ltr-input tall-textarea mod-data">Written assignment | ކަށުކަމާކެމީގެ ޒަމާނީ މައްސަލައަކާ ނުވަތަ ނަމާދުގެ އިޚްތިލާފީ މައްސަލައަކާ ގުޅޭގޮތުން ދިރާސީ ކަރުދާހެއް ލިޔުން. | Uncontrolled | 2000-2500 words | 30%
 Practical Presentation (Khutbah & Imamate) | ޚުޠުބާ ލިޔެ ހުށަހަޅައިދިނުމާއި، ނަމާދުތަކާއި ބަންގި/ޤަމަތުގެ ޢަމަލީ ޓެސްޓް. | Controlled (Face-to-Face) | 10 – 15 Mins | 20%
+Field Assessment (Janaza Management) | ސަހަރާގައި ޢަމަލީގޮތުން މައްޔިތާ ހިނަވައި، ކަފުންކޮށް، ވަޅުލުމުގެ ޙާލަތްތައް (ޚާއްޞަ ޙާލަތްތައް ހިމެނޭގޮތަށް) ދައްކުވައިދިނުން. | Controlled (Face-to-Face) | | 
 Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައިތަކަށް ބިނާކޮށް ތައްޔާރުކުރެވިފައިވާ ފައިނަލް އިމްތިޙާނު. | Controlled (Written) | 3 Hours | 50%</textarea>
                         </div>
                         <div class="form-group full">
                             <label>11.11 Reference Materials (Core Texts - separate by line)</label>
                             <textarea id="m-ref-core" class="rtl-input tall-textarea mod-data">سابق ،  السيد . (2013).  فقه   السنة  (ދިވެހި ތަރުޖަމާ). މާލެ:  وزارة   الشؤون   الإسلامية .
-ދިވެހިރާއްޖޭގެ އިސްލާމީ ޔުނިވަރސިޓީ. (ތ.ނ). ފަސޭހަ ފިޤުހު. މާލެ: ދިވެހިރާއްޖޭގެ އިސްލާމީ ޔުނިވަރސިޓީ.</textarea>
+ދިވެހިރާއްޖޭގެ އިސްލާމީ ޔުނިވަރސިޓީ. (ތ.ނ). ފަސޭހަ ފިޤުހު. މާލެ: ދިވެހިރާއްޖޭގެ އިސްލާމީ ޔުނިވަރސިޓީ.
+الزحيلي ،  وهبة . (1985).  الفقه   الإسلامي   وأدلته .  دمشق :  دار   الفكر .</textarea>
                         </div>
                         <div class="form-group full">
                             <label>11.11 Reference Materials (Additional - separate by line)</label>
                             <textarea id="m-ref-add" class="rtl-input tall-textarea mod-data">الألباني ،  محمد   ناصر   الدين . (2004).  أحكام   الجنائز   وبدعها .  المدينة   المنورة :  دار   المآثر .
+الخن ،  مصطفى ،  والبغا ،  مصطفى ،  والشربجي ،  علي . (2010).  الفقه   المنهجي   على   مذهب   الإمام   الشافعي  ( الطبعة   الخامسة ).  دمشق :  دار   القلم .
+العثيمين ،  محمد   بن   صالح . (2003).  الشرح   الممتع   على   زاد   المستقنع .  الدمام :  دار   ابن   الجوزي .
 ޤަރަޟާވީ، ޔޫސުފް. (2001). ފަތާވާ މުޢާޞިރާ. ޤާހިރާ: ދާރުލް ޤަލަމް.</textarea>
                         </div>
                         
@@ -552,8 +558,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
         </main>
     </div>
 
-    <div id="export-render-wrapper" style="position:absolute; left:-9999px; top:-9999px; width: 100%;">
-        <div id="export-render-box" style="background:white; padding:40px; color:black; font-family:'Segoe UI', Tahoma, sans-serif; text-align: left;"></div>
+    <div id="export-render-wrapper" style="position:absolute; left:-9999px; top:-9999px; width: 100%; display:flex; justify-content:center;">
+        <div id="export-render-box" style="background:white; padding:40px; color:black; font-family:'Segoe UI', Tahoma, sans-serif; width: 1000px; max-width: 1000px; margin: 0 auto; text-align: left;"></div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -561,7 +567,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
-        // --- 0. FIREBASE SETUP & AUTO-SAVE LOGIC ---
+        // --- 0. FIREBASE SETUP & AUTHENTICATION LOGIC ---
         const firebaseConfig = {
             apiKey: "AIzaSyAimgH2ZPF8KxIv1qteHX4kMTgNiPbRjzo",
             authDomain: "masterprogrambuilder.firebaseapp.com",
@@ -572,11 +578,69 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             measurementId: "G-1JFMC9FXW9"
         };
         firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
         const db = firebase.firestore();
         const docRef = db.collection("rasfahi_saves").doc("autosave_v2");
 
         let saveTimeout;
 
+        // Check authentication state on load
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // User is logged in
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app-container').style.display = 'flex';
+                restoreData();
+            } else {
+                // User is logged out
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('app-container').style.display = 'none';
+            }
+        });
+
+        // The real login function
+        function handleLogin() {
+            const email = document.getElementById('login-user').value;
+            const pass = document.getElementById('login-pass').value;
+            const errorDiv = document.getElementById('login-error');
+            const btn = document.getElementById('login-btn');
+            
+            if(!email || !pass) {
+                errorDiv.innerText = "Please enter both Email and Password.";
+                errorDiv.style.display = "block";
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Authenticating...";
+            errorDiv.style.display = "none";
+
+            auth.signInWithEmailAndPassword(email, pass)
+                .then((userCredential) => {
+                    // Success will be handled by onAuthStateChanged
+                    btn.disabled = false;
+                    btn.innerHTML = "<i class='fas fa-lock-open'></i> Access System";
+                })
+                .catch((error) => {
+                    errorDiv.innerText = "Login Failed: Incorrect Email or Password.";
+                    errorDiv.style.display = "block";
+                    btn.disabled = false;
+                    btn.innerHTML = "<i class='fas fa-lock-open'></i> Access System";
+                });
+        }
+
+        function handleLogout() {
+            saveCurrentToDB(); // Save before leaving
+            auth.signOut().then(() => {
+                // UI changes handled by onAuthStateChanged
+                document.getElementById('login-user').value = '';
+                document.getElementById('login-pass').value = '';
+            }).catch((error) => {
+                alert("Error logging out.");
+            });
+        }
+
+        // Auto-save trigger
         document.addEventListener('input', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
                 clearTimeout(saveTimeout);
@@ -592,18 +656,10 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
         let annexCount = 0;
 
         window.onload = function() {
-            // Setup default UI first so we have something if DB is empty
             addSemesterBlock();
             addAnnexBlock();
             addMatrixRow();
             addSchRow("އިމާމުކަމާއި ބަންގިއާއި ޤަމަތުގެ ފިޤުހު", "ބަންގިއާއި ޤަމަތުގެ ޙުކުމްތައް...", "1. Group activities\n2. Pair works", "3", "30", "15", "5", "5", "5", "9", "6");
-        }
-
-        function handleLogin() {
-            // Optional: Basic validation could be added here
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('app-container').style.display = 'flex';
-            restoreData();
         }
 
         function toggleDesktopSidebar() { document.getElementById('main-sidebar').classList.toggle('collapsed'); }
@@ -724,7 +780,6 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                     }
                 }
             } else {
-                // Clear module fields safely
                 document.getElementById('tbody-matrix').innerHTML = "";
                 document.getElementById('tbody-sch').innerHTML = "";
                 document.querySelectorAll('.mod-data').forEach(el => el.value = "");
@@ -745,7 +800,6 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             dbState.courses[nCid] = { id: nCid, name: "New Program", programData: {}, modules: {} };
             dbState.courses[nCid].modules[nMid] = { id: nMid, name: "New Module", code: "NEW01", moduleData: {} };
             
-            // Clear current UI to start fresh
             document.querySelectorAll('input, textarea').forEach(el => { if(el.type!=='password') el.value=''; });
             document.getElementById('semesters-container').innerHTML = "";
             document.getElementById('annex-container').innerHTML = "";
@@ -767,7 +821,6 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             dbState.courses[cId].modules[nMid] = { id: nMid, name: "New Module", code: "NEW", moduleData: {} };
             
             if(cId === activeCourseId) {
-                // Keep program data, clear module data
                 document.querySelectorAll('.mod-data').forEach(el => el.value='');
                 document.getElementById('tbody-matrix').innerHTML = "";
                 document.getElementById('tbody-sch').innerHTML = "";
@@ -844,7 +897,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
 
         // --- DATA SYNC ---
         function performSave(isManual = false, forceLocal = false) {
-            saveCurrentToDB(); // Make sure latest DOM is in dbState
+            saveCurrentToDB();
             const statusEl = document.getElementById('sync-status-text');
             
             let payload = {
@@ -881,7 +934,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             const statusEl = document.getElementById('sync-status-text');
             statusEl.innerText = "Back Online. Syncing...";
             const localData = localStorage.getItem('rasfahi_archive');
-            if (localData) {
+            if (localData && auth.currentUser) {
                 docRef.set(JSON.parse(localData)).then(() => {
                     statusEl.innerText = "Synced to Cloud";
                     statusEl.parentElement.style.color = "var(--royal-green-light)";
@@ -1114,7 +1167,6 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
         }
 
         // --- 5. HTML EXPORT BUILDERS (Centered UI) ---
-        // To center the PDF, we ensure the outermost div generated has margin: 0 auto; max-width: 1000px;
         function getPdfWrapperStyle() {
             return `margin: 0 auto; max-width: 1000px; width: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 11pt; line-height: 1.5; color:black; background:white; padding:20px; direction:ltr;`;
         }
@@ -1415,12 +1467,10 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             return html;
         }
 
-        // Silent load helper for exporting all modules without UI flashing
         function loadStateSilent(cId, mId) {
             let course = dbState.courses[cId];
             if(!course) return;
 
-            // Load Program Inputs
             if (course.programData.inputs) {
                 for (const [id, value] of Object.entries(course.programData.inputs)) {
                     let el = document.getElementById(id);
@@ -1428,7 +1478,6 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 }
             }
 
-            // Load Module Inputs
             if (mId && course.modules[mId]) {
                 let mData = course.modules[mId].moduleData;
                 if(mData.matrixHtml !== undefined) document.getElementById('tbody-matrix').innerHTML = mData.matrixHtml;
@@ -1448,10 +1497,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             let originalModId = activeModuleId;
             let originalCourseId = activeCourseId;
 
-            // 1. Build Part A, B, and Semester Summary
             let html = buildProgramHTMLPartA_B(); 
 
-            // 2. Loop through ALL modules in this active course and build Part C
             html += `<div style="font-family: 'Faruma', 'Amiri', serif; direction: rtl; font-size: 13pt; line-height: 1.6; color:black; background: white; padding: 20px; margin: 0 auto; max-width: 1000px;">
                         <div style="page-break-before: always;"></div>
                         <h1 style="direction:ltr; font-family:'Segoe UI', sans-serif; text-align:center; margin-bottom:20px; border-bottom:3px solid black; padding-bottom:10px;">PART C: Module Outlines</h1>
@@ -1464,16 +1511,13 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 html += `<div style="page-break-after: always;"></div>`;
             }
             
-            // Restore Original UI State
             loadStateFromMemory(originalCourseId, originalModId, true);
-
-            // 3. Build Annexes
             html += buildProgramHTMLPartD_Annex();
             
             return html;
         }
 
-        // --- EXPORT TRIGGERS (Centered PDF) ---
+        // --- EXPORT TRIGGERS ---
         function exportDoc(type, format) {
             const htmlContent = type === 'module' ? buildModuleHTML() : buildFullProgramHTML();
             const fileName = type === 'module' ? `${document.getElementById('m-code').value}_Module_Outline` : `MQA_Full_Program_Document`;
@@ -1486,13 +1530,12 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 const el = document.getElementById('export-render-box'); 
                 el.innerHTML = htmlContent;
                 
-                // Show rendering box outside viewport
                 document.getElementById('export-render-wrapper').style.left = '0px';
                 document.getElementById('export-render-wrapper').style.top = '0px';
                 document.getElementById('export-render-wrapper').style.position = 'relative';
                 
                 let opt = {
-                    margin: 15, // Creates 15mm margin all around to naturally center content
+                    margin: [15, 10, 15, 10], 
                     filename: `${fileName}.pdf`, 
                     image: { type: 'jpeg', quality: 1 },
                     html2canvas: { scale: 2, useCORS: true, letterRendering: true, windowWidth: 1024 }, 
@@ -1500,7 +1543,6 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 };
 
                 html2pdf().set(opt).from(el).save().then(() => {
-                    // Hide rendering box again
                     document.getElementById('export-render-wrapper').style.position = 'absolute';
                     document.getElementById('export-render-wrapper').style.left = '-9999px';
                     document.getElementById('export-render-wrapper').style.top = '-9999px';
