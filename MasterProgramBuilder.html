@@ -42,13 +42,13 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            user-select: none; /* Anti-copy */
+            user-select: none; 
             -webkit-user-select: none;
             -moz-user-select: none;
         }
 
         input, textarea, select {
-            user-select: text; /* Allow typing in form fields */
+            user-select: text; 
             -webkit-user-select: text;
             -moz-user-select: text;
         }
@@ -185,7 +185,7 @@
 
         /* --- 6. BUILDER TABLES --- */
         .table-responsive { overflow-x: auto; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
-        table.builder-table { width: 100%; border-collapse: collapse; min-width: 1200px; background: var(--royal-white);}
+        table.builder-table { width: 100%; border-collapse: collapse; min-width: 1000px; background: var(--royal-white);}
         .builder-table th, .builder-table td { border: 1px solid var(--border); padding: 8px; vertical-align: middle; text-align: center; }
         .builder-table th { background: linear-gradient(to bottom, var(--royal-blue), var(--royal-dark)); color: var(--royal-white); font-size: 0.95rem; padding: 12px; font-weight: 600;}
         .builder-table td input, .builder-table td textarea { border: none; background: transparent; width: 100%; padding: 8px; font-size: 1.1rem; text-align: center; resize: vertical;}
@@ -243,10 +243,11 @@
     <div id="login-screen">
         <div class="login-card">
             <h2>RASFAHI</h2>
-            <h4>RASFAHI - MNQF Program Builder</h4>
+            <h4>MQA Master Program Builder</h4>
             
             <div class="certificate-box">
                 <div class="cert-header">Certificate of Copyright Registration</div>
+                <div class="cert-sub">MINISTRY OF ECONOMIC DEVELOPMENT & TRADE</div>
                 <strong>Name of Work:</strong> RASFAHI<br>
                 <strong>Type of Work:</strong> Computer Program<br>
                 <strong>Owner:</strong> Ali Ibrahim Didi<br>
@@ -452,7 +453,7 @@ E-learning: Online synchronous and asynchronous learning. 60% Sync, 40% Async.</
                         <table class="builder-table" id="tbl-sch" style="min-width: 1600px;">
                             <thead>
                                 <tr>
-                                    <th rowspan="3" width="6%" class="th-gray">Wk</th>
+                                    <th rowspan="3" width="4%" class="th-gray">Wk</th>
                                     <th rowspan="3" width="12%" class="th-gray">Topics (RTL)</th>
                                     <th rowspan="3" width="16%" class="th-gray">Details (RTL)</th>
                                     <th rowspan="3" width="12%" class="th-gray">Pedagogy</th>
@@ -581,7 +582,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
     </div>
 
     <div id="export-render-wrapper" style="position:absolute; left:-9999px; top:-9999px; width: 100%; display:flex; justify-content:center;">
-        <div id="export-render-box" style="background:white; padding:40px; color:black; font-family:'Segoe UI', Tahoma, sans-serif; width: 1000px; max-width: 1000px; margin: 0 auto; text-align: left;"></div>
+        <div id="export-render-box" style="background:white; padding:20px; box-sizing: border-box; width: 100%; color:black; font-family:'Segoe UI', Tahoma, sans-serif; text-align: left;"></div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -613,17 +614,20 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-        const docRef = db.collection("rasfahi_saves").doc("autosave_v2");
-
+        
+        let userDocRef = null;
         let saveTimeout;
         let isProgrammaticChange = false; // Flag to prevent auto-save loop during load
 
         auth.onAuthStateChanged(user => {
             if (user) {
+                // User is securely tied to their own database document
+                userDocRef = db.collection("rasfahi_users").doc(user.uid);
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-container').style.display = 'flex';
-                restoreData();
+                restoreData(user.uid);
             } else {
+                userDocRef = null;
                 document.getElementById('login-screen').style.display = 'flex';
                 document.getElementById('app-container').style.display = 'none';
             }
@@ -683,16 +687,6 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
         let semCount = 0;
         let annexCount = 0;
 
-        window.onload = function() {
-            // Setup default UI first so we have something if DB is empty
-            isProgrammaticChange = true;
-            addSemesterBlock();
-            addAnnexBlock();
-            addMatrixRow();
-            addSchRow("އިމާމުކަމާއި ބަންގިއާއި ޤަމަތުގެ ފިޤުހު", "ބަންގިއާއި ޤަމަތުގެ ޙުކުމްތައް...", "1. Group activities\n2. Pair works", "3", "30", "15", "5", "5", "5", "9", "6");
-            isProgrammaticChange = false;
-        }
-
         function toggleDesktopSidebar() { document.getElementById('main-sidebar').classList.toggle('collapsed'); }
         function toggleMobileSidebar() { document.getElementById('main-sidebar').classList.toggle('mobile-open'); }
 
@@ -729,7 +723,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             dbState.courses[activeCourseId] = {
                 id: activeCourseId,
                 name: "ޒާދް އެކަޑެމީ ޕްރޮގްރާމް",
-                programData: { inputs: {}, sCount: semCount, aCount: annexCount },
+                programData: { inputs: {}, sCount: 0, aCount: 0 },
                 modules: {}
             };
             dbState.courses[activeCourseId].modules[activeModuleId] = {
@@ -739,7 +733,20 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 moduleData: { inputs: {} }
             };
             
-            // Extract current DOM state as initial data
+            // Rebuild visual default UI safely
+            isProgrammaticChange = true;
+            document.getElementById('semesters-container').innerHTML = "";
+            document.getElementById('annex-container').innerHTML = "";
+            document.getElementById('tbody-matrix').innerHTML = "";
+            document.getElementById('tbody-sch').innerHTML = "";
+            semCount = 0; annexCount = 0;
+            
+            addSemesterBlock();
+            addAnnexBlock();
+            addMatrixRow();
+            addSchRow("އިމާމުކަމާއި ބަންގިއާއި ޤަމަތުގެ ފިޤުހު", "ބަންގިއާއި ޤަމަތުގެ ޙުކުމްތައް...", "1. Group activities\n2. Pair works", "3", "30", "15", "5", "5", "5", "9", "6");
+            isProgrammaticChange = false;
+
             extractDOMToState(activeCourseId, activeModuleId);
             performSave(false, false);
         }
@@ -858,7 +865,6 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             addMatrixRow();
             isProgrammaticChange = false;
             
-            // Extract the freshly created DOM to state immediately
             extractDOMToState(nCid, nMid);
             loadStateFromMemory(nCid, nMid);
             alert("New Course Document Created!");
@@ -950,7 +956,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
 
         // --- DATA SYNC ---
         function performSave(isManual = false, forceLocal = false) {
-            saveCurrentToDB(); // Sync DOM to dbState object
+            if(!userDocRef) return;
+            saveCurrentToDB(); 
             const statusEl = document.getElementById('sync-status-text');
             
             let payload = {
@@ -962,7 +969,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             
             if (navigator.onLine && !forceLocal) {
                 statusEl.innerText = "Saving to Cloud...";
-                docRef.set(payload).then(() => {
+                userDocRef.set(payload).then(() => {
                     statusEl.innerText = "Synced to Cloud";
                     statusEl.parentElement.style.color = "var(--royal-green-light)";
                     if(isManual) alert("Successfully saved to Cloud Archive!");
@@ -977,7 +984,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
 
         function saveToLocal(payload, isManual) {
             const statusEl = document.getElementById('sync-status-text');
-            localStorage.setItem('rasfahi_archive', JSON.stringify(payload));
+            const uid = auth.currentUser ? auth.currentUser.uid : 'temp';
+            localStorage.setItem('rasfahi_archive_' + uid, JSON.stringify(payload));
             statusEl.innerText = "Saved to Browser (Offline)";
             statusEl.parentElement.style.color = "orange";
             if(isManual) alert("Saved locally to Browser Bank!");
@@ -986,9 +994,10 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
         window.addEventListener('online', () => {
             const statusEl = document.getElementById('sync-status-text');
             statusEl.innerText = "Back Online. Syncing...";
-            const localData = localStorage.getItem('rasfahi_archive');
-            if (localData && auth.currentUser) {
-                docRef.set(JSON.parse(localData)).then(() => {
+            const uid = auth.currentUser ? auth.currentUser.uid : 'temp';
+            const localData = localStorage.getItem('rasfahi_archive_' + uid);
+            if (localData && userDocRef) {
+                userDocRef.set(JSON.parse(localData)).then(() => {
                     statusEl.innerText = "Synced to Cloud";
                     statusEl.parentElement.style.color = "var(--royal-green-light)";
                 });
@@ -1000,12 +1009,12 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             document.getElementById('sync-status-text').parentElement.style.color = "orange";
         });
 
-        function restoreData() {
+        function restoreData(uid) {
             const statusEl = document.getElementById('sync-status-text');
             statusEl.innerText = "Loading Archive...";
             
-            if (navigator.onLine) {
-                docRef.get().then((doc) => {
+            if (navigator.onLine && userDocRef) {
+                userDocRef.get().then((doc) => {
                     if (doc.exists) {
                         let data = doc.data();
                         if(data.dbState && Object.keys(data.dbState.courses).length > 0) {
@@ -1015,17 +1024,17 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                         statusEl.innerText = "Loaded from Cloud";
                         statusEl.parentElement.style.color = "var(--royal-green-light)";
                     } else {
-                        loadLocal();
+                        loadLocal(uid);
                     }
-                }).catch(err => { loadLocal(); });
+                }).catch(err => { loadLocal(uid); });
             } else {
-                loadLocal();
+                loadLocal(uid);
             }
         }
 
-        function loadLocal() {
+        function loadLocal(uid) {
             const statusEl = document.getElementById('sync-status-text');
-            const localData = localStorage.getItem('rasfahi_archive');
+            const localData = localStorage.getItem('rasfahi_archive_' + uid);
             if (localData) {
                 let data = JSON.parse(localData);
                 if(data.dbState && Object.keys(data.dbState.courses).length > 0) {
@@ -1256,12 +1265,13 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
         }
 
         function getPdfWrapperStyle() {
-            return `margin: 0 auto; max-width: 1000px; width: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 11pt; line-height: 1.5; color:black; background:white; padding:20px; direction:ltr;`;
+            // Native auto layout so html2canvas renders the full document securely without squishing
+            return `width: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 11pt; line-height: 1.5; color:black; background:white; padding: 20px; box-sizing: border-box; direction:ltr;`;
         }
 
         function buildProgramHTMLPartA_B() {
             let html = `
-            <div style="font-family: 'Faruma', 'Amiri', serif; direction: rtl; font-size: 13pt; line-height: 1.6; color:black; background: white; padding: 20px; margin: 0 auto; max-width: 1000px;">
+            <div style="font-family: 'Faruma', 'Amiri', serif; direction: rtl; font-size: 13pt; line-height: 1.6; color:black; background: white; padding: 20px; box-sizing: border-box; width: 100%;">
                 <div style="text-align:center; margin-bottom: 50px;">
                     <h1 style="font-size: 26pt; margin-bottom: 10px;">${document.getElementById('a-inst').value}</h1>
                     <h2 style="font-size: 20pt; margin-bottom: 30px;">ޕްރޮގްރާމް އައުޓްލައިން</h2>
@@ -1294,7 +1304,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 <h3 style="border-bottom:1px solid black; margin-top:20px; padding-bottom:5px;">10. E-learning Readiness</h3>
                 <p style="direction:ltr; font-family:'Segoe UI', sans-serif; text-align:left; margin-bottom:15px;">${document.getElementById('b-elearn').value.replace(/\n/g, '<br>')}</p>
                 
-                <div id="export-structure-section">
+                <div id="export-structure-section" style="width: 100%;">
                 <h3 style="border-bottom:1px solid black; margin-top:30px; padding-bottom:5px;">11. Program Structure Summary</h3>`;
             
             document.querySelectorAll('.dynamic-block').forEach((block) => {
@@ -1302,7 +1312,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                     let sTitle = block.querySelector('h3').innerText.replace('Remove', '').trim();
                     html += `
                     <h4 style="margin-top:20px; color:black; font-family:'Segoe UI', sans-serif; direction:ltr;">${sTitle}</h4>
-                    <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:15px; direction:ltr; font-family:'Segoe UI', sans-serif; font-size:10pt; text-align:center;">
+                    <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:15px; direction:ltr; font-family:'Segoe UI', sans-serif; font-size:10pt; text-align:center; table-layout: auto; word-break: break-word;">
                         <tr style="background:#e6e6e6; font-weight:bold;">
                             <th style="border:1px solid black; padding:6px;">Module Title</th><th style="border:1px solid black; padding:6px;">Code</th><th style="border:1px solid black; padding:6px;">Credits</th><th style="border:1px solid black; padding:6px;">Learning Hrs</th><th style="border:1px solid black; padding:6px;">Contact Hrs</th><th style="border:1px solid black; padding:6px;">Weekly Hrs</th>
                         </tr>`;
@@ -1334,7 +1344,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             
             let html = `
             <div style="${getPdfWrapperStyle()}">
-                <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
+                <table style="width:100%; border-collapse:collapse; margin-bottom:20px; table-layout: auto; word-break: break-word;">
                     <tr>
                         <td style="border:1px solid black; padding:8px; background:#e6e6e6; font-weight:bold;" width="12%">11.1</td>
                         <td style="border:1px solid black; padding:8px; background:#e6e6e6; font-weight:bold;" width="25%">Module Name</td>
@@ -1359,7 +1369,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
 
                 <div style="page-break-before: always;"></div>
                 
-                <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:30px; font-size:10pt; text-align:center;">
+                <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:30px; font-size:10pt; text-align:center; table-layout: auto; word-break: break-word;">
                     <tr style="background:#e6e6e6; font-weight:bold;">
                         <td colspan="6" style="border:1px solid black; padding:8px; text-align:left;">11.8 Subjects/modules and units that lead to learning outcomes specified for this level (Level ${document.getElementById('p-level').value})</td>
                     </tr>
@@ -1397,7 +1407,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
 
             html += `<div style="page-break-before: always;"></div>`;
             html += `
-                <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:30px; font-size:8.5pt; text-align:center; page-break-inside:auto;">
+                <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:30px; font-size:8pt; text-align:center; page-break-inside:auto; table-layout: auto; word-break: break-word;">
                     <tr style="page-break-inside:avoid; page-break-after:auto">
                         <td style="border:1px solid black; padding:4px; background:#e6e6e6; font-weight:bold;" width="5%">11.9</td>
                         <td colspan="4" style="border:1px solid black; padding:4px; background:#e6e6e6; font-weight:bold; text-align:center;">Curricular Content in terms of topics and a summary of content</td>
@@ -1415,7 +1425,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                         <td colspan="3" style="border:1px solid black; padding:2px; background:#ddebf7;">Blended</td>
                         <td colspan="2" style="border:1px solid black; padding:2px; background:#fff2cc;">E-Learn</td>
                     </tr>
-                    <tr style="background:#e6e6e6; font-size:8pt; font-weight:bold; page-break-inside:avoid; page-break-after:auto">
+                    <tr style="background:#e6e6e6; font-size:7pt; font-weight:bold; page-break-inside:avoid; page-break-after:auto">
                         <td style="border:1px solid black; padding:2px; background:#e2efda;">F2F</td>
                         <td style="border:1px solid black; padding:2px; background:#ddebf7;">F2F</td>
                         <td style="border:1px solid black; padding:2px; background:#ddebf7;">Sync</td>
@@ -1456,7 +1466,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             </tr></table>`;
 
             html += `<div style="page-break-before: always;"></div>
-                <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:20px; font-size:10pt; text-align:center;">
+                <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:20px; font-size:10pt; text-align:center; table-layout: auto; word-break: break-word;">
                     <tr style="page-break-inside:avoid;">
                         <td style="border:1px solid black; padding:8px; background:#e6e6e6; font-weight:bold;" width="10%">11.10</td>
                         <td colspan="5" style="border:1px solid black; padding:8px; background:#e6e6e6; font-weight:bold; text-align:left;">Assessment Methods and Grading Criteria</td>
@@ -1497,7 +1507,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             html += `</table>`;
 
             html += `
-                <table style="width:80%; border-collapse:collapse; border:1px solid black; margin-bottom:30px; font-size:10pt; text-align:center; margin-left:auto; margin-right:auto; page-break-inside:avoid;">
+                <table style="width:80%; border-collapse:collapse; border:1px solid black; margin-bottom:30px; font-size:10pt; text-align:center; margin-left:auto; margin-right:auto; page-break-inside:avoid; table-layout: auto; word-break: break-word;">
                     <tr style="background:#e6e6e6; font-weight:bold;">
                         <td style="border:1px solid black; padding:6px;">SCORE</td>
                         <td style="border:1px solid black; padding:6px;">DESCRIPTION</td>
@@ -1517,7 +1527,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             let refAddLines = document.getElementById('m-ref-add').value.split('\n').filter(l=>l.trim()!=='').map(l=>`<li style="margin-bottom:5px; text-align:right; direction:rtl;">${l}</li>`).join('');
 
             html += `
-                <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:30px; font-size:11pt; text-align:left; page-break-inside:avoid;">
+                <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:30px; font-size:11pt; text-align:left; page-break-inside:avoid; table-layout: auto; word-break: break-word;">
                     <tr>
                         <td style="border:1px solid black; padding:8px; background:#e6e6e6; font-weight:bold;" width="10%">11.11</td>
                         <td colspan="2" style="border:1px solid black; padding:8px; background:#e6e6e6; font-weight:bold; text-align:left;">List of Reference Materials (in APA format)</td>
@@ -1531,7 +1541,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                         </td>
                     </tr>
                 </table>
-                <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:20px; font-size:11pt; text-align:left; page-break-inside:avoid;">
+                <table style="width:100%; border-collapse:collapse; border:1px solid black; margin-bottom:20px; font-size:11pt; text-align:left; page-break-inside:avoid; table-layout: auto; word-break: break-word;">
                     <tr><td colspan="2" style="border:1px solid black; padding:8px; background:#e6e6e6; font-weight:bold;">Developed by:</td></tr>
                     <tr><td style="border:1px solid black; padding:8px;" width="30%">Full name:</td><td style="border:1px solid black; padding:8px; text-align:left;">${document.getElementById('d-name').value}</td></tr>
                     <tr><td style="border:1px solid black; padding:8px;">Highest Qualification:</td><td style="border:1px solid black; padding:8px; text-align:left;">${document.getElementById('d-qual').value}</td></tr>
@@ -1539,6 +1549,75 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                     <tr><td style="border:1px solid black; padding:8px;">E-mail and Contact:</td><td style="border:1px solid black; padding:8px; text-align:left;">${document.getElementById('d-mail').value}</td></tr>
                 </table>
             </div>`;
+            return html;
+        }
+
+        function buildProgramHTMLPartD_Annex() {
+            let html = `<div style="font-family: 'Faruma', 'Amiri', serif; direction: rtl; font-size: 13pt; line-height: 1.6; color:black; background: white; padding: 20px; margin: 0 auto; max-width: 1000px;">
+                <div style="page-break-before: always;"></div>
+                <h1 style="direction:ltr; font-family:'Segoe UI', sans-serif; text-align:center; margin-bottom:20px; border-bottom:3px solid black; padding-bottom:10px;">PART D: Annexes</h1>`;
+            
+            document.querySelectorAll('.dynamic-block').forEach(block => {
+                if(block.querySelector('.annex-title')){
+                    let aTitle = block.querySelector('.annex-title').value;
+                    let aContent = block.querySelector('.annex-content').value;
+                    html += `
+                        <h3 style="color:black; margin-top:20px; border-bottom:1px solid #ccc; padding-bottom:5px;">${aTitle}</h3>
+                        <div style="direction:rtl; text-align:justify; margin-bottom: 30px; font-family:'Faruma', 'Amiri', serif; line-height:1.8;">${aContent.replace(/\n/g, '<br>')}</div>
+                    `;
+                }
+            });
+            html += `</div>`;
+            return html;
+        }
+
+        function loadStateSilent(cId, mId) {
+            let course = dbState.courses[cId];
+            if(!course) return;
+
+            if (course.programData.inputs) {
+                for (const [id, value] of Object.entries(course.programData.inputs)) {
+                    let el = document.getElementById(id);
+                    if (el) el.value = value;
+                }
+            }
+
+            if (mId && course.modules[mId]) {
+                let mData = course.modules[mId].moduleData;
+                if(mData.matrixHtml !== undefined) document.getElementById('tbody-matrix').innerHTML = mData.matrixHtml;
+                if(mData.schHtml !== undefined) document.getElementById('tbody-sch').innerHTML = mData.schHtml;
+                if (mData.inputs) {
+                    for (const [id, value] of Object.entries(mData.inputs)) {
+                        let el = document.getElementById(id);
+                        if (el) el.value = value;
+                    }
+                }
+            }
+            recalculateAllRows();
+        }
+
+        function buildFullProgramHTML() {
+            saveCurrentToDB();
+            let originalModId = activeModuleId;
+            let originalCourseId = activeCourseId;
+
+            let html = buildProgramHTMLPartA_B(); 
+
+            html += `<div style="font-family: 'Faruma', 'Amiri', serif; direction: rtl; font-size: 13pt; line-height: 1.6; color:black; background: white; padding: 20px; margin: 0 auto; max-width: 1000px;">
+                        <div style="page-break-before: always;"></div>
+                        <h1 style="direction:ltr; font-family:'Segoe UI', sans-serif; text-align:center; margin-bottom:20px; border-bottom:3px solid black; padding-bottom:10px;">PART C: Module Outlines</h1>
+                     </div>`;
+            
+            let course = dbState.courses[activeCourseId];
+            for(const mId of Object.keys(course.modules)) {
+                loadStateSilent(activeCourseId, mId); 
+                html += buildModuleHTML(); 
+                html += `<div style="page-break-after: always;"></div>`;
+            }
+            
+            loadStateFromMemory(originalCourseId, originalModId, true);
+            html += buildProgramHTMLPartD_Annex();
+            
             return html;
         }
 
@@ -1564,15 +1643,16 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                     el.innerHTML = htmlContent;
                 }
 
+                // Temporary inline block to render correctly
                 document.getElementById('export-render-wrapper').style.left = '0px';
                 document.getElementById('export-render-wrapper').style.top = '0px';
                 document.getElementById('export-render-wrapper').style.position = 'relative';
                 
                 let opt = {
-                    margin: 15, 
+                    margin: [10, 10, 10, 10], // Margins for breathing room
                     filename: `${fileName}.pdf`, 
                     image: { type: 'jpeg', quality: 1 },
-                    html2canvas: { scale: 2, useCORS: true, letterRendering: true, windowWidth: 1024 }, 
+                    html2canvas: { scale: 2, useCORS: true, letterRendering: true }, 
                     jsPDF: { unit: 'mm', format: 'a4', orientation: type === 'program' ? 'portrait' : 'landscape' } 
                 };
 
