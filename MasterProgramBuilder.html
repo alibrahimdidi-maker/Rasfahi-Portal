@@ -1228,7 +1228,9 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 <div id="step-10" class="form-section">
                     <h2 class="section-header"><i class="fas fa-archive"></i> އަރްޝީފް ބޭންކް (Archive Bank)</h2>
                     <p style="margin-bottom: 20px; color:#555; font-size:1.1rem;">Manage your courses and modules here. The active course/module will automatically save when you switch.</p>
+                    
                     <button class="btn btn-blue" onclick="createNewCourse()" style="margin-bottom: 30px;"><i class="fas fa-plus"></i> Create New Course Document</button>
+                    
                     <div id="archive-list"></div>
                 </div>
 
@@ -1236,8 +1238,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
         </main>
     </div>
 
-    <div id="export-render-wrapper" style="position:absolute; left:-9999px; top:0; z-index:-1000; overflow:visible; opacity:0; width: 100%;">
-        <div id="export-render-box" style="width: 100%;"></div>
+    <div id="export-render-wrapper" style="position:absolute; left:0; top:0; z-index:-1000; overflow:visible; opacity:0; width: 100%;">
+        <div id="export-render-box" style="width: 100%; background: white;"></div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -1316,7 +1318,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             if (isProgrammaticChange) return;
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
                 clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(() => performSave(false, false), 1500);
+                saveTimeout = setTimeout(() => performSave(false, false), 500); // Fast auto-save
             }
         });
 
@@ -1356,20 +1358,32 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             document.getElementById('top-subtitle').innerText = subtitle;
         }
 
-        // --- 3. ARCHIVE CORE LOGIC ---
+        // --- 3. ARCHIVE CORE LOGIC & PRE-LOADED TEMPLATES ---
         function initDefaultDB() {
-            activeCourseId = "c_" + Date.now();
-            activeModuleId = "m_" + Date.now();
-            dbState.courses[activeCourseId] = { id: activeCourseId, name: "ޒާދް އެކަޑެމީ ޕްރޮގްރާމް", programData: { inputs: {}, sCount: 0, aCount: 0 }, modules: {} };
-            dbState.courses[activeCourseId].modules[activeModuleId] = { id: activeModuleId, name: "ފުރަތަމަ މޮޑިއުލް", code: "MOD001", moduleData: { inputs: {} } };
+            // Template 1: Face to Face
+            let c1 = "c_1_f2f"; let m1 = "m_1_f2f";
+            dbState.courses[c1] = { id: c1, name: "Certificate 3 in Arabic", programData: { inputs: {'p-name': 'ސެޓްފިކެޓް 3 އިން އަރަބިކް', 'p-level': '3', 'b-7-5': 'Face to Face only. 100% physically on campus.'}, sCount: 0, aCount: 0 }, modules: {} };
+            dbState.courses[c1].modules[m1] = { id: m1, name: "Basic Arabic Grammar", code: "ARA301", moduleData: { inputs: {'m-name-rtl': 'ގަވާޢިދުލް ޢަރަބިއްޔާ', 'm-name-ltr': 'Basic Arabic Grammar', 'm-code': 'ARA301'} } };
+            
+            // Template 2: Blended
+            let c2 = "c_2_blend"; let m2 = "m_2_blend";
+            dbState.courses[c2] = { id: c2, name: "Diploma in Islamic Studies", programData: { inputs: {'p-name': 'ޑިޕްލޮމާ އިން އިސްލާމިކް ސްޓަޑީޒް', 'p-level': '5', 'b-7-5': 'Blended Mode: 30% F2F, 40% Sync, 30% Async.'}, sCount: 0, aCount: 0 }, modules: {} };
+            dbState.courses[c2].modules[m2] = { id: m2, name: "Islamic History", code: "HIS501", moduleData: { inputs: {'m-name-rtl': 'ތާރީޚުލް އިސްލާމީ', 'm-name-ltr': 'Islamic History', 'm-code': 'HIS501'} } };
+
+            // Template 3: E-Learning
+            let c3 = "c_3_elearn"; let m3 = "m_3_elearn";
+            dbState.courses[c3] = { id: c3, name: "Master of Shariah", programData: { inputs: {'p-name': 'މާސްޓަރ އޮފް ޝަރީޢާ', 'p-level': '9', 'b-7-5': 'E-Learning Mode: 100% Online (60% Sync, 40% Async).'}, sCount: 0, aCount: 0 }, modules: {} };
+            dbState.courses[c3].modules[m3] = { id: m3, name: "Advanced Fiqh", code: "SHR901", moduleData: { inputs: {'m-name-rtl': 'އެޑްވާންސް ފިޤުހު', 'm-name-ltr': 'Advanced Fiqh', 'm-code': 'SHR901'} } };
+
+            activeCourseId = c2;
+            activeModuleId = m2;
             
             isProgrammaticChange = true;
             document.getElementById('semesters-container').innerHTML = ""; document.getElementById('annex-container').innerHTML = "";
             document.getElementById('tbody-matrix').innerHTML = ""; document.getElementById('tbody-sch').innerHTML = "";
             semCount = 0; annexCount = 0;
             
-            addSemesterBlock(); addAnnexBlock(); addMatrixRow();
-            addSchRow("އިމާމުކަމާއި ބަންގިއާއި ޤަމަތުގެ ފިޤުހު", "ބަންގިއާއި ޤަމަތުގެ ޙުކުމްތައް...", "1. Group activities\n2. Pair works", "3", "30", "15", "5", "5", "5", "9", "6");
+            addSemesterBlock(); addSchRow(); addMatrixRow();
             
             extractDOMToState(activeCourseId, activeModuleId);
             isProgrammaticChange = false;
@@ -1686,7 +1700,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 .export-wrapper { width: 100%; max-width: 1000px; margin: 0 auto; direction: ltr; padding: 20px; box-sizing: border-box; text-align: left; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; table-layout: fixed; word-wrap: break-word; color: black; }
                 th, td { border: 1px solid black; padding: 8px; vertical-align: top; color: black; text-align: left; }
-                .bg-gray { background-color: #e6e6e6 !important; font-weight: bold; color: black; }
+                .bg-gray { background-color: #e6e6e6 !important; font-weight: bold; color: black !important; }
                 .center { text-align: center !important; }
                 .rtl-p { direction: rtl; text-align: justify; font-family: 'Faruma', 'Amiri', serif; }
                 .v-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; margin: auto; padding: 10px 0; font-size: 9pt;}
