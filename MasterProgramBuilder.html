@@ -790,10 +790,7 @@
         .importer-box { background: #e0f2fe; border: 2px dashed var(--royal-blue); padding: 30px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
         .importer-box p { color: #555; margin-bottom: 20px; font-size: 1.1rem; }
         .word-output { background: #fff; padding: 20px; border: 1px solid var(--border); border-radius: 8px; min-height: 200px; max-height: 400px; overflow-y: auto; text-align: left; direction: ltr; font-family: 'Segoe UI', serif; font-size: 1rem; border-left: 5px solid var(--royal-blue);}
-        .word-output h1, .word-output h2, .word-output h3 { color: var(--royal-blue); margin-top: 15px; margin-bottom: 10px; }
-        .word-output p { margin-bottom: 10px; }
-        .word-output table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        .word-output th, .word-output td { border: 1px solid #ccc; padding: 5px; }
+        .word-output p { margin-bottom: 8px; }
         
         .import-success { background: #dcfce7; color: #166534; padding: 15px; border-radius: 8px; margin-top: 20px; font-weight: bold; display: none; text-align:center;}
 
@@ -1219,13 +1216,13 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                     <h2 class="section-header"><i class="fas fa-file-word"></i> Smart Word Importer (Beta)</h2>
                     
                     <div class="importer-box">
-                        <p>Upload a previously exported <b>.docx</b> file. The system will attempt to read the text and automatically create a new Course/Module in your Archive Bank.</p>
+                        <p>Upload a previously exported <b>.docx</b> file. The system will read the text, automatically create a new Module in your Archive, and fill out the forms with extracted data.</p>
                         <input type="file" id="word-upload" accept=".docx" style="display:none;" onchange="readWordFile(event)">
-                        <button class="btn btn-blue" onclick="document.getElementById('word-upload').click()"><i class="fas fa-upload"></i> Select Word File</button>
-                        <div id="import-success-msg" class="import-success">✅ File successfully parsed! A new course has been created in your Archive.</div>
+                        <button class="btn btn-blue" onclick="document.getElementById('word-upload').click()"><i class="fas fa-upload"></i> Select Word File to Import</button>
+                        <div id="import-success-msg" class="import-success">✅ File successfully parsed! A new module has been created and loaded from your Archive.</div>
                     </div>
                     
-                    <p style="margin-bottom: 10px; color:#555; font-size:1rem; font-weight:bold;">Extracted Text (For manual copy/paste if needed):</p>
+                    <p style="margin-bottom: 10px; color:#555; font-size:1rem; font-weight:bold;">Extracted Text (For manual copy/paste if auto-fill missed anything):</p>
                     <div id="word-viewer" class="word-output" style="display:none;"></div>
                     
                     <div class="step-footer">
@@ -1275,6 +1272,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                     </div>
 
                     <div id="archive-list"></div>
+                    
+                    <button class="btn btn-danger" onclick="hardResetArchive()" style="margin-top: 40px; width: 100%;"><i class="fas fa-exclamation-triangle"></i> Hard Reset Archive (Wipe All Data)</button>
                 </div>
 
             </div>
@@ -1361,7 +1360,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             if (isProgrammaticChange) return;
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
                 clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(() => performSave(false, false), 500); // Fast auto-save
+                saveTimeout = setTimeout(() => performSave(false, false), 500); 
             }
         });
 
@@ -1401,7 +1400,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             document.getElementById('top-subtitle').innerText = subtitle;
         }
 
-        // --- 3. ARCHIVE CORE LOGIC & PRE-LOADED TEMPLATES ---
+        // --- 3. ARCHIVE CORE LOGIC ---
         function initDefaultDB() {
             let c1 = "c_1_f2f"; let m1 = "m_1_f2f";
             dbState.courses[c1] = { id: c1, name: "Certificate 3 in Arabic", programData: { inputs: {'p-name': 'ސެޓްފިކެޓް 3 އިން އަރަބިކް', 'p-level': '3', 'b-7-5': 'Face to Face only. 100% physically on campus.'}, sCount: 0, aCount: 0 }, modules: {} };
@@ -1503,7 +1502,6 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             extractDOMToState(nCid, nMid);
             isProgrammaticChange = false;
             loadStateFromMemory(nCid, nMid);
-            alert("New Course Document Created!");
         }
 
         function createNewModule(cId) {
@@ -1532,9 +1530,15 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
 
             delete dbState.courses[cId];
             let keys = Object.keys(dbState.courses);
-            if(keys.length === 0) { initDefaultDB(); } 
-            else if (cId === activeCourseId) { loadStateFromMemory(keys[0], Object.keys(dbState.courses[keys[0]].modules)[0] || null); } 
-            else { renderArchive(); }
+            if(keys.length === 0) { 
+                createNewCourse(); // Creates a blank one, does not load dummies
+            } 
+            else if (cId === activeCourseId) { 
+                loadStateFromMemory(keys[0], Object.keys(dbState.courses[keys[0]].modules)[0] || null); 
+            } 
+            else { 
+                renderArchive(); 
+            }
             performSave(false, false);
         }
 
@@ -1548,6 +1552,29 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             if(cId === activeCourseId && mId === activeModuleId) { loadStateFromMemory(cId, Object.keys(dbState.courses[cId].modules)[0] || null); } 
             else { renderArchive(); }
             performSave(false, false);
+        }
+
+        function hardResetArchive() {
+            if(!confirm("⚠️ 1/3: Are you absolutely sure you want to WIPEOUT the entire archive?")) return;
+            if(!confirm("⚠️ 2/3: SECOND WARNING! All courses, modules, and local data will be permanently destroyed. Proceed?")) return;
+            let verify = prompt("⚠️ 3/3: FINAL STEP. Type 'RESET' in all caps to confirm:");
+            if(verify !== "RESET") { alert("Reset cancelled."); return; }
+
+            dbState = { courses: {} };
+            activeCourseId = null;
+            activeModuleId = null;
+            semCount = 0;
+            annexCount = 0;
+            document.getElementById('semesters-container').innerHTML = "";
+            document.getElementById('annex-container').innerHTML = "";
+            document.getElementById('tbody-matrix').innerHTML = "";
+            document.getElementById('tbody-sch').innerHTML = "";
+            
+            const uid = auth.currentUser ? auth.currentUser.uid : 'guest';
+            localStorage.removeItem('rasfahi_archive_' + uid);
+            
+            createNewCourse(); 
+            alert("✅ Archive has been completely reset.");
         }
 
         function renderArchive() {
@@ -1632,6 +1659,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             const reader = new FileReader();
             reader.onload = function(e) {
                 const arrayBuffer = e.target.result;
+                
+                // Extract Raw text for Auto-filling forms
                 mammoth.extractRawText({ arrayBuffer: arrayBuffer })
                     .then(function(result){
                         parseWordToForms(result.value);
@@ -1641,7 +1670,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                         alert("Error reading Word File. Ensure it is a valid .docx file.");
                     });
                 
-                // Show rich text for manual copying just in case
+                // Show rich text for manual copying
                 mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
                     .then(function(result){
                         const viewer = document.getElementById("word-viewer");
@@ -1652,59 +1681,93 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             reader.readAsArrayBuffer(file);
         }
 
-        function parseWordToForms(text) {
-            // Very basic parsing logic to extract key fields based on typical MQA structure
-            const lines = text.split('\n');
-            let extModName = "";
-            let extModCode = "";
-            let extCredits = "";
-            
-            for(let i=0; i<lines.length; i++) {
+        function extractDataAfterKeyword(lines, keyword, stopKeywords = []) {
+            let found = false;
+            let result = [];
+            for (let i = 0; i < lines.length; i++) {
                 let line = lines[i].trim();
-                if(line.toLowerCase().includes("module name") && lines[i+1]) {
-                    extModName = lines[i+1].trim();
-                }
-                if(line.toLowerCase().includes("module code") && lines[i+1]) {
-                    extModCode = lines[i+1].trim();
-                }
-                if(line.toLowerCase().includes("credits") && lines[i+1]) {
-                    let numMatch = lines[i+1].match(/\d+/);
-                    if(numMatch) extCredits = numMatch[0];
+                
+                if (found) {
+                    let isStop = false;
+                    for(let stopW of stopKeywords) {
+                        if(line.toLowerCase().includes(stopW.toLowerCase())) { isStop = true; break; }
+                    }
+                    if(isStop) break;
+                    if(line) result.push(line);
+                } else if (line.toLowerCase().includes(keyword.toLowerCase())) {
+                    found = true;
+                    let inlineVal = line.substring(line.toLowerCase().indexOf(keyword.toLowerCase()) + keyword.length).trim();
+                    if(inlineVal) result.push(inlineVal);
                 }
             }
+            return result.join('\n').trim();
+        }
 
-            // Create a new course/module to hold imported data to not destroy current work
-            saveCurrentToDB();
+        function parseWordToForms(text) {
+            const lines = text.split('\n');
+            
+            // Basic Extractors matching MQA Template
+            let extModName = extractDataAfterKeyword(lines, "11.1", ["11.2", "Module Code", "Module Description"]);
+            let extModDesc = extractDataAfterKeyword(lines, "Module Description", ["11.2", "Module Code"]);
+            let extModCode = extractDataAfterKeyword(lines, "11.2", ["11.3", "Module Level"]);
+            if(!extModCode) extModCode = extractDataAfterKeyword(lines, "Module Code", ["11.3", "Module Level"]);
+            let extCredits = extractDataAfterKeyword(lines, "11.3", ["Total Learning Hours"]);
+            if(extCredits) extCredits = extCredits.match(/\d+/)?.[0] || "15";
+            let extModality = extractDataAfterKeyword(lines, "11.4", ["Methods of Delivery"]);
+            let extMethods = extractDataAfterKeyword(lines, "Methods of Delivery", ["11.5", "Minimum Qualification"]);
+            let extQual = extractDataAfterKeyword(lines, "11.5", ["11.6", "Prerequisite"]);
+            let extPre = extractDataAfterKeyword(lines, "11.6", ["11.7", "Co-requisites"]);
+            let extCo = extractDataAfterKeyword(lines, "11.7", ["11.8", "Expected Learning Outcomes"]);
+            let extOutcomes = extractDataAfterKeyword(lines, "11.8", ["11.9", "Curricular Content"]);
+            
+            let extCourseMat = extractDataAfterKeyword(lines, "11.12", ["11.13", "Teaching and Learning"]);
+            let extTeachMeth = extractDataAfterKeyword(lines, "11.13", ["11.14", "Additional Information"]);
+            let extAddInfo = extractDataAfterKeyword(lines, "11.14", ["Developed by", "Annex"]);
+
+            saveCurrentToDB(); // Save current work before switching
             let nCid = "c_" + Date.now(); 
             let nMid = "m_" + Date.now();
             
-            dbState.courses[nCid] = { id: nCid, name: "Imported Course", programData: { inputs: {'p-name': 'Imported Program'}, sCount: 0, aCount: 0 }, modules: {} };
+            dbState.courses[nCid] = { id: nCid, name: "Imported Course From Word", programData: { inputs: {'p-name': 'Imported Program'}, sCount: 0, aCount: 0 }, modules: {} };
             
             dbState.courses[nCid].modules[nMid] = { 
                 id: nMid, 
-                name: extModName || "Imported Module", 
+                name: extModName ? extModName.substring(0,30) : "Imported Module", 
                 code: extModCode || "IMP01", 
                 moduleData: { 
                     inputs: {
                         'm-name-rtl': extModName,
+                        'm-desc': extModDesc,
                         'm-code': extModCode,
-                        'm-credits': extCredits
-                    } 
+                        'm-credits': extCredits,
+                        'm-mod-txt': extModality,
+                        'm-meth-txt': extMethods,
+                        'm-qual': extQual,
+                        'm-pre': extPre,
+                        'm-co': extCo,
+                        'm-outcomes-list': extOutcomes,
+                        'm-course-mat': extCourseMat,
+                        'm-teach-meth': extTeachMeth,
+                        'm-add-info': extAddInfo
+                    },
+                    matrixHtml: '',
+                    schHtml: ''
                 } 
             };
 
+            // Setup fresh UI but load the parsed data
             isProgrammaticChange = true;
             document.getElementById('semesters-container').innerHTML = ""; document.getElementById('annex-container').innerHTML = "";
             document.getElementById('tbody-matrix').innerHTML = ""; document.getElementById('tbody-sch').innerHTML = "";
             semCount = 0; annexCount = 0;
             addSemesterBlock(); addSchRow(); addMatrixRow();
             
-            extractDOMToState(nCid, nMid);
+            // Do NOT call extractDOMToState here, otherwise it overwrites our parsed data!
             isProgrammaticChange = false;
-            loadStateFromMemory(nCid, nMid);
+            loadStateFromMemory(nCid, nMid); // This correctly loads dbState into the DOM forms
             
             document.getElementById('import-success-msg').style.display = 'block';
-            setTimeout(()=> { document.getElementById('import-success-msg').style.display = 'none'; }, 5000);
+            setTimeout(()=> { document.getElementById('import-success-msg').style.display = 'none'; }, 8000);
         }
 
         // --- DATA SYNC ---
@@ -2373,6 +2436,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                     document.body.removeChild(container);
                     document.getElementById('export-render-wrapper').style.left = '-9999px';
                     document.getElementById('export-render-wrapper').style.opacity = '0';
+                    el.innerHTML = ""; // Clear after export
                 });
             }
         }
