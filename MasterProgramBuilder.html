@@ -790,7 +790,10 @@
         .importer-box { background: #e0f2fe; border: 2px dashed var(--royal-blue); padding: 30px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
         .importer-box p { color: #555; margin-bottom: 20px; font-size: 1.1rem; }
         .word-output { background: #fff; padding: 20px; border: 1px solid var(--border); border-radius: 8px; min-height: 200px; max-height: 400px; overflow-y: auto; text-align: left; direction: ltr; font-family: 'Segoe UI', serif; font-size: 1rem; border-left: 5px solid var(--royal-blue);}
-        .word-output p { margin-bottom: 8px; }
+        .word-output h1, .word-output h2, .word-output h3 { color: var(--royal-blue); margin-top: 15px; margin-bottom: 10px; }
+        .word-output p { margin-bottom: 10px; }
+        .word-output table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .word-output th, .word-output td { border: 1px solid #ccc; padding: 5px; }
         
         .import-success { background: #dcfce7; color: #166534; padding: 15px; border-radius: 8px; margin-top: 20px; font-weight: bold; display: none; text-align:center;}
 
@@ -1488,8 +1491,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
         function createNewCourse() {
             saveCurrentToDB();
             let nCid = "c_" + Date.now(); let nMid = "m_" + Date.now();
-            dbState.courses[nCid] = { id: nCid, name: "New Program", programData: {}, modules: {} };
-            dbState.courses[nCid].modules[nMid] = { id: nMid, name: "New Module", code: "NEW01", moduleData: {} };
+            dbState.courses[nCid] = { id: nCid, name: "New Blank Program", programData: { inputs: {}, sCount: 0, aCount: 0 }, modules: {} };
+            dbState.courses[nCid].modules[nMid] = { id: nMid, name: "New Module", code: "MOD01", moduleData: { inputs: {} } };
             
             isProgrammaticChange = true;
             document.querySelectorAll('input, textarea').forEach(el => { if(el.type!=='password') el.value=''; });
@@ -1502,6 +1505,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             extractDOMToState(nCid, nMid);
             isProgrammaticChange = false;
             loadStateFromMemory(nCid, nMid);
+            alert("New Blank Course Created!");
         }
 
         function createNewModule(cId) {
@@ -1660,22 +1664,21 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             reader.onload = function(e) {
                 const arrayBuffer = e.target.result;
                 
-                // Extract Raw text for Auto-filling forms
-                mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
                     .then(function(result){
-                        parseWordToForms(result.value);
+                        const html = result.value;
+                        const viewer = document.getElementById("word-viewer");
+                        viewer.innerHTML = html; 
+                        viewer.style.display = "block";
+                        
+                        mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                            .then(function(rawResult) {
+                                parseWordToForms(rawResult.value, html);
+                            });
                     })
                     .catch(function(err){
                         console.error(err);
                         alert("Error reading Word File. Ensure it is a valid .docx file.");
-                    });
-                
-                // Show rich text for manual copying
-                mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
-                    .then(function(result){
-                        const viewer = document.getElementById("word-viewer");
-                        viewer.innerHTML = result.value; 
-                        viewer.style.display = "block";
                     });
             };
             reader.readAsArrayBuffer(file);
@@ -1703,10 +1706,9 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             return result.join('\n').trim();
         }
 
-        function parseWordToForms(text) {
-            const lines = text.split('\n');
+        function parseWordToForms(rawText, rawHtml) {
+            const lines = rawText.split('\n');
             
-            // Basic Extractors matching MQA Template
             let extModName = extractDataAfterKeyword(lines, "11.1", ["11.2", "Module Code", "Module Description"]);
             let extModDesc = extractDataAfterKeyword(lines, "Module Description", ["11.2", "Module Code"]);
             let extModCode = extractDataAfterKeyword(lines, "11.2", ["11.3", "Module Level"]);
@@ -1720,11 +1722,60 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             let extCo = extractDataAfterKeyword(lines, "11.7", ["11.8", "Expected Learning Outcomes"]);
             let extOutcomes = extractDataAfterKeyword(lines, "11.8", ["11.9", "Curricular Content"]);
             
-            let extCourseMat = extractDataAfterKeyword(lines, "11.12", ["11.13", "Teaching and Learning"]);
-            let extTeachMeth = extractDataAfterKeyword(lines, "11.13", ["11.14", "Additional Information"]);
-            let extAddInfo = extractDataAfterKeyword(lines, "11.14", ["Developed by", "Annex"]);
+            // Regex to extract percentages
+            let matchCA = rawText.match(/Continuous Assessments.*?([0-9]+%)/i);
+            let matchFE = rawText.match(/Final Exam.*?([0-9]+%)/i);
+            let caPer = matchCA ? matchCA[1] : "40%";
+            let fePer = matchFE ? matchFE[1] : "60%";
+            
+            let refCore = extractDataAfterKeyword(lines, "Core Texts:", ["Additional Reference:"]);
+            let refAdd = extractDataAfterKeyword(lines, "Additional Reference:", ["11.12"]);
+            
+            let cMat = extractDataAfterKeyword(lines, "11.12", ["11.13", "Teaching and Learning"]);
+            let cTeach = extractDataAfterKeyword(lines, "11.13", ["11.14", "Additional Information"]);
+            let cAdd = extractDataAfterKeyword(lines, "11.14", ["Developed by", "Annex"]);
 
-            saveCurrentToDB(); // Save current work before switching
+            // Parse HTML for the 11.9 Schedule Table
+            let schData = [];
+            let tempDiv = document.createElement('div');
+            tempDiv.innerHTML = rawHtml;
+            let tables = tempDiv.querySelectorAll('table');
+            
+            let targetTable = null;
+            for(let tbl of tables) {
+                if(tbl.innerText.includes("11.9") || tbl.innerText.includes("Curricular Content") || tbl.innerText.includes("Topics")) {
+                    targetTable = tbl;
+                    break;
+                }
+            }
+
+            if(targetTable) {
+                let rows = targetTable.querySelectorAll('tr');
+                for(let i=0; i<rows.length; i++) {
+                    let cells = rows[i].querySelectorAll('td, th');
+                    // MQA format requires 13 columns for the schedule
+                    if(cells.length >= 7) { 
+                        let firstCellTxt = cells[0].innerText.trim();
+                        // Identify data rows by checking if the first cell is a week number
+                        if(firstCellTxt.match(/^\d+$/)) { 
+                            let getCell = (idx) => cells[idx] ? cells[idx].innerText.trim() : "0";
+                            schData.push({
+                                wk: getCell(0), top: getCell(1), det: getCell(2), ped: getCell(3), res: getCell(4),
+                                cr: getCell(5), lh: getCell(6), f2f: getCell(7), bf2f: getCell(8), bsync: getCell(9), 
+                                basync: getCell(10), esync: getCell(11), easync: getCell(12)
+                            });
+                        }
+                    }
+                }
+            }
+
+            let mNameRtl = extModName; let mNameLtr = "";
+            if(extModName.includes("(")) {
+                mNameRtl = extModName.split("(")[0].trim();
+                mNameLtr = "(" + extModName.split("(")[1].trim();
+            }
+
+            saveCurrentToDB(); 
             let nCid = "c_" + Date.now(); 
             let nMid = "m_" + Date.now();
             
@@ -1732,11 +1783,12 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             
             dbState.courses[nCid].modules[nMid] = { 
                 id: nMid, 
-                name: extModName ? extModName.substring(0,30) : "Imported Module", 
+                name: mNameRtl ? mNameRtl.substring(0,30) : "Imported Module", 
                 code: extModCode || "IMP01", 
                 moduleData: { 
                     inputs: {
-                        'm-name-rtl': extModName,
+                        'm-name-rtl': mNameRtl,
+                        'm-name-ltr': mNameLtr,
                         'm-desc': extModDesc,
                         'm-code': extModCode,
                         'm-credits': extCredits,
@@ -1746,25 +1798,37 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                         'm-pre': extPre,
                         'm-co': extCo,
                         'm-outcomes-list': extOutcomes,
-                        'm-course-mat': extCourseMat,
-                        'm-teach-meth': extTeachMeth,
-                        'm-add-info': extAddInfo
+                        'm-ca-per': caPer,
+                        'm-fe-per': fePer,
+                        'm-ref-core': refCore,
+                        'm-ref-add': refAdd,
+                        'm-course-mat': cMat,
+                        'm-teach-meth': cTeach,
+                        'm-add-info': cAdd
                     },
                     matrixHtml: '',
                     schHtml: ''
                 } 
             };
 
-            // Setup fresh UI but load the parsed data
             isProgrammaticChange = true;
-            document.getElementById('semesters-container').innerHTML = ""; document.getElementById('annex-container').innerHTML = "";
-            document.getElementById('tbody-matrix').innerHTML = ""; document.getElementById('tbody-sch').innerHTML = "";
+            document.getElementById('semesters-container').innerHTML = ""; 
+            document.getElementById('annex-container').innerHTML = "";
+            document.getElementById('tbody-matrix').innerHTML = ""; 
+            document.getElementById('tbody-sch').innerHTML = "";
             semCount = 0; annexCount = 0;
-            addSemesterBlock(); addSchRow(); addMatrixRow();
+            addSemesterBlock(); addMatrixRow();
             
-            // Do NOT call extractDOMToState here, otherwise it overwrites our parsed data!
+            // Reconstruct Schedule Table dynamically
+            if(schData.length > 0) {
+                schData.forEach(r => addSchRow(r.top, r.det, r.res, r.cr, r.lh, r.f2f, r.bf2f, r.bsync, r.basync, r.esync, r.easync)); 
+            } else {
+                addSchRow();
+            }
+            
+            extractDOMToState(nCid, nMid); 
             isProgrammaticChange = false;
-            loadStateFromMemory(nCid, nMid); // This correctly loads dbState into the DOM forms
+            loadStateFromMemory(nCid, nMid); 
             
             document.getElementById('import-success-msg').style.display = 'block';
             setTimeout(()=> { document.getElementById('import-success-msg').style.display = 'none'; }, 8000);
@@ -2381,8 +2445,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
 
         // --- EXPORT TRIGGERS ---
         function exportDoc(type, format) {
-            // Un-hide wrapper securely before generating
-            document.getElementById('export-render-wrapper').style.left = '0';
+            const wrapper = document.getElementById('export-render-wrapper');
+            wrapper.style.left = '0';
             
             const htmlContent = type === 'module' ? buildModuleHTML() : (type === 'structure' ? buildProgramHTMLPartA_B() : buildFullProgramHTML());
             const fileName = type === 'module' ? `${document.getElementById('m-code').value}_Module_Outline` : (type === 'structure' ? `${document.getElementById('p-name').value}_Program_Structure` : `MQA_Full_Program_Document`);
@@ -2396,7 +2460,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 
                 const blob = new Blob(['\ufeff', src], { type: 'application/msword' });
                 const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${fileName}.doc`; link.click();
-                document.getElementById('export-render-wrapper').style.left = '-9999px'; 
+                wrapper.style.left = '-9999px'; 
             } else if (format === 'pdf') {
                 const el = document.getElementById('export-render-box');
                 
@@ -2408,7 +2472,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                     el.innerHTML = `${exportWordStyles}${htmlContent}`;
                 }
 
-                document.getElementById('export-render-wrapper').style.opacity = '1';
+                wrapper.style.opacity = '1';
+                wrapper.style.zIndex = '9999';
                 
                 const isLandscape = (type === 'module');
                 
@@ -2417,11 +2482,9 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                     filename: `${fileName}.pdf`, 
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { scale: 2, useCORS: true, letterRendering: true, windowWidth: isLandscape ? 1400 : 1000 }, 
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: isLandscape ? 'landscape' : 'portrait' },
-                    pagebreak: { mode: ['css', 'legacy'] }
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: isLandscape ? 'landscape' : 'portrait' }
                 };
 
-                // Create a temporary un-hidden container specifically for html2pdf to read properly without cutoffs
                 const container = document.createElement('div');
                 container.innerHTML = el.innerHTML;
                 document.body.appendChild(container);
@@ -2434,9 +2497,10 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
 
                 html2pdf().set(opt).from(container).save().then(() => {
                     document.body.removeChild(container);
-                    document.getElementById('export-render-wrapper').style.left = '-9999px';
-                    document.getElementById('export-render-wrapper').style.opacity = '0';
-                    el.innerHTML = ""; // Clear after export
+                    wrapper.style.left = '-9999px';
+                    wrapper.style.opacity = '0';
+                    wrapper.style.zIndex = '-1000';
+                    el.innerHTML = ""; 
                 });
             }
         }
