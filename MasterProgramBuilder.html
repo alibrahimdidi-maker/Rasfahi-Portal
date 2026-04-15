@@ -819,6 +819,7 @@
         .word-output p { margin-bottom: 8px; }
         .word-output table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         .word-output th, .word-output td { border: 1px solid #ccc; padding: 5px; }
+        
         .import-success { background: #dcfce7; color: #166534; padding: 15px; border-radius: 8px; margin-top: 20px; font-weight: bold; display: none; text-align:center;}
 
         /* FORM 3 UI CSS */
@@ -1045,14 +1046,16 @@
                     </div>
                     <div id="semesters-container"></div>
                     <button class="btn btn-outline" onclick="addSemesterBlock()" style="margin-bottom:20px; width:100%; border-style:dashed;"><i class="fas fa-plus-circle"></i> Add New Semester</button>
+                    
                     <div style="background: linear-gradient(135deg, var(--royal-blue), var(--royal-dark)); padding:25px; border-radius:8px; text-align:center; font-weight:bold; font-size:1.4rem; color:var(--royal-white); margin-top:20px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-                        <i class="fas fa-chart-pie" style="color:var(--royal-green-light);"></i> PROGRAM GRAND TOTALS <br>
+                        <i class="fas fa-chart-pie" style="color:var(--royal-green-light);"></i> CUMULATIVE GRAND TOTALS <br>
                         <span style="font-size: 1.1rem; font-weight: normal; margin-top:10px; display:block;">
                             Credits: <span id="grand-cr" style="color:var(--royal-green-light); font-size:1.4rem; font-weight:bold;">0</span> &nbsp;|&nbsp; 
                             Learning Hrs: <span id="grand-th" style="color:var(--royal-green-light); font-size:1.4rem; font-weight:bold;">0</span> &nbsp;|&nbsp; 
                             Contact Hrs: <span id="grand-ch" style="color:var(--royal-green-light); font-size:1.4rem; font-weight:bold;">0</span>
                         </span>
                     </div>
+
                     <div class="step-footer"><button class="btn btn-outline" onclick="switchStep(3, document.querySelectorAll('.nav-links li')[2])">⬅ Previous</button><button class="btn btn-blue" onclick="switchStep(5, document.querySelectorAll('.nav-links li')[4])">Next Step ➜</button></div>
                 </div>
 
@@ -1878,36 +1881,33 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
         }
 
         function parseWordToForms(rawText, rawHtml) {
-            const lines = rawText.split('\n');
+            let mName = extractSection(rawText, ["11.1"], ["Module Description", "11.2"]);
+            if(mName.includes("Module Name")) mName = mName.replace("Module Name", "").trim();
+
+            let mDesc = extractSection(rawText, ["Module Description", "Module Description:"], ["11.2", "Module Code"]);
+            if(mDesc.includes("Module Description")) mDesc = mDesc.replace("Module Description:", "").replace("Module Description", "").trim();
+
+            let mCode = extractSection(rawText, ["11.2"], ["Module Level", "11.3"]);
+            if (!mCode) mCode = extractSection(rawText, ["Module Code"], ["11.3", "Module Level"]);
+            if(mCode.includes("Module Code")) mCode = mCode.replace("Module Code", "").trim();
+
+            let mCredStr = extractSection(rawText, ["11.3", "Credits"], ["Total Learning Hours"]);
+            let mCred = mCredStr.match(/\d+/)?.[0] || "15";
             
-            // Basic Extractors
-            let extModName = extractSection(rawText, ["11.1"], ["Module Description", "11.2"]);
-            if(extModName.includes("Module Name")) extModName = extModName.replace("Module Name", "").trim();
+            let mDel = extractSection(rawText, ["11.4", "Delivery Modality"], ["Methods of Delivery", "11.5"]);
+            if(mDel.includes("Delivery Modality")) mDel = mDel.replace("Delivery Modality", "").trim();
 
-            let extModDesc = extractSection(rawText, ["Module Description", "Module Description:"], ["11.2", "Module Code"]);
-            if(extModDesc.includes("Module Description")) extModDesc = extModDesc.replace("Module Description:", "").replace("Module Description", "").trim();
+            let mMeth = extractSection(rawText, ["Methods of Delivery"], ["11.5", "Minimum Qualification"]);
+            let mQual = extractSection(rawText, ["11.5", "Minimum Qualification"], ["11.6", "Prerequisite"]);
+            if(mQual.includes("Minimum Qualification")) mQual = mQual.replace("Minimum Qualification Required", "").replace("Minimum Qualification", "").trim();
 
-            let extModCode = extractSection(rawText, ["11.2"], ["Module Level", "11.3"]);
-            if (!extModCode) extModCode = extractSection(rawText, ["Module Code"], ["11.3", "Module Level"]);
-            if(extModCode.includes("Module Code")) extModCode = extModCode.replace("Module Code", "").trim();
+            let mPre = extractSection(rawText, ["11.6", "Prerequisite"], ["11.7", "Co-requisites"]);
+            if(mPre.includes("Prerequisite")) mPre = mPre.replace("Prerequisite", "").trim();
 
-            let extCredits = extractSection(rawText, ["11.3", "Credits"], ["Total Learning Hours"]);
-            if(extCredits) extCredits = extCredits.match(/\d+/)?.[0] || "15";
-            
-            let extModality = extractSection(rawText, ["11.4", "Delivery Modality"], ["Methods of Delivery", "11.5"]);
-            if(extModality.includes("Delivery Modality")) extModality = extModality.replace("Delivery Modality", "").trim();
+            let mCo = extractSection(rawText, ["11.7", "Co-requisites"], ["11.8", "Expected Learning Outcomes"]);
+            if(mCo.includes("Co-requisites")) mCo = mCo.replace("Co-requisites", "").trim();
 
-            let extMethods = extractSection(rawText, ["Methods of Delivery"], ["11.5", "Minimum Qualification"]);
-            let extQual = extractSection(rawText, ["11.5", "Minimum Qualification"], ["11.6", "Prerequisite"]);
-            if(extQual.includes("Minimum Qualification")) extQual = extQual.replace("Minimum Qualification Required", "").replace("Minimum Qualification", "").trim();
-
-            let extPre = extractSection(rawText, ["11.6", "Prerequisite"], ["11.7", "Co-requisites"]);
-            if(extPre.includes("Prerequisite")) extPre = extPre.replace("Prerequisite", "").trim();
-
-            let extCo = extractSection(rawText, ["11.7", "Co-requisites"], ["11.8", "Expected Learning Outcomes"]);
-            if(extCo.includes("Co-requisites")) extCo = extCo.replace("Co-requisites", "").trim();
-
-            let extOutcomes = extractSection(rawText, ["students will be able to:"], ["Subjects/modules", "11.9"]);
+            let mOutcomes = extractSection(rawText, ["students will be able to:"], ["Subjects/modules", "11.9"]);
             
             let caPerMatch = rawText.match(/Continuous Assessments.*?([0-9]+%)/i);
             let caPer = caPerMatch ? caPerMatch[1] : "40%";
@@ -1970,35 +1970,35 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 }
             }
 
-            let mNameRtl = extModName; let mNameLtr = "";
-            if(extModName.includes("(")) {
-                mNameRtl = extModName.split("(")[0].trim();
-                mNameLtr = "(" + extModName.split("(")[1].trim();
+            let mNameRtl = mName; let mNameLtr = "";
+            if(mName.includes("(")) {
+                mNameRtl = mName.split("(")[0].trim();
+                mNameLtr = "(" + mName.split("(")[1].trim();
             }
 
             saveCurrentToDB(); 
             let nCid = "c_" + Date.now(); 
             let nMid = "m_" + Date.now();
             
-            dbState.courses[nCid] = { id: nCid, name: "Imported Course From Word", programData: { inputs: {'p-name': 'Imported Program'}, sCount: 0, aCount: 0, f3Count: 1 }, modules: {} };
+            dbState.courses[nCid] = { id: nCid, name: "Imported Course From Word", programData: { inputs: {'p-name': 'Imported Program'}, sCount: 0, aCount: 0 }, modules: {} };
             
             dbState.courses[nCid].modules[nMid] = { 
                 id: nMid, 
                 name: mNameRtl ? mNameRtl.substring(0,30) : "Imported Module", 
-                code: extModCode || "IMP01", 
+                code: mCode || "IMP01", 
                 moduleData: { 
                     inputs: {
                         'm-name-rtl': mNameRtl,
                         'm-name-ltr': mNameLtr,
-                        'm-desc': extModDesc,
-                        'm-code': extModCode,
-                        'm-credits': extCredits,
-                        'm-mod-txt': extModality,
-                        'm-meth-txt': extMethods,
-                        'm-qual': extQual,
-                        'm-pre': extPre,
-                        'm-co': extCo,
-                        'm-outcomes-list': extOutcomes,
+                        'm-desc': mDesc,
+                        'm-code': mCode,
+                        'm-credits': mCred,
+                        'm-mod-txt': mDel,
+                        'm-meth-txt': mMeth,
+                        'm-qual': mQual,
+                        'm-pre': mPre,
+                        'm-co': mCo,
+                        'm-outcomes-list': mOutcomes,
                         'm-ca-per': caPer,
                         'm-fe-per': fePer,
                         'm-ass': finalAssText,
@@ -2022,9 +2022,8 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             document.getElementById('annex-container').innerHTML = "";
             document.getElementById('tbody-matrix').innerHTML = ""; 
             document.getElementById('tbody-sch').innerHTML = "";
-            document.getElementById('tbody-f3-details').innerHTML = "";
-            semCount = 0; annexCount = 0; f3RowCount = 0;
-            addSemesterBlock(); addMatrixRow(); addF3Row();
+            semCount = 0; annexCount = 0;
+            addSemesterBlock(); addMatrixRow();
             
             // Fill schedule
             if(schData.length > 0) {
@@ -2179,7 +2178,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 
                 gCh += sCh; gTh += sTh; gCr += sCr;
             });
-            document.getElementById('grand-ch').innerText = gCh; document.getElementById('grand-th').innerText = gTh; document.getElementById('grand-cr').innerText = gCr;
+            document.getElementById('grand-cr').innerText = gCh; document.getElementById('grand-th').innerText = gTh; document.getElementById('grand-ch').innerText = gCh;
         }
 
         function calcModHours() {
@@ -2554,7 +2553,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             
             let html = `
             <div class="export-wrapper">
-                <div class="page-break"></div>
+                <div style="page-break-before: always;"></div>
                 <table border="1" cellpadding="8">
                     <tr>
                         <td class="bg-gray" width="15%">11.1</td>
