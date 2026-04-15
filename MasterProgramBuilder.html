@@ -738,6 +738,7 @@
             align-items: center;
             justify-content: center;
             width: 100%;
+            height: 100%;
         }
         .total-input { 
             background-color: transparent; 
@@ -1046,16 +1047,6 @@
                     </div>
                     <div id="semesters-container"></div>
                     <button class="btn btn-outline" onclick="addSemesterBlock()" style="margin-bottom:20px; width:100%; border-style:dashed;"><i class="fas fa-plus-circle"></i> Add New Semester</button>
-                    
-                    <div style="background: linear-gradient(135deg, var(--royal-blue), var(--royal-dark)); padding:25px; border-radius:8px; text-align:center; font-weight:bold; font-size:1.4rem; color:var(--royal-white); margin-top:20px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-                        <i class="fas fa-chart-pie" style="color:var(--royal-green-light);"></i> CUMULATIVE GRAND TOTALS <br>
-                        <span style="font-size: 1.1rem; font-weight: normal; margin-top:10px; display:block;">
-                            Credits: <span id="grand-cr" style="color:var(--royal-green-light); font-size:1.4rem; font-weight:bold;">0</span> &nbsp;|&nbsp; 
-                            Learning Hrs: <span id="grand-th" style="color:var(--royal-green-light); font-size:1.4rem; font-weight:bold;">0</span> &nbsp;|&nbsp; 
-                            Contact Hrs: <span id="grand-ch" style="color:var(--royal-green-light); font-size:1.4rem; font-weight:bold;">0</span>
-                        </span>
-                    </div>
-
                     <div class="step-footer"><button class="btn btn-outline" onclick="switchStep(3, document.querySelectorAll('.nav-links li')[2])">⬅ Previous</button><button class="btn btn-blue" onclick="switchStep(5, document.querySelectorAll('.nav-links li')[4])">Next Step ➜</button></div>
                 </div>
 
@@ -1136,20 +1127,20 @@ E-learning: Online synchronous and asynchronous learning. 60% Sync, 40% Async.</
                                     <th rowspan="3" width="17%" class="th-gray">Details</th>
                                     <th rowspan="3" width="15%" class="th-gray">Pedagogy</th>
                                     <th rowspan="3" width="12%" class="th-gray">Resources</th>
-                                    <th rowspan="3" width="4%" class="th-gray">Credits</th>
-                                    <th rowspan="3" width="4%" class="th-gray">Learning Hours</th>
-                                    <th width="6%" class="th-green">Face to Face</th>
+                                    <th rowspan="3" width="4%" class="th-gray">Cr</th>
+                                    <th rowspan="3" width="4%" class="th-gray">Hrs</th>
+                                    <th width="6%" class="th-green">F2F</th>
                                     <th colspan="3" width="12%" class="th-blue">Blended</th>
-                                    <th colspan="2" width="12%" class="th-orange">E-Learning</th>
+                                    <th colspan="2" width="12%" class="th-orange">E-Learn</th>
                                     <th rowspan="3" width="3%" class="th-gray">Del</th>
                                 </tr>
                                 <tr>
-                                    <th rowspan="2" class="th-green">Face to Face</th>
-                                    <th class="th-blue">Face to Face</th>
-                                    <th class="th-blue">Online Sync</th>
-                                    <th class="th-blue">Online Async</th>
-                                    <th class="th-orange">Online Sync</th>
-                                    <th class="th-orange">Online Async</th>
+                                    <th rowspan="2" class="th-green">F2F</th>
+                                    <th class="th-blue">F2F</th>
+                                    <th class="th-blue">Sync</th>
+                                    <th class="th-blue">Async</th>
+                                    <th class="th-orange">Sync</th>
+                                    <th class="th-orange">Async</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-sch">
@@ -1499,6 +1490,10 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
 
         document.addEventListener('input', (e) => {
             if (isProgrammaticChange) return;
+            // Listen to total inputs being edited manually
+            if(e.target.classList.contains('total-input')) {
+                e.target.setAttribute('data-manual', 'true');
+            }
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.hasAttribute('contenteditable')) {
                 clearTimeout(saveTimeout);
                 saveTimeout = setTimeout(() => performSave(false, false), 500); 
@@ -1576,7 +1571,13 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             let progInputs = {};
             document.querySelectorAll('.prog-data, #semesters-container input, #semesters-container select, #semesters-container .total-input, #annex-container input, #annex-container textarea, #step-13 input, #step-13 textarea, #step-13 select').forEach((el, i) => {
                 if (!el.id) el.id = 'p_dyn_' + i;
-                if (el.type !== 'password') progInputs[el.id] = el.hasAttribute('contenteditable') ? el.innerText : el.value;
+                if (el.type !== 'password') {
+                    if (el.hasAttribute('contenteditable')) {
+                        progInputs[el.id] = { value: el.innerText, manual: el.getAttribute('data-manual') };
+                    } else {
+                        progInputs[el.id] = el.value;
+                    }
+                }
             });
             dbState.courses[cId].programData = { 
                 inputs: progInputs, sCount: semCount, aCount: annexCount, f3Count: f3RowCount,
@@ -1590,7 +1591,11 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 let modInputs = {};
                 document.querySelectorAll('.mod-data, #step-6 input, #step-6 textarea, #step-7 input, #step-7 textarea, #step-7 .total-input, #step-11 input, #step-11 textarea').forEach((el, i) => {
                     if (!el.id) el.id = 'm_dyn_' + i; 
-                    modInputs[el.id] = el.hasAttribute('contenteditable') ? el.innerText : el.value; 
+                    if (el.hasAttribute('contenteditable')) {
+                        modInputs[el.id] = { value: el.innerText, manual: el.getAttribute('data-manual') };
+                    } else {
+                        modInputs[el.id] = el.value;
+                    }
                 });
                 dbState.courses[cId].modules[mId].moduleData = { inputs: modInputs, matrixHtml: document.getElementById('tbody-matrix').innerHTML, schHtml: document.getElementById('tbody-sch').innerHTML };
                 dbState.courses[cId].modules[mId].name = document.getElementById('m-name-rtl').value || "Unnamed Module";
@@ -1615,11 +1620,14 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             if(pData.f3Html !== undefined) document.getElementById('tbody-f3-details').innerHTML = pData.f3Html;
             
             if (pData.inputs) { 
-                for (const [id, value] of Object.entries(pData.inputs)) { 
+                for (const [id, valObj] of Object.entries(pData.inputs)) { 
                     let el = document.getElementById(id); 
                     if (el) {
-                        if(el.hasAttribute('contenteditable')) el.innerText = value;
-                        else el.value = value;
+                        if(el.hasAttribute('contenteditable')) {
+                            el.innerText = typeof valObj === 'object' ? valObj.value : valObj;
+                            if(typeof valObj === 'object' && valObj.manual) el.setAttribute('data-manual', valObj.manual);
+                        }
+                        else el.value = typeof valObj === 'object' ? valObj.value : valObj;
                     }
                 } 
             }
@@ -1629,17 +1637,23 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 if(mData.matrixHtml !== undefined) document.getElementById('tbody-matrix').innerHTML = mData.matrixHtml;
                 if(mData.schHtml !== undefined) document.getElementById('tbody-sch').innerHTML = mData.schHtml;
                 if (mData.inputs) { 
-                    for (const [id, value] of Object.entries(mData.inputs)) { 
+                    for (const [id, valObj] of Object.entries(mData.inputs)) { 
                         let el = document.getElementById(id); 
                         if (el) {
-                            if(el.hasAttribute('contenteditable')) el.innerText = value;
-                            else el.value = value;
+                            if(el.hasAttribute('contenteditable')) {
+                                el.innerText = typeof valObj === 'object' ? valObj.value : valObj;
+                                if(typeof valObj === 'object' && valObj.manual) el.setAttribute('data-manual', valObj.manual);
+                            }
+                            else el.value = typeof valObj === 'object' ? valObj.value : valObj;
                         }
                     } 
                 }
             } else {
                 document.getElementById('tbody-matrix').innerHTML = ""; document.getElementById('tbody-sch').innerHTML = "";
-                document.querySelectorAll('.mod-data').forEach(el => el.value = "");
+                document.querySelectorAll('.mod-data').forEach(el => {
+                    if(el.hasAttribute('contenteditable')) el.innerText = "0";
+                    else el.value = "";
+                });
             }
 
             if(triggerRender) {
@@ -1676,7 +1690,10 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             
             if(cId === activeCourseId) {
                 isProgrammaticChange = true;
-                document.querySelectorAll('.mod-data').forEach(el => el.value='');
+                document.querySelectorAll('.mod-data').forEach(el => {
+                    if(el.hasAttribute('contenteditable')) el.innerText = '0';
+                    else el.value = '';
+                });
                 document.getElementById('tbody-matrix').innerHTML = ""; document.getElementById('tbody-sch').innerHTML = "";
                 addSchRow(); addMatrixRow();
                 extractDOMToState(cId, nMid);
@@ -1876,38 +1893,37 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             return result.trim();
         }
 
-        function manualOverrideTotal(inputEl) {
-            inputEl.setAttribute('data-manual', 'true');
-        }
-
         function parseWordToForms(rawText, rawHtml) {
-            let mName = extractSection(rawText, ["11.1"], ["Module Description", "11.2"]);
-            if(mName.includes("Module Name")) mName = mName.replace("Module Name", "").trim();
-
-            let mDesc = extractSection(rawText, ["Module Description", "Module Description:"], ["11.2", "Module Code"]);
-            if(mDesc.includes("Module Description")) mDesc = mDesc.replace("Module Description:", "").replace("Module Description", "").trim();
-
-            let mCode = extractSection(rawText, ["11.2"], ["Module Level", "11.3"]);
-            if (!mCode) mCode = extractSection(rawText, ["Module Code"], ["11.3", "Module Level"]);
-            if(mCode.includes("Module Code")) mCode = mCode.replace("Module Code", "").trim();
-
-            let mCredStr = extractSection(rawText, ["11.3", "Credits"], ["Total Learning Hours"]);
-            let mCred = mCredStr.match(/\d+/)?.[0] || "15";
+            const lines = rawText.split('\n');
             
-            let mDel = extractSection(rawText, ["11.4", "Delivery Modality"], ["Methods of Delivery", "11.5"]);
-            if(mDel.includes("Delivery Modality")) mDel = mDel.replace("Delivery Modality", "").trim();
+            // Basic Extractors matching MQA Template
+            let extModName = extractSection(rawText, ["11.1"], ["Module Description", "11.2"]);
+            if(extModName.includes("Module Name")) extModName = extModName.replace("Module Name", "").trim();
 
-            let mMeth = extractSection(rawText, ["Methods of Delivery"], ["11.5", "Minimum Qualification"]);
-            let mQual = extractSection(rawText, ["11.5", "Minimum Qualification"], ["11.6", "Prerequisite"]);
-            if(mQual.includes("Minimum Qualification")) mQual = mQual.replace("Minimum Qualification Required", "").replace("Minimum Qualification", "").trim();
+            let extModDesc = extractSection(rawText, ["Module Description", "Module Description:"], ["11.2", "Module Code"]);
+            if(extModDesc.includes("Module Description")) extModDesc = extModDesc.replace("Module Description:", "").replace("Module Description", "").trim();
 
-            let mPre = extractSection(rawText, ["11.6", "Prerequisite"], ["11.7", "Co-requisites"]);
-            if(mPre.includes("Prerequisite")) mPre = mPre.replace("Prerequisite", "").trim();
+            let extModCode = extractSection(rawText, ["11.2"], ["Module Level", "11.3"]);
+            if (!extModCode) extModCode = extractSection(rawText, ["Module Code"], ["11.3", "Module Level"]);
+            if(extModCode.includes("Module Code")) extModCode = extModCode.replace("Module Code", "").trim();
 
-            let mCo = extractSection(rawText, ["11.7", "Co-requisites"], ["11.8", "Expected Learning Outcomes"]);
-            if(mCo.includes("Co-requisites")) mCo = mCo.replace("Co-requisites", "").trim();
+            let extCredits = extractSection(rawText, ["11.3", "Credits"], ["Total Learning Hours"]);
+            if(extCredits) extCredits = extCredits.match(/\d+/)?.[0] || "15";
+            
+            let extModality = extractSection(rawText, ["11.4", "Delivery Modality"], ["Methods of Delivery", "11.5"]);
+            if(extModality.includes("Delivery Modality")) extModality = extModality.replace("Delivery Modality", "").trim();
 
-            let mOutcomes = extractSection(rawText, ["students will be able to:"], ["Subjects/modules", "11.9"]);
+            let extMethods = extractSection(rawText, ["Methods of Delivery"], ["11.5", "Minimum Qualification"]);
+            let extQual = extractSection(rawText, ["11.5", "Minimum Qualification"], ["11.6", "Prerequisite"]);
+            if(extQual.includes("Minimum Qualification")) extQual = extQual.replace("Minimum Qualification Required", "").replace("Minimum Qualification", "").trim();
+
+            let extPre = extractSection(rawText, ["11.6", "Prerequisite"], ["11.7", "Co-requisites"]);
+            if(extPre.includes("Prerequisite")) extPre = extPre.replace("Prerequisite", "").trim();
+
+            let extCo = extractSection(rawText, ["11.7", "Co-requisites"], ["11.8", "Expected Learning Outcomes"]);
+            if(extCo.includes("Co-requisites")) extCo = extCo.replace("Co-requisites", "").trim();
+
+            let extOutcomes = extractSection(rawText, ["students will be able to:"], ["Subjects/modules", "11.9"]);
             
             let caPerMatch = rawText.match(/Continuous Assessments.*?([0-9]+%)/i);
             let caPer = caPerMatch ? caPerMatch[1] : "40%";
@@ -1926,20 +1942,20 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             
             let refCore = extractSection(rawText, ["Core Texts:", "Core Texts"], ["Additional Reference:"]);
             let refAdd = extractSection(rawText, ["Additional Reference:", "Additional Reference"], ["11.12", "Course Materials"]);
+            
+            let cMat = extractSection(rawText, ["11.12", "Course Materials (Required/Recommended)", "Course Materials"], ["11.13", "Teaching and Learning Methods"]);
+            if(cMat.includes("Course Materials (Required/Recommended)")) cMat = cMat.replace("Course Materials (Required/Recommended)", "").replace("Course Materials", "").trim();
 
-            let mCMat = extractSection(rawText, ["11.12", "Course Materials (Required/Recommended)", "Course Materials"], ["11.13", "Teaching and Learning Methods"]);
-            if(mCMat.includes("Course Materials (Required/Recommended)")) mCMat = mCMat.replace("Course Materials (Required/Recommended)", "").replace("Course Materials", "").trim();
+            let cTeach = extractSection(rawText, ["11.13", "Teaching and Learning Methods"], ["11.14", "Additional Information"]);
+            if(cTeach.includes("Teaching and Learning Methods")) cTeach = cTeach.replace("Teaching and Learning Methods", "").trim();
 
-            let mCTeach = extractSection(rawText, ["11.13", "Teaching and Learning Methods"], ["11.14", "Additional Information"]);
-            if(mCTeach.includes("Teaching and Learning Methods")) mCTeach = mCTeach.replace("Teaching and Learning Methods", "").trim();
+            let cAdd = extractSection(rawText, ["11.14", "Additional Information"], ["Developed by", "Annex"]);
+            if(cAdd.includes("Additional Information")) cAdd = cAdd.replace("Additional Information", "").trim();
 
-            let mAddInfo = extractSection(rawText, ["11.14", "Additional Information"], ["Developed by:", "Developed by"]);
-            if(mAddInfo.includes("Additional Information")) mAddInfo = mAddInfo.replace("Additional Information", "").trim();
-
-            let dName = extractSection(rawText, ["Full name:"], ["Highest Qualification:"]);
-            let dQual = extractSection(rawText, ["Highest Qualification:"], ["Designation and Office:"]);
-            let dDesig = extractSection(rawText, ["Designation and Office:"], ["E-mail and Contact:"]);
-            let dMail = extractSection(rawText, ["E-mail and Contact:"], ["PART D", "Annexes", "12."]);
+            let devName = extractSection(rawText, ["Full name:"], ["Highest Qualification:"]);
+            let devQual = extractSection(rawText, ["Highest Qualification:"], ["Designation and Office:"]);
+            let devDesig = extractSection(rawText, ["Designation and Office:"], ["E-mail and Contact:"]);
+            let devMail = extractSection(rawText, ["E-mail and Contact:"], ["PART D", "Annexes", "12."]);
 
             // Parse HTML for the 11.9 Schedule Table specifically
             let schData = [];
@@ -1970,35 +1986,35 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                 }
             }
 
-            let mNameRtl = mName; let mNameLtr = "";
-            if(mName.includes("(")) {
-                mNameRtl = mName.split("(")[0].trim();
-                mNameLtr = "(" + mName.split("(")[1].trim();
+            let mNameRtl = extModName; let mNameLtr = "";
+            if(extModName.includes("(")) {
+                mNameRtl = extModName.split("(")[0].trim();
+                mNameLtr = "(" + extModName.split("(")[1].trim();
             }
 
             saveCurrentToDB(); 
             let nCid = "c_" + Date.now(); 
             let nMid = "m_" + Date.now();
             
-            dbState.courses[nCid] = { id: nCid, name: "Imported Course From Word", programData: { inputs: {'p-name': 'Imported Program'}, sCount: 0, aCount: 0 }, modules: {} };
+            dbState.courses[nCid] = { id: nCid, name: "Imported Course From Word", programData: { inputs: {'p-name': 'Imported Program'}, sCount: 0, aCount: 0, f3Count: 1 }, modules: {} };
             
             dbState.courses[nCid].modules[nMid] = { 
                 id: nMid, 
                 name: mNameRtl ? mNameRtl.substring(0,30) : "Imported Module", 
-                code: mCode || "IMP01", 
+                code: extModCode || "IMP01", 
                 moduleData: { 
                     inputs: {
                         'm-name-rtl': mNameRtl,
                         'm-name-ltr': mNameLtr,
-                        'm-desc': mDesc,
-                        'm-code': mCode,
-                        'm-credits': mCred,
-                        'm-mod-txt': mDel,
-                        'm-meth-txt': mMeth,
-                        'm-qual': mQual,
-                        'm-pre': mPre,
-                        'm-co': mCo,
-                        'm-outcomes-list': mOutcomes,
+                        'm-desc': extModDesc,
+                        'm-code': extModCode,
+                        'm-credits': extCredits,
+                        'm-mod-txt': extModality,
+                        'm-meth-txt': extMethods,
+                        'm-qual': extQual,
+                        'm-pre': extPre,
+                        'm-co': extCo,
+                        'm-outcomes-list': extOutcomes,
                         'm-ca-per': caPer,
                         'm-fe-per': fePer,
                         'm-ass': finalAssText,
@@ -2046,11 +2062,11 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
             const tb = document.getElementById('tbody-f3-details');
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${tb.rows.length + 1}</td>
+                <td class="center">${tb.rows.length + 1}</td>
                 <td><select class="form3-input prog-data" id="f3-det-type-${f3RowCount}"><option value="Add">Add</option><option value="Remove">Remove</option><option value="Revise Title">Revise Title</option><option value="Revise Credit">Revise Credit</option></select></td>
-                <td><input type="text" class="form3-input prog-data" id="f3-det-code-${f3RowCount}"></td>
+                <td><input type="text" class="form3-input prog-data center" id="f3-det-code-${f3RowCount}"></td>
                 <td><input type="text" class="form3-input prog-data" id="f3-det-title-${f3RowCount}"></td>
-                <td><input type="number" class="form3-input prog-data f3-cr-calc" id="f3-det-cr-${f3RowCount}" oninput="calcF3Total()"></td>
+                <td><input type="number" class="form3-input prog-data f3-cr-calc center" id="f3-det-cr-${f3RowCount}" oninput="calcF3Total()"></td>
                 <td><input type="text" class="form3-input prog-data" id="f3-det-rsn-${f3RowCount}"></td>
             `;
             tb.appendChild(tr);
@@ -2144,7 +2160,7 @@ Final Exam | މުޅި މާއްދާގެ ތިއަރީ އަދި ފިޤުހީ ބައ
                         <tbody id="tbody-sem-${semCount}">
                             <tr><td><input type="text" class="rtl-input" value="دروس اللغة العربية (1)" style="font-size:1.15rem;" id="dyn_sem_${semCount}_r1_1"></td><td><input type="text" class="ltr-input" value="ARA5001" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_2"></td><td><input type="number" class="ltr-input p-cr" value="15" oninput="calcP(this)" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_3"></td><td><input type="number" class="ltr-input p-th" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_4"></td><td><input type="number" class="ltr-input p-ch" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_5"></td><td><input type="text" class="ltr-input p-wch" value="0" readonly style="font-size:1.1rem; text-align:center; color:var(--royal-blue); font-weight:bold;" id="dyn_sem_${semCount}_r1_6"></td><td><button class="btn-danger" onclick="deleteRow(this); recalculateAllRows();"><i class="fas fa-times"></i></button></td></tr>
                         </tbody>
-                        <tfoot><tr class="tfoot-total"><td colspan="2" style="text-align:right;">SEM TOTALS:</td><td><div contenteditable="true" class="total-input st-cr" id="st-cr-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input st-th" id="st-th-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input st-ch" id="st-ch-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input st-wch" id="st-wch-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td></td></tr></tfoot>
+                        <tfoot><tr class="tfoot-total"><td colspan="2" style="text-align:right;">SEM TOTALS:</td><td><div contenteditable="true" class="total-input st-cr" id="st-cr-${semCount}">0</div></td><td><div contenteditable="true" class="total-input st-th" id="st-th-${semCount}">0</div></td><td><div contenteditable="true" class="total-input st-ch" id="st-ch-${semCount}">0</div></td><td><div contenteditable="true" class="total-input st-wch" id="st-wch-${semCount}">0</div></td><td></td></tr></tfoot>
                     </table></div><button class="btn btn-outline" onclick="addModuleToSem('${semCount}')"><i class="fas fa-plus"></i> Add Module to Sem ${semCount}</button>`;
             container.appendChild(div); recalculateAllRows();
         }
