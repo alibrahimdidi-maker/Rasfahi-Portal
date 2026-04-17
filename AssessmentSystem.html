@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="dv" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Assessment System - RASFAHI</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        /* =========================================================
+           1. ROYAL THEME & RESET
+           ========================================================= */
+        :root {
+            --r-blue: #0B2545;
+            --r-green: #0F4C3A;
+            --r-purple: #4A148C;
+            --r-light: #F8FAFC;
+            --white: #FFFFFF;
+            --border: #CBD5E1;
+            --text: #1E293B;
+            --danger: #e3342f;
+            --font-dv: 'Faruma', Arial, sans-serif;
+            --font-en: 'Times New Roman', Times, serif;
+            --font-ar: 'Traditional Arabic', serif;
+        }
+
+        @font-face { font-family: 'Faruma'; src: local('Faruma'), local('A_Faruma'); }
+        * { box-sizing: border-box; margin: 0; padding: 0; transition: all 0.2s ease; }
+        body { font-family: var(--font-dv); background: var(--r-light); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* =========================================================
+           2. LOGIN SCREEN
+           ========================================================= */
+        #login-ui {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: 9999;
+            background: linear-gradient(135deg, var(--r-blue), var(--r-green));
+            display: flex; justify-content: center; align-items: center;
+        }
+        .login-box {
+            background: var(--white); width: 500px; padding: 40px; border-radius: 12px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6); border-top: 6px solid var(--r-purple); text-align: center;
+        }
+        .form-ctrl { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 15px; font-family: inherit; font-size: 16px; }
+        .form-ctrl:focus { outline: none; border-color: var(--r-purple); box-shadow: 0 0 0 3px rgba(74, 20, 140, 0.1); }
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 15px; color: var(--white); display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+        .btn-blue { background: var(--r-blue); } .btn-blue:hover { background: #081b33; }
+        .btn-green { background: var(--r-green); } .btn-green:hover { background: #0a3629; }
+        .btn-purple { background: var(--r-purple); } .btn-purple:hover { background: #380b6b; }
+        .btn-outline { background: transparent; border: 2px solid var(--r-blue); color: var(--r-blue); }
+        .btn-danger { background: var(--danger); }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+        /* Copyright Info Styling */
+        .copyright-box {
+            margin-top: 25px; font-size: 13px; color: var(--r-blue); border-top: 1px solid #eee; padding-top: 15px; line-height: 1.6;
+        }
+        .cert-box {
+            font-size: 12px; color: #475569; background: #f1f5f9; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid var(--border); margin-top: 15px; direction: ltr; font-family: 'Times New Roman', serif;
+        }
+
+        /* =========================================================
+           3. MAIN APP LAYOUT
+           ========================================================= */
+        #app-ui { display: none; height: 100vh; width: 100vw; }
+        
+        .sidebar { width: 300px; background: var(--r-blue); color: var(--white); display: flex; flex-direction: column; z-index: 10; box-shadow: 4px 0 15px rgba(0,0,0,0.1); }
+        .sidebar-brand { padding: 30px 20px; background: #07182d; border-bottom: 4px solid var(--r-purple); text-align: center; }
+        .sidebar-brand h1 { font-size: 26px; margin-bottom: 5px; }
+        
+        .nav-items { flex: 1; overflow-y: auto; padding: 20px 0; }
+        .nav-link { padding: 16px 25px; cursor: pointer; font-size: 17px; border-left: 6px solid transparent; color: #cbd5e1; display: flex; align-items: center; gap: 10px; }
+        .nav-link:hover { background: rgba(255,255,255,0.08); color: var(--white); }
+        .nav-link.active { background: var(--r-green); border-left-color: var(--white); color: var(--white); font-weight: bold; }
+
+        .main-panel { flex: 1; display: flex; flex-direction: column; background: #e2e8f0; overflow: hidden; }
+        .topbar { background: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); z-index: 5; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .workspace { flex: 1; padding: 30px; overflow-y: auto; }
+        
+        .pane { display: none; max-width: 1400px; margin: 0 auto; animation: fadeUp 0.3s ease; }
+        .pane.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards & Grids */
+        .card { background: var(--white); border-radius: 10px; padding: 30px; margin-bottom: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-top: 4px solid var(--r-blue); }
+        .card-header { color: var(--r-purple); font-size: 20px; margin-bottom: 25px; border-bottom: 2px solid var(--r-light); padding-bottom: 10px; font-weight: bold; }
+        .g-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .g-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+        .g-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; }
+        .f-grp { margin-bottom: 15px; } .f-grp label { display: block; font-weight: bold; color: var(--r-blue); margin-bottom: 8px; }
+
+        /* Builder Elements */
+        .part-box { border: 2px solid var(--r-blue); border-radius: 8px; padding: 25px; margin-bottom: 30px; background: #fafafa; position: relative; }
+        .q-box { background: var(--white); border-right: 6px solid var(--r-green); border: 1px solid var(--border); padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .q-row { display: flex; gap: 15px; align-items: flex-start; }
+        .q-num { font-size: 20px; font-weight: bold; color: var(--r-blue); width: 35px; padding-top: 10px; }
+        .sub-q-block { margin: 15px 50px 10px 0; background: #f8fafc; border: 1px dashed var(--border); padding: 15px; border-radius: 6px; display: flex; gap: 15px; }
+        .rtl-mode .sub-q-block { margin: 15px 0 10px 50px; }
+
+        .table-res { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .table-res th, .table-res td { border: 1px solid var(--border); padding: 10px; text-align: center; }
+        .table-res th { background: var(--r-blue); color: var(--white); }
+
+        /* Q-Bank & Archives */
+        .archive-item { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid var(--r-purple); box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .archive-details h3 { margin: 0 0 5px 0; color: var(--r-blue); font-size: 18px; }
+        .archive-details p { margin: 0; color: #64748b; font-size: 14px; }
+        .archive-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; width: 400px; }
+
+        .bank-section { margin-bottom: 30px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--white); }
+        .bank-header { background: var(--r-blue); color: var(--white); padding: 15px 20px; font-weight: bold; font-size: 18px; }
+        .bank-item { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .bank-item:last-child { border-bottom: none; }
+
+        /* Live Preview Canvas Styling */
+        .a4-preview-container { background: white; width: 210mm; min-height: 297mm; margin: 0 auto; padding: 20mm 20mm 30mm 20mm; box-shadow: 0 10px 20px rgba(0,0,0,0.2); color: black; font-size: 12pt; border: 1px solid #ccc; text-align: justify; overflow: hidden; position: relative; }
+
+        /* EXACT COVER PAGE STYLES */
+        .cover-table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; }
+        .cover-table th, .cover-table td { border: 1px solid black; padding: 10px 15px; text-align: right; vertical-align: middle; font-size:14pt; line-height: 1.4; }
+        .cover-table th { width: 25%; font-weight: bold; background: #fafafa; }
+        .cover-table td { width: 25%; }
+        .cover-inst-title { font-weight: bold; text-decoration: underline; font-size: 15pt; margin-top: 40px; margin-bottom: 15px; }
+        .cover-inst-list { list-style-type: none; padding-left: 0; padding-right: 0; margin-bottom: 20px; }
+        .cover-inst-list li { position: relative; padding-right: 25px; margin-bottom: 12px; line-height: 1.6; font-size: 13pt; }
+        .cover-inst-list li::before { content: "❖"; position: absolute; right: 0; top: 0; font-size: 14pt; color: black; }
+
+        /* MODERATION TABLE STYLES */
+        .mod-tb { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13pt; }
+        .mod-tb th, .mod-tb td { border: 1px solid black; padding: 8px; text-align: center; vertical-align: middle; }
+        .mod-tb th { background: #f0f0f0; font-weight: bold; }
+
+        /* General Table styling for export */
+        .ext-tb { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13pt; }
+        .ext-tb th, .ext-tb td { border: 1px solid black; padding: 10px; text-align: right; line-height:1.4; }
+        .ext-tb th { font-weight: bold; width: 30%; background: #f0f0f0; }
+
+        /* Header Logo Styling (Center aligned) */
+        .p-header { text-align: center; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .p-header img { max-width: 100%; max-height: 130px !important; width: auto !important; height: auto; object-fit: contain; margin: 0 auto; display:block; }
+
+        /* =========================================================
+           4. PRINT ENGINE (STRICT PDF MARGIN CONTROLS & PAGINATION)
+           ========================================================= */
+        @media screen { #print-engine { display: none; } }
+        
+        @media print {
+            @page { size: A4; margin: 0; }
+            
+            body { background: white; color: black; font-size: 12pt; display: block; height: auto; overflow: visible; margin: 0; padding: 0; }
+            
+            #login-ui, #app-ui { display: none !important; }
+            #print-engine { display: block !important; width: 100%; text-align: justify; }
+            
+            /* CSS Counters for Page Numbers in PDF */
+            #print-engine { counter-reset: page; }
+            .page-container { position: relative; min-height: 297mm; padding: 15mm 20mm 25mm 20mm; box-sizing: border-box; page-break-after: always; counter-increment: page; overflow: hidden; }
+            .page-container:last-child { page-break-after: auto; }
+            
+            /* Fixed Footer with Page Numbers at the Bottom Left/Right */
+            .pdf-footer { position: absolute; bottom: 10mm; left: 20mm; right: 20mm; border-top: 1px solid #000; padding-top: 5px; font-size: 11pt; display: flex; justify-content: space-between; align-items: center;}
+            .ltr-mode .pdf-footer { flex-direction: row; }
+            .rtl-mode .pdf-footer { flex-direction: row-reverse; } 
+            
+            .pdf-footer .page-num::before { content: "Page " counter(page); }
+            
+            .pb { page-break-before: always; }
+            
+            .part-head { text-align: center; font-weight: bold; font-size: 16pt; margin-top: 30px; text-decoration: underline; margin-bottom: 15px;}
+            .part-inst { text-align: center; font-size: 14pt; margin-bottom: 25px; }
+            
+            .pq-row { display: flex; justify-content: space-between; margin-bottom: 25px; page-break-inside: avoid; }
+            .pq-con { flex: 1; padding: 0 15px; }
+            .pq-mark { font-weight: bold; white-space: nowrap; }
+            
+            .ans-red { color: red !important; font-weight: bold; }
+            .ans-green { color: green !important; font-weight: bold; }
+            .ans-box { border-left: 3px solid red; padding-left: 15px; margin-top: 15px; color: #333; font-style: italic; }
+            .rtl-mode .ans-box { border-left: none; border-right: 3px solid red; padding-left: 0; padding-right: 15px; }
+            
+            .p-end { text-align: center; font-weight: bold; margin-top: 50px; font-size: 16pt; }
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;" oncopy="return false;" oncut="return false;">
+
+    <div id="login-ui">
+        <div class="login-box">
+            <h2 style="color: var(--r-blue); margin-bottom: 10px; font-size: 28px;">IUM Assessment Pro</h2>
+            <p style="color: #64748b; margin-bottom: 30px; font-size: 16px;">Advanced Academic Portal</p>
+            <input type="text" class="form-ctrl" placeholder="ޔޫޒަރނޭމް (Username)" value="admin">
+            <input type="password" class="form-ctrl" placeholder="ޕާސްވޯޑް (Password)" value="admin">
+            <button class="btn btn-blue" style="width: 100%; padding: 15px; font-size: 18px; margin-top: 10px;" onclick="enterSystem()">ސިސްޓަމަށް ވަންނަވާ</button>
+            
+            <div class="copyright-box">
+                <strong style="font-size:14px;">ޕްރޮގްރާމް ފަރުމާކޮށް އުފެއްދީ ޢަލީ އިބްރާހީމް ދީދީ | +960 7791550</strong>
+                <div class="cert-box">
+                    <strong style="color:var(--r-purple); font-size:14px;">CERTIFICATE OF COPYRIGHT REGISTRATION</strong><br><br>
+                    Ministry of Economic Development & Trade<br>
+                    Name of Work: <strong>RASFAHI</strong> (Computer Program)<br>
+                    Owner: <strong>Ali Ibrahim Didi</strong><br>
+                    Registration No: <strong>MED.03.IP.CR.26.EW5889</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-ui">
+        
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <h1>RASFAHI</h1>
+                <div style="font-size: 13px; color: var(--r-green); font-weight: bold;">Ultimate Assessor</div>
+            </div>
+            <div class="nav-items">
+                <div class="nav-link active" onclick="nav('meta')" id="nav-meta">📄 ސެޓިންގްސް & ކަވަރ</div>
+                <div class="nav-link" onclick="nav('builder')" id="nav-builder">📝 ޕޭޕަރ ފަރުމާކުރުން</div>
+                <div class="nav-link" onclick="nav('brief')" id="nav-brief">📋 އެސައިންމެންޓް ބްރީފް</div>
+                <div class="nav-link" onclick="nav('rubric')" id="nav-rubric">📊 ރުބްރިކް ފަރުމާކުރުން</div>
+                <div class="nav-link" onclick="nav('bank')" id="nav-bank">🗃️ ޕޭޕަރ ބޭންކު (Archive)</div>
+                <div class="nav-link" onclick="nav('export')" id="nav-export" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top:15px;">🖨️ ޕްރީވިއު & އެކްސްޕޯޓް</div>
+            </div>
+        </div>
+
+        <div class="main-panel">
+            <div class="topbar">
+                <div>
+                    <select id="ui-lang" class="form-ctrl" style="width: 160px; background: var(--r-purple); color: white; border: none; font-weight: bold; margin-bottom:0;" onchange="changeLang()">
+                        <option value="dv">ދިވެހި ބަސް (Dhivehi)</option>
+                        <option value="en">English (EN)</option>
+                        <option value="ar">العربية (Arabic)</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <span id="cloud-status" style="font-size: 13px; color: var(--r-purple); font-weight: bold;"></span>
+                    <span style="font-weight:bold; color:var(--r-blue); font-size: 18px; background: #f1f5f9; padding: 6px 20px; border-radius: 20px; border: 2px solid var(--border);">
+                        ޖުމްލަ މާކުސް: <span id="lbl-total">0</span>
+                    </span>
+                    <button class="btn btn-purple" onclick="archiveCurrentPaper()">📥 ޕޭޕަރ ބޭންކަށް ސޭވްކުރޭ</button>
+                    <button class="btn btn-outline" onclick="saveToFirebase()">☁️ Cloud Sync</button>
+                </div>
+            </div>
+
+            <div class="workspace">
+                
+                <div id="pane-meta" class="pane active">
+                    <div class="card" style="background: #f0f9ff; border-color: #bae6fd;">
+                        <div class="card-header" style="border:none; margin-bottom:0;">ސިސްޓަމް ބެކަޕް އަދި ޕޭޕަރ އިންޕޯޓް</div>
+                        <div style="display:flex; gap:15px; align-items:center;">
+                            <button class="btn btn-blue" onclick="exportBackup()">📥 މުޅި ސިސްޓަމް ލޯކަލް ބެކަޕް (PC)</button>
+                            <input type="file" id="import-file" style="display:none" accept=".json" onchange="importBackup(event)">
+                            <button class="btn btn-outline" onclick="document.getElementById('import-file').click()">📤 ޕޭޕަރ / ބެކަޕް އިންޕޯޓްކުރޭ</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">ކަވަރ ޕޭޖުގެ 100% ފޯމެޓް ސެޓިންގްސް</div>
+                        
+                        <div class="g-2" style="margin-bottom: 30px; background: #fafafa; padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
+                            <div class="f-grp" style="margin:0;">
+                                <label>ޔުނިވަރސިޓީ ލޯގޯ (Upload Logo):</label>
+                                <input type="file" id="logo-upload" class="form-ctrl" accept="image/*" onchange="handleLogoUpload(event)">
+                            </div>
+                            <div class="f-grp" style="margin:0;">
+                                <label>ޕޭޕަރ ލޭއައުޓް (Paper Template):</label>
+                                <select id="cfg-layout" class="form-ctrl" onchange="appData.layout = this.value; syncState();">
+                                    <option value="std">ސްޓޭންޑަރޑް ލޭއައުޓް (IUM Cover Match)</option>
+                                    <option value="table">އަރަބި ލޭއައުޓް (Arabic Grid)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="g-3">
+                            <div class="f-grp"><label>އަހަރު (Year):</label><select id="m-yr" class="form-ctrl" onchange="syncState()"></select></div>
+                            <div class="f-grp"><label>ސެމިސްޓަރ (Semester):</label><select id="m-sem" class="form-ctrl" onchange="syncState()"><option value="ފުރަތަމަ ސެމިސްޓަރ">ފުރަތަމަ ސެމިސްޓަރ</option><option value="ދެވަނަ ސެމިސްޓަރ">ދެވަނަ ސެމިސްޓަރ</option><option value="ފަހު އިމްތިޙާނު">ފަހު އިމްތިޙާނު</option><option value="ރީސިޓް އިމްތިޙާނު">ރީސިޓް އިމްތިޙާނު</option></select></div>
+                            <div class="f-grp"><label>ޕޭޕަރގެ ބަސް (Language):</label><select id="m-lang" class="form-ctrl" onchange="syncState()"><option value="dv">ދިވެހި / Dhivehi</option><option value="en">English</option><option value="ar">العربية (Arabic)</option></select></div>
+                        </div>
+                        
+                        <div class="g-2">
+                            <div class="f-grp"><label>އިމްތިޙާނުގެ ބާވަތް</label><input type="text" id="m-type" class="form-ctrl" value="ފަހު އިމްތިޙާނު" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ޕްރޮގްރާމު</label><input type="text" id="m-prog" class="form-ctrl" value="Bachelor of Shari'ah and Law with Honours" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ފެކަލްޓީ / ކުއްލިއްޔާ</label><input type="text" id="m-fac" class="form-ctrl" value="ކުއްލިއްޔާ އޮފް ޝަރީޢާ އެންޑް ލޯ" oninput="syncState()"></div>
+                            <div class="f-grp"><label>މޮޑިއުލް ނަން</label><input type="text" id="m-mod" class="form-ctrl" value="Study of Islamic Legal System" oninput="syncState();"></div>
+                            <div class="f-grp"><label>މޮޑިއުލް ކޯޑު</label><input type="text" id="m-code" class="form-ctrl" value="LAW0901" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ލެކްޗަރަރ</label><input type="text" id="m-lec" class="form-ctrl" value="ޢަލީ އިބްރާހީމް ދީދީ" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ތާރީޚު (Date)</label><input type="date" id="m-date" class="form-ctrl" onchange="syncState()"></div>
+                            <div class="f-grp"><label>ބެޗު</label><input type="text" id="m-batch" class="form-ctrl" value="23" oninput="syncState()"></div>
+                            <div class="f-grp">
+                                <label>ގަޑި (ކިޔަން / ލިޔަން)</label>
+                                <div style="display:flex; gap:10px;">
+                                    <select id="m-tr" class="form-ctrl" onchange="syncState()"><option>10 މިނެޓު</option></select>
+                                    <select id="m-tw" class="form-ctrl" onchange="syncState()"><option>3 ގަޑިއިރު</option><option>2 ގަޑިއިރު</option></select>
+                                </div>
+                            </div>
+                            <div class="f-grp"><label>ޖަވާބު ލިޔާނީ:</label><select id="m-ans" class="form-ctrl" onchange="syncState()"><option value="އެކަމަށްޓަކައި ދެވޭ ބުކްލެޓުގައެވެ.">ބުކްލެޓުގައި (Booklet)</option><option value="މި ސުވާލު ކަރުދާހުގައެވެ.">މި ކަރުދާހުގައި (Paper)</option></select></div>
+                            <div class="f-grp"><label>ރެފަރެންސް ހުއްދަތޯ:</label><select id="m-ref" class="form-ctrl" onchange="document.getElementById('m-ref-list').style.display=this.value==='yes'?'block':'none'; syncState();"><option value="no">ނުކުރޭ (No)</option><option value="yes">ކުރޭ (Yes)</option></select><textarea id="m-ref-list" class="form-ctrl" style="display:none; margin-top:10px;" placeholder="އެއް ރޮނގުގައި އެއް ފޮތް..." oninput="syncState()"></textarea></div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="border-top: 4px solid var(--r-green);">
+                        <div class="card-header">އިރުޝާދު އަދި މޮޑަރޭޝަން ސެޓިންގްސް</div>
+                        <div class="g-4">
+                            <div class="f-grp"><label>ޖުމްލަ ޞަފުޙާ:</label><input type="number" id="m-pages" class="form-ctrl" value="5" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ޖުމްލަ ސުވާލު:</label><input type="number" id="m-totQs" class="form-ctrl" value="5" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ޖަވާބުދޭންޖެހޭ ސުވާލު:</label><input type="number" id="m-ansQs" class="form-ctrl" value="3" oninput="syncState()"></div>
+                            
+                            <div class="f-grp" style="grid-column: span 4;">
+                                <label>ބައިތަކުން ސުވާލަށް ޖަވާބުދޭންޖެހޭ ގޮތުގެ ތަފްސީލު:</label>
+                                <textarea id="m-partInst" class="form-ctrl" rows="2" placeholder="މިސާލު: ފުރަތަމަ ބައިން 1 (އެކެއް) ސުވާލަށް އަދި ދެވަނަ ބައިން 2 (ދޭއް) ސުވާލަށް ޖަވާބުދޭށެވެ!" oninput="syncState()">ފުރަތަމަ ބައިން 1 (އެކެއް) ސުވާލަށް އަދި ދެވަނަ ބައިން 2 (ދޭއް) ސުވާލަށް ޖަވާބުދޭށެވެ!</textarea>
+                            </div>
+
+                            <div class="f-grp"><label>މޮޑިއުލް ކްރެޑިޓް/ލެވެލް:</label><input type="text" id="m-credit" class="form-ctrl" value="15 / 7" oninput="syncState()"></div>
+                            <div class="f-grp"><label>މޮޑަރޭޓަރ:</label><input type="text" id="m-moderator" class="form-ctrl" value="އަޙްމަދު ރިޔާޟް" oninput="syncState()"></div>
+                            <div class="f-grp" style="grid-column: span 2;"><label>މޮޑަރޭޓަރ ބާވަތް:</label><select id="m-modType" class="form-ctrl" onchange="syncState()"><option value="internal">އިންޓަރނަލް މޮޑަރޭޓަރ</option><option value="external">އެކްސްޓަރނަލް މޮޑަރޭޓަރ</option></select></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pane-builder" class="pane">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:25px;">
+                        <h2 style="color:var(--r-blue);">ސުވާލު ކަރުދާސް ފަރުމާކުރުން</h2>
+                        <button class="btn btn-blue" onclick="addPart()">+ އައު ބައެއް (Section / Part) އެޑްކުރޭ</button>
+                    </div>
+                    <div id="builder-canvas"></div>
+                </div>
+
+                <div id="pane-brief" class="pane">
+                    <div class="card" style="border-top: 4px solid var(--r-blue);">
+                        <div class="card-header">އެސައިންމެންޓް ބްރީފް ސެޓިންގްސް</div>
+                        <p style="margin-bottom:20px; font-size: 15px; color:#64748b;">އެސައިންމެންޓް ބްރީފް ޖެނެރޭޓް ކުރުމަށް ތިރީގައިވާ މަޢުލޫމާތު ފުރިހަމަކުރައްވާށެވެ. ކަވަރ ޕޭޖުގައިވާ މޮޑިއުލް މަޢުލޫމާތު އޮޓޯއިން ނަގާނެއެވެ.</p>
+                        
+                        <div class="g-3">
+                            <div class="f-grp"><label>ހަވާލުކުރެވުނު ތާރީޚު (Date Assigned):</label><input type="date" id="b-date" class="form-ctrl" onchange="syncState()"></div>
+                            <div class="f-grp"><label>ދިގުމިން (Word Count / Length):</label><input type="text" id="b-length" class="form-ctrl" value="1500 words" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ފޯމެޓް (Font Rules):</label><input type="text" id="b-format" class="form-ctrl" value="Times New Roman / Faruma, 12pt, 1.5 spacing" oninput="syncState()"></div>
+                        </div>
+
+                        <h3 style="margin:20px 0 15px 0; color:var(--r-purple); border-bottom:1px solid #ccc; padding-bottom:5px;">ކޮމްޕޯނަންޓްތައް (Components)</h3>
+                        <div class="g-4">
+                            <div class="f-grp"><label>ކޮމްޕޯނަންޓް 1 ނަން:</label><input type="text" id="b-c1-name" class="form-ctrl" value="ރިޕޯރޓް" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ބަރުދަން (%):</label><input type="number" id="b-c1-w" class="form-ctrl" value="20" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ޖުމްލަ މާކުސް:</label><input type="number" id="b-c1-m" class="form-ctrl" value="50" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ސުންގަޑި (Due Date):</label><input type="date" id="b-c1-due" class="form-ctrl" onchange="syncState()"></div>
+                            <div class="f-grp"><label>ސަބްމިޓް ފޯމެޓް:</label><input type="text" id="b-c1-fmt" class="form-ctrl" value="Word/PDF" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ވައްތަރު:</label><select id="b-c1-typ" class="form-ctrl" onchange="syncState()"><option value="Individual">ފަރުދީ (Individual)</option><option value="Group">ގްރޫޕް (Group)</option></select></div>
+                        </div>
+
+                        <div class="g-4" style="margin-top:15px; padding-top:15px; border-top:1px dashed #ccc;">
+                            <div class="f-grp"><label>ކޮމްޕޯނަންޓް 2 ނަން:</label><input type="text" id="b-c2-name" class="form-ctrl" value="ޕްރެޒެންޓޭޝަން" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ބަރުދަން (%):</label><input type="number" id="b-c2-w" class="form-ctrl" value="20" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ޖުމްލަ މާކުސް:</label><input type="number" id="b-c2-m" class="form-ctrl" value="20" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ސުންގަޑި (Due Date):</label><input type="date" id="b-c2-due" class="form-ctrl" onchange="syncState()"></div>
+                            <div class="f-grp"><label>ސަބްމިޓް ފޯމެޓް:</label><input type="text" id="b-c2-fmt" class="form-ctrl" value="PPT" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ވައްތަރު:</label><select id="b-c2-typ" class="form-ctrl" onchange="syncState()"><option value="Group">ގްރޫޕް (Group)</option><option value="Individual">ފަރުދީ (Individual)</option></select></div>
+                        </div>
+
+                        <div class="g-2" style="margin-top:15px; padding-top:15px; border-top:1px dashed #ccc;">
+                            <div class="f-grp"><label>ފަހު އިމްތިޙާނުގެ ބަރުދަން (%):</label><input type="number" id="b-fe-w" class="form-ctrl" value="60" oninput="syncState()"></div>
+                            <div class="f-grp"><label>ފަހު އިމްތިޙާނުގެ މާކުސް:</label><input type="number" id="b-fe-m" class="form-ctrl" value="100" oninput="syncState()"></div>
+                        </div>
+
+                        <h3 style="margin:20px 0 15px 0; color:var(--r-purple); border-bottom:1px solid #ccc; padding-bottom:5px;">މަސައްކަތުގެ ތަފްސީލު (Task Details)</h3>
+                        <div class="f-grp">
+                            <textarea id="b-task" class="form-ctrl" rows="6" placeholder="މަސައްކަތުގެ މަޤްޞަދާއި ތަފްސީލު ލިޔުއްވާ..." oninput="syncState()"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pane-rubric" class="pane">
+                    <div class="card">
+                        <div class="card-header">1. މައި ރުބްރިކް (Grid Rubric)</div>
+                        <p style="margin-bottom:10px; font-size: 15px; color:#64748b;">ރިޕޯރޓް، އެސައިންމެންޓް ފަދަ ތަކެއްޗަށް މާކުސްދޭ ސްޓޭންޑަރޑް ރުބްރިކް. ކޮލަމްތަކުގެ ނަން ބަދަލުކުރެވޭނެއެވެ.</p>
+                        
+                        <div id="r-headers-container" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;"></div>
+                        
+                        <div style="overflow-x:auto;">
+                            <table class="table-res" id="rubric-tb">
+                                <thead><tr id="r-head"></tr></thead>
+                                <tbody id="r-body"></tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top:20px; display:flex; justify-content:space-between; align-items: center;">
+                            <div style="display:flex; gap:10px;">
+                                <button class="btn btn-outline" onclick="addRubricRow()">+ ރޯ (Row) އިތުރުކުރޭ</button>
+                                <button class="btn btn-outline" onclick="addRubricCol()">+ ކޮލަމް (Col) އިތުރުކުރޭ</button>
+                            </div>
+                            <div style="font-size:20px; font-weight:bold; color:var(--r-green);">ޖުމްލަ: <span id="lbl-r-tot">0</span></div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="border-top: 4px solid var(--r-purple);">
+                        <div class="card-header">2. ޕްރެޒެންޓޭޝަން ރުބްރިކް (List Rubric)</div>
+                        <p style="margin-bottom:10px; font-size: 15px; color:#64748b;">ޕްރެޒެންޓޭޝަން ފަދަ ކަންކަމަށް ވަކިން މާކުސްދޭ ސާދާ ލިސްޓް ރުބްރިކް.</p>
+                        
+                        <div style="overflow-x:auto;">
+                            <table class="table-res" style="width:70%; margin:0 auto;" id="pres-rubric-tb">
+                                <thead><tr><th>ކްރައިޓީރިއާ</th><th style="width:20%;">މާކުސް</th><th style="width:10%;">-</th></tr></thead>
+                                <tbody id="pr-body"></tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top:20px; display:flex; justify-content:center; gap:20px; align-items: center;">
+                            <button class="btn btn-outline" onclick="addPresRubricRow()">+ ރޯ (Row) އިތުރުކުރޭ</button>
+                            <div style="font-size:20px; font-weight:bold; color:var(--r-green);">ޖުމްލަ: <span id="lbl-pr-tot">0</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pane-bank" class="pane">
+                    <div class="card" style="border-top: 4px solid var(--r-purple);">
+                        <div class="card-header">🗃️ ޕޭޕަރ ބޭންކު (Paper Archives)</div>
+                        <p style="margin-bottom:20px; font-size: 15px; color:#64748b;">މި ބައިގައި ހުންނާނީ މީގެ ކުރިން ތައްޔާރުކޮށް ސޭވްކޮށްފައިވާ މުޅި ޕޭޕަރުތައް (މާކިންގ ސްކީމާއި މޮޑަރޭޝަނާއެކު) އެވެ. މިތަނުން ސީދާ ޕޭޕަރ ޑައުންލޯޑްކޮށް ނުވަތަ އަލުން އެޑިޓްކުރެވޭނެއެވެ.</p>
+                        <div id="archive-list"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">ވަކިވަކި ސުވާލު ބޭންކު (Question History)</div>
+                        <p style="margin-bottom:20px; font-size: 15px; color:#64748b;">ސުވާލު ކަރުދާހުގައި ލިޔުއްވާ ސުވާލުތައް މިތަނަށް އަހަރާއި މޮޑިއުލްގެ ނަމާއެކު އޮޓޯއިން ސޭވްވާނެއެވެ.</p>
+                        <div id="bank-canvas"></div>
+                    </div>
+                </div>
+
+                <div id="pane-export" class="pane">
+                    <div class="card" style="background:#f0f9ff; border-color:#bae6fd; padding: 20px;">
+                        <div style="display:flex; gap:15px; align-items:center; flex-wrap:wrap; justify-content: space-between;">
+                            <div style="display:flex; gap:15px; align-items:center;">
+                                <h3 style="color: var(--r-blue); margin:0; font-size:16px;">ޕްރީވިއު:</h3>
+                                <select id="exp-doc-type" class="form-ctrl" style="width:250px; font-weight:bold; margin:0;" onchange="generatePreview()">
+                                    <option value="exam">📄 ސުވާލު ކަރުދާސް</option>
+                                    <option value="ms">✅ މާކިންގ ސްކީމް</option>
+                                    <option value="mod">📊 މޮޑަރޭޝަން ފޯމް</option>
+                                    <option value="brief">📋 އެސައިންމެންޓް ބްރީފް</option>
+                                </select>
+                            </div>
+                            <div style="display:flex; gap:15px; align-items:center;">
+                                <button class="btn" style="background:#2563eb; color:white; font-size:16px;" onclick="doExport('word')">📝 Word އަށް ޑައުންލޯޑް</button>
+                                <button class="btn btn-danger" style="font-size:16px;" onclick="doExport('print')">🖨️ Print / PDF</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="live-preview" class="a4-preview-container"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="print-engine"></div>
+
+    <script>
+        // --- 1. STATE & DICTIONARY ---
+        let appData = {
+            lang: 'dv', layout: 'std', logoBase64: '', mod: 'Study of Islamic Legal System',
+            meta: {}, parts: [], paperArchives: [], qBank: {},
+            rCols: 4, rHeaders: ['ދެރަ', 'ފުދޭ', 'ރަނގަޅު', 'ވަރަށް މޮޅު'], rubric: [],
+            presRubric: []
+        };
+
+        const dict = {
+            dv: { qPre: '', qSuf: 'ވަނަ ސުވާލު', mStr: 'މާކުސް', endStr: '(ނިމުނީ)', dir: 'rtl', briefTitle: 'އެސައިންމެންޓް ބްރީފް', briefGdl: 'އިރުޝާދު', briefG1: 'ލެކްޗަރަރ ވަކި ޚާއްޞަ ފޯމެޓެއް ނުވަތަ ގޮތެއް އަންގާފައި ނުވާނަމަ، މި އެސައިންމެންޓް ހުށަހަޅާނީ ޓައިޕް ކުރުމަށްފަހު ވޯޑް ނުވަތަ ޕަވަރ ޕޮއިންޓް ފޯމެޓްގައެވެ.', briefG2: 'މަޤްބޫލު އުޒުރެއް ދިމާވެ، މި އެސައިންމެންޓް ކަނޑައެޅިފައިވާ ސުންގަނޑިއަށް ހުށަނޭޅޭނަމަ، ސުންގަޑި ހަމަވުމުގެ 24 ގަޑިއިރު ކުރިން ލިޔުމުން އެދަރިވަރަކު ނިސްބަތްވާ ކުއްލިއްޔާއަށް އެ ކަމަށް ޚާއްސަކޮށްފައިވާ ފޯމު މެދުވެރިކޮށް އަންގަންވާނެއެވެ.', briefG3: 'އަދި ފޯމާއެކު، ބޭނުންވާ އެމް، ސީ ފަދަ ލިޔުންތައް ހުށަހަޅަންވާނެއެވެ.', briefG4: 'ސުންގަނޑި ހަމަވުމަށްފަހު ހުށަހަޅާ ކޮންމެ ހުށަހެޅުމަކުން ދަރިވަރަށް ލިބުނު މާކުހުގެ %5 އުނިކުރެވޭނެއެވެ.', briefG5: 'ސުންގަޑި ހަމަވުމަށްފަހު، ފާއިތުވާ ކޮންމެދުވަހަކަށް ދަރިވަރަށް ލިބުނު މާކުހުގެ %5 އުނިކުރެވޭނެއެވެ.', briefG6: 'ސުންގަޑީގެ 7 ދުވަސް ފަހުން ހުށަހަޅާ މަސައްކަތްތައް ބަލައެއް ނުގަނެވޭނެއެވެ. މި 7 ދުވަސް ގުނާނީ ސުންގަޑިން ފެށިގެންނެވެ. މީގެތެރޭގައި ބަންދު ދުވަސްތަކެއް ނުހިމެނޭނެއެވެ.', briefG7: 'ދަރިވަރު ވަގުލުކޮށްފައިވާކަން ސާބިތުވެއްޖެނަމަ ޔުނިވަރސީޓީގެ ވަގުލުކުރުން ހުއްޓުވުމާބެހޭ ޤަވާއިދާ އަދި ކޯޑް އޮފް ކޮންޑަކްޓުގައި ބަޔާންކޮށްފައިވާ ގޮތުގެމަތީން އެ ދަރިވަރަކާމެދު ފިޔަވަޅުއެޅޭނެއެވެ.', briefG8: 'ރިފަރެންސް ދިނުމުގައި ތަބާވާނީ ޔުނިވަރސިޓީގެ ރިފަރެންސް ދިނުމުގެ އިރުޝާދަށެވެ.', taskDet: 'ތަފްޞީލު:', cHead: 'ކްރައިޓީރިއާ', mHead: 'މާކުސް', pTitle: 'ޕްރެޒެންޓޭޝަން ރުބްރިކް' },
+            en: { qPre: 'QUESTION ', qSuf: '', mStr: 'Marks', endStr: '(END)', dir: 'ltr', briefTitle: 'ASSIGNMENT BRIEF', briefGdl: 'Assignment Guidelines', briefG1: 'This assignment must be typed and submitted in formats including doc, ppt, pdf unless a special format or form is prescribed by the lecturer.', briefG2: 'Student must inform the respective faculty in writing before 24hs of the deadline if he/she is not able to submit within the given deadline due to a genuine reason.', briefG3: 'In this case students must use the given form and relevant documents such as MC should be attached.', briefG4: 'A 5% from the marks received will be deducted for late submissions.', briefG5: 'Similarly, for each day 5% from the marks received will be deducted including the holidays.', briefG6: 'Submissions after 7 days from the deadline will not be accepted. This will exclude week-ends and public holidays.', briefG7: 'If the student is found plagiarized, disciplinary actions will be taken as per the IUM plagiarism policy and code of conduct.', briefG8: 'Referencing must be as per the IUM referencing guideline.', taskDet: 'Task Details:', cHead: 'Criteria', mHead: 'Marks', pTitle: 'Presentation Rubric' },
+            ar: { qPre: 'السؤال ', qSuf: '', mStr: 'الدرجات', endStr: '(انتهى)', dir: 'rtl', briefTitle: 'إرشادات إعداد ورقة بحث', briefGdl: 'إرشادات كتابة البحث العلمي', briefG1: 'يجب على الطالب أن يتبع في كتابة البحث وتقديمه على صيغة ppt أو pdf ما لم يتم تحديد شكل معين من أشكال الكتابة.', briefG2: 'يجب على الطالب إبلاغ الهيئة التدريسية المعنية كتابيا قبل 24 ساعة من الموعد النهائي وإذا كان غير قادر على التقديم.', briefG3: 'يجب على الطلاب إثبات السبب الحقيقي باستخدام الاستمارة المصممة له، ويجب إرفاق الوثائق ذات الصلة مثل شهادة طبية.', briefG4: 'سيتم خصم 5 ٪ من الدرجة الكلية عن البحوث المتقدمة بعد مضي الموعد النهائي.', briefG5: 'ويخصم كذلك 5 ٪ من الدرجة الكلية عن كل يوم تأخير عن الموعد النهائي.', briefG6: 'لن تقبل البحوث المقدمة بعد 7 أيام من الموعد النهائي، ولايعد عطلات نهاية الأسبوع والعطلات الرسمية في حساب سبعة أيام.', briefG7: 'في حالة ثبوت سرقة علمية على طالب سيتم اتخاذ الإجراءات التأديبية وفقا لقواعد الأكاديمية.', briefG8: 'يجب أن تكون الطريقة الإحالة وفقاً للإرشادات المرجعية الخاصة للجامعة.', taskDet: 'تفاصيل العمل:', cHead: 'المعايير', mHead: 'الدرجات', pTitle: 'معايير العرض' }
+        };
+
+        const nums = { dv: ['ސުމެއް','އެއް','ދެ','ތިން','ހަތަރު','ފަސް','ހަ','ހަތް','އަށް','ނުވަ','ދިހަ'], en: ['ZERO','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN'] };
+        const letters = { dv: ['ހ','ށ','ނ','ރ','ބ','ޅ','ކ'], en: ['a','b','c','d','e','f','g'], ar: ['أ','ب','ج','د','هـ','و','ز'] };
+
+        function numToDv(n) {
+            const dvWords = { 1:'އެއް', 2:'ދެ', 3:'ތިން', 4:'ހަތަރު', 5:'ފަސް', 6:'ހަ', 7:'ހަތް', 8:'އަށް', 9:'ނުވަ', 10:'ދިހަ', 11:'އެގާރަ', 12:'ބާރަ', 13:'ތޭރަ', 14:'ސާދަ', 15:'ފަނަރަ', 16:'ސޯޅަ', 17:'ސަތާރަ', 18:'އަށާރަ', 19:'ނަވާރަ', 20:'ވިހި' };
+            return dvWords[n] || n;
+        }
+
+        // --- 2. INIT & NAV ---
+        function initApp() {
+            let yr = document.getElementById('m-yr');
+            for(let i=2023; i<=2050; i++) { yr.innerHTML += `<option value="${i}" ${i==new Date().getFullYear()?'selected':''}>${i}</option>`; }
+            updateRubricHeadersUI(); addRubricRow(); addPresRubricRow(); renderArchivedPapers(); renderBank();
+        }
+
+        function enterSystem() {
+            document.getElementById('login-ui').style.display='none'; 
+            document.getElementById('app-ui').style.display='flex'; 
+            initApp(); addPart(); loadFromFirebase();
+        }
+
+        function nav(id) {
+            document.querySelectorAll('.pane').forEach(e=>e.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(e=>e.classList.remove('active'));
+            document.getElementById('pane-'+id).classList.add('active');
+            document.getElementById('nav-'+id).classList.add('active');
+            if(id === 'export') { syncState(); generatePreview(); }
+            if(id === 'bank') { syncState(); renderArchivedPapers(); renderBank(); }
+        }
+
+        function changeLang() {
+            let l = document.getElementById('ui-lang').value;
+            appData.lang = l;
+            document.documentElement.dir = dict[l].dir;
+            document.body.style.fontFamily = l === 'en' ? "var(--font-en)" : (l === 'ar' ? "var(--font-ar)" : "var(--font-dv)");
+            syncState();
+        }
+
+        function handleLogoUpload(e) {
+            let file = e.target.files[0]; if(!file) return;
+            let reader = new FileReader();
+            reader.onload = (event) => { appData.logoBase64 = event.target.result; syncState(); };
+            reader.readAsDataURL(file);
+        }
+
+        // --- 3. FIREBASE & ARCHIVE (PAPER BANK) ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyD9-a_phpZHbXQc29BluO14oXbcyFU1Res",
+          authDomain: "testpaperapp-d4562.firebaseapp.com",
+          projectId: "testpaperapp-d4562",
+          storageBucket: "testpaperapp-d4562.firebasestorage.app",
+          messagingSenderId: "739416407217",
+          appId: "1:739416407217:web:e1f560db5e48f813337690",
+          measurementId: "G-82ZRX7Z9LV"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        async function saveToFirebase() {
+            try {
+                syncState();
+                document.getElementById('cloud-status').innerText = "☁️ ސޭވްކުރެވެނީ...";
+                await db.collection("rasfahi_data").doc("app_state").set({
+                    archives: JSON.stringify(appData.paperArchives || []),
+                    qBank: JSON.stringify(appData.qBank || {})
+                });
+                document.getElementById('cloud-status').innerText = "✅ ކްލައުޑަށް ސޭވްވެއްޖެ";
+                setTimeout(() => document.getElementById('cloud-status').innerText = "", 3000);
+            } catch(e) {
+                console.error("Firebase Save Error:", e);
+                document.getElementById('cloud-status').innerText = "❌ ކްލައުޑް އެރަރ";
+            }
+        }
+
+        async function loadFromFirebase() {
+            try {
+                document.getElementById('cloud-status').innerText = "☁️ ލޯޑްކުރެވެނީ...";
+                let doc = await db.collection("rasfahi_data").doc("app_state").get();
+                if(doc.exists) {
+                    let data = doc.data();
+                    if(data.archives) appData.paperArchives = JSON.parse(data.archives);
+                    if(data.qBank) appData.qBank = JSON.parse(data.qBank);
+                }
+                renderArchivedPapers();
+                renderBank();
+                document.getElementById('cloud-status').innerText = "✅ ކްލައުޑުން ލޯޑްވެއްޖެ";
+                setTimeout(() => document.getElementById('cloud-status').innerText = "", 3000);
+            } catch(e) {
+                console.error("Firebase Load Error:", e);
+                document.getElementById('cloud-status').innerText = "❌ ކްލައުޑް އެރަރ";
+            }
+        }
+
+        function archiveCurrentPaper() {
+            syncState();
+            let currentSnapshot = JSON.parse(JSON.stringify(appData));
+            currentSnapshot.paperArchives = []; 
+            currentSnapshot.archiveDate = new Date().toLocaleString();
+            currentSnapshot.archiveName = `${appData.mod} - ${document.getElementById('m-sem').value} (${document.getElementById('m-type').value})`;
+            appData.paperArchives.push(currentSnapshot);
+            saveToFirebase();
+            alert('މުޅި ޕޭޕަރ (މާކިންގ ސްކީމް އާއި މޮޑަރޭޝަނާއެކު) ޕޭޕަރ ބޭންކުގައި އަރުޝީފު ކުރެވިއްޖެ!');
+            renderArchivedPapers();
+        }
+
+        function renderArchivedPapers() {
+            let list = document.getElementById('archive-list'); if(!list) return; list.innerHTML = '';
+            if(!appData.paperArchives || appData.paperArchives.length === 0) { list.innerHTML = '<p style="color:gray;">ޕޭޕަރ ބޭންކުގައި އެއްވެސް ޕޭޕަރެއް ނެތް.</p>'; return; }
+            
+            let reversedArchives = [...appData.paperArchives].reverse();
+
+            reversedArchives.forEach((p, revIdx) => {
+                let realIdx = appData.paperArchives.length - 1 - revIdx;
+                list.innerHTML += `
+                    <div class="archive-item">
+                        <div class="archive-details">
+                            <h3>📄 ${p.archiveName}</h3>
+                            <p>📅 ޑޭޓް: ${p.archiveDate} | 📚 ފެކަލްޓީ: ${p.meta?.fac || ''}</p>
+                        </div>
+                        <div class="archive-actions">
+                            <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${realIdx}, 'exam', 'word')">📄 Exam (Word)</button>
+                            <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${realIdx}, 'ms', 'word')">✅ MS (Word)</button>
+                            <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${realIdx}, 'mod', 'word')">📊 Mod (Word)</button>
+                            <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${realIdx}, 'brief', 'word')">📋 Brief (Word)</button>
+                            <button class="btn btn-green btn-sm" onclick="exportFromArchive(${realIdx}, 'exam', 'print')">🖨️ PDF/Print</button>
+                            <button class="btn btn-purple btn-sm" onclick="loadArchivedPaper(${realIdx})">✏️ ޕޭޕަރ އެޑިޓްކުރޭ</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteArchivedPaper(${realIdx})">X</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function exportFromArchive(idx, docType, format) {
+            let p = appData.paperArchives[idx];
+            let tempAppData = JSON.parse(JSON.stringify(appData)); 
+            appData = JSON.parse(JSON.stringify(p));
+            let html = getBaseHTML(docType);
+            appData = tempAppData; 
+
+            if(format === 'print') {
+                document.getElementById('print-engine').innerHTML = html; 
+                window.print();
+            } else if (format === 'word') {
+                let dir = appData.lang === 'en' ? 'ltr' : 'rtl';
+                let header = `
+                <html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas-microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
+                <head><meta charset="utf-8"><title>Export</title>
+                <style>
+                    body { font-family: 'Faruma', 'Times New Roman', serif; font-size:12pt; text-align:justify; direction: ${dir}; } 
+                    table {border-collapse: collapse; width:100%;} td,th {border:1px solid black; padding:8px;} 
+                    .ans-box {border-left: 3px solid red; padding-left: 15px; margin-top: 15px;} 
+                    .rtl-mode .ans-box {border-left: none; border-right: 3px solid red; padding-left: 0; padding-right: 15px;} 
+                    .ans-red {color:red; font-weight:bold;} .ans-green {color:green; font-weight:bold;} 
+                    .pb {page-break-before: always;}
+                    @page WordSection1 { size: 595.3pt 841.9pt; margin: 72.0pt 72.0pt 72.0pt 72.0pt; mso-header-margin: 35.4pt; mso-footer-margin: 35.4pt; mso-footer: url("header.htm") f1; }
+                    div.WordSection1 { page: WordSection1; }
+                    p.MsoFooter { margin: 0; text-align: center; border-top: 1px solid black; padding-top: 10px; font-size: 11pt;}
+                </style>
+                </head><body dir="${dir}"><div class="WordSection1">
+                `;
+                
+                let footerHTML = `
+                </div>
+                <div style="mso-element:footer" id="f1">
+                    <p class="MsoFooter">
+                        <span style="float: ${dir==='rtl'?'right':'left'};">${p.meta?.fac || ''} | ${p.meta?.sem || ''}</span>
+                        <span style="float: ${dir==='rtl'?'left':'right'};">Page <span style="mso-field-code:' PAGE '"></span></span>
+                    </p>
+                </div>
+                </body></html>`;
+
+                let blob = new Blob(['\ufeff', header + html + footerHTML], { type: 'application/msword' });
+                let link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `IUM_Archive_${docType}_${new Date().getTime()}.doc`;
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            }
+        }
+
+        function loadArchivedPaper(idx) {
+            if(!confirm("މިހާރު ހަދަމުންދާ ޕޭޕަރުގެ ބަދަލުގައި ބޭންކުން ޕޭޕަރެއް ލޯޑްކުރަން ބޭނުންތޯ؟ (މިހާރު ހަދަމުންދާ ޕޭޕަރ ސޭވް ނުކުރާނަމަ ގެއްލޭނެ)")) return;
+            let p = appData.paperArchives[idx]; let archivesBackup = appData.paperArchives; 
+            appData = JSON.parse(JSON.stringify(p)); appData.paperArchives = archivesBackup; 
+            loadStateToUI(); rebuildBuilderUI(); updateRubricHeadersUI(); alert("ޕޭޕަރ ކާމިޔާބުކަމާއެކު އެޑިޓަރަށް ލޯޑްކުރެވިއްޖެ!"); nav('builder');
+        }
+
+        function deleteArchivedPaper(idx) {
+            if(confirm("މި ޕޭޕަރ އެއްކޮށް ޑިލީޓްކުރަން ބޭނުންތޯ؟")) { appData.paperArchives.splice(idx, 1); saveToFirebase(); renderArchivedPapers(); }
+        }
+
+        function exportBackup() {
+            syncState(); let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
+            let dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", `IUM_FullSystemBackup_${Date.now()}.json`);
+            document.body.appendChild(dl); dl.click(); dl.remove();
+        }
+
+        function importBackup(e) {
+            let file = e.target.files[0]; if(!file) return; let reader = new FileReader();
+            reader.onload = (event) => {
+                try { appData = JSON.parse(event.target.result); if(!appData.paperArchives) appData.paperArchives = []; loadStateToUI(); rebuildBuilderUI(); updateRubricHeadersUI(); alert("ބެކަޕް ކާމިޔާބުކަމާއެކު ލޯޑްކުރެވިއްޖެ!"); } 
+                catch(err) { alert("Invalid Backup File!"); }
+            }; reader.readAsText(file);
+        }
+
+        function loadStateToUI() {
+            if(appData.meta) {
+                document.getElementById('m-prog').value = appData.meta.prog || '';
+                document.getElementById('m-fac').value = appData.meta.fac || '';
+                document.getElementById('m-mod').value = appData.meta.mod || '';
+                document.getElementById('m-code').value = appData.meta.code || '';
+                document.getElementById('m-lec').value = appData.meta.lec || '';
+                document.getElementById('m-date').value = appData.meta.date || '';
+                document.getElementById('m-yr').value = appData.meta.yr || '2023';
+                document.getElementById('m-sem').value = appData.meta.sem || 'ފުރަތަމަ ސެމިސްޓަރ';
+                document.getElementById('m-type').value = appData.meta.typ || 'ފަހު އިމްތިޙާނު';
+                document.getElementById('m-batch').value = appData.meta.batch || '23';
+                document.getElementById('m-tr').value = appData.meta.tr || '10 މިނެޓު';
+                document.getElementById('m-tw').value = appData.meta.tw || '3 ގަޑިއިރު';
+                document.getElementById('m-ans').value = appData.meta.ans || '';
+                document.getElementById('m-ref').value = appData.meta.ref || 'no';
+                document.getElementById('m-ref-list').value = appData.meta.refList || '';
+                document.getElementById('m-ref-list').style.display = appData.meta.ref === 'yes' ? 'block' : 'none';
+                document.getElementById('cfg-layout').value = appData.layout || 'std';
+                document.getElementById('m-lang').value = appData.lang || 'dv';
+                
+                document.getElementById('m-pages').value = appData.meta.pages || '5';
+                document.getElementById('m-totQs').value = appData.meta.totQs || '5';
+                document.getElementById('m-ansQs').value = appData.meta.ansQs || '3';
+                document.getElementById('m-partInst').value = appData.meta.partInst || 'ފުރަތަމަ ބައިން 1 (އެކެއް) ސުވާލަށް އަދި ދެވަނަ ބައިން 2 (ދޭއް) ސުވާލަށް ޖަވާބުދޭށެވެ!';
+                document.getElementById('m-credit').value = appData.meta.credit || '15 / 7';
+                document.getElementById('m-moderator').value = appData.meta.moderator || '';
+                document.getElementById('m-modType').value = appData.meta.modType || 'internal';
+
+                // Brief Details
+                document.getElementById('b-date').value = appData.meta.bDate || '';
+                document.getElementById('b-length').value = appData.meta.bLength || '1500 words';
+                document.getElementById('b-format').value = appData.meta.bFormat || 'Times New Roman / Faruma, 12pt, 1.5 spacing';
+                document.getElementById('b-c1-name').value = appData.meta.bc1Name || 'ރިޕޯރޓް';
+                document.getElementById('b-c1-w').value = appData.meta.bc1W || '20';
+                document.getElementById('b-c1-m').value = appData.meta.bc1M || '50';
+                document.getElementById('b-c1-due').value = appData.meta.bc1Due || '';
+                document.getElementById('b-c1-fmt').value = appData.meta.bc1Fmt || 'Word/PDF';
+                document.getElementById('b-c1-typ').value = appData.meta.bc1Typ || 'Individual';
+                
+                document.getElementById('b-c2-name').value = appData.meta.bc2Name || 'ޕްރެޒެންޓޭޝަން';
+                document.getElementById('b-c2-w').value = appData.meta.bc2W || '20';
+                document.getElementById('b-c2-m').value = appData.meta.bc2M || '20';
+                document.getElementById('b-c2-due').value = appData.meta.bc2Due || '';
+                document.getElementById('b-c2-fmt').value = appData.meta.bc2Fmt || 'PPT';
+                document.getElementById('b-c2-typ').value = appData.meta.bc2Typ || 'Group';
+
+                document.getElementById('b-fe-w').value = appData.meta.bfeW || '60';
+                document.getElementById('b-fe-m').value = appData.meta.bfeM || '100';
+                document.getElementById('b-task').value = appData.meta.bTask || '';
+            }
+
+            // Load Pres Rubric
+            if(appData.presRubric && appData.presRubric.length > 0) {
+                document.getElementById('pr-body').innerHTML = '';
+                appData.presRubric.forEach(r => {
+                    let tr = `<tr><td><input type="text" class="form-ctrl pr-crit" value="${r.crit}"></td><td><input type="number" class="form-ctrl pr-mrk" value="${r.mark}" oninput="calcRubric(); syncState();"></td><td><button class="btn btn-danger" onclick="this.parentElement.parentElement.remove(); calcRubric(); syncState();">X</button></td></tr>`;
+                    document.getElementById('pr-body').insertAdjacentHTML('beforeend', tr);
+                });
+            }
+        }
+
+        // --- 4. BUILDER LOGIC ---
+        function genId() { return Math.random().toString(36).substr(2, 9); }
+
+        function rebuildBuilderUI() {
+            document.getElementById('builder-canvas').innerHTML = '';
+            let oldParts = JSON.parse(JSON.stringify(appData.parts)); appData.parts = []; 
+            oldParts.forEach(p => {
+                let pId = p.id || 'p_'+genId(); appData.parts.push({ id: pId, title: p.title, inst: p.inst, qs: [] });
+                let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X ރިމޫވް ބައި</button></div><div class="g-2"><div class="f-grp"><label>ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" placeholder="ފުރަތަމަ ބައި / PART A" value="${p.title||''}" onchange="syncState()"></div><div class="f-grp"><label>އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" placeholder="ތިރީގައިވާ 3 ސުވާލުން 2 ސުވާލަށް..." value="${p.inst||''}" onchange="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')">+ ސުވާލު އެޑްކުރޭ</button></div>`;
+                document.getElementById('builder-canvas').insertAdjacentHTML('beforeend', html);
+                p.qs.forEach(q => addQ(pId, q));
+            }); syncState();
+        }
+
+        function addPart() {
+            let pId = 'p_'+genId(); appData.parts.push({ id: pId, title: '', inst: '', qs: [] });
+            let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X ރިމޫވް ބައި</button></div><div class="g-2"><div class="f-grp"><label>ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" placeholder="ފުރަތަމަ ބައި / PART A" onchange="syncState()"></div><div class="f-grp"><label>އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" placeholder="ތިރީގައިވާ 3 ސުވާލުން 2 ސުވާލަށް..." onchange="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')">+ ސުވާލު އެޑްކުރޭ</button></div>`;
+            document.getElementById('builder-canvas').insertAdjacentHTML('beforeend', html); addQ(pId);
+        }
+
+        function addQ(pId, importedData = null) {
+            let qId = 'q_'+genId(); let part = appData.parts.find(p => p.id === pId); if(!part) return;
+            let qObj = importedData ? JSON.parse(JSON.stringify(importedData)) : { id: qId, text: '', ans: '', type: 'essay', mark: 0, topic: '', bloom: '', data: {}, subs: [] };
+            qObj.id = qId; part.qs.push(qObj);
+            let qNum = 0; appData.parts.forEach(p => p.qs.forEach(q => { qNum++; q.num = qNum; }));
+            let html = `<div class="q-box" id="${qId}"><div class="q-row"><div class="q-num" id="lbl-${qId}">${qObj.num}.</div><div style="flex:1; display:flex; flex-direction:column; gap:10px;"><select class="form-ctrl q-typ" style="background:#e0e7ff; font-weight:bold;" onchange="changeQType('${qId}')"><option value="essay" ${qObj.type==='essay'?'selected':''}>Scenario / Essay / Theory</option><option value="mcq" ${qObj.type==='mcq'?'selected':''}>Multiple Choice (MCQ)</option><option value="match" ${qObj.type==='match'?'selected':''}>Matching (ގުޅުވުން)</option><option value="blank" ${qObj.type==='blank'?'selected':''}>Fill in Blanks (ހުސްތަން ފުރުން)</option></select><div id="dyn-${qId}"></div><input type="text" class="form-ctrl q-top" placeholder="ޓޮޕިކް (މޮޑަރޭޝަން ފޯމަށް)" value="${qObj.topic||''}" onchange="syncState()"></div><div style="width:200px; display:flex; flex-direction:column; gap:10px;"><input type="number" class="form-ctrl q-mrk" value="${qObj.mark}" placeholder="މާކުސް" oninput="syncState(); calcTotal();"><select class="form-ctrl q-blm" onchange="syncState()" style="border: 2px solid var(--r-purple);"><option value="">Bloom's Level</option><option value="1" ${qObj.bloom=='1'?'selected':''}>1. Remember</option><option value="2" ${qObj.bloom=='2'?'selected':''}>2. Understand</option><option value="3" ${qObj.bloom=='3'?'selected':''}>3. Apply</option><option value="4" ${qObj.bloom=='4'?'selected':''}>4. Analyse</option><option value="5" ${qObj.bloom=='5'?'selected':''}>5. Evaluate</option><option value="6" ${qObj.bloom=='6'?'selected':''}>6. Create</option></select><button class="btn btn-danger" style="padding:5px;" onclick="removeQ('${pId}', '${qId}')">Delete</button></div></div><div id="sublist-${qId}"></div><button class="btn btn-outline" style="padding:5px 10px; font-size:13px; margin-top:10px;" onclick="addSubQ('${qId}')">+ ސަބް-ސުވާލު (a,b / ހ,ށ)</button></div>`;
+            document.getElementById(`qlist-${pId}`).insertAdjacentHTML('beforeend', html); changeQType(qId, qObj);
+            if(importedData && qObj.subs) qObj.subs.forEach(s => addSubQ(qId, s)); calcTotal();
+        }
+
+        function removeQ(pId, qId) {
+            document.getElementById(qId).remove(); let part = appData.parts.find(p => p.id === pId);
+            if(part) part.qs = part.qs.filter(q => q.id !== qId); syncState(); calcTotal();
+        }
+
+        function addSubQ(qId, impSub = null) {
+            let sId = 's_'+genId(); let parentQ; appData.parts.forEach(p => p.qs.forEach(q => { if(q.id === qId) parentQ = q; }));
+            if(!parentQ) return; if(!impSub) parentQ.subs.push({ id: sId, text: '', ans: '', mark: 0 });
+            let html = `<div class="sub-q-block" id="${sId}"><div style="flex:1; display:flex; flex-direction:column; gap:5px;"><textarea class="form-ctrl sq-txt" rows="1" placeholder="ސަބް ސުވާލު..." onchange="syncState()">${impSub?impSub.text:''}</textarea><textarea class="form-ctrl sq-ans" rows="1" placeholder="ޖަވާބު..." style="background:#f0fdf4; border-color:var(--r-green);" onchange="syncState()">${impSub?impSub.ans:''}</textarea></div><input type="number" class="form-ctrl sq-mrk" value="${impSub?impSub.mark:0}" style="width:80px; text-align:center; font-weight:bold;" oninput="syncState(); calcTotal();"><button class="btn btn-danger" style="padding:0 10px;" onclick="this.parentElement.remove(); syncState(); calcTotal();">X</button></div>`;
+            document.getElementById(`sublist-${qId}`).insertAdjacentHTML('beforeend', html);
+        }
+
+        function changeQType(qId, exObj = null) {
+            let qEl = document.getElementById(qId); if(!qEl) return; let type = qEl.querySelector('.q-typ').value; let dyn = document.getElementById(`dyn-${qId}`);
+            let t = exObj ? exObj.text : ''; let a = exObj ? exObj.ans : ''; let d = exObj ? exObj.data : {};
+            if(type === 'essay') { dyn.innerHTML = `<textarea class="form-ctrl q-txt" rows="3" placeholder="ސުވާލު / ސީނާރިއޯ..." onchange="syncState()">${t}</textarea><textarea class="form-ctrl q-ans" rows="2" placeholder="ޖަވާބު..." style="background:#f0fdf4; border-color:var(--r-green);" onchange="syncState()">${a}</textarea>`; } 
+            else if(type === 'mcq') { dyn.innerHTML = `<input type="text" class="form-ctrl q-txt" placeholder="ސުވާލު ލިޔުއްވާ..." value="${t}" onchange="syncState()"><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;"><input type="text" class="form-ctrl opt-a" placeholder="A) Option" value="${d.a||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-b" placeholder="B) Option" value="${d.b||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-c" placeholder="C) Option" value="${d.c||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-d" placeholder="D) Option" value="${d.d||''}" onchange="syncState()"></div><select class="form-ctrl q-ans" style="background:#f0fdf4; border-color:green; margin-top:10px;" onchange="syncState()"><option value="a" ${a==='a'?'selected':''}>Correct Answer: A</option><option value="b" ${a==='b'?'selected':''}>Correct Answer: B</option><option value="c" ${a==='c'?'selected':''}>Correct Answer: C</option><option value="d" ${a==='d'?'selected':''}>Correct Answer: D</option></select>`; }
+            else if(type === 'match') { let mRows = (d && d.length) ? d : [{l:'',r:''},{l:'',r:''},{l:'',r:''}]; let mHtml = `<input type="text" class="form-ctrl q-txt" placeholder="މިސާލު: ރަނގަޅު ޖަވާބާ ގުޅުވާށެވެ." value="${t}" onchange="syncState()"><div class="match-opts" style="display:flex; flex-direction:column; gap:5px; margin-top:10px;">`; mRows.forEach((row, i) => { mHtml += `<div style="display:flex; gap:10px;"><input type="text" class="form-ctrl m-left" placeholder="Item ${i+1}" value="${row.l}" onchange="syncState()"><input type="text" class="form-ctrl m-right" placeholder="Correct Match ${i+1}" value="${row.r}" style="background:#f0fdf4; border-color:green;" onchange="syncState()"></div>`; }); mHtml += `</div>`; dyn.innerHTML = mHtml; }
+            else if(type === 'blank') { dyn.innerHTML = `<textarea class="form-ctrl q-txt" rows="2" placeholder="މިސާލު: އިސްލާމްދީނުގެ ފުރަތަމަ ރުކުނަކީ [blank] އެވެ." onchange="syncState()">${t}</textarea><input type="text" class="form-ctrl q-ans" placeholder="ޖަވާބު: (މިސާލު: ޝަހާދަތް ކިޔުން)" value="${a}" style="background:#f0fdf4; border-color:green; margin-top:10px;" onchange="syncState()">`; }
+            if(!exObj) syncState();
+        }
+
+        function syncState() {
+            let gNum = 0; let mod = document.getElementById('m-mod').value; appData.mod = mod; 
+            let semName = `${document.getElementById('m-sem').value}`;
+            let yrName = `${document.getElementById('m-yr').value}`;
+            let bankGroupKey = `${yrName} | ${mod} (${semName})`;
+            
+            appData.meta = {
+                prog: document.getElementById('m-prog').value, fac: document.getElementById('m-fac').value, mod: document.getElementById('m-mod').value,
+                code: document.getElementById('m-code').value, lec: document.getElementById('m-lec').value, date: document.getElementById('m-date').value,
+                yr: document.getElementById('m-yr').value, sem: document.getElementById('m-sem').value, typ: document.getElementById('m-type').value,
+                batch: document.getElementById('m-batch').value, tr: document.getElementById('m-tr').value, tw: document.getElementById('m-tw').value,
+                ans: document.getElementById('m-ans').value, ref: document.getElementById('m-ref').value, refList: document.getElementById('m-ref-list').value,
+                pages: document.getElementById('m-pages').value, totQs: document.getElementById('m-totQs').value, ansQs: document.getElementById('m-ansQs').value,
+                partInst: document.getElementById('m-partInst').value, credit: document.getElementById('m-credit').value,
+                moderator: document.getElementById('m-moderator').value, modType: document.getElementById('m-modType').value,
+
+                // Brief data
+                bDate: document.getElementById('b-date')?.value || '', bLength: document.getElementById('b-length')?.value || '', bFormat: document.getElementById('b-format')?.value || '',
+                bc1Name: document.getElementById('b-c1-name')?.value || '', bc1W: document.getElementById('b-c1-w')?.value || '', bc1M: document.getElementById('b-c1-m')?.value || '', bc1Due: document.getElementById('b-c1-due')?.value || '', bc1Fmt: document.getElementById('b-c1-fmt')?.value || '', bc1Typ: document.getElementById('b-c1-typ')?.value || '',
+                bc2Name: document.getElementById('b-c2-name')?.value || '', bc2W: document.getElementById('b-c2-w')?.value || '', bc2M: document.getElementById('b-c2-m')?.value || '', bc2Due: document.getElementById('b-c2-due')?.value || '', bc2Fmt: document.getElementById('b-c2-fmt')?.value || '', bc2Typ: document.getElementById('b-c2-typ')?.value || '',
+                bfeW: document.getElementById('b-fe-w')?.value || '', bfeM: document.getElementById('b-fe-m')?.value || '', bTask: document.getElementById('b-task')?.value || ''
+            };
+
+            if(!appData.qBank[bankGroupKey]) appData.qBank[bankGroupKey] = [];
+
+            appData.parts.forEach(p => {
+                let pEl = document.getElementById(p.id);
+                if(pEl) {
+                    p.title = pEl.querySelector('.p-tit').value; p.inst = pEl.querySelector('.p-ins').value;
+                    p.qs.forEach(q => {
+                        let qEl = document.getElementById(q.id);
+                        if(qEl) {
+                            gNum++; q.num = gNum; qEl.querySelector('.q-num').innerText = gNum + '.';
+                            q.type = qEl.querySelector('.q-typ').value; q.text = qEl.querySelector('.q-txt').value; q.topic = qEl.querySelector('.q-top').value;
+                            q.mark = qEl.querySelector('.q-mrk').value; q.bloom = qEl.querySelector('.q-blm').value;
+                            if(q.type === 'essay' || q.type === 'blank') { q.ans = qEl.querySelector('.q-ans').value; } 
+                            else if (q.type === 'mcq') { q.ans = qEl.querySelector('.q-ans').value; q.data = { a: qEl.querySelector('.opt-a').value, b: qEl.querySelector('.opt-b').value, c: qEl.querySelector('.opt-c').value, d: qEl.querySelector('.opt-d').value }; } 
+                            else if (q.type === 'match') { q.data = []; qEl.querySelectorAll('.match-opts div').forEach(row => { q.data.push({ l: row.querySelector('.m-left').value, r: row.querySelector('.m-right').value }); }); }
+
+                            q.subs = q.subs.filter(s => document.getElementById(s.id) !== null); 
+                            q.subs.forEach(s => { let sEl = document.getElementById(s.id); if(sEl) { s.text = sEl.querySelector('.sq-txt').value; s.ans = sEl.querySelector('.sq-ans').value; s.mark = sEl.querySelector('.sq-mrk').value; } });
+
+                            // Question Bank Auto Archive (By Year & Module)
+                            if(q.text.length > 3) { 
+                                let ex = appData.qBank[bankGroupKey].find(b => b.id === q.id); 
+                                if(ex) { Object.assign(ex, JSON.parse(JSON.stringify(q))); ex.sem = semName; } 
+                                else { let newQ = JSON.parse(JSON.stringify(q)); newQ.sem = semName; appData.qBank[bankGroupKey].push(newQ); } 
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Sync Rubric
+            appData.rHeaders = [];
+            document.querySelectorAll('.r-head-in').forEach(i => appData.rHeaders.push(i.value));
+
+            appData.rubric = [];
+            let rRows = document.getElementById('r-body').children;
+            for(let r of rRows) {
+                let crit = r.children[0].querySelector('input').value; let levels = [];
+                for(let i=0; i<appData.rCols; i++) { levels.push(r.children[i+1].querySelector('textarea').value); }
+                let mark = r.querySelector('.r-mrk').value; appData.rubric.push({ crit, levels, mark });
+            }
+
+            appData.presRubric = [];
+            let prRows = document.getElementById('pr-body').children;
+            for(let r of prRows) {
+                let crit = r.querySelector('.pr-crit').value; let mark = r.querySelector('.pr-mrk').value;
+                appData.presRubric.push({ crit, mark });
+            }
+
+            if(document.getElementById('pane-export').classList.contains('active')) { generatePreview(); }
+        }
+
+        function calcTotal() { let t = 0; document.querySelectorAll('.q-mrk, .sq-mrk').forEach(i => { let v = parseFloat(i.value); if(!isNaN(v)) t += v; }); document.getElementById('lbl-total').innerText = t; }
+
+        // --- 5. RUBRIC BUILDER ---
+        function updateRubricHeadersUI() {
+            let hc = document.getElementById('r-headers-container'); hc.innerHTML = '';
+            for(let i=0; i<appData.rCols; i++) {
+                let val = appData.rHeaders[i] || `ލެވެލް ${i+1}`;
+                hc.innerHTML += `<input type="text" class="form-ctrl r-head-in" value="${val}" style="width:130px; padding:8px; border-color:var(--r-purple);" oninput="syncState()">`;
+            }
+            renderRubricTable();
+        }
+
+        function renderRubricTable() {
+            let l = document.getElementById('m-lang').value; let d = dict[l];
+            let headTr = `<th>${d.cHead}</th>`;
+            for(let i=0; i<appData.rCols; i++) { headTr += `<th>${appData.rHeaders[i]||`L${i+1}`}</th>`; }
+            headTr += `<th>${d.mHead}</th><th>-</th>`;
+            document.getElementById('r-head').innerHTML = headTr;
+
+            let tbody = document.getElementById('r-body'); tbody.innerHTML = '';
+            if(appData.rubric.length === 0) appData.rubric.push({ crit: '', levels: new Array(appData.rCols).fill(''), mark: 0 });
+            appData.rubric.forEach(r => {
+                let tr = `<tr><td><input type="text" class="form-ctrl" value="${r.crit}"></td>`;
+                for(let i=0; i<appData.rCols; i++) { tr += `<td><textarea class="form-ctrl" rows="2">${r.levels[i]||''}</textarea></td>`; }
+                tr += `<td><input type="number" class="form-ctrl r-mrk" value="${r.mark}" oninput="calcRubric(); syncState();"></td><td><button class="btn btn-danger" onclick="this.parentElement.parentElement.remove(); calcRubric(); syncState();">X</button></td></tr>`;
+                tbody.insertAdjacentHTML('beforeend', tr);
+            }); calcRubric();
+        }
+
+        function addRubricRow() { appData.rubric.push({ crit: '', levels: new Array(appData.rCols).fill(''), mark: 0 }); renderRubricTable(); syncState(); }
+        function addRubricCol() { appData.rCols++; appData.rHeaders.push(`ލެވެލް ${appData.rCols}`); appData.rubric.forEach(r => r.levels.push('')); updateRubricHeadersUI(); syncState(); }
+        function addPresRubricRow() { appData.presRubric.push({ crit: '', mark: 0 }); let tbody = document.getElementById('pr-body'); tbody.innerHTML = ''; appData.presRubric.forEach(r => { let tr = `<tr><td><input type="text" class="form-ctrl pr-crit" value="${r.crit}" oninput="syncState()"></td><td><input type="number" class="form-ctrl pr-mrk" value="${r.mark}" oninput="calcRubric(); syncState();"></td><td><button class="btn btn-danger" onclick="this.parentElement.parentElement.remove(); calcRubric(); syncState();">X</button></td></tr>`; tbody.insertAdjacentHTML('beforeend', tr); }); calcRubric(); }
+
+        function calcRubric() {
+            let t1 = 0; document.querySelectorAll('.r-mrk').forEach(i => t1+=parseFloat(i.value)||0); document.getElementById('lbl-r-tot').innerText = t1;
+            let t2 = 0; document.querySelectorAll('.pr-mrk').forEach(i => t2+=parseFloat(i.value)||0); document.getElementById('lbl-pr-tot').innerText = t2;
+        }
+
+        // --- 6. QUESTION BANK ---
+        function renderBank() {
+            let list = document.getElementById('bank-canvas'); list.innerHTML = '';
+            if(Object.keys(appData.qBank).length === 0) { list.innerHTML = '<p style="color:gray;">ބޭންކުގައި ސުވާލެއް ނެތް.</p>'; return; }
+            for (const [bankGroupKey, questions] of Object.entries(appData.qBank)) {
+                if(questions.length === 0) continue;
+                let modHtml = `<div class="bank-section"><div class="bank-header">📚 ${bankGroupKey} <span style="font-size:14px; background:var(--r-green); padding:3px 10px; border-radius:12px;">${questions.length} Qs</span></div>`;
+                questions.forEach(q => { modHtml += `<div class="bank-item"><div style="flex:1; padding-left:20px;"><strong style="color:var(--r-blue);">${q.type==='essay'?'Essay':(q.type==='mcq'?'MCQ':(q.type==='match'?'Matching':'Blank'))} (${q.mark}m)</strong><br><span style="font-size:15px;">${q.text}</span><div style="font-size:12px; color:gray; margin-top:5px;"><strong>Topic:</strong> ${q.topic||'-'}</div></div><div><button class="btn btn-green" onclick="importFromBank('${bankGroupKey}', '${q.id}')">ޕޭޕަރަށް ލާ</button></div></div>`; });
+                modHtml += `</div>`; list.insertAdjacentHTML('beforeend', modHtml);
+            }
+        }
+        function importFromBank(bankGroupKey, qId) { 
+            let qData = appData.qBank[bankGroupKey].find(q => q.id === qId); 
+            if(appData.parts.length === 0) addPart(); 
+            let pId = appData.parts[appData.parts.length-1].id; 
+            let copyQ = JSON.parse(JSON.stringify(qData)); 
+            addQ(pId, copyQ); 
+            alert("ސުވާލު ޕޭޕަރަށް އެޑްކުރެވިއްޖެ! މާކިންގ ސްކީމް އަދި މޮޑަރޭޝަން ފޯމަށް އޮޓޯއިން ދާނެއެވެ."); 
+            nav('builder'); 
+        }
+
+        // --- 7. EXPORT ENGINE (HTML GENERATION) ---
+        function getBaseHTML(type) {
+            let l = document.getElementById('m-lang').value; let d = dict[l]; let isEn = l === 'en'; let isAr = l === 'ar';
+            let layout = document.getElementById('cfg-layout').value; let dir = d.dir; let meta = appData.meta;
+            let titleStr = isEn ? "SEMESTER FINAL EXAMINATION" : (isAr ? "امتحان نهاية الفصل الدراسي" : `${meta.yr} ވަނަ އަހަރުގެ ${meta.sem}ގެ ${meta.typ}`);
+            
+            // PDF/Print Pagination wrappers
+            let html = `<div dir="${dir}" class="${isEn?'ltr-mode':'rtl-mode'}" style="font-family: ${isEn ? "'Times New Roman', serif" : (isAr ? "'Traditional Arabic', serif" : "'Faruma', Arial, sans-serif")};">`;
+            
+            let logoHtml = appData.logoBase64 ? `<img src="${appData.logoBase64}">` : `<h1 style="font-family:Arial; color:#0F4C3A; margin:0; font-size:24pt; text-align:center;">جامعة المالديف الإسلامية</h1><h2 style="font-family:Arial; margin:0; font-size:16pt; text-align:center;">ISLAMIC UNIVERSITY OF MALDIVES</h2>`;
+
+            // Start First Page Container
+            html += `<div class="page-container">`;
+
+            if(type === 'exam' || type === 'ms') {
+                html += `<div class="p-header">${logoHtml}</div>`;
+                let mHead = type === 'exam' ? titleStr : (isEn?'MARKING SCHEME / MODEL ANSWER':(isAr?'إجابة امتحان نهاية الفصل الدراسي':'މާކިންގ ސްކީމް / ޖަވާބު ކަރުދާސް'));
+                
+                if(layout === 'std' && l === 'dv') {
+                    let coverTitle = `${meta.yr} ވަނަ އަހަރުގެ ${meta.sem}ގެ ފަހު އިމްތިޙާނު`;
+                    html += `<div style="text-align:center; font-weight:bold; font-size:18pt; margin-bottom:15px;">${coverTitle}</div>`;
+                    html += `<div style="text-align:center; font-weight:bold; font-size:16pt; margin-bottom:20px;">${meta.fac}</div>`;
+
+                    let prettyDate = meta.date ? meta.date.split('-').reverse().join('-') : '';
+
+                    html += `<table class="cover-table">
+                        <tr><th>ޕްރޮގްރާމް</th><td colspan="3" style="text-align:center;">: ${meta.prog}</td></tr>
+                        <tr><th>ކިޔަން ދެވޭ ވަގުތު</th><td style="text-align:center;">: ${meta.tr}</td><th style="width:15%;">ބެޗް</th><td style="text-align:center;">: ${meta.batch}</td></tr>
+                        <tr><th>ލިޔަން ދެވޭ ވަގުތު</th><td style="text-align:center;">: ${meta.tw}</td><th>ތާރީޚު</th><td style="text-align:center;">: <span style="background:yellow; padding:2px 10px;">${prettyDate}</span></td></tr>
+                        <tr><th>މޮޑިއުލް ނަން</th><td colspan="3" style="text-align:center;">: ${meta.mod}</td></tr>
+                        <tr><th>މޮޑިއުލް ކޯޑު</th><td colspan="3" style="text-align:center;">: ${meta.code}</td></tr>
+                        <tr><th>ލެކްޗަރަރ</th><td colspan="3" style="text-align:center;">: ${meta.lec}</td></tr>
+                    </table>`;
+
+                    html += `<div style="text-align:center; font-size:14pt; margin: 20px 0;">މި ކަރުދާހުގެ ޖަވާބު ލިޔާނީ: ${meta.ans}</div>`;
+
+                    let refLines = meta.ref === 'yes' ? meta.refList.split('\n').map(r => `<div>: ${r}</div>`).join('') : '<div>: އެއްވެސް އެއްޗެއް ނުވެއްދޭނެ</div>';
+
+                    if(type === 'exam') {
+                        html += `
+                            <div style="font-size:14pt; margin-bottom: 20px; line-height: 1.6;">މިކަރުދާހުގައި ހިމެނެނީ މުޅިއެކު <strong>${meta.pages}</strong> ޞަފުޙާއެވެ. ޞަފުޙާތައް ހަމަތޯ ބައްލަވާށެވެ.</div>
+                            <div class="cover-inst-title">އިމްތިޙާނުގެ ބައިވެރިންނަށް ދެވޭ އިރުޝާދު</div>
+                            <ul class="cover-inst-list">
+                                <li>ސުވާލު ކަރުދާސް ކިޔުމަށް ދެވޭ ވަގުތު ފެށިއްޖެކަމަށް އެންގުމުގެ ކުރިން، ސުވާލު ކަރުދާސް ނުހުޅުވާށެވެ!</li>
+                                <li>އިމްތިޙާނު ފެށުމުގެ ކުރިން، ލިބިފައިވާ ކަރުދާސް ސާފުތޯ ބެއްލެވުމާއި އޭގައި ސުވާލެއް ނުވަތަ ޞަފުޙާއެއް މަދުތޯ ބެއްލެވުމަކީ ކެންޑިޑޭޓުގެ ޒިންމާއެކެވެ. މައްސަލައެއް އުޅޭނަމަ އިންވިޖިލޭޓަރަށް އަންގަވާށެވެ!</li>
+                                <li>މިކަރުދާހުގައި ހިމެނެނީ މުޅިއެކު ${meta.totQs} (${numToDv(meta.totQs)}) ސުވާލެވެ. ޖަވާބުދޭންޖެހޭނީ އޭގެތެރެއިން ${meta.ansQs} (${numToDv(meta.ansQs)}) ސުވާލަށެވެ. ${meta.partInst}</li>
+                                <li>ޖަވާބުތައް ލިޔާނީ އޭގެތެރޭގައި ދީފައިވާ ބުކްލެޓުގައެވެ.</li>
+                            </ul>
+                            <div style="margin-top:15px; font-weight:bold; font-size:14pt;">✔ އިމްތިޙާނަށް ވެއްދުން ހުއްދަކުރެވޭ ތަކެތި (އެތަކެތި):</div>
+                            <div style="margin-right:25px; margin-top:5px; line-height:1.6; font-size:13pt;">${refLines}</div>
+                        `;
+                    }
+                    if(type === 'ms') { html += `<div style="text-align:center; font-size:20pt; font-weight:bold; color:red; border:2px solid red; padding:10px; margin-top:20px;">މާކިންގ ސްކީމް</div>`; }
+                    
+                    // Close first page & footer
+                    html += `<div class="pdf-footer"><div class="footer-left">${meta.fac} | ${meta.sem}</div><div class="footer-right">Page <span class="page-num"></span></div></div></div><div class="page-container">`;
+                } 
+                else {
+                    html += `<div class="p-title">${mHead}<br><span style="font-size:14pt; font-weight:normal;">${meta.fac}</span></div>`;
+                    html += `<table class="ar-tb" style="width:100%; border-collapse:collapse; margin-bottom:30px; border:2px solid black; font-size:14pt;"><tr><td class="lbl-bg" style="border:1px solid black; padding:8px; width:20%;">${isEn?'Faculty':'الكلية'}</td><td style="border:1px solid black; padding:8px; width:30%;">${meta.fac}</td><td class="lbl-bg" style="border:1px solid black; padding:8px; width:20%;">${isEn?'Programme':'البرنامج'}</td><td style="border:1px solid black; padding:8px; width:30%;">${meta.prog}</td></tr><tr><td class="lbl-bg" style="border:1px solid black; padding:8px;">${isEn?'Lecturer':'الأستاذ'}</td><td style="border:1px solid black; padding:8px;">${meta.lec}</td><td class="lbl-bg" style="border:1px solid black; padding:8px;">${isEn?'Date':'التاريخ'}</td><td style="border:1px solid black; padding:8px; background:#ffff00;">${meta.date}</td></tr><tr><td class="lbl-bg" style="border:1px solid black; padding:8px;">${isEn?'Module Name':'المادة'}</td><td style="border:1px solid black; padding:8px;">${meta.mod}</td><td class="lbl-bg" style="border:1px solid black; padding:8px;">${isEn?'Module Code':'رقم المادة'}</td><td style="border:1px solid black; padding:8px;">${meta.code}</td></tr></table>`;
+                    if(type === 'exam') { html += `<table style="width:100%; border-collapse:collapse; margin-bottom:30px; border:2px solid black;"><tr><td style="border:1px solid black; padding:10px; width:30%; text-align:center;"><strong>${isEn?'Marks':'الدرجات'}</strong><br><br>المجموع الكلي:<br>${document.getElementById('lbl-total').innerText}</td><td style="border:1px solid black; padding:10px;"><strong>${isEn?'Instructions:':'الإرشادات العامة:'}</strong><br>- ${isEn?'Do not open paper until asked.':'لا تفتح ورقة الأسئلة حتى يطلب منك ذلك.'}<br>- ${isEn?'Check missing pages.':'تأكد من أن جميع الصفحات موجودة.'}<br>- ${isEn?'Answers in booklet.':'تكتب الأجوبة في الدفتر المخصص.'}</td></tr></table>`; }
+                    
+                    html += `<div class="pdf-footer"><div class="footer-left">${meta.fac} | ${meta.sem}</div><div class="footer-right">Page <span class="page-num"></span></div></div></div><div class="page-container">`;
+                }
+
+                // QUESTIONS LOOP
+                appData.parts.forEach(p => {
+                    if(p.title) html += `<div class="part-head">${p.title}</div>`;
+                    if(p.inst) html += `<div class="part-inst">(${p.inst})</div>`;
+                    p.qs.forEach(q => {
+                        let nw = q.num <= 10 ? (isEn ? nums.en[q.num] : nums.dv[q.num]) : q.num;
+                        let qh = isEn ? `${d.qPre}${nw}` : `${nw} ${d.qSuf}`;
+                        let qt = q.text.replace(/\[blank\]/g, '______________').replace(/\n/g, '<br>');
+                        let qa = q.ans.replace(/\n/g, '<br>');
+                        html += `<div class="pq-row"><div class="pq-con"><span style="font-weight:bold; text-decoration:underline; font-size:14pt;">${qh}</span><br><br><span style="font-size:13pt;">${qt}</span>`;
+                        if (q.type === 'essay' && type === 'ms' && qa) { html += `<div class="ans-box">${isEn?'Answer: ':'ޖަވާބު: '}${qa}</div>`; } 
+                        else if (q.type === 'mcq') { let opts = ['a','b','c','d']; html += `<div style="margin-top:15px; font-size:13pt;">`; opts.forEach(o => { let isCor = (type === 'ms' && q.ans === o); html += `<div class="${isCor ? 'ans-red' : ''}" style="margin-bottom:8px;">${isEn?o.toUpperCase():letters.dv[opts.indexOf(o)]}) ${q.data[o]||''} ${isCor?' ✔':''}</div>`; }); html += `</div>`; }
+                        else if (q.type === 'match') { html += `<table style="width:80%; margin-top:15px; border:none; font-size:13pt;">`; q.data.forEach(m => { html += `<tr><td style="padding:8px; border:1px solid #ccc;">${m.l}</td><td style="padding:8px; border:none; text-align:center;">${type==='ms'?'<strong class="ans-green">➔</strong>':'......'}</td><td style="padding:8px; border:1px solid #ccc;">${type==='ms'? `<span class="ans-green">${m.r}</span>` : ''}</td></tr>`; }); html += `</table>`; }
+                        else if (q.type === 'blank' && type === 'ms' && qa) { html += `<div class="ans-box ans-red">${isEn?'Answers: ':'ޖަވާބުތައް: '}${qa}</div>`; }
+                        html += `</div><div class="pq-mark" style="font-size:14pt;">(${q.mark} ${d.mStr})</div></div>`;
+                        q.subs.forEach((s, sIdx) => { let sl = isEn ? letters.en[sIdx%7] : letters.dv[sIdx%7]; let st = s.text.replace(/\n/g, '<br>'); let sa = s.ans.replace(/\n/g, '<br>'); html += `<div style="display:flex; justify-content:space-between; margin:10px ${isEn?'0 10px 40px':'40px 10px 0'}; page-break-inside:avoid; font-size:13pt;"><div style="flex:1;"><strong>${sl})</strong> ${st} ${(type==='ms' && sa) ? `<div class="ans-box">${isEn?'Ans: ':'ޖ: '}${sa}</div>` : ''}</div><div class="pq-mark" style="font-size:14pt;">(${s.mark} ${d.mStr})</div></div>`; });
+                    });
+                });
+                html += `<div class="p-end">.......................................................<br>${d.endStr}</div>`;
+                html += `<div class="pdf-footer"><div class="footer-left">${meta.fac} | ${meta.sem}</div><div class="footer-right">Page <span class="page-num"></span></div></div></div>`;
+            }
+            else if (type === 'mod') {
+                html += `<div class="page-container">`;
+                html += `
+                    <table style="width:100%; border:none; margin-bottom:20px;">
+                        <tr>
+                            <td style="width:70%; text-align:${dir==='rtl'?'right':'left'}; vertical-align:middle; border:none;">
+                                <div style="font-size:20pt; font-weight:bold; margin-bottom:5px;">${meta.fac}</div>
+                                <div style="font-size:14pt;">${isEn ? 'ISLAMIC UNIVERSITY OF MALDIVES' : (isAr ? 'جامعة المالديف الإسلامية' : 'އިސްލާމިކް ޔުނިވަރސިޓީ އޮފް މޯލްޑިވްސް')}</div>
+                            </td>
+                            <td style="width:30%; border:none; vertical-align:middle;" class="p-header">${logoHtml}</td>
+                        </tr>
+                    </table>
+
+                    <div style="text-align:center; font-weight:bold; font-size:18pt; margin-bottom:30px; text-decoration:underline;">އިމްތިޙާނު މޮޑަރޭޓްކުރާ ފޯމު</div>
+
+                    <div style="text-align:right; font-size:14pt; margin-bottom:20px; line-height: 1.8;">
+                        <span style="font-weight:bold; text-decoration:underline;">މޮޑަރޭޓް ކުރައްވަނީ ކޮން ބޭފުޅެއްކަން ފާހަގަކުރައްވާ:</span><br>
+                        <div style="display:inline-block; border:1px solid black; width:15px; height:15px; margin-left:8px; text-align:center; line-height:15px;">${meta.modType==='internal'?'✔':'&nbsp;'}</div> އިންޓަރނަލް މޮޑަރޭޓަރ<br>
+                        <div style="display:inline-block; border:1px solid black; width:15px; height:15px; margin-left:8px; text-align:center; line-height:15px;">${meta.modType==='external'?'✔':'&nbsp;'}</div> އެކްސްޓަރނަލް މޮޑަރޭޓަރ
+                    </div>
+
+                    <table class="ext-tb">
+                        <tr><th>މޮޑިއުލް ނަން</th><td>${meta.mod}</td></tr>
+                        <tr><th>މޮޑިއުލް ކޯޑު</th><td>${meta.code}</td></tr>
+                        <tr><th>މޮޑިއުލް ކްރެޑިޓް / ލެވެލް</th><td>${meta.credit}</td></tr>
+                        <tr><th>ސެމިސްޓަރ / އަހަރު</th><td>${meta.sem} / ${meta.yr}</td></tr>
+                        <tr><th>ލެކްޗަރަރ</th><td>${meta.lec}</td></tr>
+                        <tr><th>މޮޑަރޭޓަރ</th><td>${meta.moderator}</td></tr>
+                    </table>
+
+                    <div style="margin-top: 30px; font-weight:bold; font-size:14pt;">ސުވާލުކަރުދާހުގައި ހިމެނޭ ސުވާލުތައް ބިނާވެފައިވާ މިންވަރު</div>
+                    <div style="font-size:12pt; margin-bottom:15px;">(މިބައި ފުރިހަމަކުރާނީ ލެކްޗަރަރ / އެގްޒަމިނަރއެވެ.)</div>
+
+                    <table class="mod-tb">
+                        <tr>
+                            <th rowspan="2" style="width:8%;">ސުވާލު<br>ނަންބަރު</th>
+                            <th rowspan="2" style="width:18%;">ޕާރޓް</th>
+                            <th colspan="2">ވިސްނުމުގެ ދަށް ހަރުފަތް</th>
+                            <th colspan="2">ވިސްނުމުގެ މެދު ހަރުފަތް</th>
+                            <th colspan="2">ވިސްނުމުގެ މަތީ ހަރުފަތް</th>
+                        </tr>
+                        <tr>
+                            <th style="font-weight:normal; font-size:11pt;">ހަނދާންކުރުން</th>
+                            <th style="font-weight:normal; font-size:11pt;">ދެނެގަތުން</th>
+                            <th style="font-weight:normal; font-size:11pt;">ބޭނުންކުރުން</th>
+                            <th style="font-weight:normal; font-size:11pt;">ތަޙުލީލުކުރުން</th>
+                            <th style="font-weight:normal; font-size:11pt;">ވަޒަންކުރުން</th>
+                            <th style="font-weight:normal; font-size:11pt;">އުފެއްދުން</th>
+                        </tr>
+                `;
+
+                let totals = [0,0,0,0,0,0];
+                appData.parts.forEach(p => {
+                    p.qs.forEach(q => {
+                        let b1 = q.bloom=='1'?'✔':''; if(b1) totals[0]++;
+                        let b2 = q.bloom=='2'?'✔':''; if(b2) totals[1]++;
+                        let b3 = q.bloom=='3'?'✔':''; if(b3) totals[2]++;
+                        let b4 = q.bloom=='4'?'✔':''; if(b4) totals[3]++;
+                        let b5 = q.bloom=='5'?'✔':''; if(b5) totals[4]++;
+                        let b6 = q.bloom=='6'?'✔':''; if(b6) totals[5]++;
+                        
+                        html += `<tr><td>${q.num}</td><td>${p.title||'-'}</td><td style="color:green; font-weight:bold;">${b1}</td><td style="color:green; font-weight:bold;">${b2}</td><td style="color:green; font-weight:bold;">${b3}</td><td style="color:green; font-weight:bold;">${b4}</td><td style="color:green; font-weight:bold;">${b5}</td><td style="color:green; font-weight:bold;">${b6}</td></tr>`;
+                    });
+                });
+                
+                for(let i=0; i<2; i++) { html += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`; }
+                html += `<tr style="font-weight:bold; font-size:14pt;"><td colspan="2">ޖުމްލަ</td><td>${totals[0]||''}</td><td>${totals[1]||''}</td><td>${totals[2]||''}</td><td>${totals[3]||''}</td><td>${totals[4]||''}</td><td>${totals[5]||''}</td></tr></table>`;
+                
+                html += `<div class="pdf-footer"><div class="footer-left">${meta.fac} | ${meta.sem}</div><div class="footer-right">Page <span class="page-num"></span></div></div></div>`;
+            }
+            else if (type === 'brief') {
+                html += `<div class="page-container">`;
+                html += `<div class="p-header">${logoHtml}</div>`;
+                html += `<div style="text-align:center; font-weight:bold; font-size:18pt; margin-bottom:20px; text-decoration:underline;">${d.briefTitle}</div>`;
+
+                let prettyDate = meta.bDate ? meta.bDate.split('-').reverse().join('-') : '';
+                let due1 = meta.bc1Due ? meta.bc1Due.split('-').reverse().join('-') : '';
+                let due2 = meta.bc2Due ? meta.bc2Due.split('-').reverse().join('-') : '';
+
+                html += `<table class="ext-tb"><tr><th>${isEn?'Faculty':'ކުއްލިއްޔާ'}</th><td>${meta.fac}</td></tr><tr><th>${isEn?'Programme':'ޕްރޮގްރާމް'}</th><td>${meta.prog}</td></tr><tr><th>${isEn?'Module Name':'މާއްދާ'}</th><td>${meta.mod}</td></tr><tr><th>${isEn?'Semester/Year':'ސެމިސްޓަރ'}</th><td>${meta.sem} / ${meta.yr}</td></tr><tr><th>${isEn?'Lecturer':'ލެކްޗަރަރ'}</th><td>${meta.lec}</td></tr></table>`;
+
+                html += `<table class="ext-tb" style="text-align:center;"><tr><th style="text-align:center;">${isEn?'Date Assigned:':'ހަވާލުކުރެވުނު ތާރީޚު:'}</th><td colspan="4" style="text-align:center;">${prettyDate}</td></tr><tr><th style="text-align:center;">${isEn?'Components':'ބައިތައް'}</th><td style="text-align:center; font-weight:bold;">${meta.bc1Name}</td><td style="text-align:center; font-weight:bold;">${meta.bc2Name}</td><td style="text-align:center; font-weight:bold;">${isEn?'Final Exam':'ފަހު އިމްތިޙާނު'}</td></tr><tr><th style="text-align:center;">${isEn?'Weightage':'ބަރުދަން'}</th><td style="text-align:center;">${meta.bc1W}%</td><td style="text-align:center;">${meta.bc2W}%</td><td style="text-align:center;">${meta.bfeW}%</td></tr><tr><th style="text-align:center;">${isEn?'Total Marks':'ޖުމްލަ މާކުސް'}</th><td style="text-align:center;">${meta.bc1M}</td><td style="text-align:center;">${meta.bc2M}</td><td style="text-align:center;">${meta.bfeM}</td></tr><tr><th style="text-align:center;">${isEn?'Due Dates':'ސުންގަޑި'}</th><td style="text-align:center; direction:ltr;">${due1}</td><td style="text-align:center; direction:ltr;">${due2}</td><td style="text-align:center;">-</td></tr><tr><th style="text-align:center;">${isEn?'Format':'ފޯމެޓް'}</th><td style="text-align:center;">${meta.bc1Fmt}</td><td style="text-align:center;">${meta.bc2Fmt}</td><td style="text-align:center;">-</td></tr><tr><th style="text-align:center;">${isEn?'Type':'ވައްތަރު'}</th><td style="text-align:center;">${meta.bc1Typ}</td><td style="text-align:center;">${meta.bc2Typ}</td><td style="text-align:center;">-</td></tr></table>`;
+
+                html += `<div class="cover-inst-title">${d.briefGdl}</div><ul class="cover-inst-list"><li>${d.briefG1}</li><li>${d.briefG2}</li><li>${d.briefG3}</li><li>${d.briefG4}</li><li>${d.briefG5}</li><li>${d.briefG6}</li><li>${d.briefG7}</li><li>${d.briefG8}</li></ul>`;
+
+                html += `<div class="cover-inst-title">${d.taskDet}</div><div style="font-size:13pt; line-height:1.6; margin-bottom:20px;">${(meta.bTask||'').replace(/\n/g, '<br>')}</div>`;
+
+                if(appData.rubric && appData.rubric.length > 0) {
+                    html += `<div class="pb"></div>`;
+                    html += `<div class="cover-inst-title">${isEn?'Marking Rubric':'މާކިންގ ރުބްރިކް'}</div>`;
+                    html += `<table class="ext-tb" style="font-size:11pt;"><tr><th>${d.cHead}</th>`;
+                    for(let i=0; i<appData.rCols; i++) html += `<th style="text-align:center;">${appData.rHeaders[i]||`L${i+1}`}</th>`;
+                    html += `<th style="text-align:center;">${d.mHead}</th></tr>`;
+
+                    appData.rubric.forEach(r => {
+                        html += `<tr><td style="font-weight:bold; text-align:right;">${r.crit}</td>`;
+                        r.levels.forEach(l => html += `<td style="text-align:right;">${l.replace(/\n/g, '<br>')}</td>`);
+                        html += `<td style="text-align:center; font-weight:bold;">${r.mark}</td></tr>`;
+                    }); html += `</table>`;
+                }
+
+                if(appData.presRubric && appData.presRubric.length > 0) {
+                    html += `<div class="cover-inst-title">${d.pTitle}</div>`;
+                    html += `<table class="ext-tb" style="font-size:12pt; width:80%;"><tr><th>${d.cHead}</th><th style="text-align:center; width:20%;">${d.mHead}</th></tr>`;
+                    appData.presRubric.forEach(r => {
+                        html += `<tr><td style="text-align:right;">${r.crit}</td><td style="text-align:center; font-weight:bold;">${r.mark}</td></tr>`;
+                    }); html += `</table>`;
+                }
+
+                html += `<div class="pdf-footer"><div class="footer-left">${meta.fac} | ${meta.sem}</div><div class="footer-right">Page <span class="page-num"></span></div></div></div>`;
+            }
+            
+            html += `</div>`; return html;
+        }
+
+        // --- 8. PREVIEW & EXPORT ACTIONS ---
+        function generatePreview() { document.getElementById('live-preview').innerHTML = getBaseHTML(document.getElementById('exp-doc-type').value); }
+        function doExport(format) {
+            let type = document.getElementById('exp-doc-type').value; let html = getBaseHTML(type);
+            if(format === 'print' || format === 'pdf') { 
+                generatePreview(); 
+                document.getElementById('print-engine').innerHTML = html; 
+                window.print(); 
+            } 
+            else if(format === 'word') {
+                let dir = document.documentElement.dir;
+                let header = `
+                <html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas-microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
+                <head><meta charset="utf-8"><title>Export</title>
+                <style>
+                    body { font-family: 'Faruma', 'Times New Roman', serif; font-size:12pt; text-align:justify; direction: ${dir}; } 
+                    table {border-collapse: collapse; width:100%;} td,th {border:1px solid black; padding:8px;} 
+                    .ans-box {border-left: 3px solid red; padding-left: 15px; margin-top: 15px;} 
+                    .rtl-mode .ans-box {border-left: none; border-right: 3px solid red; padding-left: 0; padding-right: 15px;} 
+                    .ans-red {color:red; font-weight:bold;} .ans-green {color:green; font-weight:bold;} 
+                    .pb {page-break-before: always;}
+                    .pdf-footer { display: none; } 
+                    @page WordSection1 { size: 595.3pt 841.9pt; margin: 72.0pt 72.0pt 72.0pt 72.0pt; mso-header-margin: 35.4pt; mso-footer-margin: 35.4pt; mso-footer: url("header.htm") f1; }
+                    div.WordSection1 { page: WordSection1; }
+                    p.MsoFooter { margin: 0; text-align: center; border-top: 1px solid black; padding-top: 10px; font-size: 11pt;}
+                </style>
+                </head><body dir="${dir}"><div class="WordSection1">
+                `;
+                
+                let footerHTML = `
+                </div>
+                <div style="mso-element:footer" id="f1">
+                    <p class="MsoFooter">
+                        <span style="float: ${dir==='rtl'?'right':'left'};">${appData.meta?.fac || ''} | ${appData.meta?.sem || ''}</span>
+                        <span style="float: ${dir==='rtl'?'left':'right'};">Page <span style="mso-field-code:' PAGE '"></span></span>
+                    </p>
+                </div>
+                </body></html>`;
+
+                let blob = new Blob(['\ufeff', header + html + footerHTML], { type: 'application/msword' });
+                let link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `IUM_Export_${type}_${new Date().getTime()}.doc`;
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            }
+        }
+    </script>
+</body>
+</html>
