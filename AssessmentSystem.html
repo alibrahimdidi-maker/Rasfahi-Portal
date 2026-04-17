@@ -2,7 +2,7 @@
 <html lang="dv" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IUM Assessment System - RASFAHI</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -11,7 +11,7 @@
 
     <style>
         /* =========================================================
-           1. ROYAL THEME & RESET
+           1. ROYAL THEME, FONTS & RESET
            ========================================================= */
         :root {
             --r-blue: #0B2545;
@@ -27,7 +27,16 @@
             --font-ar: 'Traditional Arabic', serif;
         }
 
-        @font-face { font-family: 'Faruma'; src: local('Faruma'), local('A_Faruma'); }
+        /* CUSTOM FONT LOADING - Looks in "fonts" folder */
+        @font-face { 
+            font-family: 'Faruma'; 
+            src: url('fonts/faruma.ttf') format('truetype'),
+                 local('Faruma'), 
+                 local('A_Faruma'); 
+            font-weight: normal;
+            font-style: normal;
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; transition: all 0.2s ease; }
         body { font-family: var(--font-dv); background: var(--r-light); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 
@@ -38,9 +47,10 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: 9999;
             background: linear-gradient(135deg, var(--r-blue), var(--r-green));
             display: flex; justify-content: center; align-items: center;
+            padding: 20px;
         }
         .login-box {
-            background: var(--white); width: 500px; padding: 40px; border-radius: 12px;
+            background: var(--white); width: 100%; max-width: 500px; padding: 40px; border-radius: 12px;
             box-shadow: 0 25px 50px rgba(0,0,0,0.6); border-top: 6px solid var(--r-purple); text-align: center;
         }
         .form-ctrl { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 15px; font-family: inherit; font-size: 16px; }
@@ -58,84 +68,119 @@
         .cert-box { font-size: 12px; color: #475569; background: #f1f5f9; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid var(--border); margin-top: 15px; direction: ltr; font-family: 'Times New Roman', serif; }
 
         /* =========================================================
-           3. MAIN APP LAYOUT
+           3. MAIN APP LAYOUT (RESPONSIVE)
            ========================================================= */
-        #app-ui { display: none; height: 100vh; width: 100vw; }
+        #app-ui { display: none; height: 100vh; width: 100vw; position: relative; }
         
-        .sidebar { width: 300px; background: var(--r-blue); color: var(--white); display: flex; flex-direction: column; z-index: 10; box-shadow: 4px 0 15px rgba(0,0,0,0.1); }
-        .sidebar-brand { padding: 30px 20px; background: #07182d; border-bottom: 4px solid var(--r-purple); text-align: center; }
+        .sidebar { width: 300px; background: var(--r-blue); color: var(--white); display: flex; flex-direction: column; z-index: 100; box-shadow: 4px 0 15px rgba(0,0,0,0.1); height: 100%; flex-shrink: 0; }
+        .sidebar-brand { padding: 30px 20px; background: #07182d; border-bottom: 4px solid var(--r-purple); text-align: center; position: relative; }
         .sidebar-brand h1 { font-size: 26px; margin-bottom: 5px; }
         
+        /* Mobile Menu Toggle Button */
+        .menu-toggle { display: none; position: absolute; top: 15px; left: 15px; background: transparent; border: none; color: white; font-size: 24px; cursor: pointer; }
+
         .nav-items { flex: 1; overflow-y: auto; padding: 20px 0; }
         .nav-link { padding: 16px 25px; cursor: pointer; font-size: 17px; border-left: 6px solid transparent; color: #cbd5e1; display: flex; align-items: center; gap: 10px; }
         .nav-link:hover { background: rgba(255,255,255,0.08); color: var(--white); }
         .nav-link.active { background: var(--r-green); border-left-color: var(--white); color: var(--white); font-weight: bold; }
 
-        .main-panel { flex: 1; display: flex; flex-direction: column; background: #e2e8f0; overflow: hidden; }
-        .topbar { background: var(--white); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); z-index: 5; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
-        .workspace { flex: 1; padding: 30px; overflow-y: auto; }
+        .main-panel { flex: 1; display: flex; flex-direction: column; background: #e2e8f0; overflow: hidden; width: 100%; }
+        .topbar { background: var(--white); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); z-index: 5; box-shadow: 0 2px 5px rgba(0,0,0,0.02); flex-wrap: wrap; gap: 10px; }
+        
+        /* Hamburger for mobile in topbar */
+        .mobile-menu-btn { display: none; background: var(--r-blue); color: white; border: none; padding: 8px 15px; border-radius: 5px; font-size: 18px; cursor: pointer; }
+
+        .topbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .workspace { flex: 1; padding: 20px; overflow-y: auto; }
         
         .pane { display: none; max-width: 1400px; margin: 0 auto; animation: fadeUp 0.3s ease; }
         .pane.active { display: block; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Cards & Grids */
-        .card { background: var(--white); border-radius: 10px; padding: 30px; margin-bottom: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-top: 4px solid var(--r-blue); }
-        .card-header { color: var(--r-purple); font-size: 20px; margin-bottom: 25px; border-bottom: 2px solid var(--r-light); padding-bottom: 10px; font-weight: bold; }
-        .g-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .g-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
-        .g-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; }
-        .f-grp { margin-bottom: 15px; } .f-grp label { display: block; font-weight: bold; color: var(--r-blue); margin-bottom: 8px; }
+        .card { background: var(--white); border-radius: 10px; padding: 25px; margin-bottom: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-top: 4px solid var(--r-blue); }
+        .card-header { color: var(--r-purple); font-size: 20px; margin-bottom: 20px; border-bottom: 2px solid var(--r-light); padding-bottom: 10px; font-weight: bold; }
+        
+        /* Responsive Grids */
+        .g-2, .g-3, .g-4 { display: grid; gap: 15px; }
+        .g-2 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+        .g-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+        .g-4 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+        
+        .f-grp { margin-bottom: 15px; } .f-grp label { display: block; font-weight: bold; color: var(--r-blue); margin-bottom: 8px; font-size: 14px; }
 
         /* Builder Elements */
-        .part-box { border: 2px solid var(--r-blue); border-radius: 8px; padding: 25px; margin-bottom: 30px; background: #fafafa; position: relative; }
-        .q-box { background: var(--white); border-right: 6px solid var(--r-green); border: 1px solid var(--border); padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .q-row { display: flex; gap: 15px; align-items: flex-start; }
-        .q-num { font-size: 20px; font-weight: bold; color: var(--r-blue); width: 35px; padding-top: 10px; }
-        .sub-q-block { margin: 15px 50px 10px 0; background: #f8fafc; border: 1px dashed var(--border); padding: 15px; border-radius: 6px; display: flex; gap: 15px; }
-        .rtl-mode .sub-q-block { margin: 15px 0 10px 50px; }
+        .part-box { border: 2px solid var(--r-blue); border-radius: 8px; padding: 15px; margin-bottom: 25px; background: #fafafa; position: relative; }
+        .q-box { background: var(--white); border-right: 6px solid var(--r-green); border: 1px solid var(--border); padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .q-row { display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap; }
+        .q-num { font-size: 18px; font-weight: bold; color: var(--r-blue); width: 30px; padding-top: 10px; }
+        .q-content { flex: 1; min-width: 250px; display: flex; flex-direction: column; gap: 10px; }
+        .q-actions { width: 100%; max-width: 200px; display: flex; flex-direction: column; gap: 10px; }
+        
+        .sub-q-block { margin: 10px 30px 10px 0; background: #f8fafc; border: 1px dashed var(--border); padding: 10px; border-radius: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .rtl-mode .sub-q-block { margin: 10px 0 10px 30px; }
 
         .table-res { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .table-res th, .table-res td { border: 1px solid var(--border); padding: 10px; text-align: center; }
+        .table-res th, .table-res td { border: 1px solid var(--border); padding: 8px; text-align: center; }
         .table-res th { background: var(--r-blue); color: var(--white); }
 
         /* Q-Bank & Archives */
-        .archive-item { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid var(--r-purple); box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
-        .archive-details h3 { margin: 0 0 5px 0; color: var(--r-blue); font-size: 18px; }
-        .archive-details p { margin: 0; color: #64748b; font-size: 14px; }
-        .archive-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; width: 400px; }
+        .archive-item { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-left: 5px solid var(--r-purple); }
+        .archive-details h3 { margin: 0 0 5px 0; color: var(--r-blue); font-size: 16px; }
+        .archive-details p { margin: 0; color: #64748b; font-size: 13px; }
+        .archive-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        
+        .yr-block { margin-bottom: 25px; border: 2px solid var(--r-blue); border-radius: 8px; overflow: hidden; }
+        .yr-head { background: var(--r-blue); color: white; padding: 10px 15px; font-size: 16px; font-weight: bold; }
+        .sem-block { margin: 10px; border-left: 4px solid var(--r-green); padding-left: 10px; }
+        .sem-head { color: var(--r-green); font-size: 15px; margin-bottom: 8px; }
+        .prog-head { color: var(--r-purple); font-size: 14px; margin-bottom: 8px; margin-top: 15px; font-weight: bold; }
 
-        .bank-section { margin-bottom: 30px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--white); }
-        .bank-header { background: var(--r-blue); color: var(--white); padding: 15px 20px; font-weight: bold; font-size: 18px; }
-        .bank-item { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .bank-item:last-child { border-bottom: none; }
+        .bank-section { margin-bottom: 20px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--white); }
+        .bank-header { background: var(--r-blue); color: var(--white); padding: 10px 15px; font-weight: bold; font-size: 16px; }
+        .bank-item { padding: 10px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 
         /* Live Preview Canvas Styling */
-        .a4-preview-container { background: white; width: 210mm; min-height: 297mm; margin: 0 auto; padding: 20mm 20mm 30mm 20mm; box-shadow: 0 10px 20px rgba(0,0,0,0.2); color: black; font-size: 12pt; border: 1px solid #ccc; text-align: justify; overflow: hidden; position: relative; }
+        .a4-preview-container { background: white; width: 100%; max-width: 210mm; min-height: 297mm; margin: 0 auto; padding: 5%; box-shadow: 0 10px 20px rgba(0,0,0,0.2); color: black; font-size: 12pt; border: 1px solid #ccc; text-align: justify; overflow: hidden; position: relative; }
 
         /* EXACT COVER PAGE STYLES */
         .cover-table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; }
-        .cover-table th, .cover-table td { border: 1px solid black; padding: 10px 15px; text-align: right; vertical-align: middle; font-size:14pt; line-height: 1.4; }
-        .cover-table th { width: 25%; font-weight: bold; background: #fafafa; }
-        .cover-table td { width: 25%; }
-        .cover-inst-title { font-weight: bold; text-decoration: underline; font-size: 15pt; margin-top: 40px; margin-bottom: 15px; }
+        .cover-table th, .cover-table td { border: 1px solid black; padding: 8px 10px; text-align: right; vertical-align: middle; font-size:12pt; line-height: 1.4; }
+        .cover-table th { width: 30%; font-weight: bold; background: #fafafa; }
+        .cover-table td { width: 20%; }
+        .cover-inst-title { font-weight: bold; text-decoration: underline; font-size: 14pt; margin-top: 30px; margin-bottom: 10px; }
         .cover-inst-list { list-style-type: none; padding-left: 0; padding-right: 0; margin-bottom: 20px; }
-        .cover-inst-list li { position: relative; padding-right: 25px; margin-bottom: 12px; line-height: 1.6; font-size: 13pt; }
-        .cover-inst-list li::before { content: "❖"; position: absolute; right: 0; top: 0; font-size: 14pt; color: black; }
+        .cover-inst-list li { position: relative; padding-right: 20px; margin-bottom: 10px; line-height: 1.6; font-size: 12pt; }
+        .cover-inst-list li::before { content: "❖"; position: absolute; right: 0; top: 0; font-size: 12pt; color: black; }
 
         /* MODERATION TABLE STYLES */
-        .mod-tb { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13pt; }
-        .mod-tb th, .mod-tb td { border: 1px solid black; padding: 8px; text-align: center; vertical-align: middle; }
+        .mod-tb { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11pt; }
+        .mod-tb th, .mod-tb td { border: 1px solid black; padding: 6px; text-align: center; vertical-align: middle; }
         .mod-tb th { background: #f0f0f0; font-weight: bold; }
 
         /* General Table styling for export */
         .ext-tb { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt; }
-        .ext-tb th, .ext-tb td { border: 1px solid black; padding: 10px; text-align: right; line-height:1.4; }
+        .ext-tb th, .ext-tb td { border: 1px solid black; padding: 8px; text-align: right; line-height:1.4; }
         .ext-tb th { font-weight: bold; background: #f0f0f0; }
 
-        /* Header Logo Styling (Center aligned) */
+        /* Header Logo Styling */
         .p-header { text-align: center; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .p-header img { max-width: 100%; max-height: 130px !important; width: auto !important; height: auto; object-fit: contain; margin: 0 auto; display:block; }
+        .p-header img { max-width: 100%; max-height: 110px !important; width: auto !important; height: auto; object-fit: contain; margin: 0 auto; display:block; }
+
+        /* MOBILE RESPONSIVE MEDIA QUERIES */
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; left: -300px; transition: left 0.3s ease; }
+            .sidebar.open { left: 0; }
+            .mobile-menu-btn { display: block; }
+            .menu-toggle { display: block; }
+            .topbar { flex-direction: column; align-items: flex-start; }
+            .topbar-actions { width: 100%; justify-content: space-between; margin-top: 10px; }
+            .q-actions { max-width: 100%; }
+            .a4-preview-container { padding: 10px; font-size: 10pt; }
+            .cover-table th, .cover-table td { font-size: 10pt; padding: 5px; }
+            .cover-inst-title { font-size: 12pt; }
+            .cover-inst-list li { font-size: 10pt; }
+        }
 
         /* =========================================================
            4. PRINT ENGINE (STRICT PDF MARGIN CONTROLS & PAGINATION)
@@ -143,40 +188,30 @@
         @media screen { #print-engine { display: none; } }
         
         @media print {
-            /* Margin 0 prevents browser URLs and Dates from showing up */
             @page { size: A4; margin: 0; }
-            
             body { background: white; color: black; font-size: 12pt; display: block; height: auto; overflow: visible; margin: 0; padding: 0; }
-            
             #login-ui, #app-ui { display: none !important; }
             #print-engine { display: block !important; width: 100%; text-align: justify; }
             
-            /* CSS Counters for Page Numbers in PDF */
             #print-engine { counter-reset: page; }
             .page-container { position: relative; min-height: 297mm; padding: 15mm 20mm 25mm 20mm; box-sizing: border-box; page-break-after: always; counter-increment: page; overflow: hidden; }
             .page-container:last-child { page-break-after: auto; }
             
-            /* Fixed Footer with Page Numbers at the Bottom Left/Right */
             .pdf-footer { position: absolute; bottom: 10mm; left: 20mm; right: 20mm; border-top: 1px solid #000; padding-top: 5px; font-size: 11pt; display: flex; justify-content: space-between; align-items: center;}
             .ltr-mode .pdf-footer { flex-direction: row; }
             .rtl-mode .pdf-footer { flex-direction: row-reverse; } 
-            
-            .pdf-footer .page-num::before { content: "Page " counter(page); }
+            .pdf-footer .page-num::before { content: counter(page); }
             
             .pb { page-break-before: always; }
-            
             .part-head { text-align: center; font-weight: bold; font-size: 16pt; margin-top: 30px; text-decoration: underline; margin-bottom: 15px;}
             .part-inst { text-align: center; font-size: 14pt; margin-bottom: 25px; }
-            
             .pq-row { display: flex; justify-content: space-between; margin-bottom: 25px; page-break-inside: avoid; }
             .pq-con { flex: 1; padding: 0 15px; }
             .pq-mark { font-weight: bold; white-space: nowrap; }
-            
             .ans-red { color: red !important; font-weight: bold; }
             .ans-green { color: green !important; font-weight: bold; }
             .ans-box { border-left: 3px solid red; padding-left: 15px; margin-top: 15px; color: #333; font-style: italic; }
             .rtl-mode .ans-box { border-left: none; border-right: 3px solid red; padding-left: 0; padding-right: 15px; }
-            
             .p-end { text-align: center; font-weight: bold; margin-top: 50px; font-size: 16pt; }
         }
     </style>
@@ -206,38 +241,40 @@
 
     <div id="app-ui">
         
-        <div class="sidebar">
+        <div class="sidebar" id="main-sidebar">
+            <button class="menu-toggle" onclick="toggleSidebar()">X</button>
             <div class="sidebar-brand">
                 <h1>RASFAHI</h1>
                 <div style="font-size: 13px; color: var(--r-green); font-weight: bold;">Ultimate Assessor</div>
             </div>
             <div class="nav-items">
-                <div class="nav-link active" onclick="nav('meta')" id="nav-meta">📄 ސެޓިންގްސް & ކަވަރ</div>
-                <div class="nav-link" onclick="nav('builder')" id="nav-builder">📝 ޕޭޕަރ ފަރުމާކުރުން</div>
-                <div class="nav-link" onclick="nav('brief')" id="nav-brief">📋 އެސައިންމެންޓް ބްރީފް</div>
-                <div class="nav-link" onclick="nav('rubric')" id="nav-rubric">📊 ރުބްރިކް ފަރުމާކުރުން</div>
-                <div class="nav-link" onclick="nav('bank')" id="nav-bank">🗃️ ޕޭޕަރ ބޭންކު (Archive)</div>
-                <div class="nav-link" onclick="nav('export')" id="nav-export" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top:15px;">🖨️ ޕްރީވިއު & އެކްސްޕޯޓް</div>
+                <div class="nav-link active" onclick="nav('meta')" id="nav-meta" data-i18n="nav-meta">📄 ސެޓިންގްސް & ކަވަރ</div>
+                <div class="nav-link" onclick="nav('builder')" id="nav-builder" data-i18n="nav-builder">📝 ޕޭޕަރ ފަރުމާކުރުން</div>
+                <div class="nav-link" onclick="nav('brief')" id="nav-brief" data-i18n="nav-brief">📋 އެސައިންމެންޓް ބްރީފް</div>
+                <div class="nav-link" onclick="nav('rubric')" id="nav-rubric" data-i18n="nav-rubric">📊 ރުބްރިކް ފަރުމާކުރުން</div>
+                <div class="nav-link" onclick="nav('bank')" id="nav-bank" data-i18n="nav-bank">🗃️ ޕޭޕަރ ބޭންކު (Archive)</div>
+                <div class="nav-link" onclick="nav('export')" id="nav-export" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top:15px;" data-i18n="nav-export">🖨️ ޕްރީވިއު & އެކްސްޕޯޓް</div>
             </div>
         </div>
 
         <div class="main-panel">
             <div class="topbar">
-                <div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
                     <select id="ui-lang" class="form-ctrl" style="width: 160px; background: var(--r-purple); color: white; border: none; font-weight: bold; margin-bottom:0;" onchange="changeLang()">
                         <option value="dv">ދިވެހި ބަސް (Dhivehi)</option>
                         <option value="en">English (EN)</option>
                         <option value="ar">العربية (Arabic)</option>
                     </select>
                 </div>
-                <div style="display: flex; gap: 15px; align-items: center;">
-                    <span id="cloud-status" style="font-size: 13px; color: var(--r-purple); font-weight: bold;"></span>
-                    <span style="font-weight:bold; color:var(--r-blue); font-size: 18px; background: #f1f5f9; padding: 6px 20px; border-radius: 20px; border: 2px solid var(--border);">
-                        ޖުމްލަ މާކުސް: <span id="lbl-total">0</span>
+                <div class="topbar-actions">
+                    <span id="cloud-status" style="font-size: 12px; color: var(--r-purple); font-weight: bold;"></span>
+                    <span style="font-weight:bold; color:var(--r-blue); font-size: 15px; background: #f1f5f9; padding: 6px 12px; border-radius: 20px; border: 2px solid var(--border);">
+                        <span data-i18n="lbl-total-marks">ޖުމްލަ މާކުސް:</span> <span id="lbl-total">0</span>
                     </span>
-                    <button class="btn btn-purple" onclick="archiveCurrentPaper()">📥 ޕޭޕަރ ބޭންކަށް ސޭވްކުރޭ</button>
-                    <button class="btn btn-outline" onclick="saveToFirebase()">☁️ Cloud Sync</button>
-                    <button class="btn btn-danger btn-sm" onclick="logout()">🚪 ލޮގްއައުޓް</button>
+                    <button class="btn btn-purple btn-sm" onclick="archiveCurrentPaper()" data-i18n="btn-save-archive">📥 ބޭންކަށް ސޭވްކުރޭ</button>
+                    <button class="btn btn-outline btn-sm" onclick="saveToFirebase()" data-i18n="btn-cloud-sync">☁️ Sync</button>
+                    <button class="btn btn-danger btn-sm" onclick="logout()" data-i18n="btn-logout">🚪</button>
                 </div>
             </div>
 
@@ -245,132 +282,129 @@
                 
                 <div id="pane-meta" class="pane active">
                     <div class="card" style="background: #f0f9ff; border-color: #bae6fd;">
-                        <div class="card-header" style="border:none; margin-bottom:0;">ސިސްޓަމް ބެކަޕް އަދި ޕޭޕަރ އިންޕޯޓް</div>
-                        <div style="display:flex; gap:15px; align-items:center;">
-                            <button class="btn btn-blue" onclick="exportBackup()">📥 މުޅި ސިސްޓަމް ލޯކަލް ބެކަޕް (PC)</button>
+                        <div class="card-header" style="border:none; margin-bottom:0;" data-i18n="h-sys-backup">ސިސްޓަމް ބެކަޕް އަދި ޕޭޕަރ އިންޕޯޓް</div>
+                        <div style="display:flex; gap:10px; align-items:center; margin-top:15px; flex-wrap:wrap;">
+                            <button class="btn btn-blue btn-sm" onclick="exportBackup()" data-i18n="btn-local-backup">📥 ލޯކަލް ބެކަޕް ޑައުންލޯޑް</button>
                             <input type="file" id="import-file" style="display:none" accept=".json" onchange="importBackup(event)">
-                            <button class="btn btn-outline" onclick="document.getElementById('import-file').click()">📤 ޕޭޕަރ / ބެކަޕް އިންޕޯޓްކުރޭ</button>
+                            <button class="btn btn-outline btn-sm" onclick="document.getElementById('import-file').click()" data-i18n="btn-import">📤 ބެކަޕް އިންޕޯޓްކުރޭ</button>
                         </div>
                     </div>
 
                     <div class="card">
-                        <div class="card-header">ކަވަރ ޕޭޖުގެ 100% ފޯމެޓް ސެޓިންގްސް</div>
+                        <div class="card-header" data-i18n="h-cover-settings">ކަވަރ ޕޭޖުގެ 100% ފޯމެޓް ސެޓިންގްސް</div>
                         
-                        <div class="g-2" style="margin-bottom: 30px; background: #fafafa; padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
+                        <div class="g-2" style="margin-bottom: 25px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
                             <div class="f-grp" style="margin:0;">
-                                <label>ޔުނިވަރސިޓީ ލޯގޯ (Upload Logo):</label>
+                                <label data-i18n="lbl-logo">ޔުނިވަރސިޓީ ލޯގޯ (Upload Logo):</label>
                                 <input type="file" id="logo-upload" class="form-ctrl" accept="image/*" onchange="handleLogoUpload(event)">
                             </div>
                             <div class="f-grp" style="margin:0;">
-                                <label>ޕޭޕަރ ލޭއައުޓް (Paper Template):</label>
+                                <label data-i18n="lbl-layout">ޕޭޕަރ ލޭއައުޓް (Paper Template):</label>
                                 <select id="cfg-layout" class="form-ctrl" onchange="appData.layout = this.value; syncState();">
-                                    <option value="std">ސްޓޭންޑަރޑް ލޭއައުޓް (IUM Cover Match)</option>
-                                    <option value="table">އަރަބި ލޭއައުޓް (Arabic Grid)</option>
+                                    <option value="std" data-i18n="opt-std">ސްޓޭންޑަރޑް ލޭއައުޓް (IUM Cover Match)</option>
+                                    <option value="table" data-i18n="opt-tbl">އަރަބި ލޭއައުޓް (Arabic Grid)</option>
                                 </select>
                             </div>
                         </div>
 
                         <div class="g-3">
-                            <div class="f-grp"><label>އަހަރު (Year):</label><select id="m-yr" class="form-ctrl" onchange="syncState()"></select></div>
-                            <div class="f-grp"><label>ސެމިސްޓަރ (Semester):</label><select id="m-sem" class="form-ctrl" onchange="syncState()"><option value="ފުރަތަމަ ސެމިސްޓަރ">ފުރަތަމަ ސެމިސްޓަރ</option><option value="ދެވަނަ ސެމިސްޓަރ">ދެވަނަ ސެމިސްޓަރ</option><option value="ފަހު އިމްތިޙާނު">ފަހު އިމްތިޙާނު</option><option value="ރީސިޓް އިމްތިޙާނު">ރީސިޓް އިމްތިޙާނު</option></select></div>
-                            <div class="f-grp"><label>ޕޭޕަރގެ ބަސް (Language):</label><select id="m-lang" class="form-ctrl" onchange="syncState()"><option value="dv">ދިވެހި / Dhivehi</option><option value="en">English</option><option value="ar">العربية (Arabic)</option></select></div>
+                            <div class="f-grp"><label data-i18n="lbl-yr">އަހަރު (Year):</label><select id="m-yr" class="form-ctrl" onchange="syncState()"></select></div>
+                            <div class="f-grp"><label data-i18n="lbl-sem">ސެމިސްޓަރ (Semester):</label><input type="text" id="m-sem" class="form-ctrl" value="ފުރަތަމަ ސެމިސްޓަރ / Semester 1" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-lang">ޕޭޕަރގެ ބަސް (Language):</label><select id="m-lang" class="form-ctrl" disabled><option value="dv">އޮޓޯއިން ބަދަލުވާނެ</option></select></div>
                         </div>
                         
                         <div class="g-2">
-                            <div class="f-grp"><label>އިމްތިޙާނުގެ ބާވަތް:</label><input type="text" id="m-type" class="form-ctrl" value="ފަހު އިމްތިޙާނު" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ޕްރޮގްރާމު:</label><input type="text" id="m-prog" class="form-ctrl" value="Bachelor of Shari'ah and Law with Honours" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ފެކަލްޓީ / ކުއްލިއްޔާ:</label><input type="text" id="m-fac" class="form-ctrl" value="ކުއްލިއްޔާ އޮފް ޝަރީޢާ އެންޑް ލޯ" oninput="syncState()"></div>
-                            <div class="f-grp"><label>މޮޑިއުލް ނަން:</label><input type="text" id="m-mod" class="form-ctrl" value="Study of Islamic Legal System" oninput="syncState();"></div>
-                            <div class="f-grp"><label>މޮޑިއުލް ކޯޑު:</label><input type="text" id="m-code" class="form-ctrl" value="LAW0901" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ލެކްޗަރަރ:</label><input type="text" id="m-lec" class="form-ctrl" value="ޢަލީ އިބްރާހީމް ދީދީ" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ތާރީޚު (Date):</label><input type="date" id="m-date" class="form-ctrl" onchange="syncState()"></div>
-                            <div class="f-grp"><label>ބެޗު:</label><input type="text" id="m-batch" class="form-ctrl" value="23" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-type">އިމްތިޙާނުގެ ބާވަތް:</label><input type="text" id="m-type" class="form-ctrl" value="ފަހު އިމްތިޙާނު / Final Exam" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-prog">ޕްރޮގްރާމު:</label><input type="text" id="m-prog" class="form-ctrl" value="Bachelor of Shari'ah and Law with Honours" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-fac">ފެކަލްޓީ / ކުއްލިއްޔާ:</label><input type="text" id="m-fac" class="form-ctrl" value="ކުއްލިއްޔާ އޮފް ޝަރީޢާ އެންޑް ލޯ" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-mod">މޮޑިއުލް ނަން:</label><input type="text" id="m-mod" class="form-ctrl" value="Study of Islamic Legal System" oninput="syncState();"></div>
+                            <div class="f-grp"><label data-i18n="lbl-code">މޮޑިއުލް ކޯޑު:</label><input type="text" id="m-code" class="form-ctrl" value="LAW0901" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-lec">ލެކްޗަރަރ:</label><input type="text" id="m-lec" class="form-ctrl" value="ޢަލީ އިބްރާހީމް ދީދީ" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-date">ތާރީޚު (Date):</label><input type="date" id="m-date" class="form-ctrl" onchange="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-batch">ބެޗު:</label><input type="text" id="m-batch" class="form-ctrl" value="23" oninput="syncState()"></div>
                             <div class="f-grp">
-                                <label>ގަޑި (ކިޔަން / ލިޔަން):</label>
+                                <label data-i18n="lbl-time">ގަޑި (ކިޔަން / ލިޔަން):</label>
                                 <div style="display:flex; gap:10px;">
-                                    <select id="m-tr" class="form-ctrl" onchange="syncState()"><option>10 މިނެޓު</option></select>
-                                    <select id="m-tw" class="form-ctrl" onchange="syncState()"><option>3 ގަޑިއިރު</option><option>2 ގަޑިއިރު</option></select>
+                                    <input type="text" id="m-tr" class="form-ctrl" value="10 Mins" oninput="syncState()">
+                                    <input type="text" id="m-tw" class="form-ctrl" value="3 Hours" oninput="syncState()">
                                 </div>
                             </div>
-                            <div class="f-grp"><label>ޖަވާބު ލިޔާނީ:</label><select id="m-ans" class="form-ctrl" onchange="syncState()"><option value="އެކަމަށްޓަކައި ދެވޭ ބުކްލެޓުގައެވެ.">ބުކްލެޓުގައި (Booklet)</option><option value="މި ސުވާލު ކަރުދާހުގައެވެ.">މި ކަރުދާހުގައި (Paper)</option></select></div>
-                            <div class="f-grp"><label>ރެފަރެންސް ހުއްދަތޯ:</label><select id="m-ref" class="form-ctrl" onchange="document.getElementById('m-ref-list').style.display=this.value==='yes'?'block':'none'; syncState();"><option value="no">ނުކުރޭ (No)</option><option value="yes">ކުރޭ (Yes)</option></select><textarea id="m-ref-list" class="form-ctrl" style="display:none; margin-top:10px;" placeholder="އެއް ރޮނގުގައި އެއް ފޮތް..." oninput="syncState()"></textarea></div>
+                            <div class="f-grp"><label data-i18n="lbl-ans">ޖަވާބު ލިޔާނީ:</label><input type="text" id="m-ans" class="form-ctrl" value="ބުކްލެޓުގައި (Booklet)" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-ref">ރެފަރެންސް ހުއްދަތޯ:</label><select id="m-ref" class="form-ctrl" onchange="document.getElementById('m-ref-list').style.display=this.value==='yes'?'block':'none'; syncState();"><option value="no">ނުކުރޭ (No)</option><option value="yes">ކުރޭ (Yes)</option></select><textarea id="m-ref-list" class="form-ctrl" style="display:none; margin-top:10px;" placeholder="އެއް ރޮނގުގައި އެއް ފޮތް..." oninput="syncState()"></textarea></div>
                         </div>
                     </div>
 
                     <div class="card" style="border-top: 4px solid var(--r-green);">
-                        <div class="card-header">އިރުޝާދު އަދި މޮޑަރޭޝަން ސެޓިންގްސް</div>
+                        <div class="card-header" data-i18n="h-inst-mod">އިރުޝާދު އަދި މޮޑަރޭޝަން ސެޓިންގްސް</div>
                         <div class="g-4">
-                            <div class="f-grp"><label>ޖުމްލަ ޞަފުޙާ:</label><input type="number" id="m-pages" class="form-ctrl" value="5" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ޖުމްލަ ސުވާލު:</label><input type="number" id="m-totQs" class="form-ctrl" value="5" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ޖަވާބުދޭންޖެހޭ ސުވާލު:</label><input type="number" id="m-ansQs" class="form-ctrl" value="3" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-pages">ޖުމްލަ ޞަފުޙާ:</label><input type="number" id="m-pages" class="form-ctrl" value="5" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-tot-qs">ޖުމްލަ ސުވާލު:</label><input type="number" id="m-totQs" class="form-ctrl" value="5" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-ans-qs">ޖަވާބުދޭންޖެހޭ ސުވާލު:</label><input type="number" id="m-ansQs" class="form-ctrl" value="3" oninput="syncState()"></div>
                             
                             <div class="f-grp" style="grid-column: span 4;">
-                                <label>ބައިތަކުން ސުވާލަށް ޖަވާބުދޭންޖެހޭ ގޮތުގެ ތަފްސީލު:</label>
+                                <label data-i18n="lbl-pinst">ބައިތަކުން ސުވާލަށް ޖަވާބުދޭންޖެހޭ ގޮތުގެ ތަފްސީލު:</label>
                                 <textarea id="m-partInst" class="form-ctrl" rows="2" placeholder="މިސާލު: ފުރަތަމަ ބައިން 1 (އެކެއް) ސުވާލަށް އަދި ދެވަނަ ބައިން 2 (ދޭއް) ސުވާލަށް ޖަވާބުދޭށެވެ!" oninput="syncState()">ފުރަތަމަ ބައިން 1 (އެކެއް) ސުވާލަށް އަދި ދެވަނަ ބައިން 2 (ދޭއް) ސުވާލަށް ޖަވާބުދޭށެވެ!</textarea>
                             </div>
 
-                            <div class="f-grp"><label>މޮޑިއުލް ކްރެޑިޓް/ލެވެލް:</label><input type="text" id="m-credit" class="form-ctrl" value="15 / 7" oninput="syncState()"></div>
-                            <div class="f-grp"><label>މޮޑަރޭޓަރ:</label><input type="text" id="m-moderator" class="form-ctrl" value="އަޙްމަދު ރިޔާޟް" oninput="syncState()"></div>
-                            <div class="f-grp" style="grid-column: span 2;"><label>މޮޑަރޭޓަރ ބާވަތް:</label><select id="m-modType" class="form-ctrl" onchange="syncState()"><option value="internal">އިންޓަރނަލް މޮޑަރޭޓަރ</option><option value="external">އެކްސްޓަރނަލް މޮޑަރޭޓަރ</option></select></div>
+                            <div class="f-grp"><label data-i18n="lbl-credit">މޮޑިއުލް ކްރެޑިޓް/ލެވެލް:</label><input type="text" id="m-credit" class="form-ctrl" value="15 / 7" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-moderator">މޮޑަރޭޓަރ:</label><input type="text" id="m-moderator" class="form-ctrl" value="އަޙްމަދު ރިޔާޟް" oninput="syncState()"></div>
+                            <div class="f-grp" style="grid-column: span 2;"><label data-i18n="lbl-modtype">މޮޑަރޭޓަރ ބާވަތް:</label><select id="m-modType" class="form-ctrl" onchange="syncState()"><option value="internal">އިންޓަރނަލް މޮޑަރޭޓަރ / Internal</option><option value="external">އެކްސްޓަރނަލް މޮޑަރޭޓަރ / External</option></select></div>
                         </div>
                     </div>
                 </div>
 
                 <div id="pane-builder" class="pane">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:25px;">
-                        <h2 style="color:var(--r-blue);">ސުވާލު ކަރުދާސް ފަރުމާކުރުން</h2>
-                        <button class="btn btn-blue" onclick="addPart()">+ އައު ބައެއް (Section / Part) އެޑްކުރޭ</button>
+                    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:25px;">
+                        <h2 style="color:var(--r-blue);" data-i18n="h-builder">ސުވާލު ކަރުދާސް ފަރުމާކުރުން</h2>
+                        <button class="btn btn-blue" onclick="addPart()" data-i18n="btn-add-part">+ އައު ބައެއް (Section / Part) އެޑްކުރޭ</button>
                     </div>
                     <div id="builder-canvas"></div>
                 </div>
 
                 <div id="pane-brief" class="pane">
                     <div class="card" style="border-top: 4px solid var(--r-blue);">
-                        <div class="card-header">އެސައިންމެންޓް ބްރީފް ސެޓިންގްސް</div>
-                        <p style="margin-bottom:20px; font-size: 15px; color:#64748b;">އެސައިންމެންޓް ބްރީފް ޖެނެރޭޓް ކުރުމަށް ތިރީގައިވާ މަޢުލޫމާތު ފުރިހަމަކުރައްވާށެވެ. ކަވަރ ޕޭޖުގައިވާ މޮޑިއުލް މަޢުލޫމާތު އޮޓޯއިން ނަގާނެއެވެ.</p>
+                        <div class="card-header" data-i18n="h-brief">އެސައިންމެންޓް ބްރީފް ސެޓިންގްސް</div>
                         
                         <div class="g-3">
-                            <div class="f-grp"><label>ހަވާލުކުރެވުނު ތާރީޚު (Date Assigned):</label><input type="date" id="b-date" class="form-ctrl" onchange="syncState()"></div>
-                            <div class="f-grp"><label>ދިގުމިން (Word Count / Length):</label><input type="text" id="b-length" class="form-ctrl" value="1500 words" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ފޯމެޓް (Font Rules):</label><input type="text" id="b-format" class="form-ctrl" value="Times New Roman / Faruma, 12pt, 1.5 spacing" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-b-date">ހަވާލުކުރެވުނު ތާރީޚު:</label><input type="date" id="b-date" class="form-ctrl" onchange="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-b-len">ދިގުމިން (Word Count):</label><input type="text" id="b-length" class="form-ctrl" value="1500 words" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-b-fmt">ފޯމެޓް (Font Rules):</label><input type="text" id="b-format" class="form-ctrl" value="Times New Roman / Faruma, 12pt, 1.5 spacing" oninput="syncState()"></div>
                         </div>
 
-                        <h3 style="margin:20px 0 15px 0; color:var(--r-purple); border-bottom:1px solid #ccc; padding-bottom:5px;">ކޮމްޕޯނަންޓްތައް (Components)</h3>
+                        <h3 style="margin:20px 0 15px 0; color:var(--r-purple); border-bottom:1px solid #ccc; padding-bottom:5px;" data-i18n="h-b-comp">ކޮމްޕޯނަންޓްތައް (Components)</h3>
                         <div class="g-4">
-                            <div class="f-grp"><label>ކޮމްޕޯނަންޓް 1 ނަން:</label><input type="text" id="b-c1-name" class="form-ctrl" value="ރިޕޯރޓް" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ބަރުދަން (%):</label><input type="number" id="b-c1-w" class="form-ctrl" value="20" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ޖުމްލަ މާކުސް:</label><input type="number" id="b-c1-m" class="form-ctrl" value="50" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ސުންގަޑި (Due Date):</label><input type="date" id="b-c1-due" class="form-ctrl" onchange="syncState()"></div>
-                            <div class="f-grp"><label>ސަބްމިޓް ފޯމެޓް:</label><input type="text" id="b-c1-fmt" class="form-ctrl" value="Word/PDF" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ވައްތަރު:</label><select id="b-c1-typ" class="form-ctrl" onchange="syncState()"><option value="Individual">ފަރުދީ (Individual)</option><option value="Group">ގްރޫޕް (Group)</option></select></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-name">ކޮމްޕޯނަންޓް 1 ނަން:</label><input type="text" id="b-c1-name" class="form-ctrl" value="ރިޕޯރޓް" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-w">ބަރުދަން (%):</label><input type="number" id="b-c1-w" class="form-ctrl" value="20" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-m">ޖުމްލަ މާކުސް:</label><input type="number" id="b-c1-m" class="form-ctrl" value="50" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-due">ސުންގަޑި (Due Date):</label><input type="date" id="b-c1-due" class="form-ctrl" onchange="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-fmt">ސަބްމިޓް ފޯމެޓް:</label><input type="text" id="b-c1-fmt" class="form-ctrl" value="Word/PDF" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-typ">ވައްތަރު:</label><select id="b-c1-typ" class="form-ctrl" onchange="syncState()"><option value="Individual">Individual</option><option value="Group">Group</option></select></div>
                         </div>
 
                         <div class="g-4" style="margin-top:15px; padding-top:15px; border-top:1px dashed #ccc;">
-                            <div class="f-grp"><label>ކޮމްޕޯނަންޓް 2 ނަން:</label><input type="text" id="b-c2-name" class="form-ctrl" value="ޕްރެޒެންޓޭޝަން" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ބަރުދަން (%):</label><input type="number" id="b-c2-w" class="form-ctrl" value="20" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ޖުމްލަ މާކުސް:</label><input type="number" id="b-c2-m" class="form-ctrl" value="20" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ސުންގަޑި (Due Date):</label><input type="date" id="b-c2-due" class="form-ctrl" onchange="syncState()"></div>
-                            <div class="f-grp"><label>ސަބްމިޓް ފޯމެޓް:</label><input type="text" id="b-c2-fmt" class="form-ctrl" value="PPT" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ވައްތަރު:</label><select id="b-c2-typ" class="form-ctrl" onchange="syncState()"><option value="Group">ގްރޫޕް (Group)</option><option value="Individual">ފަރުދީ (Individual)</option></select></div>
+                            <div class="f-grp"><label data-i18n="lbl-c2-name">ކޮމްޕޯނަންޓް 2 ނަން:</label><input type="text" id="b-c2-name" class="form-ctrl" value="ޕްރެޒެންޓޭޝަން" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-w">ބަރުދަން (%):</label><input type="number" id="b-c2-w" class="form-ctrl" value="20" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-m">ޖުމްލަ މާކުސް:</label><input type="number" id="b-c2-m" class="form-ctrl" value="20" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-due">ސުންގަޑި (Due Date):</label><input type="date" id="b-c2-due" class="form-ctrl" onchange="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-fmt">ސަބްމިޓް ފޯމެޓް:</label><input type="text" id="b-c2-fmt" class="form-ctrl" value="PPT" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-c1-typ">ވައްތަރު:</label><select id="b-c2-typ" class="form-ctrl" onchange="syncState()"><option value="Group">Group</option><option value="Individual">Individual</option></select></div>
                         </div>
 
                         <div class="g-2" style="margin-top:15px; padding-top:15px; border-top:1px dashed #ccc;">
-                            <div class="f-grp"><label>ފަހު އިމްތިޙާނުގެ ބަރުދަން (%):</label><input type="number" id="b-fe-w" class="form-ctrl" value="60" oninput="syncState()"></div>
-                            <div class="f-grp"><label>ފަހު އިމްތިޙާނުގެ މާކުސް:</label><input type="number" id="b-fe-m" class="form-ctrl" value="100" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-fe-w">ފަހު އިމްތިޙާނުގެ ބަރުދަން (%):</label><input type="number" id="b-fe-w" class="form-ctrl" value="60" oninput="syncState()"></div>
+                            <div class="f-grp"><label data-i18n="lbl-fe-m">ފަހު އިމްތިޙާނުގެ މާކުސް:</label><input type="number" id="b-fe-m" class="form-ctrl" value="100" oninput="syncState()"></div>
                         </div>
 
-                        <h3 style="margin:20px 0 15px 0; color:var(--r-purple); border-bottom:1px solid #ccc; padding-bottom:5px;">މަސައްކަތުގެ ތަފްސީލު (Task Details)</h3>
+                        <h3 style="margin:20px 0 15px 0; color:var(--r-purple); border-bottom:1px solid #ccc; padding-bottom:5px;" data-i18n="h-b-task">މަސައްކަތުގެ ތަފްސީލު</h3>
                         <div class="f-grp">
-                            <textarea id="b-task" class="form-ctrl" rows="6" placeholder="މަސައްކަތުގެ މަޤްޞަދާއި ތަފްސީލު ލިޔުއްވާ..." oninput="syncState()"></textarea>
+                            <textarea id="b-task" class="form-ctrl" rows="6" placeholder="Task details / މަސައްކަތުގެ ތަފްސީލު ލިޔުއްވާ..." oninput="syncState()"></textarea>
                         </div>
                     </div>
                 </div>
 
                 <div id="pane-rubric" class="pane">
                     <div class="card">
-                        <div class="card-header">1. މައި ރުބްރިކް (Grid Rubric)</div>
-                        <p style="margin-bottom:10px; font-size: 15px; color:#64748b;">ރިޕޯރޓް، އެސައިންމެންޓް ފަދަ ތަކެއްޗަށް މާކުސްދޭ ސްޓޭންޑަރޑް ރުބްރިކް. ކޮލަމްތަކުގެ ނަން ބަދަލުކުރެވޭނެއެވެ.</p>
-                        
+                        <div class="card-header" data-i18n="h-rub1">1. މައި ރުބްރިކް (Grid Rubric)</div>
                         <div id="r-headers-container" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;"></div>
                         
                         <div style="overflow-x:auto;">
@@ -379,41 +413,37 @@
                                 <tbody id="r-body"></tbody>
                             </table>
                         </div>
-                        <div style="margin-top:20px; display:flex; justify-content:space-between; align-items: center;">
-                            <div style="display:flex; gap:10px;">
-                                <button class="btn btn-outline" onclick="addRubricRow()">+ ރޯ (Row) އިތުރުކުރޭ</button>
-                                <button class="btn btn-outline" onclick="addRubricCol()">+ ކޮލަމް (Col) އިތުރުކުރޭ</button>
+                        <div style="margin-top:20px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:15px; align-items: center;">
+                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                <button class="btn btn-outline btn-sm" onclick="addRubricRow()" data-i18n="btn-add-r-row">+ ރޯ (Row) އިތުރުކުރޭ</button>
+                                <button class="btn btn-outline btn-sm" onclick="addRubricCol()" data-i18n="btn-add-r-col">+ ކޮލަމް (Col) އިތުރުކުރޭ</button>
                             </div>
-                            <div style="font-size:20px; font-weight:bold; color:var(--r-green);">ޖުމްލަ: <span id="lbl-r-tot">0</span></div>
+                            <div style="font-size:20px; font-weight:bold; color:var(--r-green);"><span data-i18n="lbl-total-marks">ޖުމްލަ މާކުސް:</span> <span id="lbl-r-tot">0</span></div>
                         </div>
                     </div>
 
                     <div class="card" style="border-top: 4px solid var(--r-purple);">
-                        <div class="card-header">2. ޕްރެޒެންޓޭޝަން ރުބްރިކް (List Rubric)</div>
-                        <p style="margin-bottom:10px; font-size: 15px; color:#64748b;">ޕްރެޒެންޓޭޝަން ފަދަ ކަންކަމަށް ވަކިން މާކުސްދޭ ސާދާ ލިސްޓް ރުބްރިކް.</p>
-                        
+                        <div class="card-header" data-i18n="h-rub2">2. ޕްރެޒެންޓޭޝަން ރުބްރިކް (List)</div>
                         <div style="overflow-x:auto;">
-                            <table class="table-res" style="width:70%; margin:0 auto;" id="pres-rubric-tb">
-                                <thead><tr><th>ކްރައިޓީރިއާ</th><th style="width:20%;">މާކުސް</th><th style="width:10%;">-</th></tr></thead>
+                            <table class="table-res" style="width:100%; max-width:600px; margin:0 auto;" id="pres-rubric-tb">
+                                <thead><tr><th data-i18n="cHead">ކްރައިޓީރިއާ</th><th style="width:20%;" data-i18n="mHead">މާކުސް</th><th style="width:10%;">-</th></tr></thead>
                                 <tbody id="pr-body"></tbody>
                             </table>
                         </div>
-                        <div style="margin-top:20px; display:flex; justify-content:center; gap:20px; align-items: center;">
-                            <button class="btn btn-outline" onclick="addPresRubricRow()">+ ރޯ (Row) އިތުރުކުރޭ</button>
-                            <div style="font-size:20px; font-weight:bold; color:var(--r-green);">ޖުމްލަ: <span id="lbl-pr-tot">0</span></div>
+                        <div style="margin-top:20px; display:flex; justify-content:center; flex-wrap:wrap; gap:20px; align-items: center;">
+                            <button class="btn btn-outline btn-sm" onclick="addPresRubricRow()" data-i18n="btn-add-pr-row">+ ރޯ (Row) އިތުރުކުރޭ</button>
+                            <div style="font-size:20px; font-weight:bold; color:var(--r-green);"><span data-i18n="lbl-total-marks">ޖުމްލަ މާކުސް:</span> <span id="lbl-pr-tot">0</span></div>
                         </div>
                     </div>
                 </div>
 
                 <div id="pane-bank" class="pane">
                     <div class="card" style="border-top: 4px solid var(--r-purple);">
-                        <div class="card-header">🗃️ ޕޭޕަރ ބޭންކު (Paper Archives)</div>
-                        <p style="margin-bottom:20px; font-size: 15px; color:#64748b;">މި ބައިގައި ހުންނާނީ މީގެ ކުރިން ތައްޔާރުކޮށް ސޭވްކޮށްފައިވާ މުޅި ޕޭޕަރުތައް (މާކިންގ ސްކީމާއި މޮޑަރޭޝަނާއެކު) އެވެ. މިތަނުން ސީދާ ޕޭޕަރ ޑައުންލޯޑްކޮށް ނުވަތަ އަލުން އެޑިޓްކުރެވޭނެއެވެ.</p>
+                        <div class="card-header" data-i18n="h-bank">🗃️ ޕޭޕަރ ބޭންކު (Paper Archives)</div>
                         <div id="archive-list"></div>
                     </div>
                     <div class="card">
-                        <div class="card-header">ވަކިވަކި ސުވާލު ބޭންކު (Question History)</div>
-                        <p style="margin-bottom:20px; font-size: 15px; color:#64748b;">ސުވާލު ކަރުދާހުގައި ލިޔުއްވާ ސުވާލުތައް މިތަނަށް އަހަރާއި މޮޑިއުލްގެ ނަމާއެކު އޮޓޯއިން ސޭވްވާނެއެވެ.</p>
+                        <div class="card-header" data-i18n="h-qbank">ވަކިވަކި ސުވާލު ބޭންކު (Question History)</div>
                         <div id="bank-canvas"></div>
                     </div>
                 </div>
@@ -421,21 +451,22 @@
                 <div id="pane-export" class="pane">
                     <div class="card" style="background:#f0f9ff; border-color:#bae6fd; padding: 20px;">
                         <div style="display:flex; gap:15px; align-items:center; flex-wrap:wrap; justify-content: space-between;">
-                            <div style="display:flex; gap:15px; align-items:center;">
-                                <h3 style="color: var(--r-blue); margin:0; font-size:16px;">ޕްރީވިއު:</h3>
-                                <select id="exp-doc-type" class="form-ctrl" style="width:250px; font-weight:bold; margin:0;" onchange="generatePreview()">
-                                    <option value="exam">📄 ސުވާލު ކަރުދާސް</option>
-                                    <option value="ms">✅ މާކިންގ ސްކީމް</option>
-                                    <option value="mod">📊 މޮޑަރޭޝަން ފޯމް</option>
-                                    <option value="brief">📋 އެސައިންމެންޓް ބްރީފް</option>
+                            <div style="display:flex; gap:15px; align-items:center; flex-wrap:wrap;">
+                                <h3 style="color: var(--r-blue); margin:0; font-size:16px;" data-i18n="h-export">ޕްރީވިއު:</h3>
+                                <select id="exp-doc-type" class="form-ctrl" style="width:auto; min-width:200px; font-weight:bold; margin:0;" onchange="generatePreview()">
+                                    <option value="exam">📄 Exam (ސުވާލު ކަރުދާސް)</option>
+                                    <option value="ms">✅ MS (މާކިންގ ސްކީމް)</option>
+                                    <option value="mod">📊 Mod (މޮޑަރޭޝަން ފޯމް)</option>
+                                    <option value="brief">📋 Brief (އެސައިންމެންޓް ބްރީފް)</option>
                                 </select>
                             </div>
-                            <div style="display:flex; gap:15px; align-items:center;">
-                                <button class="btn" style="background:#2563eb; color:white; font-size:16px;" onclick="doExport('word')">📝 Word އަށް ޑައުންލޯޑް</button>
-                                <button class="btn btn-danger" style="font-size:16px;" onclick="doExport('print')">🖨️ Print / PDF</button>
+                            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                                <button class="btn btn-sm" style="background:#2563eb; color:white;" onclick="doExport('word')" data-i18n="btn-export-doc">📝 Word</button>
+                                <button class="btn btn-danger btn-sm" onclick="doExport('print')" data-i18n="btn-export-pdf">🖨️ Print/PDF</button>
                             </div>
                         </div>
                     </div>
+                    <h3 style="text-align:center; color:gray; margin-bottom:15px; font-size:14px;" data-i18n="h-live">ލައިވް ޕްރީވިއު</h3>
                     <div id="live-preview" class="a4-preview-container"></div>
                 </div>
 
@@ -446,18 +477,186 @@
     <div id="print-engine"></div>
 
     <script>
-        // --- 1. STATE & DICTIONARY ---
+        // MOBILE SIDEBAR TOGGLE
+        function toggleSidebar() {
+            let sb = document.getElementById('main-sidebar');
+            if(sb.style.left === '0px') { sb.style.left = '-300px'; } 
+            else { sb.style.left = '0px'; }
+        }
+
+        // --- 1. STATE & UI DICTIONARY ---
         let appData = {
             lang: 'dv', layout: 'std', logoBase64: '', mod: 'Study of Islamic Legal System',
             meta: {}, parts: [], paperArchives: [], qBank: {},
-            rCols: 4, rHeaders: ['ދެރަ', 'ފުދޭ', 'ރަނގަޅު', 'ވަރަށް މޮޅު'], rubric: [],
-            presRubric: []
+            rCols: 4, rHeaders: ['ދެރަ', 'ފުދޭ', 'ރަނގަޅު', 'ވަރަށް މޮޅު'], rubric: [], presRubric: []
+        };
+
+        const uiTransl = {
+            "nav-meta": { dv: "📄 ސެޓިންގްސް & ކަވަރ", en: "📄 Settings & Cover", ar: "📄 الإعدادات والغلاف" },
+            "nav-builder": { dv: "📝 ޕޭޕަރ ފަރުމާކުރުން", en: "📝 Paper Builder", ar: "📝 إعداد الأسئلة" },
+            "nav-brief": { dv: "📋 އެސައިންމެންޓް ބްރީފް", en: "📋 Assignment Brief", ar: "📋 إرشادات البحث" },
+            "nav-rubric": { dv: "📊 ރުބްރިކް ފަރުމާކުރުން", en: "📊 Rubric Builder", ar: "📊 إعداد المعايير" },
+            "nav-bank": { dv: "🗃️ ޕޭޕަރ ބޭންކު (Archive)", en: "🗃️ Paper Bank", ar: "🗃️ أرشيف الامتحانات" },
+            "nav-export": { dv: "🖨️ ޕްރީވިއު & އެކްސްޕޯޓް", en: "🖨️ Preview & Export", ar: "🖨️ المعاينة والتصدير" },
+            "lbl-total-marks": { dv: "ޖުމްލަ މާކުސް:", en: "Total Marks:", ar: "مجموع الدرجات:" },
+            "btn-save-archive": { dv: "📥 ބޭންކަށް ސޭވްކުރޭ", en: "📥 Save to Bank", ar: "📥 حفظ في الأرشيف" },
+            "btn-cloud-sync": { dv: "☁️ Sync", en: "☁️ Sync", ar: "☁️ المزامنة" },
+            "btn-logout": { dv: "🚪", en: "🚪", ar: "🚪" },
+            "h-sys-backup": { dv: "ސިސްޓަމް ބެކަޕް އަދި ޕޭޕަރ އިންޕޯޓް", en: "System Backup & Import", ar: "نسخة احتياطية واستيراد" },
+            "btn-local-backup": { dv: "📥 ލޯކަލް ބެކަޕް ޑައުންލޯޑް", en: "📥 Download Backup", ar: "📥 تحميل نسخة" },
+            "btn-import": { dv: "📤 ބެކަޕް އިންޕޯޓްކުރޭ", en: "📤 Import Backup", ar: "📤 استيراد ملف" },
+            "h-cover-settings": { dv: "ކަވަރ ޕޭޖުގެ 100% ފޯމެޓް ސެޓިންގްސް", en: "Cover Page Settings", ar: "إعدادات صفحة الغلاف" },
+            "lbl-logo": { dv: "ޔުނިވަރސިޓީ ލޯގޯ (Upload Logo):", en: "University Logo:", ar: "شعار الجامعة:" },
+            "lbl-layout": { dv: "ޕޭޕަރ ލޭއައުޓް (Paper Template):", en: "Paper Layout:", ar: "تخطيط الورقة:" },
+            "opt-std": { dv: "ސްޓޭންޑަރޑް ލޭއައުޓް (IUM Cover Match)", en: "Standard Layout (IUM)", ar: "التخطيط القياسي" },
+            "opt-tbl": { dv: "އަރަބި ލޭއައުޓް (Arabic Grid)", en: "Table Layout (Arabic Grid)", ar: "تخطيط الجدول (عربي)" },
+            "lbl-yr": { dv: "އަހަރު (Year):", en: "Year:", ar: "السنة:" },
+            "lbl-sem": { dv: "ސެމިސްޓަރ (Semester):", en: "Semester:", ar: "الفصل الدراسي:" },
+            "lbl-lang": { dv: "ޕޭޕަރގެ ބަސް (Language):", en: "Paper Language:", ar: "لغة الورقة:" },
+            "lbl-type": { dv: "އިމްތިޙާނުގެ ބާވަތް:", en: "Exam Type:", ar: "نوع الامتحان:" },
+            "lbl-prog": { dv: "ޕްރޮގްރާމު:", en: "Programme:", ar: "البرنامج:" },
+            "lbl-fac": { dv: "ފެކަލްޓީ / ކުއްލިއްޔާ:", en: "Faculty / Centre:", ar: "الكلية:" },
+            "lbl-mod": { dv: "މޮޑިއުލް ނަން:", en: "Module Name:", ar: "اسم المادة:" },
+            "lbl-code": { dv: "މޮޑިއުލް ކޯޑު:", en: "Module Code:", ar: "رمز المادة:" },
+            "lbl-lec": { dv: "ލެކްޗަރަރ:", en: "Lecturer:", ar: "الأستاذ:" },
+            "lbl-date": { dv: "ތާރީޚު (Date):", en: "Date:", ar: "التاريخ:" },
+            "lbl-batch": { dv: "ބެޗު:", en: "Batch:", ar: "الدفعة:" },
+            "lbl-time": { dv: "ގަޑި (ކިޔަން / ލިޔަން):", en: "Time (Read / Write):", ar: "الوقت (قراءة / كتابة):" },
+            "lbl-ans": { dv: "ޖަވާބު ލިޔާނީ:", en: "Answer In:", ar: "مكان الإجابة:" },
+            "lbl-ref": { dv: "ރެފަރެންސް ހުއްދަތޯ:", en: "References Allowed:", ar: "المراجع المسموحة:" },
+            "h-inst-mod": { dv: "އިރުޝާދު އަދި މޮޑަރޭޝަން ސެޓިންގްސް", en: "Instructions & Moderation", ar: "الإرشادات والتعديل" },
+            "lbl-pages": { dv: "ޖުމްލަ ޞަފުޙާ:", en: "Total Pages:", ar: "مجموع الصفحات:" },
+            "lbl-tot-qs": { dv: "ޖުމްލަ ސުވާލު:", en: "Total Questions:", ar: "مجموع الأسئلة:" },
+            "lbl-ans-qs": { dv: "ޖަވާބުދޭންޖެހޭ ސުވާލު:", en: "Questions to Answer:", ar: "الأسئلة المطلوبة:" },
+            "lbl-pinst": { dv: "ބައިތަކުން ސުވާލަށް ޖަވާބުދޭންޖެހޭ ގޮތުގެ ތަފްސީލު:", en: "Section Instructions:", ar: "تعليمات الأجزاء:" },
+            "lbl-credit": { dv: "މޮޑިއުލް ކްރެޑިޓް/ލެވެލް:", en: "Credit / Level:", ar: "الساعات / المستوى:" },
+            "lbl-moderator": { dv: "މޮޑަރޭޓަރ:", en: "Moderator:", ar: "المشرف:" },
+            "lbl-modtype": { dv: "މޮޑަރޭޓަރ ބާވަތް:", en: "Moderator Type:", ar: "نوع المشرف:" },
+            "h-builder": { dv: "ސުވާލު ކަރުދާސް ފަރުމާކުރުން", en: "Paper Builder", ar: "إعداد ورقة الأسئلة" },
+            "btn-add-part": { dv: "+ އައު ބައެއް (Section / Part) އެޑްކުރޭ", en: "+ Add Section / Part", ar: "+ إضافة قسم / جزء" },
+            "h-brief": { dv: "އެސައިންމެންޓް ބްރީފް ސެޓިންގްސް", en: "Assignment Brief Settings", ar: "إعدادات إرشادات البحث" },
+            "lbl-b-date": { dv: "ހަވާލުކުރެވުނު ތާރީޚު:", en: "Date Assigned:", ar: "تاريخ التعيين:" },
+            "lbl-b-len": { dv: "ދިގުމިން (Word Count):", en: "Length (Word Count):", ar: "حد عدد الكلمات:" },
+            "lbl-b-fmt": { dv: "ފޯމެޓް (Font Rules):", en: "Formatting Rules:", ar: "قواعد التنسيق:" },
+            "h-b-comp": { dv: "ކޮމްޕޯނަންޓްތައް (Components)", en: "Components", ar: "عناصر المادة" },
+            "lbl-c1-name": { dv: "ކޮމްޕޯނަންޓް 1 ނަން:", en: "Component 1 Name:", ar: "العنصر 1:" },
+            "lbl-c1-w": { dv: "ބަރުދަން (%):", en: "Weightage (%):", ar: "الدرجة النسبية (%):" },
+            "lbl-c1-m": { dv: "ޖުމްލަ މާކުސް:", en: "Total Marks:", ar: "مجموعة الدرجات:" },
+            "lbl-c1-due": { dv: "ސުންގަޑި:", en: "Due Date:", ar: "آخر موعد:" },
+            "lbl-c1-fmt": { dv: "ސަބްމިޓް ފޯމެޓް:", en: "Format:", ar: "صيغة الكتابة:" },
+            "lbl-c1-typ": { dv: "ވައްތަރު:", en: "Type:", ar: "نوع النشاط:" },
+            "lbl-c2-name": { dv: "ކޮމްޕޯނަންޓް 2 ނަން:", en: "Component 2 Name:", ar: "العنصر 2:" },
+            "lbl-fe-w": { dv: "ފަހު އިމްތިޙާނުގެ ބަރުދަން (%):", en: "Final Exam Weightage (%):", ar: "الامتحان النهائي (%):" },
+            "lbl-fe-m": { dv: "ފަހު އިމްތިޙާނުގެ މާކުސް:", en: "Final Exam Marks:", ar: "درجات الامتحان النهائي:" },
+            "h-b-task": { dv: "މަސައްކަތުގެ ތަފްސީލު", en: "Task Details", ar: "تفاصيل العمل" },
+            "h-rub1": { dv: "1. މައި ރުބްރިކް (Grid Rubric)", en: "1. Main Rubric (Grid)", ar: "1. المعيار الرئيسي" },
+            "btn-add-r-row": { dv: "+ ރޯ (Row) އިތުރުކުރޭ", en: "+ Add Row", ar: "+ إضافة صف" },
+            "btn-add-r-col": { dv: "+ ކޮލަމް (Col) އިތުރުކުރޭ", en: "+ Add Column", ar: "+ إضافة عمود" },
+            "h-rub2": { dv: "2. ޕްރެޒެންޓޭޝަން ރުބްރިކް (List)", en: "2. Presentation Rubric", ar: "2. معايير العرض" },
+            "btn-add-pr-row": { dv: "+ ރޯ (Row) އިތުރުކުރޭ", en: "+ Add Row", ar: "+ إضافة صف" },
+            "h-bank": { dv: "🗃️ ޕޭޕަރ ބޭންކު (Paper Archives)", en: "🗃️ Paper Bank (Archives)", ar: "🗃️ أرشيف الامتحانات" },
+            "h-qbank": { dv: "ވަކިވަކި ސުވާލު ބޭންކު (Question History)", en: "Question History Bank", ar: "أرشيف الأسئلة" },
+            "h-export": { dv: "ޕްރީވިއު:", en: "Preview:", ar: "المعاينة:" },
+            "btn-export-doc": { dv: "📝 Word", en: "📝 Word", ar: "📝 وورد" },
+            "btn-export-pdf": { dv: "🖨️ Print/PDF", en: "🖨️ Print/PDF", ar: "🖨️ طباعة/PDF" },
+            "h-live": { dv: "ލައިވް ޕްރީވިއު", en: "Live Preview", ar: "معاينة مباشرة" },
+            "cHead": { dv: "ކްރައިޓީރިއާ", en: "Criteria", ar: "المعايير" },
+            "mHead": { dv: "މާކުސް", en: "Marks", ar: "الدرجات" },
+            "lbl-part-name": { dv: "ބައިގެ ނަން (Part):", en: "Part Name:", ar: "القسم:" },
+            "btn-add-q": { dv: "+ ސުވާލު އެޑްކުރޭ", en: "+ Add Question", ar: "+ أضف سؤال" },
+            "lbl-topic": { dv: "ޓޮޕިކް (މޮޑަރޭޝަން ފޯމަށް)", en: "Topic (For Mod Form)", ar: "الموضوع" },
+            "lbl-mrk-ph": { dv: "މާކުސް", en: "Marks", ar: "الدرجات" },
+            "btn-add-subq": { dv: "+ ސަބް-ސުވާލު (a,b / ހ,ށ)", en: "+ Sub-question", ar: "+ سؤال فرعي" }
         };
 
         const dict = {
-            dv: { qPre: '', qSuf: 'ވަނަ ސުވާލު', mStr: 'މާކުސް', endStr: '(ނިމުނީ)', dir: 'rtl', briefTitle: 'އެސައިންމެންޓް ބްރީފް', briefGdl: 'އިރުޝާދު', briefG1: 'ލެކްޗަރަރ ވަކި ޚާއްޞަ ފޯމެޓެއް ނުވަތަ ގޮތެއް އަންގާފައި ނުވާނަމަ، މި އެސައިންމެންޓް ހުށަހަޅާނީ ޓައިޕް ކުރުމަށްފަހު ވޯޑް ނުވަތަ ޕަވަރ ޕޮއިންޓް ފޯމެޓްގައެވެ.', briefG2: 'މަޤްބޫލު އުޒުރެއް ދިމާވެ، މި އެސައިންމެންޓް ކަނޑައެޅިފައިވާ ސުންގަނޑިއަށް ހުށަނޭޅޭނަމަ، ސުންގަޑި ހަމަވުމުގެ 24 ގަޑިއިރު ކުރިން ލިޔުމުން އެދަރިވަރަކު ނިސްބަތްވާ ކުއްލިއްޔާއަށް އެ ކަމަށް ޚާއްސަކޮށްފައިވާ ފޯމު މެދުވެރިކޮށް އަންގަންވާނެއެވެ.', briefG3: 'އަދި ފޯމާއެކު، ބޭނުންވާ އެމް، ސީ ފަދަ ލިޔުންތައް ހުށަހަޅަންވާނެއެވެ.', briefG4: 'ސުންގަނޑި ހަމަވުމަށްފަހު ހުށަހަޅާ ކޮންމެ ހުށަހެޅުމަކުން ދަރިވަރަށް ލިބުނު މާކުހުގެ %5 އުނިކުރެވޭނެއެވެ.', briefG5: 'ސުންގަޑި ހަމަވުމަށްފަހު، ފާއިތުވާ ކޮންމެދުވަހަކަށް ދަރިވަރަށް ލިބުނު މާކުހުގެ %5 އުނިކުރެވޭނެއެވެ.', briefG6: 'ސުންގަޑީގެ 7 ދުވަސް ފަހުން ހުށަހަޅާ މަސައްކަތްތައް ބަލައެއް ނުގަނެވޭނެއެވެ. މި 7 ދުވަސް ގުނާނީ ސުންގަޑިން ފެށިގެންނެވެ. މީގެތެރޭގައި ބަންދު ދުވަސްތަކެއް ނުހިމެނޭނެއެވެ.', briefG7: 'ދަރިވަރު ވަގުލުކޮށްފައިވާކަން ސާބިތުވެއްޖެނަމަ ޔުނިވަރސީޓީގެ ވަގުލުކުރުން ހުއްޓުވުމާބެހޭ ޤަވާއިދާ އަދި ކޯޑް އޮފް ކޮންޑަކްޓުގައި ބަޔާންކޮށްފައިވާ ގޮތުގެމަތީން އެ ދަރިވަރަކާމެދު ފިޔަވަޅުއެޅޭނެއެވެ.', briefG8: 'ރިފަރެންސް ދިނުމުގައި ތަބާވާނީ ޔުނިވަރސިޓީގެ ރިފަރެންސް ދިނުމުގެ އިރުޝާދަށެވެ.', taskDet: 'ތަފްޞީލު:', cHead: 'ކްރައިޓީރިއާ', mHead: 'މާކުސް', pTitle: 'ޕްރެޒެންޓޭޝަން ރުބްރިކް' },
-            en: { qPre: 'QUESTION ', qSuf: '', mStr: 'Marks', endStr: '(END)', dir: 'ltr', briefTitle: 'ASSIGNMENT BRIEF', briefGdl: 'Assignment Guidelines', briefG1: 'This assignment must be typed and submitted in formats including doc, ppt, pdf unless a special format or form is prescribed by the lecturer.', briefG2: 'Student must inform the respective faculty in writing before 24hs of the deadline if he/she is not able to submit within the given deadline due to a genuine reason.', briefG3: 'In this case students must use the given form and relevant documents such as MC should be attached.', briefG4: 'A 5% from the marks received will be deducted for late submissions.', briefG5: 'Similarly, for each day 5% from the marks received will be deducted including the holidays.', briefG6: 'Submissions after 7 days from the deadline will not be accepted. This will exclude week-ends and public holidays.', briefG7: 'If the student is found plagiarized, disciplinary actions will be taken as per the IUM plagiarism policy and code of conduct.', briefG8: 'Referencing must be as per the IUM referencing guideline.', taskDet: 'Task Details:', cHead: 'Criteria', mHead: 'Marks', pTitle: 'Presentation Rubric' },
-            ar: { qPre: 'السؤال ', qSuf: '', mStr: 'الدرجات', endStr: '(انتهى)', dir: 'rtl', briefTitle: 'إرشادات إعداد ورقة بحث', briefGdl: 'إرشادات كتابة البحث العلمي', briefG1: 'يجب على الطالب أن يتبع في كتابة البحث وتقديمه على صيغة ppt أو pdf ما لم يتم تحديد شكل معين من أشكال الكتابة.', briefG2: 'يجب على الطالب إبلاغ الهيئة التدريسية المعنية كتابيا قبل 24 ساعة من الموعد النهائي وإذا كان غير قادر على التقديم.', briefG3: 'يجب على الطلاب إثبات السبب الحقيقي باستخدام الاستمارة المصممة له، ويجب إرفاق الوثائق ذات الصلة مثل شهادة طبية.', briefG4: 'سيتم خصم 5 ٪ من الدرجة الكلية عن البحوث المتقدمة بعد مضي الموعد النهائي.', briefG5: 'ويخصم كذلك 5 ٪ من الدرجة الكلية عن كل يوم تأخير عن الموعد النهائي.', briefG6: 'لن تقبل البحوث المقدمة بعد 7 أيام من الموعد النهائي، ولايعد عطلات نهاية الأسبوع والعطلات الرسمية في حساب سبعة أيام.', briefG7: 'في حالة ثبوت سرقة علمية على طالب سيتم اتخاذ الإجراءات التأديبية وفقا لقواعد الأكاديمية.', briefG8: 'يجب أن تكون الطريقة الإحالة وفقاً للإرشادات المرجعية الخاصة للجامعة.', taskDet: 'تفاصيل العمل:', cHead: 'المعايير', mHead: 'الدرجات', pTitle: 'معايير العرض' }
+            dv: { 
+                qPre: '', qSuf: 'ވަނަ ސުވާލު', mStr: 'މާކުސް', endStr: '(ނިމުނީ)', dir: 'rtl',
+                fac: 'ފެކަލްޓީ / ކުއްލިއްޔާ', prog: 'ޕްރޮގްރާމް', modName: 'މާއްދާ', modCode: 'މާއްދާ ކޯޑު', lec: 'ލެކްޗަރަރ', date: 'ތާރީޚު',
+                batch: 'ބެޗް', readTime: 'ކިޔަން ދެވޭ ވަގުތު', writeTime: 'ލިޔަން ދެވޭ ވަގުތު',
+                ansIn: 'މި ކަރުދާހުގެ ޖަވާބު ލިޔާނީ:', marks: 'މާކުސް', totalMarks: 'ޖުމްލަ މާކުސް',
+                instTitle: 'އިމްތިޙާނުގެ ބައިވެރިންނަށް ދެވޭ އިރުޝާދު', allowed: '✔ އިމްތިޙާނަށް ވެއްދުން ހުއްދަކުރެވޭ ތަކެތި:',
+                pageStr1: 'މިކަރުދާހުގައި ހިމެނެނީ މުޅިއެކު', pageStr2: 'ޞަފުޙާއެވެ. ޞަފުޙާތައް ހަމަތޯ ބައްލަވާށެވެ.',
+                msTitle: 'މާކިންގ ސްކީމް / ޖަވާބު ކަރުދާސް', ansLbl: 'ޖަވާބު:',
+                modTitle: 'އިމްތިޙާނު މޮޑަރޭޓްކުރާ ފޯމު', modBy: 'މޮޑަރޭޓް ކުރައްވަނީ ކޮން ބޭފުޅެއްކަން ފާހަގަކުރައްވާ:',
+                modInt: 'އިންޓަރނަލް މޮޑަރޭޓަރ', modExt: 'އެކްސްޓަރނަލް މޮޑަރޭޓަރ',
+                modCredit: 'މޮޑިއުލް ކްރެޑިޓް / ލެވެލް', modSem: 'ސެމިސްޓަރ / އަހަރު', moderator: 'މޮޑަރޭޓަރ',
+                modSubt: 'ސުވާލުކަރުދާހުގައި ހިމެނޭ ސުވާލުތައް ބިނާވެފައިވާ މިންވަރު', modLecOnly: '(މިބައި ފުރިހަމަކުރާނީ ލެކްޗަރަރ / އެގްޒަމިނަރއެވެ.)',
+                qNum: 'ސުވާލު ނަންބަރު', part: 'ޕާރޓް',
+                low: 'ވިސްނުމުގެ ދަށް ހަރުފަތް', mid: 'ވިސްނުމުގެ މެދު ހަރުފަތް', high: 'ވިސްނުމުގެ މަތީ ހަރުފަތް',
+                rem: 'ހަނދާންކުރުން', und: 'ދެނެގަތުން', app: 'ބޭނުންކުރުން', ana: 'ތަޙުލީލުކުރުން', eva: 'ވަޒަންކުރުން', cre: 'އުފެއްދުން',
+                total: 'ޖުމްލަ',
+                briefTitle: 'އެސައިންމެންޓް ބްރީފް', briefGdl: 'އިރުޝާދު',
+                briefG1: 'ލެކްޗަރަރ ވަކި ޚާއްޞަ ފޯމެޓެއް ނުވަތަ ގޮތެއް އަންގާފައި ނުވާނަމަ، މި އެސައިންމެންޓް ހުށަހަޅާނީ ޓައިޕް ކުރުމަށްފަހު ވޯޑް ނުވަތަ ޕަވަރ ޕޮއިންޓް ފޯމެޓްގައެވެ.',
+                briefG2: 'މަޤްބޫލު އުޒުރެއް ދިމާވެ، މި އެސައިންމެންޓް ކަނޑައެޅިފައިވާ ސުންގަނޑިއަށް ހުށަނޭޅޭނަމަ، ސުންގަޑި ހަމަވުމުގެ 24 ގަޑިއިރު ކުރިން ލިޔުމުން އެދަރިވަރަކު ނިސްބަތްވާ ކުއްލިއްޔާއަށް އެ ކަމަށް ޚާއްސަކޮށްފައިވާ ފޯމު މެދުވެރިކޮށް އަންގަންވާނެއެވެ.',
+                briefG3: 'އަދި ފޯމާއެކު، ބޭނުންވާ އެމް، ސީ ފަދަ ލިޔުންތައް ހުށަހަޅަންވާނެއެވެ.',
+                briefG4: 'ސުންގަނޑި ހަމަވުމަށްފަހު ހުށަހަޅާ ކޮންމެ ހުށަހެޅުމަކުން ދަރިވަރަށް ލިބުނު މާކުހުގެ %5 އުނިކުރެވޭނެއެވެ.',
+                briefG5: 'ސުންގަޑި ހަމަވުމަށްފަހު، ފާއިތުވާ ކޮންމެދުވަހަކަށް ދަރިވަރަށް ލިބުނު މާކުހުގެ %5 އުނިކުރެވޭނެއެވެ.',
+                briefG6: 'ސުންގަޑީގެ 7 ދުވަސް ފަހުން ހުށަހަޅާ މަސައްކަތްތައް ބަލައެއް ނުގަނެވޭނެއެވެ. މި 7 ދުވަސް ގުނާނީ ސުންގަޑިން ފެށިގެންނެވެ. މީގެތެރޭގައި ބަންދު ދުވަސްތަކެއް ނުހިމެނޭނެއެވެ.',
+                briefG7: 'ދަރިވަރު ވަގުލުކޮށްފައިވާކަން ސާބިތުވެއްޖެނަމަ ޔުނިވަރސީޓީގެ ވަގުލުކުރުން ހުއްޓުވުމާބެހޭ ޤަވާއިދާ އަދި ކޯޑް އޮފް ކޮންޑަކްޓުގައި ބަޔާންކޮށްފައިވާ ގޮތުގެމަތީން އެ ދަރިވަރަކާމެދު ފިޔަވަޅުއެޅޭނެއެވެ.',
+                briefG8: 'ރިފަރެންސް ދިނުމުގައި ތަބާވާނީ ޔުނިވަރސިޓީގެ ރިފަރެންސް ދިނުމުގެ އިރުޝާދަށެވެ.',
+                taskDet: 'ތަފްޞީލު:', cHead: 'ކްރައިޓީރިއާ', mHead: 'މާކުސް', pTitle: 'ޕްރެޒެންޓޭޝަން ރުބްރިކް',
+                dateAsg: 'ހަވާލުކުރެވުނު ތާރީޚު:', comps: 'ބައިތައް', weight: 'ބަރުދަން', totalM: 'ޖުމްލަ މާކުސް',
+                due: 'ސުންގަޑި', format: 'ފޯމެޓް', type: 'ވައްތަރު', fe: 'ފަހު އިމްތިޙާނު', ium: 'އިސްލާމިކް ޔުނިވަރސިޓީ އޮފް މޯލްޑިވްސް'
+            },
+            en: { 
+                qPre: 'QUESTION ', qSuf: '', mStr: 'Marks', endStr: '(END)', dir: 'ltr',
+                fac: 'Faculty / Centre', prog: 'Programme', modName: 'Module Name', modCode: 'Module Code', lec: 'Lecturer', date: 'Date',
+                batch: 'Batch', readTime: 'Reading Time', writeTime: 'Writing Time',
+                ansIn: 'Answers must be written in:', marks: 'Marks', totalMarks: 'Total Marks',
+                instTitle: 'Instructions to Candidates', allowed: '✔ Materials allowed in the examination:',
+                pageStr1: 'This paper consists of', pageStr2: 'pages. Please check that you have all pages.',
+                msTitle: 'MARKING SCHEME / MODEL ANSWER', ansLbl: 'Answer:',
+                modTitle: 'Examination Moderation Form', modBy: 'Moderated By:',
+                modInt: 'Internal Moderator', modExt: 'External Moderator',
+                modCredit: 'Module Credit / Level', modSem: 'Semester / Year', moderator: 'Moderator',
+                modSubt: 'Cognitive Levels Mapping', modLecOnly: '(To be filled by Lecturer / Examiner)',
+                qNum: 'Q#', part: 'Part',
+                low: 'LOW', mid: 'MEDIUM', high: 'HIGH',
+                rem: 'Remember', und: 'Understand', app: 'Apply', ana: 'Analyse', eva: 'Evaluate', cre: 'Create',
+                total: 'Total',
+                briefTitle: 'ASSIGNMENT BRIEF', briefGdl: 'Assignment Guidelines',
+                briefG1: 'This assignment must be typed and submitted in formats including doc, ppt, pdf unless a special format or form is prescribed by the lecturer.',
+                briefG2: 'Student must inform the respective faculty in writing before 24hs of the deadline if he/she is not able to submit within the given deadline due to a genuine reason.',
+                briefG3: 'In this case students must use the given form and relevant documents such as MC should be attached.',
+                briefG4: 'A 5% from the marks received will be deducted for late submissions.',
+                briefG5: 'Similarly, for each day 5% from the marks received will be deducted including the holidays.',
+                briefG6: 'Submissions after 7 days from the deadline will not be accepted. This will exclude week-ends and public holidays.',
+                briefG7: 'If the student is found plagiarized, disciplinary actions will be taken as per the IUM plagiarism policy and code of conduct.',
+                briefG8: 'Referencing must be as per the IUM referencing guideline.',
+                taskDet: 'Task Details:', cHead: 'Criteria', mHead: 'Marks', pTitle: 'Presentation Rubric',
+                dateAsg: 'Date Assigned:', comps: 'Components', weight: 'Weightage', totalM: 'Total Marks',
+                due: 'Due Dates', format: 'Format', type: 'Type', fe: 'Final Exam', ium: 'ISLAMIC UNIVERSITY OF MALDIVES'
+            },
+            ar: { 
+                qPre: 'السؤال ', qSuf: '', mStr: 'الدرجات', endStr: '(انتهى)', dir: 'rtl',
+                fac: 'الكلية', prog: 'البرنامج', modName: 'المادة', modCode: 'رقم المادة', lec: 'الأستاذ', date: 'التاريخ',
+                batch: 'الدفعة', readTime: 'وقت القراءة', writeTime: 'وقت الكتابة',
+                ansIn: 'تكتب الأجوبة في:', marks: 'الدرجات', totalMarks: 'المجموع الكلي',
+                instTitle: 'الإرشادات العامة', allowed: '✔ المواد المسموح بها:',
+                pageStr1: 'تتكون هذه الورقة من', pageStr2: 'صفحات. يرجى التأكد من وجود جميع الصفحات.',
+                msTitle: 'إجابة امتحان نهاية الفصل الدراسي', ansLbl: 'الجواب:',
+                modTitle: 'نموذج تعديل الامتحان', modBy: 'تم التعديل بواسطة:',
+                modInt: 'المشرف الداخلي', modExt: 'المشرف الخارجي',
+                modCredit: 'ساعات المادة / المستوى', modSem: 'الفصل الدراسي / السنة', moderator: 'المشرف',
+                modSubt: 'مستويات التفكير', modLecOnly: '(يتم تعبئته من قبل المحاضر)',
+                qNum: 'رقم السؤال', part: 'الجزء',
+                low: 'مستوى منخفض', mid: 'مستوى متوسط', high: 'مستوى عالي',
+                rem: 'تذكر', und: 'فهم', app: 'تطبيق', ana: 'تحليل', eva: 'تقييم', cre: 'ابتكار',
+                total: 'المجموع',
+                briefTitle: 'إرشادات إعداد ورقة بحث', briefGdl: 'إرشادات كتابة البحث العلمي',
+                briefG1: 'يجب على الطالب أن يتبع في كتابة البحث وتقديمه على صيغة ppt أو pdf ما لم يتم تحديد شكل معين من أشكال الكتابة.',
+                briefG2: 'يجب على الطالب إبلاغ الهيئة التدريسية المعنية كتابيا قبل 24 ساعة من الموعد النهائي وإذا كان غير قادر على التقديم.',
+                briefG3: 'يجب على الطلاب إثبات السبب الحقيقي باستخدام الاستمارة المصممة له، ويجب إرفاق الوثائق ذات الصلة.',
+                briefG4: 'سيتم خصم 5 ٪ من الدرجة الكلية عن البحوث المتقدمة بعد مضي الموعد النهائي.',
+                briefG5: 'ويخصم كذلك 5 ٪ من الدرجة الكلية عن كل يوم تأخير عن الموعد النهائي.',
+                briefG6: 'لن تقبل البحوث المقدمة بعد 7 أيام من الموعد النهائي، ولايعد عطلات نهاية الأسبوع والعطلات الرسمية في حساب سبعة أيام.',
+                briefG7: 'في حالة ثبوت سرقة علمية على طالب سيتم اتخاذ الإجراءات التأديبية وفقا لقواعد الأكاديمية.',
+                briefG8: 'يجب أن تكون الطريقة الإحالة وفقاً للإرشادات المرجعية الخاصة للجامعة.',
+                taskDet: 'تفاصيل العمل:', cHead: 'المعايير', mHead: 'الدرجات', pTitle: 'معايير العرض',
+                dateAsg: 'تاريخ التعيين:', comps: 'عناصر المادة', weight: 'الدرجة النسبية', totalM: 'مجموعة الدرجات',
+                due: 'آخر موعد للتقديم', format: 'صيغة الكتابة', type: 'نوع النشاط', fe: 'امتحان نهائـي', ium: 'جامعة المالديف الإسلامية'
+            }
         };
 
         const nums = { dv: ['ސުމެއް','އެއް','ދެ','ތިން','ހަތަރު','ފަސް','ހަ','ހަތް','އަށް','ނުވަ','ދިހަ'], en: ['ZERO','ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN'] };
@@ -472,35 +671,39 @@
         function verifyLogin() {
             let email = document.getElementById('login-user').value;
             let password = document.getElementById('login-pass').value;
-            
             let btn = document.getElementById('login-btn');
-            let originalText = btn.innerText;
-            btn.innerText = "ޗެކްކުރެވެނީ...";
+            let originalText = btn.innerText; btn.innerText = "ޗެކްކުރެވެނީ...";
 
-            firebase.auth().signInWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                    document.getElementById('login-ui').style.display='none'; 
-                    document.getElementById('app-ui').style.display='flex'; 
-                    initApp(); 
-                    addPart(); 
-                    loadFromFirebase();
-                })
-                .catch((error) => {
-                    var errorMessage = error.message;
-                    alert("ލޮގިން ފެއިލްވެއްޖެ: " + errorMessage + "\n(Make sure to create this user in Firebase Authentication first!)");
-                    btn.innerText = originalText;
-                });
+            firebase.auth().signInWithEmailAndPassword(email, password).then((userCredential) => {
+                document.getElementById('login-ui').style.display='none'; document.getElementById('app-ui').style.display='flex'; 
+                initApp(); addPart(); loadFromFirebase(); applyTranslations();
+            }).catch((error) => {
+                alert("ލޮގިން ފެއިލްވެއްޖެ: " + error.message);
+                btn.innerText = originalText;
+            });
         }
 
         function logout() {
             firebase.auth().signOut().then(() => {
-                document.getElementById('app-ui').style.display='none';
-                document.getElementById('login-ui').style.display='flex';
-                document.getElementById('login-pass').value = '';
-                document.getElementById('login-btn').innerText = "ސިސްޓަމަށް ވަންނަވާ";
-            }).catch((error) => {
-                alert("Logout failed!");
+                document.getElementById('app-ui').style.display='none'; document.getElementById('login-ui').style.display='flex';
+                document.getElementById('login-pass').value = ''; document.getElementById('login-btn').innerText = "ސިސްޓަމަށް ވަންނަވާ";
             });
+        }
+
+        function applyTranslations() {
+            let l = appData.lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                let key = el.getAttribute('data-i18n');
+                if(uiTransl[key] && uiTransl[key][l]) {
+                    if(el.tagName === 'INPUT' && el.type === 'button') { el.value = uiTransl[key][l]; } 
+                    else if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') { el.placeholder = uiTransl[key][l]; } 
+                    else { el.innerText = uiTransl[key][l]; }
+                }
+            });
+            document.querySelectorAll('.p-tit').forEach(el => el.placeholder = (l==='en'?'Part Name / Section':(l==='ar'?'القسم الأول':'ފުރަތަމަ ބައި / PART A')));
+            document.querySelectorAll('.q-txt').forEach(el => el.placeholder = (l==='en'?'Question / Scenario...':(l==='ar'?'السؤال...':'ސުވާލު / ސީނާރިއޯ...')));
+            document.querySelectorAll('.q-ans').forEach(el => el.placeholder = (l==='en'?'Answer...':(l==='ar'?'الجواب...':'ޖަވާބު...')));
+            document.querySelectorAll('.sq-txt').forEach(el => el.placeholder = (l==='en'?'Sub-question...':(l==='ar'?'فرعي السؤال...':'ސަބް ސުވާލު...')));
         }
 
         // --- 2. INIT & NAV ---
@@ -521,10 +724,9 @@
 
         function changeLang() {
             let l = document.getElementById('ui-lang').value;
-            appData.lang = l;
-            document.documentElement.dir = dict[l].dir;
+            appData.lang = l; document.documentElement.dir = dict[l].dir;
             document.body.style.fontFamily = l === 'en' ? "var(--font-en)" : (l === 'ar' ? "var(--font-ar)" : "var(--font-dv)");
-            syncState();
+            applyTranslations(); syncState();
         }
 
         function handleLogoUpload(e) {
@@ -544,25 +746,16 @@
           appId: "1:739416407217:web:e1f560db5e48f813337690",
           measurementId: "G-82ZRX7Z9LV"
         };
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
         const db = firebase.firestore();
 
         async function saveToFirebase() {
             try {
-                syncState();
-                document.getElementById('cloud-status').innerText = "☁️ ސޭވްކުރެވެނީ...";
-                await db.collection("rasfahi_data").doc("app_state").set({
-                    archives: JSON.stringify(appData.paperArchives || []),
-                    qBank: JSON.stringify(appData.qBank || {})
-                });
+                syncState(); document.getElementById('cloud-status').innerText = "☁️ ސޭވްކުރެވެނީ...";
+                await db.collection("rasfahi_data").doc("app_state").set({ archives: JSON.stringify(appData.paperArchives || []), qBank: JSON.stringify(appData.qBank || {}) });
                 document.getElementById('cloud-status').innerText = "✅ ކްލައުޑަށް ސޭވްވެއްޖެ";
                 setTimeout(() => document.getElementById('cloud-status').innerText = "", 3000);
-            } catch(e) {
-                console.error("Firebase Save Error:", e);
-                document.getElementById('cloud-status').innerText = "❌ ކްލައުޑް އެރަރ";
-            }
+            } catch(e) { console.error("Firebase Save Error:", e); document.getElementById('cloud-status').innerText = "❌ ކްލައުޑް އެރަރ"; }
         }
 
         async function loadFromFirebase() {
@@ -574,22 +767,25 @@
                     if(data.archives) appData.paperArchives = JSON.parse(data.archives);
                     if(data.qBank) appData.qBank = JSON.parse(data.qBank);
                 }
-                renderArchivedPapers();
-                renderBank();
+                renderArchivedPapers(); renderBank();
                 document.getElementById('cloud-status').innerText = "✅ ކްލައުޑުން ލޯޑްވެއްޖެ";
                 setTimeout(() => document.getElementById('cloud-status').innerText = "", 3000);
-            } catch(e) {
-                console.error("Firebase Load Error:", e);
-                document.getElementById('cloud-status').innerText = "❌ ކްލައުޑް އެރަރ";
-            }
+            } catch(e) { console.error("Firebase Load Error:", e); document.getElementById('cloud-status').innerText = "❌ ކްލައުޑް އެރަރ"; }
         }
 
         function archiveCurrentPaper() {
             syncState();
-            let currentSnapshot = JSON.parse(JSON.stringify(appData));
-            currentSnapshot.paperArchives = []; 
-            currentSnapshot.archiveDate = new Date().toLocaleString();
-            currentSnapshot.archiveName = `${appData.mod} - ${document.getElementById('m-sem').value} (${document.getElementById('m-type').value})`;
+            let currentSnapshot = {
+                archiveDate: new Date().toLocaleString(),
+                year: appData.meta.yr || 'N/A',
+                semester: appData.meta.sem || 'N/A',
+                programme: appData.meta.prog || 'N/A',
+                module: appData.meta.mod || 'N/A',
+                type: appData.meta.typ || 'N/A',
+                data: JSON.parse(JSON.stringify(appData))
+            };
+            currentSnapshot.data.paperArchives = []; // Prevent nested bloat
+            
             appData.paperArchives.push(currentSnapshot);
             saveToFirebase();
             alert('މުޅި ޕޭޕަރ (މާކިންގ ސްކީމް އާއި މޮޑަރޭޝަނާއެކު) ޕޭޕަރ ބޭންކުގައި އަރުޝީފު ކުރެވިއްޖެ!');
@@ -600,69 +796,63 @@
             let list = document.getElementById('archive-list'); if(!list) return; list.innerHTML = '';
             if(!appData.paperArchives || appData.paperArchives.length === 0) { list.innerHTML = '<p style="color:gray;">ޕޭޕަރ ބޭންކުގައި އެއްވެސް ޕޭޕަރެއް ނެތް.</p>'; return; }
             
-            let reversedArchives = [...appData.paperArchives].reverse();
-
-            reversedArchives.forEach((p, revIdx) => {
-                let realIdx = appData.paperArchives.length - 1 - revIdx;
-                list.innerHTML += `
-                    <div class="archive-item">
-                        <div class="archive-details">
-                            <h3>📄 ${p.archiveName}</h3>
-                            <p>📅 ޑޭޓް: ${p.archiveDate} | 📚 ފެކަލްޓީ: ${p.meta?.fac || ''}</p>
-                        </div>
-                        <div class="archive-actions">
-                            <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${realIdx}, 'exam', 'word')">📄 Exam (Word)</button>
-                            <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${realIdx}, 'ms', 'word')">✅ MS (Word)</button>
-                            <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${realIdx}, 'mod', 'word')">📊 Mod (Word)</button>
-                            <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${realIdx}, 'brief', 'word')">📋 Brief (Word)</button>
-                            <button class="btn btn-green btn-sm" onclick="exportFromArchive(${realIdx}, 'exam', 'print')">🖨️ PDF/Print</button>
-                            <button class="btn btn-purple btn-sm" onclick="loadArchivedPaper(${realIdx})">✏️ ޕޭޕަރ އެޑިޓްކުރޭ</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteArchivedPaper(${realIdx})">X</button>
-                        </div>
-                    </div>
-                `;
+            // Grouping by Year -> Semester -> Programme
+            let grouped = {};
+            appData.paperArchives.forEach((p, idx) => {
+                let y = p.year; let s = p.semester; let pr = p.programme;
+                if(!grouped[y]) grouped[y] = {};
+                if(!grouped[y][s]) grouped[y][s] = {};
+                if(!grouped[y][s][pr]) grouped[y][s][pr] = [];
+                p.realIdx = idx;
+                grouped[y][s][pr].push(p);
             });
+
+            // Render Groups
+            for(let y of Object.keys(grouped).sort().reverse()) {
+                let html = `<div class="yr-block"><div class="yr-head">📅 ${y}</div><div style="background:white; padding:1px;">`;
+                for(let s of Object.keys(grouped[y]).sort()) {
+                    html += `<div class="sem-block"><div class="sem-head">⏳ ${s}</div>`;
+                    for(let pr of Object.keys(grouped[y][s])) {
+                        html += `<div class="prog-head">🎓 ${pr}</div>`;
+                        grouped[y][s][pr].forEach(p => {
+                            html += `
+                            <div class="archive-item">
+                                <div class="archive-details">
+                                    <h3>📚 ${p.module} (${p.type})</h3>
+                                    <p>Saved: ${p.archiveDate}</p>
+                                </div>
+                                <div class="archive-actions">
+                                    <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${p.realIdx}, 'exam', 'word')">📄 Exam</button>
+                                    <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${p.realIdx}, 'ms', 'word')">✅ MS</button>
+                                    <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${p.realIdx}, 'mod', 'word')">📊 Mod</button>
+                                    <button class="btn btn-outline btn-sm" onclick="exportFromArchive(${p.realIdx}, 'brief', 'word')">📋 Brief</button>
+                                    <button class="btn btn-green btn-sm" onclick="exportFromArchive(${p.realIdx}, 'exam', 'print')">🖨️ Print</button>
+                                    <button class="btn btn-purple btn-sm" onclick="loadArchivedPaper(${p.realIdx})">✏️ އެޑިޓް / ލޯޑްކުރޭ</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteArchivedPaper(${p.realIdx})">X</button>
+                                </div>
+                            </div>`;
+                        });
+                    }
+                    html += `</div>`;
+                }
+                html += `</div></div>`;
+                list.innerHTML += html;
+            }
         }
 
         function exportFromArchive(idx, docType, format) {
-            let p = appData.paperArchives[idx];
+            let p = appData.paperArchives[idx].data;
             let tempAppData = JSON.parse(JSON.stringify(appData)); 
             appData = JSON.parse(JSON.stringify(p));
             let html = getBaseHTML(docType);
             appData = tempAppData; 
 
             if(format === 'print') {
-                document.getElementById('print-engine').innerHTML = html; 
-                window.print();
+                document.getElementById('print-engine').innerHTML = html; window.print();
             } else if (format === 'word') {
-                let dir = appData.lang === 'en' ? 'ltr' : 'rtl';
-                let header = `
-                <html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas-microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
-                <head><meta charset="utf-8"><title>Export</title>
-                <style>
-                    body { font-family: 'Faruma', 'Times New Roman', serif; font-size:12pt; text-align:justify; direction: ${dir}; } 
-                    table {border-collapse: collapse; width:100%;} td,th {border:1px solid black; padding:8px;} 
-                    .ans-box {border-left: 3px solid red; padding-left: 15px; margin-top: 15px;} 
-                    .rtl-mode .ans-box {border-left: none; border-right: 3px solid red; padding-left: 0; padding-right: 15px;} 
-                    .ans-red {color:red; font-weight:bold;} .ans-green {color:green; font-weight:bold;} 
-                    .pb {page-break-before: always;}
-                    @page WordSection1 { size: 595.3pt 841.9pt; margin: 72.0pt 72.0pt 72.0pt 72.0pt; mso-header-margin: 35.4pt; mso-footer-margin: 35.4pt; mso-footer: url("header.htm") f1; }
-                    div.WordSection1 { page: WordSection1; }
-                    p.MsoFooter { margin: 0; text-align: center; border-top: 1px solid black; padding-top: 10px; font-size: 11pt;}
-                </style>
-                </head><body dir="${dir}"><div class="WordSection1">
-                `;
-                
-                let footerHTML = `
-                </div>
-                <div style="mso-element:footer" id="f1">
-                    <p class="MsoFooter">
-                        <span style="float: ${dir==='rtl'?'right':'left'};">${p.meta?.fac || ''} | ${p.meta?.sem || ''}</span>
-                        <span style="float: ${dir==='rtl'?'left':'right'};">Page <span style="mso-field-code:' PAGE '"></span></span>
-                    </p>
-                </div>
-                </body></html>`;
-
+                let dir = p.lang === 'en' ? 'ltr' : 'rtl';
+                let header = `<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas-microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Export</title><style>body { font-family: 'Faruma', 'Times New Roman', serif; font-size:12pt; text-align:justify; direction: ${dir}; } table {border-collapse: collapse; width:100%;} td,th {border:1px solid black; padding:8px;} .ans-box {border-left: 3px solid red; padding-left: 15px; margin-top: 15px;} .rtl-mode .ans-box {border-left: none; border-right: 3px solid red; padding-left: 0; padding-right: 15px;} .ans-red {color:red; font-weight:bold;} .ans-green {color:green; font-weight:bold;} .pb {page-break-before: always;} @page WordSection1 { size: 595.3pt 841.9pt; margin: 72.0pt 72.0pt 72.0pt 72.0pt; mso-header-margin: 35.4pt; mso-footer-margin: 35.4pt; mso-footer: url("header.htm") f1; } div.WordSection1 { page: WordSection1; } p.MsoFooter { margin: 0; text-align: center; border-top: 1px solid black; padding-top: 10px; font-size: 11pt;}</style></head><body dir="${dir}"><div class="WordSection1">`;
+                let footerHTML = `</div><div style="mso-element:footer" id="f1"><p class="MsoFooter"><span style="float: ${dir==='rtl'?'right':'left'};">${p.meta?.fac || ''} | ${p.meta?.sem || ''}</span><span style="float: ${dir==='rtl'?'left':'right'};">Page <span style="mso-field-code:' PAGE '"></span></span></p></div></body></html>`;
                 let blob = new Blob(['\ufeff', header + html + footerHTML], { type: 'application/msword' });
                 let link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `IUM_Archive_${docType}_${new Date().getTime()}.doc`;
                 document.body.appendChild(link); link.click(); document.body.removeChild(link);
@@ -671,9 +861,10 @@
 
         function loadArchivedPaper(idx) {
             if(!confirm("މިހާރު ހަދަމުންދާ ޕޭޕަރުގެ ބަދަލުގައި ބޭންކުން ޕޭޕަރެއް ލޯޑްކުރަން ބޭނުންތޯ؟ (މިހާރު ހަދަމުންދާ ޕޭޕަރ ސޭވް ނުކުރާނަމަ ގެއްލޭނެ)")) return;
-            let p = appData.paperArchives[idx]; let archivesBackup = appData.paperArchives; 
+            let p = appData.paperArchives[idx].data; 
+            let archivesBackup = appData.paperArchives; 
             appData = JSON.parse(JSON.stringify(p)); appData.paperArchives = archivesBackup; 
-            loadStateToUI(); rebuildBuilderUI(); updateRubricHeadersUI(); alert("ޕޭޕަރ ކާމިޔާބުކަމާއެކު އެޑިޓަރަށް ލޯޑްކުރެވިއްޖެ!"); nav('builder');
+            loadStateToUI(); rebuildBuilderUI(); updateRubricHeadersUI(); alert("ޕޭޕަރ ކާމިޔާބުކަމާއެކު އެޑިޓަރަށް ލޯޑްކުރެވިއްޖެ!"); nav('builder'); applyTranslations();
         }
 
         function deleteArchivedPaper(idx) {
@@ -689,64 +880,18 @@
         function importBackup(e) {
             let file = e.target.files[0]; if(!file) return; let reader = new FileReader();
             reader.onload = (event) => {
-                try { appData = JSON.parse(event.target.result); if(!appData.paperArchives) appData.paperArchives = []; loadStateToUI(); rebuildBuilderUI(); updateRubricHeadersUI(); alert("ބެކަޕް ކާމިޔާބުކަމާއެކު ލޯޑްކުރެވިއްޖެ!"); } 
+                try { appData = JSON.parse(event.target.result); if(!appData.paperArchives) appData.paperArchives = []; loadStateToUI(); rebuildBuilderUI(); updateRubricHeadersUI(); alert("ބެކަޕް ކާމިޔާބުކަމާއެކު ލޯޑްކުރެވިއްޖެ!"); applyTranslations(); } 
                 catch(err) { alert("Invalid Backup File!"); }
             }; reader.readAsText(file);
         }
 
         function loadStateToUI() {
             if(appData.meta) {
-                document.getElementById('m-prog').value = appData.meta.prog || '';
-                document.getElementById('m-fac').value = appData.meta.fac || '';
-                document.getElementById('m-mod').value = appData.meta.mod || '';
-                document.getElementById('m-code').value = appData.meta.code || '';
-                document.getElementById('m-lec').value = appData.meta.lec || '';
-                document.getElementById('m-date').value = appData.meta.date || '';
-                document.getElementById('m-yr').value = appData.meta.yr || '2023';
-                document.getElementById('m-sem').value = appData.meta.sem || 'ފުރަތަމަ ސެމިސްޓަރ';
-                document.getElementById('m-type').value = appData.meta.typ || 'ފަހު އިމްތިޙާނު';
-                document.getElementById('m-batch').value = appData.meta.batch || '23';
-                document.getElementById('m-tr').value = appData.meta.tr || '10 މިނެޓު';
-                document.getElementById('m-tw').value = appData.meta.tw || '3 ގަޑިއިރު';
-                document.getElementById('m-ans').value = appData.meta.ans || '';
-                document.getElementById('m-ref').value = appData.meta.ref || 'no';
-                document.getElementById('m-ref-list').value = appData.meta.refList || '';
-                document.getElementById('m-ref-list').style.display = appData.meta.ref === 'yes' ? 'block' : 'none';
-                document.getElementById('cfg-layout').value = appData.layout || 'std';
-                document.getElementById('m-lang').value = appData.lang || 'dv';
-                
-                document.getElementById('m-pages').value = appData.meta.pages || '5';
-                document.getElementById('m-totQs').value = appData.meta.totQs || '5';
-                document.getElementById('m-ansQs').value = appData.meta.ansQs || '3';
-                document.getElementById('m-partInst').value = appData.meta.partInst || 'ފުރަތަމަ ބައިން 1 (އެކެއް) ސުވާލަށް އަދި ދެވަނަ ބައިން 2 (ދޭއް) ސުވާލަށް ޖަވާބުދޭށެވެ!';
-                document.getElementById('m-credit').value = appData.meta.credit || '15 / 7';
-                document.getElementById('m-moderator').value = appData.meta.moderator || '';
-                document.getElementById('m-modType').value = appData.meta.modType || 'internal';
-
-                // Brief Details
-                document.getElementById('b-date').value = appData.meta.bDate || '';
-                document.getElementById('b-length').value = appData.meta.bLength || '1500 words';
-                document.getElementById('b-format').value = appData.meta.bFormat || 'Times New Roman / Faruma, 12pt, 1.5 spacing';
-                document.getElementById('b-c1-name').value = appData.meta.bc1Name || 'ރިޕޯރޓް';
-                document.getElementById('b-c1-w').value = appData.meta.bc1W || '20';
-                document.getElementById('b-c1-m').value = appData.meta.bc1M || '50';
-                document.getElementById('b-c1-due').value = appData.meta.bc1Due || '';
-                document.getElementById('b-c1-fmt').value = appData.meta.bc1Fmt || 'Word/PDF';
-                document.getElementById('b-c1-typ').value = appData.meta.bc1Typ || 'Individual';
-                
-                document.getElementById('b-c2-name').value = appData.meta.bc2Name || 'ޕްރެޒެންޓޭޝަން';
-                document.getElementById('b-c2-w').value = appData.meta.bc2W || '20';
-                document.getElementById('b-c2-m').value = appData.meta.bc2M || '20';
-                document.getElementById('b-c2-due').value = appData.meta.bc2Due || '';
-                document.getElementById('b-c2-fmt').value = appData.meta.bc2Fmt || 'PPT';
-                document.getElementById('b-c2-typ').value = appData.meta.bc2Typ || 'Group';
-
-                document.getElementById('b-fe-w').value = appData.meta.bfeW || '60';
-                document.getElementById('b-fe-m').value = appData.meta.bfeM || '100';
-                document.getElementById('b-task').value = appData.meta.bTask || '';
+                document.getElementById('m-prog').value = appData.meta.prog || ''; document.getElementById('m-fac').value = appData.meta.fac || ''; document.getElementById('m-mod').value = appData.meta.mod || ''; document.getElementById('m-code').value = appData.meta.code || ''; document.getElementById('m-lec').value = appData.meta.lec || ''; document.getElementById('m-date').value = appData.meta.date || ''; document.getElementById('m-yr').value = appData.meta.yr || '2023'; document.getElementById('m-sem').value = appData.meta.sem || ''; document.getElementById('m-type').value = appData.meta.typ || ''; document.getElementById('m-batch').value = appData.meta.batch || ''; document.getElementById('m-tr').value = appData.meta.tr || ''; document.getElementById('m-tw').value = appData.meta.tw || ''; document.getElementById('m-ans').value = appData.meta.ans || ''; document.getElementById('m-ref').value = appData.meta.ref || 'no'; document.getElementById('m-ref-list').value = appData.meta.refList || ''; document.getElementById('m-ref-list').style.display = appData.meta.ref === 'yes' ? 'block' : 'none'; document.getElementById('cfg-layout').value = appData.layout || 'std'; document.getElementById('m-lang').value = appData.lang || 'dv';
+                document.getElementById('m-pages').value = appData.meta.pages || '5'; document.getElementById('m-totQs').value = appData.meta.totQs || '5'; document.getElementById('m-ansQs').value = appData.meta.ansQs || '3'; document.getElementById('m-partInst').value = appData.meta.partInst || ''; document.getElementById('m-credit').value = appData.meta.credit || '15 / 7'; document.getElementById('m-moderator').value = appData.meta.moderator || ''; document.getElementById('m-modType').value = appData.meta.modType || 'internal';
+                document.getElementById('b-date').value = appData.meta.bDate || ''; document.getElementById('b-length').value = appData.meta.bLength || '1500 words'; document.getElementById('b-format').value = appData.meta.bFormat || ''; document.getElementById('b-c1-name').value = appData.meta.bc1Name || ''; document.getElementById('b-c1-w').value = appData.meta.bc1W || '20'; document.getElementById('b-c1-m').value = appData.meta.bc1M || '50'; document.getElementById('b-c1-due').value = appData.meta.bc1Due || ''; document.getElementById('b-c1-fmt').value = appData.meta.bc1Fmt || ''; document.getElementById('b-c1-typ').value = appData.meta.bc1Typ || 'Individual'; document.getElementById('b-c2-name').value = appData.meta.bc2Name || ''; document.getElementById('b-c2-w').value = appData.meta.bc2W || '20'; document.getElementById('b-c2-m').value = appData.meta.bc2M || '20'; document.getElementById('b-c2-due').value = appData.meta.bc2Due || ''; document.getElementById('b-c2-fmt').value = appData.meta.bc2Fmt || ''; document.getElementById('b-c2-typ').value = appData.meta.bc2Typ || 'Group'; document.getElementById('b-fe-w').value = appData.meta.bfeW || '60'; document.getElementById('b-fe-m').value = appData.meta.bfeM || '100'; document.getElementById('b-task').value = appData.meta.bTask || '';
             }
 
-            // Load Pres Rubric
             if(appData.presRubric && appData.presRubric.length > 0) {
                 document.getElementById('pr-body').innerHTML = '';
                 appData.presRubric.forEach(r => {
@@ -764,16 +909,16 @@
             let oldParts = JSON.parse(JSON.stringify(appData.parts)); appData.parts = []; 
             oldParts.forEach(p => {
                 let pId = p.id || 'p_'+genId(); appData.parts.push({ id: pId, title: p.title, inst: p.inst, qs: [] });
-                let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X ރިމޫވް ބައި</button></div><div class="g-2"><div class="f-grp"><label>ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" placeholder="ފުރަތަމަ ބައި / PART A" value="${p.title||''}" onchange="syncState()"></div><div class="f-grp"><label>އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" placeholder="ތިރީގައިވާ 3 ސުވާލުން 2 ސުވާލަށް..." value="${p.inst||''}" onchange="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')">+ ސުވާލު އެޑްކުރޭ</button></div>`;
+                let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X</button></div><div class="g-2"><div class="f-grp"><label data-i18n="lbl-part-name">ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" value="${p.title||''}" onchange="syncState()"></div><div class="f-grp"><label data-i18n="lbl-pinst">އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" value="${p.inst||''}" onchange="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')" data-i18n="btn-add-q">+ ސުވާލު އެޑްކުރޭ</button></div>`;
                 document.getElementById('builder-canvas').insertAdjacentHTML('beforeend', html);
                 p.qs.forEach(q => addQ(pId, q));
-            }); syncState();
+            }); syncState(); applyTranslations();
         }
 
         function addPart() {
             let pId = 'p_'+genId(); appData.parts.push({ id: pId, title: '', inst: '', qs: [] });
-            let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X ރިމޫވް ބައި</button></div><div class="g-2"><div class="f-grp"><label>ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" placeholder="ފުރަތަމަ ބައި / PART A" onchange="syncState()"></div><div class="f-grp"><label>އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" placeholder="ތިރީގައިވާ 3 ސުވާލުން 2 ސުވާލަށް..." onchange="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')">+ ސުވާލު އެޑްކުރޭ</button></div>`;
-            document.getElementById('builder-canvas').insertAdjacentHTML('beforeend', html); addQ(pId);
+            let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X</button></div><div class="g-2"><div class="f-grp"><label data-i18n="lbl-part-name">ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" onchange="syncState()"></div><div class="f-grp"><label data-i18n="lbl-pinst">އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" onchange="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')" data-i18n="btn-add-q">+ ސުވާލު އެޑްކުރޭ</button></div>`;
+            document.getElementById('builder-canvas').insertAdjacentHTML('beforeend', html); addQ(pId); applyTranslations();
         }
 
         function addQ(pId, importedData = null) {
@@ -781,9 +926,9 @@
             let qObj = importedData ? JSON.parse(JSON.stringify(importedData)) : { id: qId, text: '', ans: '', type: 'essay', mark: 0, topic: '', bloom: '', data: {}, subs: [] };
             qObj.id = qId; part.qs.push(qObj);
             let qNum = 0; appData.parts.forEach(p => p.qs.forEach(q => { qNum++; q.num = qNum; }));
-            let html = `<div class="q-box" id="${qId}"><div class="q-row"><div class="q-num" id="lbl-${qId}">${qObj.num}.</div><div style="flex:1; display:flex; flex-direction:column; gap:10px;"><select class="form-ctrl q-typ" style="background:#e0e7ff; font-weight:bold;" onchange="changeQType('${qId}')"><option value="essay" ${qObj.type==='essay'?'selected':''}>Scenario / Essay / Theory</option><option value="mcq" ${qObj.type==='mcq'?'selected':''}>Multiple Choice (MCQ)</option><option value="match" ${qObj.type==='match'?'selected':''}>Matching (ގުޅުވުން)</option><option value="blank" ${qObj.type==='blank'?'selected':''}>Fill in Blanks (ހުސްތަން ފުރުން)</option></select><div id="dyn-${qId}"></div><input type="text" class="form-ctrl q-top" placeholder="ޓޮޕިކް (މޮޑަރޭޝަން ފޯމަށް)" value="${qObj.topic||''}" onchange="syncState()"></div><div style="width:200px; display:flex; flex-direction:column; gap:10px;"><input type="number" class="form-ctrl q-mrk" value="${qObj.mark}" placeholder="މާކުސް" oninput="syncState(); calcTotal();"><select class="form-ctrl q-blm" onchange="syncState()" style="border: 2px solid var(--r-purple);"><option value="">Bloom's Level</option><option value="1" ${qObj.bloom=='1'?'selected':''}>1. Remember</option><option value="2" ${qObj.bloom=='2'?'selected':''}>2. Understand</option><option value="3" ${qObj.bloom=='3'?'selected':''}>3. Apply</option><option value="4" ${qObj.bloom=='4'?'selected':''}>4. Analyse</option><option value="5" ${qObj.bloom=='5'?'selected':''}>5. Evaluate</option><option value="6" ${qObj.bloom=='6'?'selected':''}>6. Create</option></select><button class="btn btn-danger" style="padding:5px;" onclick="removeQ('${pId}', '${qId}')">Delete</button></div></div><div id="sublist-${qId}"></div><button class="btn btn-outline" style="padding:5px 10px; font-size:13px; margin-top:10px;" onclick="addSubQ('${qId}')">+ ސަބް-ސުވާލު (a,b / ހ,ށ)</button></div>`;
+            let html = `<div class="q-box" id="${qId}"><div class="q-row"><div class="q-num" id="lbl-${qId}">${qObj.num}.</div><div style="flex:1; display:flex; flex-direction:column; gap:10px;"><select class="form-ctrl q-typ" style="background:#e0e7ff; font-weight:bold;" onchange="changeQType('${qId}')"><option value="essay" ${qObj.type==='essay'?'selected':''}>Scenario / Essay / Theory</option><option value="mcq" ${qObj.type==='mcq'?'selected':''}>Multiple Choice (MCQ)</option><option value="match" ${qObj.type==='match'?'selected':''}>Matching (ގުޅުވުން)</option><option value="blank" ${qObj.type==='blank'?'selected':''}>Fill in Blanks (ހުސްތަން ފުރުން)</option></select><div id="dyn-${qId}"></div><input type="text" class="form-ctrl q-top" data-i18n="lbl-topic" placeholder="ޓޮޕިކް (މޮޑަރޭޝަން ފޯމަށް)" value="${qObj.topic||''}" onchange="syncState()"></div><div style="width:200px; display:flex; flex-direction:column; gap:10px;"><input type="number" class="form-ctrl q-mrk" value="${qObj.mark}" data-i18n="lbl-mrk-ph" placeholder="މާކުސް" oninput="syncState(); calcTotal();"><select class="form-ctrl q-blm" onchange="syncState()" style="border: 2px solid var(--r-purple);"><option value="">Bloom's Level</option><option value="1" ${qObj.bloom=='1'?'selected':''}>1. Remember</option><option value="2" ${qObj.bloom=='2'?'selected':''}>2. Understand</option><option value="3" ${qObj.bloom=='3'?'selected':''}>3. Apply</option><option value="4" ${qObj.bloom=='4'?'selected':''}>4. Analyse</option><option value="5" ${qObj.bloom=='5'?'selected':''}>5. Evaluate</option><option value="6" ${qObj.bloom=='6'?'selected':''}>6. Create</option></select><button class="btn btn-danger" style="padding:5px;" onclick="removeQ('${pId}', '${qId}')">X</button></div></div><div id="sublist-${qId}"></div><button class="btn btn-outline" style="padding:5px 10px; font-size:13px; margin-top:10px;" onclick="addSubQ('${qId}')" data-i18n="btn-add-subq">+ ސަބް-ސުވާލު (a,b / ހ,ށ)</button></div>`;
             document.getElementById(`qlist-${pId}`).insertAdjacentHTML('beforeend', html); changeQType(qId, qObj);
-            if(importedData && qObj.subs) qObj.subs.forEach(s => addSubQ(qId, s)); calcTotal();
+            if(importedData && qObj.subs) qObj.subs.forEach(s => addSubQ(qId, s)); calcTotal(); applyTranslations();
         }
 
         function removeQ(pId, qId) {
@@ -794,18 +939,18 @@
         function addSubQ(qId, impSub = null) {
             let sId = 's_'+genId(); let parentQ; appData.parts.forEach(p => p.qs.forEach(q => { if(q.id === qId) parentQ = q; }));
             if(!parentQ) return; if(!impSub) parentQ.subs.push({ id: sId, text: '', ans: '', mark: 0 });
-            let html = `<div class="sub-q-block" id="${sId}"><div style="flex:1; display:flex; flex-direction:column; gap:5px;"><textarea class="form-ctrl sq-txt" rows="1" placeholder="ސަބް ސުވާލު..." onchange="syncState()">${impSub?impSub.text:''}</textarea><textarea class="form-ctrl sq-ans" rows="1" placeholder="ޖަވާބު..." style="background:#f0fdf4; border-color:var(--r-green);" onchange="syncState()">${impSub?impSub.ans:''}</textarea></div><input type="number" class="form-ctrl sq-mrk" value="${impSub?impSub.mark:0}" style="width:80px; text-align:center; font-weight:bold;" oninput="syncState(); calcTotal();"><button class="btn btn-danger" style="padding:0 10px;" onclick="this.parentElement.remove(); syncState(); calcTotal();">X</button></div>`;
-            document.getElementById(`sublist-${qId}`).insertAdjacentHTML('beforeend', html);
+            let html = `<div class="sub-q-block" id="${sId}"><div style="flex:1; display:flex; flex-direction:column; gap:5px;"><textarea class="form-ctrl sq-txt" rows="1" onchange="syncState()">${impSub?impSub.text:''}</textarea><textarea class="form-ctrl sq-ans" rows="1" style="background:#f0fdf4; border-color:var(--r-green);" onchange="syncState()">${impSub?impSub.ans:''}</textarea></div><input type="number" class="form-ctrl sq-mrk" value="${impSub?impSub.mark:0}" style="width:80px; text-align:center; font-weight:bold;" oninput="syncState(); calcTotal();"><button class="btn btn-danger" style="padding:0 10px;" onclick="this.parentElement.remove(); syncState(); calcTotal();">X</button></div>`;
+            document.getElementById(`sublist-${qId}`).insertAdjacentHTML('beforeend', html); applyTranslations();
         }
 
         function changeQType(qId, exObj = null) {
             let qEl = document.getElementById(qId); if(!qEl) return; let type = qEl.querySelector('.q-typ').value; let dyn = document.getElementById(`dyn-${qId}`);
             let t = exObj ? exObj.text : ''; let a = exObj ? exObj.ans : ''; let d = exObj ? exObj.data : {};
-            if(type === 'essay') { dyn.innerHTML = `<textarea class="form-ctrl q-txt" rows="3" placeholder="ސުވާލު / ސީނާރިއޯ..." onchange="syncState()">${t}</textarea><textarea class="form-ctrl q-ans" rows="2" placeholder="ޖަވާބު..." style="background:#f0fdf4; border-color:var(--r-green);" onchange="syncState()">${a}</textarea>`; } 
-            else if(type === 'mcq') { dyn.innerHTML = `<input type="text" class="form-ctrl q-txt" placeholder="ސުވާލު ލިޔުއްވާ..." value="${t}" onchange="syncState()"><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;"><input type="text" class="form-ctrl opt-a" placeholder="A) Option" value="${d.a||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-b" placeholder="B) Option" value="${d.b||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-c" placeholder="C) Option" value="${d.c||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-d" placeholder="D) Option" value="${d.d||''}" onchange="syncState()"></div><select class="form-ctrl q-ans" style="background:#f0fdf4; border-color:green; margin-top:10px;" onchange="syncState()"><option value="a" ${a==='a'?'selected':''}>Correct Answer: A</option><option value="b" ${a==='b'?'selected':''}>Correct Answer: B</option><option value="c" ${a==='c'?'selected':''}>Correct Answer: C</option><option value="d" ${a==='d'?'selected':''}>Correct Answer: D</option></select>`; }
-            else if(type === 'match') { let mRows = (d && d.length) ? d : [{l:'',r:''},{l:'',r:''},{l:'',r:''}]; let mHtml = `<input type="text" class="form-ctrl q-txt" placeholder="މިސާލު: ރަނގަޅު ޖަވާބާ ގުޅުވާށެވެ." value="${t}" onchange="syncState()"><div class="match-opts" style="display:flex; flex-direction:column; gap:5px; margin-top:10px;">`; mRows.forEach((row, i) => { mHtml += `<div style="display:flex; gap:10px;"><input type="text" class="form-ctrl m-left" placeholder="Item ${i+1}" value="${row.l}" onchange="syncState()"><input type="text" class="form-ctrl m-right" placeholder="Correct Match ${i+1}" value="${row.r}" style="background:#f0fdf4; border-color:green;" onchange="syncState()"></div>`; }); mHtml += `</div>`; dyn.innerHTML = mHtml; }
-            else if(type === 'blank') { dyn.innerHTML = `<textarea class="form-ctrl q-txt" rows="2" placeholder="މިސާލު: އިސްލާމްދީނުގެ ފުރަތަމަ ރުކުނަކީ [blank] އެވެ." onchange="syncState()">${t}</textarea><input type="text" class="form-ctrl q-ans" placeholder="ޖަވާބު: (މިސާލު: ޝަހާދަތް ކިޔުން)" value="${a}" style="background:#f0fdf4; border-color:green; margin-top:10px;" onchange="syncState()">`; }
-            if(!exObj) syncState();
+            if(type === 'essay') { dyn.innerHTML = `<textarea class="form-ctrl q-txt" rows="3" onchange="syncState()">${t}</textarea><textarea class="form-ctrl q-ans" rows="2" style="background:#f0fdf4; border-color:var(--r-green);" onchange="syncState()">${a}</textarea>`; } 
+            else if(type === 'mcq') { dyn.innerHTML = `<input type="text" class="form-ctrl q-txt" value="${t}" onchange="syncState()"><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;"><input type="text" class="form-ctrl opt-a" placeholder="A" value="${d.a||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-b" placeholder="B" value="${d.b||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-c" placeholder="C" value="${d.c||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-d" placeholder="D" value="${d.d||''}" onchange="syncState()"></div><select class="form-ctrl q-ans" style="background:#f0fdf4; border-color:green; margin-top:10px;" onchange="syncState()"><option value="a" ${a==='a'?'selected':''}>Correct: A</option><option value="b" ${a==='b'?'selected':''}>Correct: B</option><option value="c" ${a==='c'?'selected':''}>Correct: C</option><option value="d" ${a==='d'?'selected':''}>Correct: D</option></select>`; }
+            else if(type === 'match') { let mRows = (d && d.length) ? d : [{l:'',r:''},{l:'',r:''},{l:'',r:''}]; let mHtml = `<input type="text" class="form-ctrl q-txt" value="${t}" onchange="syncState()"><div class="match-opts" style="display:flex; flex-direction:column; gap:5px; margin-top:10px;">`; mRows.forEach((row, i) => { mHtml += `<div style="display:flex; gap:10px;"><input type="text" class="form-ctrl m-left" placeholder="Item ${i+1}" value="${row.l}" onchange="syncState()"><input type="text" class="form-ctrl m-right" placeholder="Correct Match ${i+1}" value="${row.r}" style="background:#f0fdf4; border-color:green;" onchange="syncState()"></div>`; }); mHtml += `</div>`; dyn.innerHTML = mHtml; }
+            else if(type === 'blank') { dyn.innerHTML = `<textarea class="form-ctrl q-txt" rows="2" onchange="syncState()">${t}</textarea><input type="text" class="form-ctrl q-ans" value="${a}" style="background:#f0fdf4; border-color:green; margin-top:10px;" onchange="syncState()">`; }
+            if(!exObj) syncState(); applyTranslations();
         }
 
         function syncState() {
@@ -824,7 +969,6 @@
                 partInst: document.getElementById('m-partInst').value, credit: document.getElementById('m-credit').value,
                 moderator: document.getElementById('m-moderator').value, modType: document.getElementById('m-modType').value,
 
-                // Brief data
                 bDate: document.getElementById('b-date')?.value || '', bLength: document.getElementById('b-length')?.value || '', bFormat: document.getElementById('b-format')?.value || '',
                 bc1Name: document.getElementById('b-c1-name')?.value || '', bc1W: document.getElementById('b-c1-w')?.value || '', bc1M: document.getElementById('b-c1-m')?.value || '', bc1Due: document.getElementById('b-c1-due')?.value || '', bc1Fmt: document.getElementById('b-c1-fmt')?.value || '', bc1Typ: document.getElementById('b-c1-typ')?.value || '',
                 bc2Name: document.getElementById('b-c2-name')?.value || '', bc2W: document.getElementById('b-c2-w')?.value || '', bc2M: document.getElementById('b-c2-m')?.value || '', bc2Due: document.getElementById('b-c2-due')?.value || '', bc2Fmt: document.getElementById('b-c2-fmt')?.value || '', bc2Typ: document.getElementById('b-c2-typ')?.value || '',
@@ -850,7 +994,6 @@
                             q.subs = q.subs.filter(s => document.getElementById(s.id) !== null); 
                             q.subs.forEach(s => { let sEl = document.getElementById(s.id); if(sEl) { s.text = sEl.querySelector('.sq-txt').value; s.ans = sEl.querySelector('.sq-ans').value; s.mark = sEl.querySelector('.sq-mrk').value; } });
 
-                            // Question Bank Auto Archive (By Year & Module)
                             if(q.text.length > 3) { 
                                 let ex = appData.qBank[bankGroupKey].find(b => b.id === q.id); 
                                 if(ex) { Object.assign(ex, JSON.parse(JSON.stringify(q))); ex.sem = semName; } 
@@ -897,9 +1040,9 @@
 
         function renderRubricTable() {
             let l = document.getElementById('m-lang').value; let d = dict[l];
-            let headTr = `<th>${d.cHead}</th>`;
+            let headTr = `<th data-i18n="cHead">${d.cHead}</th>`;
             for(let i=0; i<appData.rCols; i++) { headTr += `<th>${appData.rHeaders[i]||`L${i+1}`}</th>`; }
-            headTr += `<th>${d.mHead}</th><th>-</th>`;
+            headTr += `<th data-i18n="mHead">${d.mHead}</th><th>-</th>`;
             document.getElementById('r-head').innerHTML = headTr;
 
             let tbody = document.getElementById('r-body'); tbody.innerHTML = '';
@@ -909,7 +1052,7 @@
                 for(let i=0; i<appData.rCols; i++) { tr += `<td><textarea class="form-ctrl" rows="2">${r.levels[i]||''}</textarea></td>`; }
                 tr += `<td><input type="number" class="form-ctrl r-mrk" value="${r.mark}" oninput="calcRubric(); syncState();"></td><td><button class="btn btn-danger" onclick="this.parentElement.parentElement.remove(); calcRubric(); syncState();">X</button></td></tr>`;
                 tbody.insertAdjacentHTML('beforeend', tr);
-            }); calcRubric();
+            }); calcRubric(); applyTranslations();
         }
 
         function addRubricRow() { appData.rubric.push({ crit: '', levels: new Array(appData.rCols).fill(''), mark: 0 }); renderRubricTable(); syncState(); }
@@ -958,7 +1101,7 @@
 
             if(type === 'exam' || type === 'ms') {
                 html += `<div class="p-header">${logoHtml}</div>`;
-                let mHead = type === 'exam' ? titleStr : (isEn?'MARKING SCHEME / MODEL ANSWER':(isAr?'إجابة امتحان نهاية الفصل الدراسي':'މާކިންގ ސްކީމް / ޖަވާބު ކަރުދާސް'));
+                let mHead = type === 'exam' ? titleStr : d.msTitle;
                 
                 if(layout === 'std' && l === 'dv') {
                     let coverTitle = `${meta.yr} ވަނަ އަހަރުގެ ${meta.sem}ގެ ފަހު އިމްތިޙާނު`;
@@ -968,41 +1111,49 @@
                     let prettyDate = meta.date ? meta.date.split('-').reverse().join('-') : '';
 
                     html += `<table class="cover-table">
-                        <tr><th>ޕްރޮގްރާމް</th><td colspan="3" style="text-align:center;">: ${meta.prog}</td></tr>
-                        <tr><th>ކިޔަން ދެވޭ ވަގުތު</th><td style="text-align:center;">: ${meta.tr}</td><th style="width:15%;">ބެޗް</th><td style="text-align:center;">: ${meta.batch}</td></tr>
-                        <tr><th>ލިޔަން ދެވޭ ވަގުތު</th><td style="text-align:center;">: ${meta.tw}</td><th>ތާރީޚު</th><td style="text-align:center;">: <span style="background:yellow; padding:2px 10px;">${prettyDate}</span></td></tr>
-                        <tr><th>މޮޑިއުލް ނަން</th><td colspan="3" style="text-align:center;">: ${meta.mod}</td></tr>
-                        <tr><th>މޮޑިއުލް ކޯޑު</th><td colspan="3" style="text-align:center;">: ${meta.code}</td></tr>
-                        <tr><th>ލެކްޗަރަރ</th><td colspan="3" style="text-align:center;">: ${meta.lec}</td></tr>
+                        <tr><th>${d.prog}</th><td colspan="3" style="text-align:center;">: ${meta.prog}</td></tr>
+                        <tr><th>${d.readTime}</th><td style="text-align:center;">: ${meta.tr}</td><th style="width:15%;">${d.batch}</th><td style="text-align:center;">: ${meta.batch}</td></tr>
+                        <tr><th>${d.writeTime}</th><td style="text-align:center;">: ${meta.tw}</td><th>${d.date}</th><td style="text-align:center;">: <span style="background:yellow; padding:2px 10px;">${prettyDate}</span></td></tr>
+                        <tr><th>${d.modName}</th><td colspan="3" style="text-align:center;">: ${meta.mod}</td></tr>
+                        <tr><th>${d.modCode}</th><td colspan="3" style="text-align:center;">: ${meta.code}</td></tr>
+                        <tr><th>${d.lec}</th><td colspan="3" style="text-align:center;">: ${meta.lec}</td></tr>
                     </table>`;
 
-                    html += `<div style="text-align:center; font-size:14pt; margin: 20px 0;">މި ކަރުދާހުގެ ޖަވާބު ލިޔާނީ: ${meta.ans}</div>`;
+                    html += `<div style="text-align:center; font-size:14pt; margin: 20px 0;">${d.ansIn} ${meta.ans}</div>`;
 
                     let refLines = meta.ref === 'yes' ? meta.refList.split('\n').map(r => `<div>: ${r}</div>`).join('') : '<div>: އެއްވެސް އެއްޗެއް ނުވެއްދޭނެ</div>';
 
                     if(type === 'exam') {
                         html += `
-                            <div style="font-size:14pt; margin-bottom: 20px; line-height: 1.6;">މިކަރުދާހުގައި ހިމެނެނީ މުޅިއެކު <strong>${meta.pages}</strong> ޞަފުޙާއެވެ. ޞަފުޙާތައް ހަމަތޯ ބައްލަވާށެވެ.</div>
-                            <div class="cover-inst-title">އިމްތިޙާނުގެ ބައިވެރިންނަށް ދެވޭ އިރުޝާދު</div>
+                            <div style="font-size:14pt; margin-bottom: 20px; line-height: 1.6;">${d.pageStr1} <strong>${meta.pages}</strong> ${d.pageStr2}</div>
+                            <div class="cover-inst-title">${d.instTitle}</div>
                             <ul class="cover-inst-list">
                                 <li>ސުވާލު ކަރުދާސް ކިޔުމަށް ދެވޭ ވަގުތު ފެށިއްޖެކަމަށް އެންގުމުގެ ކުރިން، ސުވާލު ކަރުދާސް ނުހުޅުވާށެވެ!</li>
                                 <li>އިމްތިޙާނު ފެށުމުގެ ކުރިން، ލިބިފައިވާ ކަރުދާސް ސާފުތޯ ބެއްލެވުމާއި އޭގައި ސުވާލެއް ނުވަތަ ޞަފުޙާއެއް މަދުތޯ ބެއްލެވުމަކީ ކެންޑިޑޭޓުގެ ޒިންމާއެކެވެ. މައްސަލައެއް އުޅޭނަމަ އިންވިޖިލޭޓަރަށް އަންގަވާށެވެ!</li>
                                 <li>މިކަރުދާހުގައި ހިމެނެނީ މުޅިއެކު ${meta.totQs} (${numToDv(meta.totQs)}) ސުވާލެވެ. ޖަވާބުދޭންޖެހޭނީ އޭގެތެރެއިން ${meta.ansQs} (${numToDv(meta.ansQs)}) ސުވާލަށެވެ. ${meta.partInst}</li>
                                 <li>ޖަވާބުތައް ލިޔާނީ އޭގެތެރޭގައި ދީފައިވާ ބުކްލެޓުގައެވެ.</li>
                             </ul>
-                            <div style="margin-top:15px; font-weight:bold; font-size:14pt;">✔ އިމްތިޙާނަށް ވެއްދުން ހުއްދަކުރެވޭ ތަކެތި (އެތަކެތި):</div>
+                            <div style="margin-top:15px; font-weight:bold; font-size:14pt;">${d.allowed}</div>
                             <div style="margin-right:25px; margin-top:5px; line-height:1.6; font-size:13pt;">${refLines}</div>
                         `;
                     }
-                    if(type === 'ms') { html += `<div style="text-align:center; font-size:20pt; font-weight:bold; color:red; border:2px solid red; padding:10px; margin-top:20px;">މާކިންގ ސްކީމް</div>`; }
+                    if(type === 'ms') { html += `<div style="text-align:center; font-size:20pt; font-weight:bold; color:red; border:2px solid red; padding:10px; margin-top:20px;">${d.msTitle}</div>`; }
                     
-                    // Close first page & footer
                     html += `<div class="pdf-footer"><div class="footer-left">${meta.fac} | ${meta.sem}</div><div class="footer-right">Page <span class="page-num"></span></div></div></div><div class="page-container">`;
                 } 
                 else {
                     html += `<div class="p-title">${mHead}<br><span style="font-size:14pt; font-weight:normal;">${meta.fac}</span></div>`;
-                    html += `<table class="ar-tb" style="width:100%; border-collapse:collapse; margin-bottom:30px; border:2px solid black; font-size:14pt;"><tr><td class="lbl-bg" style="border:1px solid black; padding:8px; width:20%;">${isEn?'Faculty':'الكلية'}</td><td style="border:1px solid black; padding:8px; width:30%;">${meta.fac}</td><td class="lbl-bg" style="border:1px solid black; padding:8px; width:20%;">${isEn?'Programme':'البرنامج'}</td><td style="border:1px solid black; padding:8px; width:30%;">${meta.prog}</td></tr><tr><td class="lbl-bg" style="border:1px solid black; padding:8px;">${isEn?'Lecturer':'الأستاذ'}</td><td style="border:1px solid black; padding:8px;">${meta.lec}</td><td class="lbl-bg" style="border:1px solid black; padding:8px;">${isEn?'Date':'التاريخ'}</td><td style="border:1px solid black; padding:8px; background:#ffff00;">${meta.date}</td></tr><tr><td class="lbl-bg" style="border:1px solid black; padding:8px;">${isEn?'Module Name':'المادة'}</td><td style="border:1px solid black; padding:8px;">${meta.mod}</td><td class="lbl-bg" style="border:1px solid black; padding:8px;">${isEn?'Module Code':'رقم المادة'}</td><td style="border:1px solid black; padding:8px;">${meta.code}</td></tr></table>`;
-                    if(type === 'exam') { html += `<table style="width:100%; border-collapse:collapse; margin-bottom:30px; border:2px solid black;"><tr><td style="border:1px solid black; padding:10px; width:30%; text-align:center;"><strong>${isEn?'Marks':'الدرجات'}</strong><br><br>المجموع الكلي:<br>${document.getElementById('lbl-total').innerText}</td><td style="border:1px solid black; padding:10px;"><strong>${isEn?'Instructions:':'الإرشادات العامة:'}</strong><br>- ${isEn?'Do not open paper until asked.':'لا تفتح ورقة الأسئلة حتى يطلب منك ذلك.'}<br>- ${isEn?'Check missing pages.':'تأكد من أن جميع الصفحات موجودة.'}<br>- ${isEn?'Answers in booklet.':'تكتب الأجوبة في الدفتر المخصص.'}</td></tr></table>`; }
+                    html += `<table class="ar-tb" style="width:100%; border-collapse:collapse; margin-bottom:30px; border:2px solid black; font-size:14pt;"><tr><td class="lbl-bg" style="border:1px solid black; padding:8px; width:20%;">${d.fac}</td><td style="border:1px solid black; padding:8px; width:30%;">${meta.fac}</td><td class="lbl-bg" style="border:1px solid black; padding:8px; width:20%;">${d.prog}</td><td style="border:1px solid black; padding:8px; width:30%;">${meta.prog}</td></tr><tr><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.lec}</td><td style="border:1px solid black; padding:8px;">${meta.lec}</td><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.date}</td><td style="border:1px solid black; padding:8px; background:#ffff00;">${meta.date}</td></tr><tr><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.modName}</td><td style="border:1px solid black; padding:8px;">${meta.mod}</td><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.modCode}</td><td style="border:1px solid black; padding:8px;">${meta.code}</td></tr></table>`;
+                    
+                    if(type === 'exam') { 
+                        let g1 = isEn ? 'Do not open paper until asked.' : (isAr ? 'لا تفتح ورقة الأسئلة حتى يطلب منك ذلك.' : 'ސުވާލު ކަރުދާސް ނުހުޅުވާށެވެ!');
+                        let g2 = isEn ? 'Check missing pages.' : (isAr ? 'تأكد من أن جميع الصفحات موجودة.' : 'ޞަފުޙާތައް ހަމަތޯ ބައްލަވާށެވެ.');
+                        
+                        html += `<table style="width:100%; border-collapse:collapse; margin-bottom:30px; border:2px solid black;"><tr><td style="border:1px solid black; padding:10px; width:30%; text-align:center;"><strong>${d.marks}</strong><br><br>${d.totalMarks}:<br>${document.getElementById('lbl-total').innerText}</td><td style="border:1px solid black; padding:10px;"><strong>${d.instTitle}:</strong><br>- ${g1}<br>- ${g2}<br>- ${d.ansIn} ${meta.ans}</td></tr></table>`; 
+                    }
+                    else if (type === 'ms') {
+                        html += `<div style="text-align:center; font-size:20pt; font-weight:bold; color:red; border:2px solid red; padding:10px; margin-top:20px;">${d.msTitle}</div>`;
+                    }
                     
                     html += `<div class="pdf-footer"><div class="footer-left">${meta.fac} | ${meta.sem}</div><div class="footer-right">Page <span class="page-num"></span></div></div></div><div class="page-container">`;
                 }
@@ -1013,16 +1164,16 @@
                     if(p.inst) html += `<div class="part-inst">(${p.inst})</div>`;
                     p.qs.forEach(q => {
                         let nw = q.num <= 10 ? (isEn ? nums.en[q.num] : nums.dv[q.num]) : q.num;
-                        let qh = isEn ? `${d.qPre}${nw}` : `${nw} ${d.qSuf}`;
+                        let qh = isEn ? `${d.qPre}${nw}` : (isAr ? `${d.qPre}${nw}` : `${nw} ${d.qSuf}`);
                         let qt = q.text.replace(/\[blank\]/g, '______________').replace(/\n/g, '<br>');
                         let qa = q.ans.replace(/\n/g, '<br>');
                         html += `<div class="pq-row"><div class="pq-con"><span style="font-weight:bold; text-decoration:underline; font-size:14pt;">${qh}</span><br><br><span style="font-size:13pt;">${qt}</span>`;
-                        if (q.type === 'essay' && type === 'ms' && qa) { html += `<div class="ans-box">${isEn?'Answer: ':'ޖަވާބު: '}${qa}</div>`; } 
+                        if (q.type === 'essay' && type === 'ms' && qa) { html += `<div class="ans-box">${d.ansLbl} ${qa}</div>`; } 
                         else if (q.type === 'mcq') { let opts = ['a','b','c','d']; html += `<div style="margin-top:15px; font-size:13pt;">`; opts.forEach(o => { let isCor = (type === 'ms' && q.ans === o); html += `<div class="${isCor ? 'ans-red' : ''}" style="margin-bottom:8px;">${isEn?o.toUpperCase():letters.dv[opts.indexOf(o)]}) ${q.data[o]||''} ${isCor?' ✔':''}</div>`; }); html += `</div>`; }
                         else if (q.type === 'match') { html += `<table style="width:80%; margin-top:15px; border:none; font-size:13pt;">`; q.data.forEach(m => { html += `<tr><td style="padding:8px; border:1px solid #ccc;">${m.l}</td><td style="padding:8px; border:none; text-align:center;">${type==='ms'?'<strong class="ans-green">➔</strong>':'......'}</td><td style="padding:8px; border:1px solid #ccc;">${type==='ms'? `<span class="ans-green">${m.r}</span>` : ''}</td></tr>`; }); html += `</table>`; }
-                        else if (q.type === 'blank' && type === 'ms' && qa) { html += `<div class="ans-box ans-red">${isEn?'Answers: ':'ޖަވާބުތައް: '}${qa}</div>`; }
+                        else if (q.type === 'blank' && type === 'ms' && qa) { html += `<div class="ans-box ans-red">${d.ansLbl} ${qa}</div>`; }
                         html += `</div><div class="pq-mark" style="font-size:14pt;">(${q.mark} ${d.mStr})</div></div>`;
-                        q.subs.forEach((s, sIdx) => { let sl = isEn ? letters.en[sIdx%7] : letters.dv[sIdx%7]; let st = s.text.replace(/\n/g, '<br>'); let sa = s.ans.replace(/\n/g, '<br>'); html += `<div style="display:flex; justify-content:space-between; margin:10px ${isEn?'0 10px 40px':'40px 10px 0'}; page-break-inside:avoid; font-size:13pt;"><div style="flex:1;"><strong>${sl})</strong> ${st} ${(type==='ms' && sa) ? `<div class="ans-box">${isEn?'Ans: ':'ޖ: '}${sa}</div>` : ''}</div><div class="pq-mark" style="font-size:14pt;">(${s.mark} ${d.mStr})</div></div>`; });
+                        q.subs.forEach((s, sIdx) => { let sl = isEn ? letters.en[sIdx%7] : letters.dv[sIdx%7]; let st = s.text.replace(/\n/g, '<br>'); let sa = s.ans.replace(/\n/g, '<br>'); html += `<div style="display:flex; justify-content:space-between; margin:10px ${isEn?'0 10px 40px':'40px 10px 0'}; page-break-inside:avoid; font-size:13pt;"><div style="flex:1;"><strong>${sl})</strong> ${st} ${(type==='ms' && sa) ? `<div class="ans-box">${d.ansLbl} ${sa}</div>` : ''}</div><div class="pq-mark" style="font-size:14pt;">(${s.mark} ${d.mStr})</div></div>`; });
                     });
                 });
                 html += `<div class="p-end">.......................................................<br>${d.endStr}</div>`;
@@ -1041,41 +1192,41 @@
                         </tr>
                     </table>
 
-                    <div style="text-align:center; font-weight:bold; font-size:18pt; margin-bottom:30px; text-decoration:underline;">އިމްތިޙާނު މޮޑަރޭޓްކުރާ ފޯމު</div>
+                    <div style="text-align:center; font-weight:bold; font-size:18pt; margin-bottom:30px; text-decoration:underline;">${d.modTitle}</div>
 
                     <div style="text-align:right; font-size:14pt; margin-bottom:20px; line-height: 1.8;">
-                        <span style="font-weight:bold; text-decoration:underline;">މޮޑަރޭޓް ކުރައްވަނީ ކޮން ބޭފުޅެއްކަން ފާހަގަކުރައްވާ:</span><br>
-                        <div style="display:inline-block; border:1px solid black; width:15px; height:15px; margin-left:8px; text-align:center; line-height:15px;">${meta.modType==='internal'?'✔':'&nbsp;'}</div> އިންޓަރނަލް މޮޑަރޭޓަރ<br>
-                        <div style="display:inline-block; border:1px solid black; width:15px; height:15px; margin-left:8px; text-align:center; line-height:15px;">${meta.modType==='external'?'✔':'&nbsp;'}</div> އެކްސްޓަރނަލް މޮޑަރޭޓަރ
+                        <span style="font-weight:bold; text-decoration:underline;">${d.modBy}</span><br>
+                        <div style="display:inline-block; border:1px solid black; width:15px; height:15px; margin-left:8px; text-align:center; line-height:15px;">${meta.modType==='internal'?'✔':'&nbsp;'}</div> ${d.modInt}<br>
+                        <div style="display:inline-block; border:1px solid black; width:15px; height:15px; margin-left:8px; text-align:center; line-height:15px;">${meta.modType==='external'?'✔':'&nbsp;'}</div> ${d.modExt}
                     </div>
 
                     <table class="ext-tb">
-                        <tr><th>މޮޑިއުލް ނަން</th><td>${meta.mod}</td></tr>
-                        <tr><th>މޮޑިއުލް ކޯޑު</th><td>${meta.code}</td></tr>
-                        <tr><th>މޮޑިއުލް ކްރެޑިޓް / ލެވެލް</th><td>${meta.credit}</td></tr>
-                        <tr><th>ސެމިސްޓަރ / އަހަރު</th><td>${meta.sem} / ${meta.yr}</td></tr>
-                        <tr><th>ލެކްޗަރަރ</th><td>${meta.lec}</td></tr>
-                        <tr><th>މޮޑަރޭޓަރ</th><td>${meta.moderator}</td></tr>
+                        <tr><th>${d.modName}</th><td>${meta.mod}</td></tr>
+                        <tr><th>${d.modCode}</th><td>${meta.code}</td></tr>
+                        <tr><th>${d.modCredit}</th><td>${meta.credit}</td></tr>
+                        <tr><th>${d.modSem}</th><td>${meta.sem} / ${meta.yr}</td></tr>
+                        <tr><th>${d.lec}</th><td>${meta.lec}</td></tr>
+                        <tr><th>${d.moderator}</th><td>${meta.moderator}</td></tr>
                     </table>
 
-                    <div style="margin-top: 30px; font-weight:bold; font-size:14pt;">ސުވާލުކަރުދާހުގައި ހިމެނޭ ސުވާލުތައް ބިނާވެފައިވާ މިންވަރު</div>
-                    <div style="font-size:12pt; margin-bottom:15px;">(މިބައި ފުރިހަމަކުރާނީ ލެކްޗަރަރ / އެގްޒަމިނަރއެވެ.)</div>
+                    <div style="margin-top: 30px; font-weight:bold; font-size:14pt;">${d.modSubt}</div>
+                    <div style="font-size:12pt; margin-bottom:15px;">${d.modLecOnly}</div>
 
                     <table class="mod-tb">
                         <tr>
-                            <th rowspan="2" style="width:8%;">ސުވާލު<br>ނަންބަރު</th>
-                            <th rowspan="2" style="width:18%;">ޕާރޓް</th>
-                            <th colspan="2">ވިސްނުމުގެ ދަށް ހަރުފަތް</th>
-                            <th colspan="2">ވިސްނުމުގެ މެދު ހަރުފަތް</th>
-                            <th colspan="2">ވިސްނުމުގެ މަތީ ހަރުފަތް</th>
+                            <th rowspan="2" style="width:8%;">${d.qNum}</th>
+                            <th rowspan="2" style="width:18%;">${d.part}</th>
+                            <th colspan="2">${d.low}</th>
+                            <th colspan="2">${d.mid}</th>
+                            <th colspan="2">${d.high}</th>
                         </tr>
                         <tr>
-                            <th style="font-weight:normal; font-size:11pt;">ހަނދާންކުރުން</th>
-                            <th style="font-weight:normal; font-size:11pt;">ދެނެގަތުން</th>
-                            <th style="font-weight:normal; font-size:11pt;">ބޭނުންކުރުން</th>
-                            <th style="font-weight:normal; font-size:11pt;">ތަޙުލީލުކުރުން</th>
-                            <th style="font-weight:normal; font-size:11pt;">ވަޒަންކުރުން</th>
-                            <th style="font-weight:normal; font-size:11pt;">އުފެއްދުން</th>
+                            <th style="font-weight:normal; font-size:11pt;">${d.rem}</th>
+                            <th style="font-weight:normal; font-size:11pt;">${d.und}</th>
+                            <th style="font-weight:normal; font-size:11pt;">${d.app}</th>
+                            <th style="font-weight:normal; font-size:11pt;">${d.ana}</th>
+                            <th style="font-weight:normal; font-size:11pt;">${d.eva}</th>
+                            <th style="font-weight:normal; font-size:11pt;">${d.cre}</th>
                         </tr>
                 `;
 
@@ -1094,7 +1245,7 @@
                 });
                 
                 for(let i=0; i<2; i++) { html += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`; }
-                html += `<tr style="font-weight:bold; font-size:14pt;"><td colspan="2">ޖުމްލަ</td><td>${totals[0]||''}</td><td>${totals[1]||''}</td><td>${totals[2]||''}</td><td>${totals[3]||''}</td><td>${totals[4]||''}</td><td>${totals[5]||''}</td></tr></table>`;
+                html += `<tr style="font-weight:bold; font-size:14pt;"><td colspan="2">${d.total}</td><td>${totals[0]||''}</td><td>${totals[1]||''}</td><td>${totals[2]||''}</td><td>${totals[3]||''}</td><td>${totals[4]||''}</td><td>${totals[5]||''}</td></tr></table>`;
                 
                 html += `<div class="pdf-footer"><div class="footer-left">${meta.fac} | ${meta.sem}</div><div class="footer-right">Page <span class="page-num"></span></div></div></div>`;
             }
@@ -1107,9 +1258,9 @@
                 let due1 = meta.bc1Due ? meta.bc1Due.split('-').reverse().join('-') : '';
                 let due2 = meta.bc2Due ? meta.bc2Due.split('-').reverse().join('-') : '';
 
-                html += `<table class="ext-tb"><tr><th>${isEn?'Faculty':'ކުއްލިއްޔާ'}</th><td>${meta.fac}</td></tr><tr><th>${isEn?'Programme':'ޕްރޮގްރާމް'}</th><td>${meta.prog}</td></tr><tr><th>${isEn?'Module Name':'މާއްދާ'}</th><td>${meta.mod}</td></tr><tr><th>${isEn?'Semester/Year':'ސެމިސްޓަރ'}</th><td>${meta.sem} / ${meta.yr}</td></tr><tr><th>${isEn?'Lecturer':'ލެކްޗަރަރ'}</th><td>${meta.lec}</td></tr></table>`;
+                html += `<table class="ext-tb"><tr><th>${d.fac}</th><td>${meta.fac}</td></tr><tr><th>${d.prog}</th><td>${meta.prog}</td></tr><tr><th>${d.modName}</th><td>${meta.mod}</td></tr><tr><th>${d.modSem}</th><td>${meta.sem} / ${meta.yr}</td></tr><tr><th>${d.lec}</th><td>${meta.lec}</td></tr></table>`;
 
-                html += `<table class="ext-tb" style="text-align:center;"><tr><th style="text-align:center;">${isEn?'Date Assigned:':'ހަވާލުކުރެވުނު ތާރީޚު:'}</th><td colspan="4" style="text-align:center;">${prettyDate}</td></tr><tr><th style="text-align:center;">${isEn?'Components':'ބައިތައް'}</th><td style="text-align:center; font-weight:bold;">${meta.bc1Name}</td><td style="text-align:center; font-weight:bold;">${meta.bc2Name}</td><td style="text-align:center; font-weight:bold;">${isEn?'Final Exam':'ފަހު އިމްތިޙާނު'}</td></tr><tr><th style="text-align:center;">${isEn?'Weightage':'ބަރުދަން'}</th><td style="text-align:center;">${meta.bc1W}%</td><td style="text-align:center;">${meta.bc2W}%</td><td style="text-align:center;">${meta.bfeW}%</td></tr><tr><th style="text-align:center;">${isEn?'Total Marks':'ޖުމްލަ މާކުސް'}</th><td style="text-align:center;">${meta.bc1M}</td><td style="text-align:center;">${meta.bc2M}</td><td style="text-align:center;">${meta.bfeM}</td></tr><tr><th style="text-align:center;">${isEn?'Due Dates':'ސުންގަޑި'}</th><td style="text-align:center; direction:ltr;">${due1}</td><td style="text-align:center; direction:ltr;">${due2}</td><td style="text-align:center;">-</td></tr><tr><th style="text-align:center;">${isEn?'Format':'ފޯމެޓް'}</th><td style="text-align:center;">${meta.bc1Fmt}</td><td style="text-align:center;">${meta.bc2Fmt}</td><td style="text-align:center;">-</td></tr><tr><th style="text-align:center;">${isEn?'Type':'ވައްތަރު'}</th><td style="text-align:center;">${meta.bc1Typ}</td><td style="text-align:center;">${meta.bc2Typ}</td><td style="text-align:center;">-</td></tr></table>`;
+                html += `<table class="ext-tb" style="text-align:center;"><tr><th style="text-align:center;">${d.dateAsg}</th><td colspan="4" style="text-align:center;">${prettyDate}</td></tr><tr><th style="text-align:center;">${d.comps}</th><td style="text-align:center; font-weight:bold;">${meta.bc1Name}</td><td style="text-align:center; font-weight:bold;">${meta.bc2Name}</td><td style="text-align:center; font-weight:bold;">${d.fe}</td></tr><tr><th style="text-align:center;">${d.weight}</th><td style="text-align:center;">${meta.bc1W}%</td><td style="text-align:center;">${meta.bc2W}%</td><td style="text-align:center;">${meta.bfeW}%</td></tr><tr><th style="text-align:center;">${d.totalM}</th><td style="text-align:center;">${meta.bc1M}</td><td style="text-align:center;">${meta.bc2M}</td><td style="text-align:center;">${meta.bfeM}</td></tr><tr><th style="text-align:center;">${d.due}</th><td style="text-align:center; direction:ltr;">${due1}</td><td style="text-align:center; direction:ltr;">${due2}</td><td style="text-align:center;">-</td></tr><tr><th style="text-align:center;">${d.format}</th><td style="text-align:center;">${meta.bc1Fmt}</td><td style="text-align:center;">${meta.bc2Fmt}</td><td style="text-align:center;">-</td></tr><tr><th style="text-align:center;">${d.type}</th><td style="text-align:center;">${meta.bc1Typ}</td><td style="text-align:center;">${meta.bc2Typ}</td><td style="text-align:center;">-</td></tr></table>`;
 
                 html += `<div class="cover-inst-title">${d.briefGdl}</div><ul class="cover-inst-list"><li>${d.briefG1}</li><li>${d.briefG2}</li><li>${d.briefG3}</li><li>${d.briefG4}</li><li>${d.briefG5}</li><li>${d.briefG6}</li><li>${d.briefG7}</li><li>${d.briefG8}</li></ul>`;
 
@@ -1117,7 +1268,7 @@
 
                 if(appData.rubric && appData.rubric.length > 0) {
                     html += `<div class="pb"></div>`;
-                    html += `<div class="cover-inst-title">${isEn?'Marking Rubric':'މާކިންގ ރުބްރިކް'}</div>`;
+                    html += `<div class="cover-inst-title">${d.cHead}</div>`;
                     html += `<table class="ext-tb" style="font-size:11pt;"><tr><th>${d.cHead}</th>`;
                     for(let i=0; i<appData.rCols; i++) html += `<th style="text-align:center;">${appData.rHeaders[i]||`L${i+1}`}</th>`;
                     html += `<th style="text-align:center;">${d.mHead}</th></tr>`;
