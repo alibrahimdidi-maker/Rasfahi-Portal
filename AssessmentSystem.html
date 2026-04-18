@@ -263,6 +263,8 @@
                     <span style="font-weight:bold; color:var(--r-blue); font-size: 15px; background: #f1f5f9; padding: 6px 12px; border-radius: 20px; border: 2px solid var(--border);">
                         <span data-i18n="lbl-total-marks">ޖުމްލަ މާކުސް:</span> <span id="lbl-total">0</span>
                     </span>
+                    <button class="btn btn-outline btn-sm" onclick="startNewPaper()" data-i18n="btn-new-paper">📄 އައު ޕޭޕަރ</button>
+                    <button class="btn btn-outline btn-sm" onclick="startNewBrief()" data-i18n="btn-new-brief">📋 އައު ބްރީފް</button>
                     <button class="btn btn-purple btn-sm" onclick="archiveCurrentPaper()" data-i18n="btn-save-archive">📥 ބޭންކަށް ސޭވްކުރޭ</button>
                     <button class="btn btn-outline btn-sm" onclick="saveToFirebase()" data-i18n="btn-cloud-sync">☁️ Sync</button>
                     <button class="btn btn-danger btn-sm" onclick="logout()" data-i18n="btn-logout">🚪</button>
@@ -471,9 +473,16 @@
             else { sb.style.left = '0px'; }
         }
 
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
         // --- 1. STATE & UI DICTIONARY ---
         let appData = {
-            lang: 'dv', layout: 'std', logoBase64: '', mod: 'Study of Islamic Legal System',
+            lang: 'dv', layout: 'std', logoBase64: '', mod: 'Study of Islamic Legal System', paperId: generateUUID(),
             meta: {}, parts: [], paperArchives: [], 
             rCols: 4, rHeaders: ['ދެރަ', 'ފުދޭ', 'ރަނގަޅު', 'ވަރަށް މޮޅު'], rubric: [], presRubric: []
         };
@@ -487,6 +496,8 @@
             "nav-export": { dv: "🖨️ ޕްރީވިއު & އެކްސްޕޯޓް", en: "🖨️ Preview & Export", ar: "🖨️ المعاينة والتصدير" },
             "btn-reset": { dv: "⚠️ ސިސްޓަމް ރީސެޓްކުރޭ", en: "⚠️ Hard Reset", ar: "⚠️ إعادة ضبط النظام" },
             "lbl-total-marks": { dv: "ޖުމްލަ މާކުސް:", en: "Total Marks:", ar: "مجموع الدرجات:" },
+            "btn-new-paper": { dv: "📄 އައު ޕޭޕަރ", en: "📄 New Paper", ar: "📄 ورقة جديدة" },
+            "btn-new-brief": { dv: "📋 އައު ބްރީފް", en: "📋 New Brief", ar: "📋 إرشادات جديدة" },
             "btn-save-archive": { dv: "📥 ބޭންކަށް ސޭވްކުރޭ", en: "📥 Save to Bank", ar: "📥 حفظ في الأرشيف" },
             "btn-cloud-sync": { dv: "☁️ Sync", en: "☁️ Sync", ar: "☁️ المزامنة" },
             "btn-logout": { dv: "🚪", en: "🚪", ar: "🚪" },
@@ -745,6 +756,30 @@
             reader.readAsDataURL(file);
         }
 
+        // NEW PAPER / BRIEF FUNCTIONS
+        function startNewPaper() {
+            if(!confirm(appData.lang === 'en' ? "Start a new Paper? Current unsaved work will be lost." : "އައު ޕޭޕަރެއް ފަށަން ބޭނުންތޯ؟ ސޭވް ނުކުރާނަމަ ކުރިން ހުރި މަސައްކަތް ގެއްލޭނެއެވެ.")) return;
+            appData.parts = [];
+            appData.paperId = generateUUID();
+            appData.meta.pages = '5'; appData.meta.totQs = '5'; appData.meta.ansQs = '3';
+            document.getElementById('m-pages').value = '5'; document.getElementById('m-totQs').value = '5'; document.getElementById('m-ansQs').value = '3';
+            rebuildBuilderUI();
+            addPart();
+            nav('builder');
+            alert(appData.lang === 'en' ? "New paper created." : "އައު ޕޭޕަރެއް ކްރިއޭޓް ކުރެވިއްޖެ.");
+        }
+
+        function startNewBrief() {
+            if(!confirm(appData.lang === 'en' ? "Start a new Brief? Current unsaved brief will be lost." : "އައު ބްރީފެއް ފަށަން ބޭނުންތޯ؟ ސޭވް ނުކުރާނަމަ ބްރީފްގައި ހުރި މަސައްކަތް ގެއްލޭނެއެވެ.")) return;
+            const briefKeys = ['bDate', 'bc1Name', 'bc1Due', 'bc1Fmt', 'bc2Name', 'bc2Due', 'bc2Fmt', 'bTask'];
+            briefKeys.forEach(k => { appData.meta[k] = ''; });
+            appData.meta.bLength = '1500 words';
+            appData.presRubric = [];
+            loadStateToUI();
+            nav('brief');
+            alert(appData.lang === 'en' ? "New brief created." : "އައު ބްރީފެއް ކްރިއޭޓް ކުރެވިއްޖެ.");
+        }
+
         // --- HARD RESET FUNCTION ---
         async function hardResetSystem() {
             let step1 = confirm(appData.lang === 'en' ? "WARNING: Are you sure you want to permanently delete ALL data?" : "ސަމާލުކަމަށް: ސިސްޓަމްގައިވާ ހުރިހާ ޑޭޓާއެއް އެއްކޮށް ފޮހެލަން ބޭނުންތޯ؟");
@@ -759,7 +794,7 @@
 
             if(step3 === word) {
                 appData = {
-                    lang: appData.lang, layout: 'std', logoBase64: '', mod: '',
+                    lang: appData.lang, layout: 'std', logoBase64: '', mod: '', paperId: generateUUID(),
                     meta: {}, parts: [], paperArchives: [], 
                     rCols: 4, rHeaders: ['ދެރަ', 'ފުދޭ', 'ރަނގަޅު', 'ވަރަށް މޮޅު'], rubric: [], presRubric: []
                 };
@@ -804,7 +839,11 @@
                 await db.collection("rasfahi_data").doc("app_state").set({ archives: JSON.stringify(appData.paperArchives || []) });
                 document.getElementById('cloud-status').innerText = "✅ ކްލައުޑަށް ސޭވްވެއްޖެ";
                 setTimeout(() => document.getElementById('cloud-status').innerText = "", 3000);
-            } catch(e) { console.error("Firebase Save Error:", e); document.getElementById('cloud-status').innerText = "❌ ކްލައުޑް އެރަރ"; }
+            } catch(e) { 
+                console.error("Firebase Save Error:", e); 
+                document.getElementById('cloud-status').innerText = "❌ ކްލައުޑް އެރަރ"; 
+                alert("ކްލައުޑަށް ސޭވްކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެ: " + e.message);
+            }
         }
 
         async function loadFromFirebase() {
@@ -823,6 +862,8 @@
 
         function archiveCurrentPaper() {
             syncState();
+            if(!appData.paperId) appData.paperId = generateUUID();
+
             let currentSnapshot = {
                 archiveDate: new Date().toLocaleString(),
                 year: appData.meta.yr || 'N/A',
@@ -834,9 +875,16 @@
             };
             currentSnapshot.data.paperArchives = []; // Prevent nested bloat
             
-            appData.paperArchives.push(currentSnapshot);
+            let existingIdx = appData.paperArchives.findIndex(p => p.data && p.data.paperId === appData.paperId);
+            
+            if(existingIdx >= 0) {
+                appData.paperArchives[existingIdx] = currentSnapshot;
+                alert('މި ޕޭޕަރ ކުރިންވެސް ބޭންކުގައި ވާތީ، އެ ޕޭޕަރަށް އަޕްޑޭޓް ކުރެވިއްޖެ!');
+            } else {
+                appData.paperArchives.push(currentSnapshot);
+                alert('މުޅި ޕޭޕަރ (މާކިންގ ސްކީމް އާއި މޮޑަރޭޝަނާއެކު) ޕޭޕަރ ބޭންކުގައި އަލަށް އަރުޝީފު ކުރެވިއްޖެ!');
+            }
             saveToFirebase();
-            alert('މުޅި ޕޭޕަރ (މާކިންގ ސްކީމް އާއި މޮޑަރޭޝަނާއެކު) ޕޭޕަރ ބޭންކުގައި އަރުޝީފު ކުރެވިއްޖެ!');
             renderArchivedPapers();
         }
 
@@ -892,7 +940,6 @@
             let p = appData.paperArchives[idx].data || appData.paperArchives[idx];
             let tempAppData = JSON.parse(JSON.stringify(appData)); 
             
-            // Support backwards compatibility for missing objects in old saves
             if(!p.meta) p.meta = {};
             if(!p.parts) p.parts = [];
             if(!p.rubric) p.rubric = [];
@@ -905,7 +952,6 @@
             if(format === 'print') {
                 document.getElementById('print-engine').innerHTML = html;
                 
-                // PDF Javascript Page Number Injection for reliability in Chrome
                 let l = p.lang || 'dv';
                 let pgText = l === 'dv' ? 'ޞަފުޙާ' : (l === 'ar' ? 'صفحة' : 'Page');
                 let pages = document.getElementById('print-engine').querySelectorAll('.page-container');
@@ -919,7 +965,6 @@
                 let l = p.lang || 'dv';
                 let dir = l === 'en' ? 'ltr' : 'rtl';
                 
-                // Strict Table layout for MSO Word Footers to guarantee page numbers align right
                 let header = `
                 <html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas-microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
                 <head><meta charset="utf-8"><title>Export</title>
@@ -962,20 +1007,36 @@
         }
 
         function loadArchivedPaper(idx) {
-            if(!confirm("މިހާރު ހަދަމުންދާ ޕޭޕަރުގެ ބަދަލުގައި ބޭންކުން ޕޭޕަރެއް ލޯޑްކުރަން ބޭނުންތޯ؟ (މިހާރު ހަދަމުންދާ ޕޭޕަރ ސޭވް ނުކުރާނަމަ ގެއްލޭނެ)")) return;
+            if(!confirm("މި ޕޭޕަރ ލޯޑްކުރަން ބޭނުންތޯ؟ ސޭވް ނުކުރާނަމަ ބަދަލުތައް ގެއްލިދާނެ.")) return;
             let p = appData.paperArchives[idx].data || appData.paperArchives[idx]; 
-            let archivesBackup = appData.paperArchives; 
             
-            // Backward compatibility checks for old JSON backups
             if(!p.meta) p.meta = {};
             if(!p.parts) p.parts = [];
             if(!p.rubric) p.rubric = [];
             if(!p.presRubric) p.presRubric = [];
             
-            appData = JSON.parse(JSON.stringify(p)); 
-            appData.paperArchives = archivesBackup; 
+            // Check if what is loaded is primarily a Brief or an Exam to avoid complete overwrite of both
+            let isLoadedBrief = p.meta && p.meta.bTask && p.meta.bTask.length > 0 && (!p.parts || p.parts.length === 0);
             
-            loadStateToUI(); rebuildBuilderUI(); updateRubricHeadersUI(); alert("ޕޭޕަރ ކާމިޔާބުކަމާއެކު އެޑިޓަރަށް ލޯޑްކުރެވިއްޖެ!"); nav('builder'); applyTranslations();
+            if(isLoadedBrief) {
+                // Safely load Brief properties only
+                const briefKeys = ['bDate', 'bLength', 'bFormat', 'bc1Name', 'bc1W', 'bc1M', 'bc1Due', 'bc1Fmt', 'bc1Typ', 'bc2Name', 'bc2W', 'bc2M', 'bc2Due', 'bc2Fmt', 'bc2Typ', 'bfeW', 'bfeM', 'bTask'];
+                briefKeys.forEach(k => { if(p.meta[k] !== undefined) appData.meta[k] = p.meta[k]; });
+                appData.presRubric = p.presRubric || [];
+                nav('brief');
+                alert("ބްރީފް ކާމިޔާބުކަމާއެކު ލޯޑްކުރެވިއްޖެ! (މިހާރު ހަދަމުންދާ އިމްތިޙާނު ކަރުދާހަށް ބަދަލެއް ނާންނާނެ)");
+            } else {
+                // Safely load Exam properties only
+                const examKeys = ['prog', 'fac', 'mod', 'code', 'lec', 'date', 'yr', 'sem', 'typ', 'batch', 'tr', 'tw', 'ans', 'ref', 'refList', 'pages', 'totQs', 'ansQs', 'partInst', 'credit', 'moderator', 'modType'];
+                examKeys.forEach(k => { if(p.meta[k] !== undefined) appData.meta[k] = p.meta[k]; });
+                appData.parts = p.parts || [];
+                appData.rubric = p.rubric || [];
+                appData.paperId = p.paperId || generateUUID();
+                nav('builder');
+                alert("އިމްތިޙާނު ޕޭޕަރ ކާމިޔާބުކަމާއެކު ލޯޑްކުރެވިއްޖެ! (މިހާރު ހަދަމުންދާ ބްރީފަށް ބަދަލެއް ނާންނާނެ)");
+            }
+            
+            loadStateToUI(); rebuildBuilderUI(); updateRubricHeadersUI(); applyTranslations();
         }
 
         function deleteArchivedPaper(idx) {
@@ -994,7 +1055,6 @@
                 try { 
                     let parsedData = JSON.parse(event.target.result); 
                     
-                    // Force inject old JSON into new structure if necessary
                     if(!parsedData.meta) parsedData.meta = {};
                     if(!parsedData.parts) parsedData.parts = [];
                     if(!parsedData.rubric) parsedData.rubric = [];
@@ -1002,6 +1062,7 @@
                     
                     appData = parsedData;
                     if(!appData.paperArchives) appData.paperArchives = []; 
+                    if(!appData.paperId) appData.paperId = generateUUID();
                     
                     loadStateToUI(); rebuildBuilderUI(); updateRubricHeadersUI(); alert("ބެކަޕް ކާމިޔާބުކަމާއެކު ލޯޑްކުރެވިއްޖެ!"); applyTranslations(); 
                 } 
@@ -1019,7 +1080,7 @@
             if(appData.presRubric && appData.presRubric.length > 0) {
                 document.getElementById('pr-body').innerHTML = '';
                 appData.presRubric.forEach(r => {
-                    let tr = `<tr><td><input type="text" class="form-ctrl pr-crit" value="${r.crit}"></td><td><input type="number" class="form-ctrl pr-mrk" value="${r.mark}" oninput="calcRubric(); syncState();"></td><td><button class="btn btn-danger" onclick="this.parentElement.parentElement.remove(); calcRubric(); syncState();">X</button></td></tr>`;
+                    let tr = `<tr><td><input type="text" class="form-ctrl pr-crit" value="${r.crit}" oninput="syncState()"></td><td><input type="number" class="form-ctrl pr-mrk" value="${r.mark}" oninput="calcRubric(); syncState();"></td><td><button class="btn btn-danger" onclick="this.parentElement.parentElement.remove(); calcRubric(); syncState();">X</button></td></tr>`;
                     document.getElementById('pr-body').insertAdjacentHTML('beforeend', tr);
                 });
             }
@@ -1028,12 +1089,32 @@
         // --- 4. BUILDER LOGIC ---
         function genId() { return Math.random().toString(36).substr(2, 9); }
 
+        function moveQUp(pId, qId) {
+            let p = appData.parts.find(x => x.id === pId);
+            if(!p) return;
+            let idx = p.qs.findIndex(x => x.id === qId);
+            if(idx > 0) {
+                let temp = p.qs[idx-1]; p.qs[idx-1] = p.qs[idx]; p.qs[idx] = temp;
+                rebuildBuilderUI();
+            }
+        }
+
+        function moveQDown(pId, qId) {
+            let p = appData.parts.find(x => x.id === pId);
+            if(!p) return;
+            let idx = p.qs.findIndex(x => x.id === qId);
+            if(idx < p.qs.length - 1) {
+                let temp = p.qs[idx+1]; p.qs[idx+1] = p.qs[idx]; p.qs[idx] = temp;
+                rebuildBuilderUI();
+            }
+        }
+
         function rebuildBuilderUI() {
             document.getElementById('builder-canvas').innerHTML = '';
             let oldParts = JSON.parse(JSON.stringify(appData.parts)); appData.parts = []; 
             oldParts.forEach(p => {
                 let pId = p.id || 'p_'+genId(); appData.parts.push({ id: pId, title: p.title, inst: p.inst, qs: [] });
-                let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X</button></div><div class="g-2"><div class="f-grp"><label data-i18n="lbl-part-name">ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" value="${p.title||''}" onchange="syncState()"></div><div class="f-grp"><label data-i18n="lbl-pinst">އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" value="${p.inst||''}" onchange="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')" data-i18n="btn-add-q">+ ސުވާލު އެޑްކުރޭ</button></div>`;
+                let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X</button></div><div class="g-2"><div class="f-grp"><label data-i18n="lbl-part-name">ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" value="${p.title||''}" oninput="syncState()"></div><div class="f-grp"><label data-i18n="lbl-pinst">އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" value="${p.inst||''}" oninput="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')" data-i18n="btn-add-q">+ ސުވާލު އެޑްކުރޭ</button></div>`;
                 document.getElementById('builder-canvas').insertAdjacentHTML('beforeend', html);
                 p.qs.forEach(q => addQ(pId, q));
             }); syncState(); applyTranslations();
@@ -1041,7 +1122,7 @@
 
         function addPart() {
             let pId = 'p_'+genId(); appData.parts.push({ id: pId, title: '', inst: '', qs: [] });
-            let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X</button></div><div class="g-2"><div class="f-grp"><label data-i18n="lbl-part-name">ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" onchange="syncState()"></div><div class="f-grp"><label data-i18n="lbl-pinst">އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" onchange="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')" data-i18n="btn-add-q">+ ސުވާލު އެޑްކުރޭ</button></div>`;
+            let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X</button></div><div class="g-2"><div class="f-grp"><label data-i18n="lbl-part-name">ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" oninput="syncState()"></div><div class="f-grp"><label data-i18n="lbl-pinst">އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" oninput="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')" data-i18n="btn-add-q">+ ސުވާލު އެޑްކުރޭ</button></div>`;
             document.getElementById('builder-canvas').insertAdjacentHTML('beforeend', html); addQ(pId); applyTranslations();
         }
 
@@ -1050,7 +1131,41 @@
             let qObj = importedData ? JSON.parse(JSON.stringify(importedData)) : { id: qId, text: '', ans: '', type: 'essay', mark: 0, topic: '', bloom: '', data: {}, subs: [] };
             qObj.id = qId; part.qs.push(qObj);
             let qNum = 0; appData.parts.forEach(p => p.qs.forEach(q => { qNum++; q.num = qNum; }));
-            let html = `<div class="q-box" id="${qId}"><div class="q-row"><div class="q-num" id="lbl-${qId}">${qObj.num}.</div><div style="flex:1; display:flex; flex-direction:column; gap:10px;"><select class="form-ctrl q-typ" style="background:#e0e7ff; font-weight:bold;" onchange="changeQType('${qId}')"><option value="essay" ${qObj.type==='essay'?'selected':''}>Scenario / Essay / Theory</option><option value="mcq" ${qObj.type==='mcq'?'selected':''}>Multiple Choice (MCQ)</option><option value="match" ${qObj.type==='match'?'selected':''}>Matching (ގުޅުވުން)</option><option value="blank" ${qObj.type==='blank'?'selected':''}>Fill in Blanks (ހުސްތަން ފުރުން)</option></select><div id="dyn-${qId}"></div><input type="text" class="form-ctrl q-top" data-i18n="lbl-topic" placeholder="ޓޮޕިކް (މޮޑަރޭޝަން ފޯމަށް)" value="${qObj.topic||''}" onchange="syncState()"></div><div style="width:200px; display:flex; flex-direction:column; gap:10px;"><input type="number" class="form-ctrl q-mrk" value="${qObj.mark}" data-i18n="lbl-mrk-ph" placeholder="މާކުސް" oninput="syncState(); calcTotal();"><select class="form-ctrl q-blm" onchange="syncState()" style="border: 2px solid var(--r-purple);"><option value="">Bloom's Level</option><option value="1" ${qObj.bloom=='1'?'selected':''}>1. Remember</option><option value="2" ${qObj.bloom=='2'?'selected':''}>2. Understand</option><option value="3" ${qObj.bloom=='3'?'selected':''}>3. Apply</option><option value="4" ${qObj.bloom=='4'?'selected':''}>4. Analyse</option><option value="5" ${qObj.bloom=='5'?'selected':''}>5. Evaluate</option><option value="6" ${qObj.bloom=='6'?'selected':''}>6. Create</option></select><button class="btn btn-danger" style="padding:5px;" onclick="removeQ('${pId}', '${qId}')">X</button></div></div><div id="sublist-${qId}"></div><button class="btn btn-outline" style="padding:5px 10px; font-size:13px; margin-top:10px;" onclick="addSubQ('${qId}')" data-i18n="btn-add-subq">+ ސަބް-ސުވާލު (a,b / ހ,ށ)</button></div>`;
+            let html = `
+            <div class="q-box" id="${qId}">
+                <div class="q-row">
+                    <div class="q-num" id="lbl-${qId}">${qObj.num}.</div>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
+                        <select class="form-ctrl q-typ" style="background:#e0e7ff; font-weight:bold;" onchange="changeQType('${qId}')">
+                            <option value="essay" ${qObj.type==='essay'?'selected':''}>Scenario / Essay / Theory</option>
+                            <option value="mcq" ${qObj.type==='mcq'?'selected':''}>Multiple Choice (MCQ)</option>
+                            <option value="match" ${qObj.type==='match'?'selected':''}>Matching (ގުޅުވުން)</option>
+                            <option value="blank" ${qObj.type==='blank'?'selected':''}>Fill in Blanks (ހުސްތަން ފުރުން)</option>
+                        </select>
+                        <div id="dyn-${qId}"></div>
+                        <input type="text" class="form-ctrl q-top" data-i18n="lbl-topic" placeholder="ޓޮޕިކް (މޮޑަރޭޝަން ފޯމަށް)" value="${qObj.topic||''}" oninput="syncState()">
+                    </div>
+                    <div style="width:200px; display:flex; flex-direction:column; gap:10px;">
+                        <input type="number" class="form-ctrl q-mrk" value="${qObj.mark}" data-i18n="lbl-mrk-ph" placeholder="މާކުސް" oninput="syncState(); calcTotal();">
+                        <select class="form-ctrl q-blm" onchange="syncState()" style="border: 2px solid var(--r-purple);">
+                            <option value="">Bloom's Level</option>
+                            <option value="1" ${qObj.bloom=='1'?'selected':''}>1. Remember</option>
+                            <option value="2" ${qObj.bloom=='2'?'selected':''}>2. Understand</option>
+                            <option value="3" ${qObj.bloom=='3'?'selected':''}>3. Apply</option>
+                            <option value="4" ${qObj.bloom=='4'?'selected':''}>4. Analyse</option>
+                            <option value="5" ${qObj.bloom=='5'?'selected':''}>5. Evaluate</option>
+                            <option value="6" ${qObj.bloom=='6'?'selected':''}>6. Create</option>
+                        </select>
+                        <div style="display:flex; gap:5px; margin-top:5px;">
+                            <button class="btn btn-blue btn-sm" style="flex:1;" onclick="moveQUp('${pId}', '${qId}')">↑</button>
+                            <button class="btn btn-blue btn-sm" style="flex:1;" onclick="moveQDown('${pId}', '${qId}')">↓</button>
+                            <button class="btn btn-danger btn-sm" style="flex:1;" onclick="removeQ('${pId}', '${qId}')">X</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="sublist-${qId}"></div>
+                <button class="btn btn-outline" style="padding:5px 10px; font-size:13px; margin-top:10px;" onclick="addSubQ('${qId}')" data-i18n="btn-add-subq">+ ސަބް-ސުވާލު (a,b / ހ,ށ)</button>
+            </div>`;
             document.getElementById(`qlist-${pId}`).insertAdjacentHTML('beforeend', html); changeQType(qId, qObj);
             if(importedData && qObj.subs) qObj.subs.forEach(s => addSubQ(qId, s)); calcTotal(); applyTranslations();
         }
@@ -1063,24 +1178,22 @@
         function addSubQ(qId, impSub = null) {
             let sId = 's_'+genId(); let parentQ; appData.parts.forEach(p => p.qs.forEach(q => { if(q.id === qId) parentQ = q; }));
             if(!parentQ) return; if(!impSub) parentQ.subs.push({ id: sId, text: '', ans: '', mark: 0 });
-            let html = `<div class="sub-q-block" id="${sId}"><div style="flex:1; display:flex; flex-direction:column; gap:5px;"><textarea class="form-ctrl sq-txt" rows="1" onchange="syncState()">${impSub?impSub.text:''}</textarea><textarea class="form-ctrl sq-ans" rows="1" style="background:#f0fdf4; border-color:var(--r-green);" onchange="syncState()">${impSub?impSub.ans:''}</textarea></div><input type="number" class="form-ctrl sq-mrk" value="${impSub?impSub.mark:0}" style="width:80px; text-align:center; font-weight:bold;" oninput="syncState(); calcTotal();"><button class="btn btn-danger" style="padding:0 10px;" onclick="this.parentElement.remove(); syncState(); calcTotal();">X</button></div>`;
+            let html = `<div class="sub-q-block" id="${sId}"><div style="flex:1; display:flex; flex-direction:column; gap:5px;"><textarea class="form-ctrl sq-txt" rows="1" oninput="syncState()">${impSub?impSub.text:''}</textarea><textarea class="form-ctrl sq-ans" rows="1" style="background:#f0fdf4; border-color:var(--r-green);" oninput="syncState()">${impSub?impSub.ans:''}</textarea></div><input type="number" class="form-ctrl sq-mrk" value="${impSub?impSub.mark:0}" style="width:80px; text-align:center; font-weight:bold;" oninput="syncState(); calcTotal();"><button class="btn btn-danger" style="padding:0 10px;" onclick="this.parentElement.remove(); syncState(); calcTotal();">X</button></div>`;
             document.getElementById(`sublist-${qId}`).insertAdjacentHTML('beforeend', html); applyTranslations();
         }
 
         function changeQType(qId, exObj = null) {
             let qEl = document.getElementById(qId); if(!qEl) return; let type = qEl.querySelector('.q-typ').value; let dyn = document.getElementById(`dyn-${qId}`);
             let t = exObj ? exObj.text : ''; let a = exObj ? exObj.ans : ''; let d = exObj ? exObj.data : {};
-            if(type === 'essay') { dyn.innerHTML = `<textarea class="form-ctrl q-txt" rows="3" onchange="syncState()">${t}</textarea><textarea class="form-ctrl q-ans" rows="2" style="background:#f0fdf4; border-color:var(--r-green);" onchange="syncState()">${a}</textarea>`; } 
-            else if(type === 'mcq') { dyn.innerHTML = `<input type="text" class="form-ctrl q-txt" value="${t}" onchange="syncState()"><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;"><input type="text" class="form-ctrl opt-a" placeholder="A" value="${d.a||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-b" placeholder="B" value="${d.b||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-c" placeholder="C" value="${d.c||''}" onchange="syncState()"><input type="text" class="form-ctrl opt-d" placeholder="D" value="${d.d||''}" onchange="syncState()"></div><select class="form-ctrl q-ans" style="background:#f0fdf4; border-color:green; margin-top:10px;" onchange="syncState()"><option value="a" ${a==='a'?'selected':''}>Correct: A</option><option value="b" ${a==='b'?'selected':''}>Correct: B</option><option value="c" ${a==='c'?'selected':''}>Correct: C</option><option value="d" ${a==='d'?'selected':''}>Correct: D</option></select>`; }
-            else if(type === 'match') { let mRows = (d && d.length) ? d : [{l:'',r:''},{l:'',r:''},{l:'',r:''}]; let mHtml = `<input type="text" class="form-ctrl q-txt" value="${t}" onchange="syncState()"><div class="match-opts" style="display:flex; flex-direction:column; gap:5px; margin-top:10px;">`; mRows.forEach((row, i) => { mHtml += `<div style="display:flex; gap:10px;"><input type="text" class="form-ctrl m-left" placeholder="Item ${i+1}" value="${row.l}" onchange="syncState()"><input type="text" class="form-ctrl m-right" placeholder="Correct Match ${i+1}" value="${row.r}" style="background:#f0fdf4; border-color:green;" onchange="syncState()"></div>`; }); mHtml += `</div>`; dyn.innerHTML = mHtml; }
-            else if(type === 'blank') { dyn.innerHTML = `<textarea class="form-ctrl q-txt" rows="2" onchange="syncState()">${t}</textarea><input type="text" class="form-ctrl q-ans" value="${a}" style="background:#f0fdf4; border-color:green; margin-top:10px;" onchange="syncState()">`; }
+            if(type === 'essay') { dyn.innerHTML = `<textarea class="form-ctrl q-txt" rows="3" oninput="syncState()">${t}</textarea><textarea class="form-ctrl q-ans" rows="2" style="background:#f0fdf4; border-color:var(--r-green);" oninput="syncState()">${a}</textarea>`; } 
+            else if(type === 'mcq') { dyn.innerHTML = `<input type="text" class="form-ctrl q-txt" value="${t}" oninput="syncState()"><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;"><input type="text" class="form-ctrl opt-a" placeholder="A" value="${d.a||''}" oninput="syncState()"><input type="text" class="form-ctrl opt-b" placeholder="B" value="${d.b||''}" oninput="syncState()"><input type="text" class="form-ctrl opt-c" placeholder="C" value="${d.c||''}" oninput="syncState()"><input type="text" class="form-ctrl opt-d" placeholder="D" value="${d.d||''}" oninput="syncState()"></div><select class="form-ctrl q-ans" style="background:#f0fdf4; border-color:green; margin-top:10px;" onchange="syncState()"><option value="a" ${a==='a'?'selected':''}>Correct: A</option><option value="b" ${a==='b'?'selected':''}>Correct: B</option><option value="c" ${a==='c'?'selected':''}>Correct: C</option><option value="d" ${a==='d'?'selected':''}>Correct: D</option></select>`; }
+            else if(type === 'match') { let mRows = (d && d.length) ? d : [{l:'',r:''},{l:'',r:''},{l:'',r:''}]; let mHtml = `<input type="text" class="form-ctrl q-txt" value="${t}" oninput="syncState()"><div class="match-opts" style="display:flex; flex-direction:column; gap:5px; margin-top:10px;">`; mRows.forEach((row, i) => { mHtml += `<div style="display:flex; gap:10px;"><input type="text" class="form-ctrl m-left" placeholder="Item ${i+1}" value="${row.l}" oninput="syncState()"><input type="text" class="form-ctrl m-right" placeholder="Correct Match ${i+1}" value="${row.r}" style="background:#f0fdf4; border-color:green;" oninput="syncState()"></div>`; }); mHtml += `</div>`; dyn.innerHTML = mHtml; }
+            else if(type === 'blank') { dyn.innerHTML = `<textarea class="form-ctrl q-txt" rows="2" oninput="syncState()">${t}</textarea><input type="text" class="form-ctrl q-ans" value="${a}" style="background:#f0fdf4; border-color:green; margin-top:10px;" oninput="syncState()">`; }
             if(!exObj) syncState(); applyTranslations();
         }
 
         function syncState() {
             let gNum = 0; let mod = document.getElementById('m-mod').value; appData.mod = mod; 
-            let semName = `${document.getElementById('m-sem').value}`;
-            let yrName = `${document.getElementById('m-yr').value}`;
             
             appData.meta = {
                 prog: document.getElementById('m-prog').value, fac: document.getElementById('m-fac').value, mod: document.getElementById('m-mod').value,
@@ -1163,8 +1276,8 @@
             let tbody = document.getElementById('r-body'); tbody.innerHTML = '';
             if(appData.rubric.length === 0) appData.rubric.push({ crit: '', levels: new Array(appData.rCols).fill(''), mark: 0 });
             appData.rubric.forEach(r => {
-                let tr = `<tr><td><input type="text" class="form-ctrl" value="${r.crit}"></td>`;
-                for(let i=0; i<appData.rCols; i++) { tr += `<td><textarea class="form-ctrl" rows="2">${r.levels[i]||''}</textarea></td>`; }
+                let tr = `<tr><td><input type="text" class="form-ctrl" value="${r.crit}" oninput="syncState()"></td>`;
+                for(let i=0; i<appData.rCols; i++) { tr += `<td><textarea class="form-ctrl" rows="2" oninput="syncState()">${r.levels[i]||''}</textarea></td>`; }
                 tr += `<td><input type="number" class="form-ctrl r-mrk" value="${r.mark}" oninput="calcRubric(); syncState();"></td><td><button class="btn btn-danger" onclick="this.parentElement.parentElement.remove(); calcRubric(); syncState();">X</button></td></tr>`;
                 tbody.insertAdjacentHTML('beforeend', tr);
             }); calcRubric(); applyTranslations();
@@ -1213,7 +1326,7 @@
                     html += `<table class="cover-table">
                         <tr><th>${d.prog}</th><td colspan="3" style="text-align:center;">: ${meta.prog || ''}</td></tr>
                         <tr><th>${d.readTime}</th><td style="text-align:center;">: ${meta.tr || ''}</td><th style="width:15%;">${d.batch}</th><td style="text-align:center;">: ${meta.batch || ''}</td></tr>
-                        <tr><th>${d.writeTime}</th><td style="text-align:center;">: ${meta.tw || ''}</td><th>${d.date}</th><td style="text-align:center;">: <span style="background:yellow; padding:2px 10px;">${prettyDate}</span></td></tr>
+                        <tr><th>${d.writeTime}</th><td style="text-align:center;">: ${meta.tw || ''}</td><th>${d.date}</th><td style="text-align:center;">: <span>${prettyDate}</span></td></tr>
                         <tr><th>${d.modName}</th><td colspan="3" style="text-align:center;">: ${meta.mod || ''}</td></tr>
                         <tr><th>${d.modCode}</th><td colspan="3" style="text-align:center;">: ${meta.code || ''}</td></tr>
                         <tr><th>${d.lec}</th><td colspan="3" style="text-align:center;">: ${meta.lec || ''}</td></tr>
@@ -1246,7 +1359,7 @@
                 } 
                 else {
                     html += `<div class="p-title">${mHead}<br><span style="font-size:14pt; font-weight:normal;">${meta.fac || ''}</span></div>`;
-                    html += `<table class="ar-tb" style="width:100%; border-collapse:collapse; margin-bottom:30px; border:2px solid black; font-size:14pt;"><tr><td class="lbl-bg" style="border:1px solid black; padding:8px; width:20%;">${d.fac}</td><td style="border:1px solid black; padding:8px; width:30%;">${meta.fac || ''}</td><td class="lbl-bg" style="border:1px solid black; padding:8px; width:20%;">${d.prog}</td><td style="border:1px solid black; padding:8px; width:30%;">${meta.prog || ''}</td></tr><tr><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.lec}</td><td style="border:1px solid black; padding:8px;">${meta.lec || ''}</td><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.date}</td><td style="border:1px solid black; padding:8px; background:#ffff00;">${meta.date || ''}</td></tr><tr><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.modName}</td><td style="border:1px solid black; padding:8px;">${meta.mod || ''}</td><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.modCode}</td><td style="border:1px solid black; padding:8px;">${meta.code || ''}</td></tr></table>`;
+                    html += `<table class="ar-tb" style="width:100%; border-collapse:collapse; margin-bottom:30px; border:2px solid black; font-size:14pt;"><tr><td class="lbl-bg" style="border:1px solid black; padding:8px; width:20%;">${d.fac}</td><td style="border:1px solid black; padding:8px; width:30%;">${meta.fac || ''}</td><td class="lbl-bg" style="border:1px solid black; padding:8px; width:20%;">${d.prog}</td><td style="border:1px solid black; padding:8px; width:30%;">${meta.prog || ''}</td></tr><tr><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.lec}</td><td style="border:1px solid black; padding:8px;">${meta.lec || ''}</td><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.date}</td><td style="border:1px solid black; padding:8px;">${meta.date || ''}</td></tr><tr><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.modName}</td><td style="border:1px solid black; padding:8px;">${meta.mod || ''}</td><td class="lbl-bg" style="border:1px solid black; padding:8px;">${d.modCode}</td><td style="border:1px solid black; padding:8px;">${meta.code || ''}</td></tr></table>`;
                     
                     if(type === 'exam') { 
                         let g1 = isEn ? 'Do not open paper until asked.' : (isAr ? 'لا تفتح ورقة الأسئلة حتى يطلب منك ذلك.' : 'ސުވާލު ކަރުދާސް ނުހުޅުވާށެވެ!');
@@ -1409,7 +1522,6 @@
                 let html = getBaseHTML(document.getElementById('exp-doc-type').value);
                 document.getElementById('live-preview').innerHTML = html; 
                 
-                // Inject fake page numbers for preview visually
                 let l = appData.lang || 'dv';
                 let pgText = l === 'dv' ? 'ޞަފުޙާ' : (l === 'ar' ? 'صفحة' : 'Page');
                 let pages = document.getElementById('live-preview').querySelectorAll('.page-container');
@@ -1428,7 +1540,6 @@
                 let pe = document.getElementById('print-engine');
                 pe.innerHTML = html;
                 
-                // JavaScript accurate page numbering for PDF
                 let l = appData.lang || 'dv';
                 let pgText = l === 'dv' ? 'ޞަފުޙާ' : (l === 'ar' ? 'صفحة' : 'Page');
                 let pages = pe.querySelectorAll('.page-container');
@@ -1443,7 +1554,6 @@
                 let l = appData.lang || 'dv';
                 let dir = l === 'en' ? 'ltr' : 'rtl';
                 
-                // Perfect Microsoft Word Footer configuration
                 let header = `
                 <html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas-microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
                 <head><meta charset="utf-8"><title>Export</title>
@@ -1463,7 +1573,6 @@
                 
                 let pgText = l === 'dv' ? 'ޞަފުޙާ' : (l === 'ar' ? 'صفحة' : 'Page');
 
-                // Table-based MSO footer guarantees right-left alignment without crashing
                 let footerHTML = `
                 </div>
                 <div style='mso-element:footer' id='f1'>
