@@ -1203,6 +1203,15 @@
             rebuildBuilderUI();
         }
 
+        // NEW FIX: removePart Function
+        function removePart(pId) {
+            let el = document.getElementById(pId);
+            if(el) el.remove();
+            appData.parts = appData.parts.filter(p => p.id !== pId);
+            syncState();
+            calcTotal();
+        }
+
         function rebuildBuilderUI() {
             document.getElementById('builder-canvas').innerHTML = '';
             let oldParts = JSON.parse(JSON.stringify(appData.parts)); appData.parts = []; 
@@ -1217,7 +1226,7 @@
                 let pName = p.title || (appData.lang === 'en' ? `Section ${idx+1}` : (appData.lang === 'ar' ? `القسم ${idx+1}` : `${idx+1} ވަނަ ބައި`));
                 bulkTarget.innerHTML += `<option value="${pId}">${pName}</option>`;
                 
-                let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="document.getElementById('${pId}').remove(); syncState();">X</button></div><div class="g-2"><div class="f-grp"><label data-i18n="lbl-part-name">ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" value="${p.title||''}" oninput="syncState()"></div><div class="f-grp"><label data-i18n="lbl-pinst">އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" value="${p.inst||''}" oninput="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')" data-i18n="btn-add-q">+ ސުވާލު އެޑްކުރޭ</button></div>`;
+                let html = `<div class="part-box" id="${pId}"><div style="text-align:right;"><button class="btn btn-danger" style="padding:6px 12px;" onclick="removePart('${pId}')">X</button></div><div class="g-2"><div class="f-grp"><label data-i18n="lbl-part-name">ބައިގެ ނަން (Part):</label><input type="text" class="form-ctrl p-tit" value="${p.title||''}" oninput="syncState()"></div><div class="f-grp"><label data-i18n="lbl-pinst">އިރުޝާދު:</label><input type="text" class="form-ctrl p-ins" value="${p.inst||''}" oninput="syncState()"></div></div><div id="qlist-${pId}"></div><button class="btn btn-green" onclick="addQ('${pId}')" data-i18n="btn-add-q">+ ސުވާލު އެޑްކުރޭ</button></div>`;
                 document.getElementById('builder-canvas').insertAdjacentHTML('beforeend', html);
                 p.qs.forEach(q => addQ(pId, q));
             }); syncState(); applyTranslations();
@@ -1282,11 +1291,32 @@
             if(part) part.qs = part.qs.filter(q => q.id !== qId); syncState(); calcTotal();
         }
 
+        // NEW FIX: addSubQ Function
         function addSubQ(qId, impSub = null) {
-            let sId = 's_'+genId(); let parentQ; appData.parts.forEach(p => p.qs.forEach(q => { if(q.id === qId) parentQ = q; }));
-            if(!parentQ) return; if(!impSub) parentQ.subs.push({ id: sId, text: '', ans: '', mark: 0 });
-            let html = `<div class="sub-q-block" id="${sId}"><div style="flex:1; display:flex; flex-direction:column; gap:5px;"><textarea class="form-ctrl sq-txt" rows="1" oninput="syncState()">${impSub?impSub.text:''}</textarea><textarea class="form-ctrl sq-ans" rows="1" style="background:#f0fdf4; border-color:var(--r-green);" oninput="syncState()">${impSub?impSub.ans:''}</textarea></div><input type="number" class="form-ctrl sq-mrk" value="${impSub?impSub.mark:0}" style="width:80px; text-align:center; font-weight:bold;" oninput="syncState(); calcTotal();"><button class="btn btn-danger" style="padding:0 10px;" onclick="this.parentElement.remove(); syncState(); calcTotal();">X</button></div>`;
-            document.getElementById(`sublist-${qId}`).insertAdjacentHTML('beforeend', html); applyTranslations();
+            let sId = 's_' + genId(); 
+            let parentQ; 
+            appData.parts.forEach(p => p.qs.forEach(q => { if(q.id === qId) parentQ = q; }));
+            if(!parentQ) return; 
+
+            if(!impSub) {
+                parentQ.subs.push({ id: sId, text: '', ans: '', mark: 0 });
+            } else {
+                let subToUpdate = parentQ.subs.find(s => s.id === impSub.id);
+                if(subToUpdate) {
+                    subToUpdate.id = sId;
+                }
+            }
+
+            let html = `<div class="sub-q-block" id="${sId}">
+                            <div style="flex:1; display:flex; flex-direction:column; gap:5px;">
+                                <textarea class="form-ctrl sq-txt" rows="1" oninput="syncState()">${impSub ? impSub.text : ''}</textarea>
+                                <textarea class="form-ctrl sq-ans" rows="1" style="background:#f0fdf4; border-color:var(--r-green);" oninput="syncState()">${impSub ? impSub.ans : ''}</textarea>
+                            </div>
+                            <input type="number" class="form-ctrl sq-mrk" value="${impSub ? impSub.mark : 0}" style="width:80px; text-align:center; font-weight:bold;" oninput="syncState(); calcTotal();">
+                            <button class="btn btn-danger" style="padding:0 10px;" onclick="this.parentElement.remove(); syncState(); calcTotal();">X</button>
+                        </div>`;
+            document.getElementById(`sublist-${qId}`).insertAdjacentHTML('beforeend', html); 
+            applyTranslations();
         }
 
         function changeQType(qId, exObj = null) {
