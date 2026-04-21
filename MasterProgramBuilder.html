@@ -1484,12 +1484,17 @@ Upon successful completion of this Module, students will have the knowledge and 
 
         document.addEventListener('input', (e) => {
             if (isProgrammaticChange) return;
-            // Listen to total inputs being edited manually
             if(e.target.classList.contains('total-input')) {
                 e.target.setAttribute('data-manual', 'true');
             }
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.hasAttribute('contenteditable')) {
                 clearTimeout(saveTimeout);
+                // SHOW SAVING STATUS
+                const statusEl = document.getElementById('sync-status-text');
+                if (statusEl) {
+                    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                    statusEl.parentElement.style.color = "orange";
+                }
                 saveTimeout = setTimeout(() => performSave(false, false), 500); 
             }
         });
@@ -1502,7 +1507,6 @@ Upon successful completion of this Module, students will have the knowledge and 
         let annexCount = 0;
         let f3RowCount = 1;
 
-        // DYNAMIC UNIQUE COUNTERS FOR ALL TABLES
         let dynSchCounter = 1000;
         let dynMatCounter = 1000;
         let dynAssCounter = 1000;
@@ -1594,7 +1598,6 @@ Upon successful completion of this Module, students will have the knowledge and 
 
             if (mId && dbState.courses[cId].modules[mId]) {
                 let modInputs = {};
-                // .sch-cr, .sch-lh etc. are now tagged with .mod-data properly to guarantee correct restore.
                 document.querySelectorAll('.mod-data, #step-6 input, #step-6 textarea, #step-7 input, #step-7 textarea, #step-7 .total-input, #step-11 input, #step-11 textarea, #step-8 input, #step-8 textarea').forEach((el, i) => {
                     if (!el.id) el.id = 'm_dyn_' + i; 
                     if (el.hasAttribute('contenteditable')) {
@@ -1679,7 +1682,6 @@ Upon successful completion of this Module, students will have the knowledge and 
             isProgrammaticChange = false;
         }
 
-        // --- SILENT LOAD FIX (Prevents [object Object] error on Export) ---
         function loadStateSilent(cId, mId) {
             let course = dbState.courses[cId]; if(!course) return;
             if (course.programData.inputs) { 
@@ -1866,9 +1868,9 @@ Upon successful completion of this Module, students will have the knowledge and 
             let payload = { dbState: dbState, activeCourseId: activeCourseId, activeModuleId: activeModuleId, timestamp: new Date().toISOString() };
             
             if (navigator.onLine && !forceLocal && userDocRef) {
-                statusEl.innerText = "Saving to Cloud...";
                 userDocRef.set(payload).then(() => {
-                    statusEl.innerText = "Synced to Cloud"; statusEl.parentElement.style.color = "var(--royal-green-light)";
+                    statusEl.innerHTML = 'Saved to Cloud <i class="fas fa-check-circle"></i>'; 
+                    statusEl.parentElement.style.color = "var(--royal-green-light)";
                     if(isManual) alert("Successfully saved to Cloud Archive!");
                 }).catch(err => { console.error("Cloud save failed", err); saveToLocal(payload, uid, isManual); });
             } else {
@@ -1879,18 +1881,20 @@ Upon successful completion of this Module, students will have the knowledge and 
         function saveToLocal(payload, uid, isManual) {
             const statusEl = document.getElementById('sync-status-text');
             localStorage.setItem('rasfahi_archive_' + uid, JSON.stringify(payload));
-            statusEl.innerText = "Saved to Browser (Offline)"; statusEl.parentElement.style.color = "orange";
+            statusEl.innerHTML = 'Saved to Browser (Offline) <i class="fas fa-check-circle"></i>'; 
+            statusEl.parentElement.style.color = "orange";
             if(isManual) alert("Saved locally to Browser Bank!");
         }
 
         window.addEventListener('online', () => {
             const statusEl = document.getElementById('sync-status-text');
-            statusEl.innerText = "Back Online. Syncing...";
+            statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Back Online. Syncing...';
             const uid = auth.currentUser ? auth.currentUser.uid : 'guest';
             const localData = localStorage.getItem('rasfahi_archive_' + uid);
             if (localData && userDocRef) {
                 userDocRef.set(JSON.parse(localData)).then(() => {
-                    statusEl.innerText = "Synced to Cloud"; statusEl.parentElement.style.color = "var(--royal-green-light)";
+                    statusEl.innerHTML = 'Saved to Cloud <i class="fas fa-check-circle"></i>'; 
+                    statusEl.parentElement.style.color = "var(--royal-green-light)";
                 });
             }
         });
@@ -1899,12 +1903,13 @@ Upon successful completion of this Module, students will have the knowledge and 
 
         function restoreData(uid) {
             const statusEl = document.getElementById('sync-status-text');
-            statusEl.innerText = "Loading Archive...";
+            statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Archive...';
             if (navigator.onLine && userDocRef) {
                 userDocRef.get().then((doc) => {
                     if (doc.exists && doc.data().dbState && Object.keys(doc.data().dbState.courses).length > 0) {
                         dbState = doc.data().dbState; loadStateFromMemory(doc.data().activeCourseId, doc.data().activeModuleId, true);
-                        statusEl.innerText = "Loaded from Cloud"; statusEl.parentElement.style.color = "var(--royal-green-light)";
+                        statusEl.innerHTML = 'Loaded from Cloud <i class="fas fa-check-circle"></i>'; 
+                        statusEl.parentElement.style.color = "var(--royal-green-light)";
                     } else { loadLocal(uid); }
                 }).catch(err => { loadLocal(uid); });
             } else { loadLocal(uid); }
@@ -1918,7 +1923,8 @@ Upon successful completion of this Module, students will have the knowledge and 
                 if(data.dbState && Object.keys(data.dbState.courses).length > 0) {
                     dbState = data.dbState; loadStateFromMemory(data.activeCourseId, data.activeModuleId, true);
                 } else { initDefaultDB(); }
-                statusEl.innerText = "Loaded from Browser"; statusEl.parentElement.style.color = "var(--royal-green-light)";
+                statusEl.innerHTML = 'Loaded from Browser <i class="fas fa-check-circle"></i>'; 
+                statusEl.parentElement.style.color = "var(--royal-green-light)";
             } else {
                 initDefaultDB(); statusEl.innerText = "Ready (New Archive)";
             }
@@ -1971,7 +1977,7 @@ Upon successful completion of this Module, students will have the knowledge and 
             reader.readAsText(file);
         }
 
-        // --- SMART WORD IMPORTER (Parse .docx and Auto-fill Forms) ---
+        // --- SMART WORD IMPORTER ---
         function readWordFile(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -2001,11 +2007,19 @@ Upon successful completion of this Module, students will have the knowledge and 
             reader.readAsArrayBuffer(file);
         }
 
+        function cleanText(txt) {
+            if (!txt) return "";
+            return txt.replace(/^[\r\n\s:]+|[\r\n\s:]+$/g, '').trim();
+        }
+
         function extractSection(text, startTokens, endTokens) {
             let startIndex = -1;
             let matchedStart = "";
+            let lowerText = text.toLowerCase();
+
             for(let t of startTokens) {
-                let idx = text.indexOf(t);
+                let lowerT = t.toLowerCase();
+                let idx = lowerText.indexOf(lowerT);
                 if(idx !== -1) {
                     startIndex = idx;
                     matchedStart = t;
@@ -2015,151 +2029,353 @@ Upon successful completion of this Module, students will have the knowledge and 
             if(startIndex === -1) return "";
             
             let searchArea = text.substring(startIndex + matchedStart.length);
+            let lowerSearchArea = searchArea.toLowerCase();
             let endIndex = searchArea.length;
             
             for(let t of endTokens) {
-                let idx = searchArea.indexOf(t);
+                let lowerT = t.toLowerCase();
+                let idx = lowerSearchArea.indexOf(lowerT);
                 if(idx !== -1 && idx < endIndex) {
                     endIndex = idx;
                 }
             }
             
-            let result = searchArea.substring(0, endIndex).trim();
-            result = result.replace(/^[\r\n]+|[\r\n]+$/g, '');
-            return result.trim();
-        }
-
-        function manualOverrideTotal(inputEl) {
-            inputEl.setAttribute('data-manual', 'true');
+            return cleanText(searchArea.substring(0, endIndex));
         }
 
         function parseWordToForms(rawText, rawHtml) {
-            let mName = extractSection(rawText, ["11.1"], ["Module Description", "11.2"]);
-            if(mName.includes("Module Name")) mName = mName.replace("Module Name", "").trim();
-
-            let mDesc = extractSection(rawText, ["Module Description", "Module Description:"], ["11.2", "Module Code"]);
-            if(mDesc.includes("Module Description")) mDesc = mDesc.replace("Module Description:", "").replace("Module Description", "").trim();
-
-            let mCode = extractSection(rawText, ["11.2"], ["Module Level", "11.3"]);
-            if (!mCode) mCode = extractSection(rawText, ["Module Code"], ["11.3", "Module Level"]);
-            if(mCode.includes("Module Code")) mCode = mCode.replace("Module Code", "").trim();
-
-            let mCredStr = extractSection(rawText, ["11.3", "Credits"], ["Total Learning Hours"]);
-            let mCred = mCredStr.match(/\d+/)?.[0] || "15";
-            
-            let mDel = extractSection(rawText, ["11.4", "Delivery Modality"], ["Methods of Delivery", "11.5"]);
-            if(mDel.includes("Delivery Modality")) mDel = mDel.replace("Delivery Modality", "").trim();
-
-            let mMeth = extractSection(rawText, ["Methods of Delivery"], ["11.5", "Minimum Qualification"]);
-            let mQual = extractSection(rawText, ["11.5", "Minimum Qualification"], ["11.6", "Prerequisite"]);
-            if(mQual.includes("Minimum Qualification")) mQual = mQual.replace("Minimum Qualification Required", "").replace("Minimum Qualification", "").trim();
-
-            let mPre = extractSection(rawText, ["11.6", "Prerequisite"], ["11.7", "Co-requisites"]);
-            if(mPre.includes("Prerequisite")) mPre = mPre.replace("Prerequisite", "").trim();
-
-            let mCo = extractSection(rawText, ["11.7", "Co-requisites"], ["11.8", "Expected Learning Outcomes"]);
-            if(mCo.includes("Co-requisites")) mCo = mCo.replace("Co-requisites", "").trim();
-
-            let mOutcomes = extractSection(rawText, ["students will be able to:"], ["Subjects/modules", "11.9"]);
-            
-            let caPerMatch = rawText.match(/Continuous Assessments.*?([0-9]+%)/i);
-            let caPer = caPerMatch ? caPerMatch[1] : "40%";
-            let fePerMatch = rawText.match(/Final Exam.*?([0-9]+%)/i);
-            let fePer = fePerMatch ? fePerMatch[1] : "60%";
-
-            let mAssSection = extractSection(rawText, ["11.10", "Assessment Methods"], ["11.11", "SCORE", "List of Reference"]);
-            let assessLines = [];
-            let rowsMatch = mAssSection.split('\n');
-            for(let r of rowsMatch) {
-                if(r.includes("%") && !r.includes("Continuous") && !r.includes("Final Exam:")) {
-                    assessLines.push(r.trim());
-                }
-            }
-            
-            let refCore = extractSection(rawText, ["Core Texts:", "Core Texts"], ["Additional Reference:"]);
-            let refAdd = extractSection(rawText, ["Additional Reference:", "Additional Reference"], ["11.12", "Course Materials"]);
-            
-            let cMat = extractSection(rawText, ["11.12", "Course Materials (Required/Recommended)", "Course Materials"], ["11.13", "Teaching and Learning Methods"]);
-            if(cMat.includes("Course Materials (Required/Recommended)")) cMat = cMat.replace("Course Materials (Required/Recommended)", "").replace("Course Materials", "").trim();
-
-            let cTeach = extractSection(rawText, ["11.13", "Teaching and Learning Methods"], ["11.14", "Additional Information"]);
-            if(cTeach.includes("Teaching and Learning Methods")) cTeach = cTeach.replace("Teaching and Learning Methods", "").trim();
-
-            let cAdd = extractSection(rawText, ["11.14", "Additional Information"], ["Developed by", "Annex"]);
-            if(cAdd.includes("Additional Information")) cAdd = cAdd.replace("Additional Information", "").trim();
-
-            let devName = extractSection(rawText, ["Full name:"], ["Highest Qualification:"]);
-            let devQual = extractSection(rawText, ["Highest Qualification:"], ["Designation and Office:"]);
-            let devDesig = extractSection(rawText, ["Designation and Office:"], ["E-mail and Contact:"]);
-            let devMail = extractSection(rawText, ["E-mail and Contact:"], ["PART D", "Annexes", "12."]);
-
-            let schData = [];
             let tempDiv = document.createElement('div');
             tempDiv.innerHTML = rawHtml;
-            let tables = tempDiv.querySelectorAll('table');
-            
-            let targetTable = null;
-            for(let tbl of tables) {
-                if(tbl.innerText.includes("11.9") || tbl.innerText.includes("Curricular Content") || tbl.innerText.includes("Topics") || tbl.innerText.includes("Pedagogy")) {
-                    targetTable = tbl;
-                    break;
-                }
-            }
+            let data = {};
 
-            if(targetTable) {
-                let rows = targetTable.querySelectorAll('tr');
-                for(let i=0; i<rows.length; i++) {
-                    let cells = Array.from(rows[i].querySelectorAll('td')).map(td => td.innerText.trim());
-                    if(cells.length >= 7 && cells[0].match(/^\d+$/)) { 
-                        schData.push({
-                            wk: cells[0], top: cells[1], det: cells[2], ped: cells[3], res: cells[4],
-                            cr: cells[5], lh: cells[6], f2f: cells[7], bf2f: cells[8], bsync: cells[9], 
-                            basync: cells[10], esync: cells[11], easync: cells[12]
-                        });
+            // ----------------------------------------------------
+            // 1. EXTRACT PROGRAM DATA (PART A & B)
+            // ----------------------------------------------------
+            
+            // Try to extract Institution Name
+            data.aInst = extractSection(rawText, ["Institution Name:", "Name of HEI:", "HEI Name:"], ["1. Institutional Capacity", "Program Name:", "Programme Outline"]);
+            if (!data.aInst) data.aInst = "ޒާދް އެކަޑެމީ"; // Fallback
+
+            data.a1_1 = extractSection(rawText, ["1.1 Introduction of the HEI", "1.1 Introduction"], ["1.2 Organization", "1.2"]);
+            data.a1_2 = extractSection(rawText, ["1.2 Organization"], ["1.3 Relevant facilities", "1.3"]);
+            data.a1_3 = extractSection(rawText, ["1.3 Relevant facilities and resources", "1.3 Relevant facilities"], ["1.3.1 Furnished classrooms", "1.3.1"]);
+            data.a1_3_1 = extractSection(rawText, ["1.3.1 Furnished classrooms"], ["1.3.2 Technical resources", "1.3.2"]);
+            data.a1_3_2 = extractSection(rawText, ["1.3.2 Technical resources for e-learning", "1.3.2 Technical resources"], ["1.3.3 Laboratories", "1.3.3"]);
+            data.a1_3_3 = extractSection(rawText, ["1.3.3 Laboratories"], ["1.3.4 Computer rooms", "1.3.4"]);
+            data.a1_3_4 = extractSection(rawText, ["1.3.4 Computer rooms"], ["1.3.5 Library", "1.3.5"]);
+            data.a1_3_5 = extractSection(rawText, ["1.3.5 Library"], ["1.3.6 Other Facilities", "1.3.6", "1.4 Brief explanation"]);
+            data.a1_3_6 = extractSection(rawText, ["1.3.6 Other Facilities"], ["1.4 Brief explanation"]);
+            data.a1_4 = extractSection(rawText, ["1.4 Brief explanation of the internal QA mechanism", "1.4 Brief explanation"], ["2. Instruction and Academic Staffing", "2. Instruction", "2.1"]);
+
+            data.a2_1_1 = extractSection(rawText, ["2.1.1 Minimum academic qualifications", "2.1.1"], ["2.1.2 Responsibilities"]);
+            data.a2_1_2 = extractSection(rawText, ["2.1.2 Responsibilities of the Programme Co-ordinator", "2.1.2"], ["2.2 Teaching staff", "2.2.1"]);
+            data.a2_2_1 = extractSection(rawText, ["2.2.1 Minimum number of teaching staff", "2.2.1"], ["2.2.2 Minimum academic qualifications"]);
+            data.a2_2_2 = extractSection(rawText, ["2.2.2 Minimum academic qualifications", "2.2.2"], ["2.2.3 Responsibilities"]);
+            data.a2_2_3 = extractSection(rawText, ["2.2.3 Responsibilities of the teaching staff", "2.2.3"], ["2.3 Staff performance", "2.3.1"]);
+            data.a2_3_1 = extractSection(rawText, ["2.3.1 Performance criteria", "2.3.1"], ["2.3.2 Arrangements for students"]);
+            data.a2_3_2 = extractSection(rawText, ["2.3.2 Arrangements for students' evaluation", "2.3.2"], ["3. General Student Assessment", "3.1"]);
+
+            data.a3_1 = extractSection(rawText, ["3.1 Assessment and evaluation processes", "3.1"], ["3.2 Proctoring mechanism", "3.2"]);
+            data.a3_2 = extractSection(rawText, ["3.2 Proctoring mechanism", "3.2"], ["3.3 Procedure on reporting", "3.3"]);
+            data.a3_3 = extractSection(rawText, ["3.3 Procedure on reporting students' academic progress", "3.3"], ["3.4 Graduation requirements", "3.4"]);
+            data.a3_4 = extractSection(rawText, ["3.4 Graduation requirements", "3.4"], ["3.5 Policy on academic misconduct", "3.5"]);
+            data.a3_5 = extractSection(rawText, ["3.5 Policy on academic misconduct", "3.5"], ["4. Student Withdrawal", "4.1"]);
+
+            data.a4_1 = extractSection(rawText, ["4.1 Policy on the dismissal", "4.1"], ["4.2 Policy on voluntary withdrawal", "4.2"]);
+            data.a4_2 = extractSection(rawText, ["4.2 Policy on voluntary withdrawal", "4.2"], ["4.3 Policy on compensation", "4.3"]);
+            data.a4_3 = extractSection(rawText, ["4.3 Policy on compensation", "4.3"], ["5. Admission Requirements", "PART B", "5.1"]);
+
+            data.b5_1 = extractSection(rawText, ["5.1 General Entry Criteria", "5.1"], ["5.2 Alternative Entry Criteria", "5.2"]);
+            data.b5_2 = extractSection(rawText, ["5.2 Alternative Entry Criteria", "5.2"], ["5.3 Language requirement", "5.3"]);
+            data.b5_3 = extractSection(rawText, ["5.3 Language requirement", "5.3"], ["6. Advanced Standing", "6.1"]);
+
+            data.b6_1 = extractSection(rawText, ["6.1 Policy on providing advanced standing", "6.1"], ["6.2 Methods of verifying", "6.2"]);
+            data.b6_2 = extractSection(rawText, ["6.2 Methods of verifying", "6.2"], ["6.3 Maximum credits", "6.3"]);
+            data.b6_3 = extractSection(rawText, ["6.3 Maximum credits", "6.3"], ["7. Programme Description", "7.1"]);
+
+            data.b7_1 = extractSection(rawText, ["7.1 Goals of the Programme", "7.1 Goals"], ["7.2 Outcomes of the programme", "7.2 Outcomes"]);
+            data.b7_2 = extractSection(rawText, ["7.2 Outcomes of the programme", "7.2 Outcomes"], ["7.3 Method/ process utilized", "7.3 Method"]);
+            data.b7_3 = extractSection(rawText, ["7.3 Method/ process utilized", "7.3 Method"], ["7.4 Mode of Study", "7.4"]);
+            data.b7_4 = extractSection(rawText, ["7.4 Mode of Study", "7.4"], ["7.5 Delivery modality", "7.5"]);
+            data.b7_5 = extractSection(rawText, ["7.5 Delivery modality", "7.5"], ["7.6 Medium of instruction", "7.6"]);
+            data.b7_6 = extractSection(rawText, ["7.6 Medium of instruction", "7.6"], ["8. E-learning readiness", "8.1"]);
+
+            data.b8_1 = extractSection(rawText, ["8.1 Technical readiness", "8.1"], ["8.2 Institutional internal e-learning", "8.2"]);
+            data.b8_2 = extractSection(rawText, ["8.2 Institutional internal e-learning QA policies", "8.2 Institutional internal"], ["8.3 Proof of readiness", "8.3"]);
+            data.b8_3 = extractSection(rawText, ["8.3 Proof of readiness", "8.3"], ["9. Learning outcomes", "9."]);
+
+            data.b9 = extractSection(rawText, ["9. Learning outcomes and level descriptors", "9. Mapping statement"], ["10. Program Structure Summary", "10."]);
+
+            // ----------------------------------------------------
+            // 2. EXTRACT MODULE SPECIFIC DATA (PART C)
+            // ----------------------------------------------------
+            let tds = Array.from(tempDiv.querySelectorAll('td'));
+            
+            function getNextCell(idx) {
+                for(let j = idx + 1; j < tds.length && j <= idx + 3; j++) {
+                    let txt = tds[j].innerText.trim();
+                    if(txt !== "" && !txt.match(/^11\.\d+$/) && !txt.toLowerCase().includes("students will be able to")) {
+                        return cleanText(txt);
                     }
                 }
+                return "";
             }
 
-            let mNameRtl = mName; let mNameLtr = "";
-            if(mName.includes("(")) {
-                mNameRtl = mName.split("(")[0].trim();
-                mNameLtr = "(" + mName.split("(")[1].trim();
+            for (let i = 0; i < tds.length; i++) {
+                let txt = tds[i].innerText.trim().toLowerCase();
+                let rawTxt = tds[i].innerText.trim();
+                
+                if (txt === "module name" || txt === "11.1 module name") {
+                    if(!data.mName) data.mName = getNextCell(i);
+                } else if (txt.startsWith("module name:") && txt.length > 15) {
+                    data.mName = cleanText(rawTxt.split(/module name:?/i)[1]);
+                }
+                
+                if (txt === "module description" || txt.includes("module description")) {
+                    if(!data.mDesc) data.mDesc = getNextCell(i);
+                }
+                if (txt === "module code" || txt === "11.2 module code") {
+                    if(!data.mCode) data.mCode = getNextCell(i);
+                }
+                if (txt === "credits" || txt === "11.3 credits") {
+                    if(!data.mCred) data.mCred = getNextCell(i);
+                }
+                if (txt === "delivery modality" || txt === "11.4 delivery modality") {
+                    if(!data.mDel) data.mDel = getNextCell(i);
+                }
+                if (txt === "methods of delivery" || txt.includes("methods of delivery")) {
+                    if(!data.mMeth) data.mMeth = getNextCell(i);
+                }
+                if (txt === "minimum qualification" || txt === "11.5 minimum qualification") {
+                    if(!data.mQual) data.mQual = getNextCell(i);
+                }
+                if (txt === "prerequisite" || txt === "11.6 prerequisite") {
+                    if(!data.mPre) data.mPre = getNextCell(i);
+                }
+                if (txt === "co-requisites" || txt === "11.7 co-requisites") {
+                    if(!data.mCo) data.mCo = getNextCell(i);
+                }
+                if (txt.includes("expected learning outcomes") || txt === "11.8 expected learning outcomes") {
+                    if(!data.mOutcomes) data.mOutcomes = getNextCell(i);
+                }
+                if (txt.includes("core texts")) {
+                    if(!data.refCore) data.refCore = getNextCell(i);
+                }
+                if (txt.includes("additional reference")) {
+                    if(!data.refAdd) data.refAdd = getNextCell(i);
+                }
+                if (txt.includes("course materials") || txt.includes("11.12")) {
+                    if(!data.cMat) data.cMat = getNextCell(i);
+                }
+                if (txt.includes("teaching and learning methods") || txt.includes("11.13")) {
+                    if(!data.cTeach) data.cTeach = getNextCell(i);
+                }
+                if (txt.includes("additional information") || txt.includes("11.14")) {
+                    if(!data.cAdd) data.cAdd = getNextCell(i);
+                }
+                if (txt.includes("full name")) {
+                    let parts = rawTxt.split(/full name:?/i);
+                    if(parts.length > 1 && parts[1].trim()) data.devName = cleanText(parts[1]);
+                    else if(!data.devName) data.devName = getNextCell(i);
+                }
+                if (txt.includes("highest qualification")) {
+                    let parts = rawTxt.split(/highest qualification:?/i);
+                    if(parts.length > 1 && parts[1].trim()) data.devQual = cleanText(parts[1]);
+                    else if(!data.devQual) data.devQual = getNextCell(i);
+                }
+                if (txt.includes("designation")) {
+                    let parts = rawTxt.split(/designation.*?:?/i);
+                    if(parts.length > 1 && parts[1].trim()) data.devDesig = cleanText(parts[1]);
+                    else if(!data.devDesig) data.devDesig = getNextCell(i);
+                }
+                if (txt.includes("e-mail")) {
+                    let parts = rawTxt.split(/e-mail.*?:?/i);
+                    if(parts.length > 1 && parts[1].trim()) data.devMail = cleanText(parts[1]);
+                    else if(!data.devMail) data.devMail = getNextCell(i);
+                }
             }
 
+            // ----------------------------------------------------
+            // 3. EXTRACT COMPLEX TABLES
+            // ----------------------------------------------------
+            let tables = tempDiv.querySelectorAll('table');
+            data.schData = [];
+            data.matrixData = [];
+            data.assessData = [];
+            
+            tables.forEach(tbl => {
+                let tText = tbl.innerText.toLowerCase();
+                
+                // Schedule Table
+                if((tText.includes("topics") && tText.includes("pedagogy")) || tText.includes("curricular content")) {
+                    let rows = tbl.querySelectorAll('tr');
+                    rows.forEach(r => {
+                        let cells = Array.from(r.querySelectorAll('td, th')).map(td => td.innerText.trim());
+                        if(cells.length >= 7 && cells[0].match(/^\d+$/)) {
+                            data.schData.push({
+                                wk: cells[0], top: cells[1]||'', det: cells[2]||'', ped: cells[3]||'', res: cells[4]||'',
+                                cr: cells[5]||'0', lh: cells[6]||'0', f2f: cells[7]||'0', bf2f: cells[8]||'0', bsync: cells[9]||'0', 
+                                basync: cells[10]||'0', esync: cells[11]||'0', easync: cells[12]||'0'
+                            });
+                        }
+                    });
+                }
+                
+                // Matrix Table
+                if(tText.includes("knowledge and understanding") && tText.includes("generic cognitive skills")) {
+                    let rows = tbl.querySelectorAll('tr');
+                    rows.forEach(r => {
+                        let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
+                        // Ignore header rows
+                        if(cells.length >= 6 && !cells[0].toLowerCase().includes("module outcomes") && !cells[0].includes("MNQF")) {
+                            data.matrixData.push(cells);
+                        }
+                    });
+                }
+                
+                // Assessment Table
+                if(tText.includes("assessment task title") || tText.includes("weightage")) {
+                    let rows = tbl.querySelectorAll('tr');
+                    rows.forEach(r => {
+                        let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
+                        // Only get rows starting with a number
+                        if(cells.length >= 5 && cells[0].match(/^\d+$/)) {
+                            data.assessData.push(cells);
+                        }
+                    });
+                }
+            });
+
+            // Grading/Assessment Percentages (from rawText)
+            let caMatch = rawText.match(/Continuous Assessments.*?(\d+%?)/i);
+            data.caPer = caMatch ? caMatch[1] : "40%";
+            let feMatch = rawText.match(/Final Exam.*?(\d+%?)/i);
+            data.fePer = feMatch ? feMatch[1] : "60%";
+
+            // ----------------------------------------------------
+            // 4. APPLY FALLBACKS IF CELLS MISSED ANYTHING
+            // ----------------------------------------------------
+            if (!data.mName) data.mName = extractSection(rawText, ["11.1 Module Name", "Module Name", "11.1"], ["Module Description", "11.2"]);
+            if (!data.mDesc) data.mDesc = extractSection(rawText, ["Module Description"], ["11.2", "Module Code"]);
+            if (!data.mCode) data.mCode = extractSection(rawText, ["11.2 Module Code", "Module Code"], ["Module Level", "11.3"]);
+            if (!data.mCred) data.mCred = extractSection(rawText, ["11.3 Credits", "Credits"], ["Total Learning Hours"]);
+            if (!data.mDel) data.mDel = extractSection(rawText, ["Delivery Modality"], ["Methods of Delivery", "11.5"]);
+            if (!data.mMeth) data.mMeth = extractSection(rawText, ["Methods of Delivery"], ["11.5", "Minimum Qualification"]);
+            if (!data.mQual) data.mQual = extractSection(rawText, ["Minimum Qualification"], ["11.6", "Prerequisite"]);
+            if (!data.mOutcomes) data.mOutcomes = extractSection(rawText, ["students will be able to:", "Expected Learning Outcomes"], ["Subjects/modules", "11.9"]);
+            
+            // Format logic
+            let pName = extractSection(rawText, ["ޕްރޮގްރާމް އައުޓްލައިން", "Program Name:"], ["MNQF Level", "PART A", "1."]);
+            if (!pName || pName.length > 80) pName = "Imported Program";
+
+            let safeModName = data.mName || "Imported Module";
+            let mNameRtl = safeModName; let mNameLtr = "";
+            if(mNameRtl.includes("(")) {
+                let p = mNameRtl.split("(");
+                mNameRtl = p[0].trim();
+                mNameLtr = "(" + p[1].trim();
+            } else {
+                let enMatch = mNameRtl.match(/[A-Za-z]/);
+                if(enMatch) {
+                     let idx = mNameRtl.indexOf(enMatch[0]);
+                     mNameLtr = mNameRtl.substring(idx).trim();
+                     mNameRtl = mNameRtl.substring(0, idx).trim();
+                }
+            }
+            mNameRtl = mNameRtl.substring(0, 60);
+
+            let safeModCode = data.mCode ? data.mCode.substring(0, 15) : "IMP01";
+            let mCredNum = data.mCred ? data.mCred.match(/\d+/)?.[0] || "15" : "15";
+
+            // ----------------------------------------------------
+            // 5. WRITE TO DATABASE & RE-RENDER
+            // ----------------------------------------------------
             saveCurrentToDB(); 
             let nCid = "c_" + Date.now(); 
             let nMid = "m_" + Date.now();
             
-            dbState.courses[nCid] = { id: nCid, name: "Imported Course From Word", programData: { inputs: {'p-name': 'Imported Program'}, sCount: 0, aCount: 0, f3Count: 1 }, modules: {} };
+            dbState.courses[nCid] = { 
+                id: nCid, 
+                name: pName, 
+                programData: { 
+                    inputs: {
+                        'p-name': pName,
+                        'a-inst': data.aInst || "ޒާދް އެކަޑެމީ",
+                        'a-1-1': data.a1_1 || "",
+                        'a-1-2': data.a1_2 || "",
+                        'a-1-3': data.a1_3 || "",
+                        'a-1-3-1': data.a1_3_1 || "",
+                        'a-1-3-2': data.a1_3_2 || "",
+                        'a-1-3-3': data.a1_3_3 || "",
+                        'a-1-3-4': data.a1_3_4 || "",
+                        'a-1-3-5': data.a1_3_5 || "",
+                        'a-1-3-6': data.a1_3_6 || "",
+                        'a-1-4': data.a1_4 || "",
+                        'a-2-1-1': data.a2_1_1 || "",
+                        'a-2-1-2': data.a2_1_2 || "",
+                        'a-2-2-1': data.a2_2_1 || "",
+                        'a-2-2-2': data.a2_2_2 || "",
+                        'a-2-2-3': data.a2_2_3 || "",
+                        'a-2-3-1': data.a2_3_1 || "",
+                        'a-2-3-2': data.a2_3_2 || "",
+                        'a-3-1': data.a3_1 || "",
+                        'a-3-2': data.a3_2 || "",
+                        'a-3-3': data.a3_3 || "",
+                        'a-3-4': data.a3_4 || "",
+                        'a-3-5': data.a3_5 || "",
+                        'a-4-1': data.a4_1 || "",
+                        'a-4-2': data.a4_2 || "",
+                        'a-4-3': data.a4_3 || "",
+                        'b-5-1': data.b5_1 || "",
+                        'b-5-2': data.b5_2 || "",
+                        'b-5-3': data.b5_3 || "",
+                        'b-6-1': data.b6_1 || "",
+                        'b-6-2': data.b6_2 || "",
+                        'b-6-3': data.b6_3 || "",
+                        'b-7-1': data.b7_1 || "",
+                        'b-7-2': data.b7_2 || "",
+                        'b-7-3': data.b7_3 || "",
+                        'b-7-4': data.b7_4 || "",
+                        'b-7-5': data.b7_5 || "",
+                        'b-7-6': data.b7_6 || "",
+                        'b-8-1': data.b8_1 || "",
+                        'b-8-2': data.b8_2 || "",
+                        'b-8-3': data.b8_3 || "",
+                        'b-9': data.b9 || ""
+                    }, 
+                    sCount: 0, aCount: 0, f3Count: 1 
+                }, 
+                modules: {} 
+            };
             
             dbState.courses[nCid].modules[nMid] = { 
                 id: nMid, 
-                name: mNameRtl ? mNameRtl.substring(0,30) : "Imported Module", 
-                code: mCode || "IMP01", 
+                name: mNameRtl, 
+                code: safeModCode, 
                 moduleData: { 
                     inputs: {
                         'm-name-rtl': mNameRtl,
                         'm-name-ltr': mNameLtr,
-                        'm-desc': mDesc,
-                        'm-code': mCode,
-                        'm-credits': mCred,
-                        'm-mod-txt': mDel,
-                        'm-meth-txt': mMeth,
-                        'm-qual': mQual,
-                        'm-pre': mPre,
-                        'm-co': mCo,
-                        'm-outcomes-list': mOutcomes,
-                        'm-ca-per': caPer,
-                        'm-fe-per': fePer,
-                        'm-ref-core': refCore,
-                        'm-ref-add': refAdd,
-                        'm-course-mat': cMat,
-                        'm-teach-meth': cTeach,
-                        'm-add-info': cAdd,
-                        'd-name': devName,
-                        'd-qual': devQual,
-                        'd-desig': devDesig,
-                        'd-mail': devMail
+                        'm-desc': data.mDesc || "",
+                        'm-code': safeModCode,
+                        'm-credits': mCredNum,
+                        'm-mod-txt': data.mDel || "",
+                        'm-meth-txt': data.mMeth || "",
+                        'm-qual': data.mQual || "",
+                        'm-pre': data.mPre || "N/A",
+                        'm-co': data.mCo || "N/A",
+                        'm-outcomes-list': data.mOutcomes || "",
+                        'm-ca-per': data.caPer || "40%",
+                        'm-fe-per': data.fePer || "60%",
+                        'm-ref-core': data.refCore || "",
+                        'm-ref-add': data.refAdd || "",
+                        'm-course-mat': data.cMat || "",
+                        'm-teach-meth': data.cTeach || "",
+                        'm-add-info': data.cAdd || "",
+                        'd-name': data.devName || "",
+                        'd-qual': data.devQual || "",
+                        'd-desig': data.devDesig || "",
+                        'd-mail': data.devMail || ""
                     },
                     matrixHtml: '',
                     schHtml: '',
@@ -2178,32 +2394,40 @@ Upon successful completion of this Module, students will have the knowledge and 
             document.getElementById('tbody-assess').innerHTML = "";
             document.getElementById('tbody-f3-details').innerHTML = "";
             semCount = 0; annexCount = 0; f3RowCount = 0;
-            addSemesterBlock(); addMatrixRow(); addF3Row();
             
-            if(schData.length > 0) {
-                schData.forEach(r => addSchRow(r.top, r.det, r.res, r.cr, r.lh, r.f2f, r.bf2f, r.bsync, r.basync, r.esync, r.easync)); 
-            } else {
-                addSchRow();
-            }
-
-            if(assessLines.length > 0) {
-                assessLines.forEach(line => {
-                    let parts = line.split('|').map(s=>s.trim());
-                    addAssessRow(parts[0]||'', parts[1]||'', parts[2]||'', parts[3]||'', parts[4]||'');
+            addSemesterBlock(); addF3Row();
+            
+            // Build Matrix Table
+            if(data.matrixData.length > 0) {
+                data.matrixData.forEach(r => {
+                    dynMatCounter++;
+                    let tb = document.getElementById('tbody-matrix'); let c = dynMatCounter; let tr = document.createElement('tr');
+                    tr.innerHTML = `<td><textarea class="rtl-input mod-data" rows="2" id="dyn_mat_${c}_1">${r[0]||''}</textarea></td><td><input type="text" class="ltr-input mod-data" value="${r[1]||''}" style="text-align:center;" id="dyn_mat_${c}_2"></td><td><input type="text" class="ltr-input mod-data" value="${r[2]||''}" style="text-align:center;" id="dyn_mat_${c}_3"></td><td><input type="text" class="ltr-input mod-data" value="${r[3]||''}" style="text-align:center;" id="dyn_mat_${c}_4"></td><td><input type="text" class="ltr-input mod-data" value="${r[4]||''}" style="text-align:center;" id="dyn_mat_${c}_5"></td><td><input type="text" class="ltr-input mod-data" value="${r[5]||''}" style="text-align:center;" id="dyn_mat_${c}_6"></td><td><button class="btn-danger" onclick="deleteRow(this)"><i class="fas fa-times"></i></button></td>`;
+                    tb.appendChild(tr);
                 });
-            } else {
-                addAssessRow();
-            }
+            } else { addMatrixRow(); }
+            
+            // Build Schedule Table
+            if(data.schData.length > 0) {
+                data.schData.forEach(r => addSchRow(r.top, r.det, r.res, r.cr, r.lh, r.f2f, r.bf2f, r.bsync, r.basync, r.esync, r.easync)); 
+            } else { addSchRow(); }
+
+            // Build Assessment Table
+            if(data.assessData.length > 0) {
+                data.assessData.forEach(r => addAssessRow(r[1]||'', r[2]||'', r[3]||'', r[4]||'', r[5]||''));
+            } else { addAssessRow(); }
             
             extractDOMToState(nCid, nMid); 
             isProgrammaticChange = false;
             
-            updateTopTitleStatus();
-            renderArchive();
-            performSave(false, false);
+            loadStateFromMemory(nCid, nMid); 
             
             document.getElementById('import-success-msg').style.display = 'block';
-            setTimeout(()=> { document.getElementById('import-success-msg').style.display = 'none'; }, 8000);
+            setTimeout(()=> { 
+                document.getElementById('import-success-msg').style.display = 'none'; 
+                // Navigate directly to Archive Bank to view the newly created record
+                switchStep(10, document.querySelectorAll('.nav-links li')[12]);
+            }, 1500);
         }
 
         // --- 4. DYNAMIC BUILDERS WITH UNIQUE IDS TO PREVENT DATA OVERWRITE ---
@@ -3066,6 +3290,73 @@ Upon successful completion of this Module, students will have the knowledge and 
                     <tr><td>1</td><td class="rtl-p" style="font-size:11pt;">އިމާމުކަމާއި ބަންގިއާއި ޤަމަތުގެ ފިޤުހު</td><td class="rtl-p" style="font-size:11pt;">ބަންގިއާއި ޤަމަތުގެ ޙުކުމްތައް...</td><td class="rtl-p" style="font-size:11pt;">1. Group activities</td><td style="text-align:left; font-size:10pt;">Handouts</td><td>3</td><td>30</td><td style="background:#e2efda !important;">15</td><td style="background:#ddebf7 !important;">5</td><td style="background:#ddebf7 !important;">5</td><td style="background:#ddebf7 !important;">5</td><td style="background:#fff2cc !important;">9</td><td style="background:#fff2cc !important;">6</td></tr>
                     <tr><td colspan="5" class="bg-gray" style="text-align:right;">TOTAL</td><td class="bg-gray">3</td><td class="bg-gray">30</td><td class="bg-gray">15</td><td class="bg-gray">5</td><td class="bg-gray">5</td><td class="bg-gray">5</td><td class="bg-gray">9</td><td class="bg-gray">6</td></tr>
                 </table>
+                <div class="table-separator">&nbsp;</div>
+
+                <table border="1" cellpadding="8" style="width:100%; border-collapse: collapse;">
+                    <tr>
+                        <td class="bg-gray" width="15%" valign="top"><b>11.10</b></td>
+                        <td class="bg-gray" valign="top"><b>Assessment Methods and Grading Criteria</b></td>
+                    </tr>
+                    <tr>
+                        <td class="bg-gray" valign="top" style="vertical-align: top;"><b>Assessment Methods</b></td>
+                        <td valign="top" style="vertical-align: top;">
+                            <div style="margin-bottom: 15px;">
+                                <i>Assessment Methods for Face-to-Face Delivery, Blended and E-Learning Modality</i><br><br>
+                                <i>The students are required to obtain 50% in each controlled assessment component to achieve a pass</i><br><br>
+                                <i>In E-learning and Blended modality all final exams will be conducted face-face under the supervision of invigilators</i><br><br>
+                                <b>Continuous Assessments: </b> <span style="color:#991B1B; font-weight:bold;">40%</span><br><br>
+                                <b>Final Exam: </b> <span style="color:#991B1B; font-weight:bold;">60%</span>
+                            </div>
+                            <table border="1" cellpadding="6" style="width:100%; border-collapse: collapse; text-align:center;">
+                                <tr class="bg-gray">
+                                    <td width="5%">#</td>
+                                    <td width="25%">Assessment Task Title</td>
+                                    <td width="35%">Details</td>
+                                    <td width="15%">Form of Assessment</td>
+                                    <td width="10%">Length or Word Limit</td>
+                                    <td width="10%">Weightage %</td>
+                                </tr>
+                                <tr>
+                                    <td>1</td>
+                                    <td style="font-weight:bold; text-align:left; color:#991B1B;">Written assignment</td>
+                                    <td class="rtl-p" style="text-align:right;">ކަށުކަމާކެމީގެ ޒަމާނީ މައްސަލައަކާ ގުޅޭގޮތުން ދިރާސީ ކަރުދާހެއް ލިޔުން.</td>
+                                    <td style="color:#991B1B; font-style:italic;">Uncontrolled</td>
+                                    <td style="color:#991B1B;">2000 words</td>
+                                    <td style="color:#991B1B;">30%</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="bg-gray" valign="top" style="vertical-align: top;"><b>Grading Criteria</b></td>
+                        <td valign="top" class="center" style="vertical-align: top; text-align: center;">
+                            <table border="1" cellpadding="6" style="width:70%; margin: 0 auto; border-collapse: collapse; text-align:center;">
+                                <tr class="bg-gray">
+                                    <td>SCORE</td>
+                                    <td>DESCRIPTION</td>
+                                    <td class="rtl-p center">التفصيل</td>
+                                    <td>GPA</td>
+                                    <td>GRADE</td>
+                                </tr>
+                                <tr><td>85-100</td><td>High Distinction</td><td class="rtl-p center">ممتاز</td><td>4.0</td><td>HD</td></tr>
+                                <tr><td>75-84</td><td>Distinction</td><td class="rtl-p center">جيد جدا</td><td>3.0</td><td>DN</td></tr>
+                                <tr><td>65-74</td><td>Credit</td><td class="rtl-p center">جيد</td><td>2.0</td><td>CR</td></tr>
+                                <tr><td>50-64</td><td>Pass</td><td class="rtl-p center">مقبول</td><td>1.0</td><td>PP</td></tr>
+                                <tr><td>45-49</td><td>Fail Conditional</td><td class="rtl-p center">راسب مشروط</td><td>0.0</td><td>FC</td></tr>
+                                <tr><td>00-49</td><td>Fail</td><td class="rtl-p center">راسب</td><td>0.0</td><td>FF</td></tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+                <div class="table-separator">&nbsp;</div>
+                <table border="1" cellpadding="8">
+                    <tr><td class="bg-gray" width="8%">11.11</td><td colspan="2" class="bg-gray">List of Reference Materials (in APA format)</td></tr>
+                    <tr><td colspan="3" class="rtl-p"><div style="direction:ltr; text-align:left; font-weight:bold; font-family:sans-serif;">Core Texts:</div><ul style="margin-right:30px; margin-bottom:20px;"><li>سابق ، السيد . (2013). فقه السنة</li></ul></td></tr>
+                </table>
+                <div class="table-separator">&nbsp;</div>
+                <table border="1" cellpadding="8"><tr><td class="bg-gray" width="8%">11.12</td><td class="bg-gray">Course Materials (Required/Recommended)</td></tr><tr><td colspan="2" class="rtl-p">ކިޔަވައިދިނުމަށް ބޭނުންކުރާނެ މައިގަނޑު ފޮތްތަކާއި ނޯޓުތައް.</td></tr></table><div class="table-separator">&nbsp;</div>
+                <table border="1" cellpadding="8"><tr><td class="bg-gray" width="8%">11.13</td><td class="bg-gray">Teaching and Learning Methods</td></tr><tr><td colspan="2" class="rtl-p">ކްލާހުގައި ދޭ ލެކްޗަރތައް.</td></tr></table><div class="table-separator">&nbsp;</div>
+                <table border="1" cellpadding="8"><tr><td class="bg-gray" width="8%">11.14</td><td class="bg-gray">Additional Information</td></tr><tr><td colspan="2" class="rtl-p">މި މާއްދާ ފުރިހަމަކުރުމަށް ކަނޑައެޅިފައިވާ ޢަމަލީ ގަޑިތަކުގައި ދަރިވަރުންގެ ޙާޟިރީ 100% ފުރިހަމަ ކުރަންޖެހޭނެއެވެ.</td></tr></table>
             </div>`;
         }
 
