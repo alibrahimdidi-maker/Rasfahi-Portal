@@ -2158,12 +2158,9 @@ Upon successful completion of this Module, students will have the knowledge and 
                 if (txt.includes("expected learning outcomes") || txt === "11.8 expected learning outcomes") {
                     if(!data.mOutcomes) data.mOutcomes = getNextCell(i);
                 }
-                if (txt.includes("core texts")) {
-                    if(!data.refCore) data.refCore = getNextCell(i);
-                }
-                if (txt.includes("additional reference")) {
-                    if(!data.refAdd) data.refAdd = getNextCell(i);
-                }
+                
+                // ފާހަގަކުރެވޭ: 11.11 References އަށް td ލޫޕް ބޭނުންކުރުން ހުއްޓާލާފައި ސީދާ rawText އިން ނަގާގޮތަށް ވަނީ ބަދަލުކުރެވިފައި
+
                 if (txt.includes("course materials") || txt.includes("11.12")) {
                     if(!data.cMat) data.cMat = getNextCell(i);
                 }
@@ -2226,7 +2223,6 @@ Upon successful completion of this Module, students will have the knowledge and 
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
                         let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
-                        // Ignore header rows
                         if(cells.length >= 6 && !cells[0].toLowerCase().includes("module outcomes") && !cells[0].includes("MNQF")) {
                             data.matrixData.push(cells);
                         }
@@ -2238,7 +2234,6 @@ Upon successful completion of this Module, students will have the knowledge and 
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
                         let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
-                        // Only get rows starting with a number
                         if(cells.length >= 5 && cells[0].match(/^\d+$/)) {
                             data.assessData.push(cells);
                         }
@@ -2253,7 +2248,7 @@ Upon successful completion of this Module, students will have the knowledge and 
             data.fePer = feMatch ? feMatch[1] : "60%";
 
             // ----------------------------------------------------
-            // 4. APPLY FALLBACKS IF CELLS MISSED ANYTHING
+            // 4. APPLY FALLBACKS IF CELLS MISSED ANYTHING (މިބައި ވަރަށް މުހިންމު)
             // ----------------------------------------------------
             if (!data.mName) data.mName = extractSection(rawText, ["11.1 Module Name", "Module Name", "11.1"], ["Module Description", "11.2"]);
             if (!data.mDesc) data.mDesc = extractSection(rawText, ["Module Description"], ["11.2", "Module Code"]);
@@ -2262,8 +2257,25 @@ Upon successful completion of this Module, students will have the knowledge and 
             if (!data.mDel) data.mDel = extractSection(rawText, ["Delivery Modality"], ["Methods of Delivery", "11.5"]);
             if (!data.mMeth) data.mMeth = extractSection(rawText, ["Methods of Delivery"], ["11.5", "Minimum Qualification"]);
             if (!data.mQual) data.mQual = extractSection(rawText, ["Minimum Qualification"], ["11.6", "Prerequisite"]);
-            if (!data.mOutcomes) data.mOutcomes = extractSection(rawText, ["students will be able to:", "Expected Learning Outcomes"], ["Subjects/modules", "11.9"]);
             
+            // 11.8 Expected Learning Outcomes (އިތުރު ޢިބާރާތްތައް ނުހިމެނޭގޮތަށް ބަދަލުކުރެވިފައި)
+            if (!data.mOutcomes) data.mOutcomes = extractSection(rawText, ["students will be able to:"], ["Subjects/modules", "11.9"]);
+            
+            // 11.11 References (ސީދާ rawText އިން ފޯމަށް ނެގޭގޮތަށް ބަދަލުކުރެވިފައި)
+            if (!data.refCore) data.refCore = extractSection(rawText, ["Core Texts:"], ["Additional Reference:"]);
+            if (!data.refAdd) data.refAdd = extractSection(rawText, ["Additional Reference:"], ["11.12", "Course Materials"]);
+
+            // 11.12, 11.13, 11.14 (Fallback އަށް އިތުރުކުރެވިފައި)
+            if (!data.cMat) data.cMat = extractSection(rawText, ["11.12 Course Materials", "Course Materials (Required/Recommended)", "Course Materials"], ["11.13", "Teaching and Learning"]);
+            if (!data.cTeach) data.cTeach = extractSection(rawText, ["11.13 Teaching and Learning", "Teaching and Learning Methods"], ["11.14", "Additional Information"]);
+            if (!data.cAdd) data.cAdd = extractSection(rawText, ["11.14 Additional Information", "Additional Information"], ["Developed by", "Full name:"]);
+
+            // Developer Info (Fallback އަށް އިތުރުކުރެވިފައި)
+            if (!data.devName) data.devName = extractSection(rawText, ["Full name:"], ["Highest Qualification:"]);
+            if (!data.devQual) data.devQual = extractSection(rawText, ["Highest Qualification:"], ["Designation and Office:", "Designation:"]);
+            if (!data.devDesig) data.devDesig = extractSection(rawText, ["Designation and Office:", "Designation:"], ["E-mail and Contact:", "E-mail:"]);
+            if (!data.devMail) data.devMail = extractSection(rawText, ["E-mail and Contact:", "E-mail:"], ["PART D", "Annexes", "EOF"]);
+
             // Format logic
             let pName = extractSection(rawText, ["ޕްރޮގްރާމް އައުޓްލައިން", "Program Name:"], ["MNQF Level", "PART A", "1."]);
             if (!pName || pName.length > 80) pName = "Imported Program";
@@ -2539,7 +2551,7 @@ Upon successful completion of this Module, students will have the knowledge and 
             <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_1">${top}</textarea></td>
             <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_2">${det}</textarea></td>
             <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_3">ޙަރަކާތް: ކްލާހުގައި ދަރިވަރުން...</textarea></td>
-            <td><textarea class="ltr-input mod-data" rows="3" id="dyn_sch_${c}_4">${res}</textarea></td>
+            <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_4">${res}</textarea></td>
             <td><input type="number" class="ltr-input sch-cr mod-data" value="${cr}" style="text-align:center;" oninput="calcRowLh(this); calcT()" id="dyn_sch_${c}_5"></td>
             <td><input type="number" class="ltr-input sch-lh mod-data" value="${lh}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_6"></td>
             <td><input type="number" class="ltr-input sch-f2f mod-data" value="${f2f}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_7"></td>
@@ -3264,7 +3276,8 @@ Upon successful completion of this Module, students will have the knowledge and 
                         <td class="bg-gray" style="vertical-align:top;">Expected Learning Outcomes</td>
                         <td>
                             Upon successful completion of this module students will be able to:<br><br>
-                            <div class="rtl-p">1. ނަމާދުގައްޔާއި ޖަނާޒާގައި ދިމާވާ ފިޤުހީ އިޚްތިލާފުތަކާއި ޒަމާނީ މައްސަލަތައް ޢިލްމީ ދަލީލުތަކުގެ އަލީގައި ދެނެގަނެ ޙައްލުކުރުން.<br>2. އިމާމެއްގެ ހައިސިއްޔަތުން ފަރުޟު ނަމާދުތަކާއި ޚާއްޞަ ނަމާދުތައް ޢަމަލީގޮތުން ލީޑުކުރުމާއި، އަސަރުގަދަ ޚުޠުބާތައް ތައްޔާރުކޮށް ހުށަހެޅުން.</div>
+                            <div class="rtl-p">1. ނަމާދުގައްޔާއި ޖަނާޒާގައި ދިމާވާ ފިޤުހީ އިޚްތިލާފުތަކާއި ޒަމާނީ މައްސަލަތައް ޢިލްމީ ދަލީލުތަކުގެ އަލީގައި ދެނެގަނެ ޙައްލުކުރުން.<br>2. އިމާމެއްގެ ހައިސިއްޔަތުން ފަރުޟު ނަމާދުތަކާއި ޚާއްޞަ ނަމާދުތައް ޢަމަލީގޮތުން ލީޑުކުރުމާއި، އަސަރުގަދަ ޚުޠުބާތައް ތައް
+<div class="rtl-p">1. ނަމާދުގައްޔާއި ޖަނާޒާގައި ދިމާވާ ފިޤުހީ އިޚްތިލާފުތަކާއި ޒަމާނީ މައްސަލަތައް ޢިލްމީ ދަލީލުތަކުގެ އަލީގައި ދެނެގަނެ ޙައްލުކުރުން.<br>2. އިމާމެއްގެ ހައިސިއްޔަތުން ފަރުޟު ނަމާދުތަކާއި ޚާއްޞަ ނަމާދުތައް ޢަމަލީގޮތުން ލީޑުކުރުމާއި، އަސަރުގަދަ ޚުޠުބާތައް ތައްޔާރުކޮށް ހުށަހެޅުން.</div>
                         </td>
                     </tr>
                 </table>
