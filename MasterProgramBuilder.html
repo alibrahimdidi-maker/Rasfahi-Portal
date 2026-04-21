@@ -1109,15 +1109,6 @@ Upon successful completion of this Module, students will have the knowledge and 
                                 </tr>
                             </thead>
                             <tbody id="tbody-matrix">
-                                <tr>
-                                    <td><textarea class="rtl-input" rows="2">1. ނަމާދުގައްޔާއި ޖަނާޒާގައި ދިމާވާ ފިޤުހީ އިޚްތިލާފުތަކާއި ޒަމާނީ މައްސަލަތައް ޢިލްމީ ދަލީލުތަކުގެ އަލީގައި ދެނެގަނެ ޙައްލުކުރުން.</textarea></td>
-                                    <td><input type="text" class="ltr-input" value="✓" style="text-align:center;"></td>
-                                    <td><input type="text" class="ltr-input" style="text-align:center;"></td>
-                                    <td><input type="text" class="ltr-input" style="text-align:center;"></td>
-                                    <td><input type="text" class="ltr-input" style="text-align:center;"></td>
-                                    <td><input type="text" class="ltr-input" value="✓" style="text-align:center;"></td>
-                                    <td><button class="btn-danger" onclick="deleteRow(this)"><i class="fas fa-times"></i></button></td>
-                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -1154,7 +1145,7 @@ Upon successful completion of this Module, students will have the knowledge and 
                                 </tr>
                             </thead>
                             <tbody id="tbody-sch">
-                                </tbody>
+                            </tbody>
                             <tfoot>
                                 <tr class="tfoot-total">
                                     <td colspan="5" style="text-align:right; padding-right:15px; color:var(--royal-dark);">TOTAL SUM:</td>
@@ -1197,7 +1188,7 @@ Upon successful completion of this Module, students will have the knowledge and 
                                         </tr>
                                     </thead>
                                     <tbody id="tbody-assess">
-                                        </tbody>
+                                    </tbody>
                                 </table>
                             </div>
                             <button class="btn btn-outline" onclick="addAssessRow()" style="border-style:dashed;"><i class="fas fa-plus"></i> Add Assessment Task</button>
@@ -1313,14 +1304,6 @@ Upon successful completion of this Module, students will have the knowledge and 
                                 </tr>
                             </thead>
                             <tbody id="tbody-f3-details">
-                                <tr>
-                                    <td class="center">1</td>
-                                    <td><select class="form3-input prog-data" id="f3-det-type-1"><option value="Add">Add</option><option value="Remove">Remove</option><option value="Revise Title">Revise Title</option><option value="Revise Credit">Revise Credit</option></select></td>
-                                    <td><input type="text" class="form3-input prog-data center" id="f3-det-code-1"></td>
-                                    <td><input type="text" class="form3-input prog-data" id="f3-det-title-1"></td>
-                                    <td><input type="number" class="form3-input prog-data f3-cr-calc center" id="f3-det-cr-1" oninput="calcF3Total()"></td>
-                                    <td><input type="text" class="form3-input prog-data" id="f3-det-rsn-1"></td>
-                                </tr>
                             </tbody>
                             <tfoot>
                                 <tr><td colspan="4" style="text-align:right; font-weight:bold;">Total Credits</td><td style="font-weight:bold; color:var(--danger);" class="center" id="f3-tot-calc">0</td><td></td></tr>
@@ -1519,6 +1502,13 @@ Upon successful completion of this Module, students will have the knowledge and 
         let annexCount = 0;
         let f3RowCount = 1;
 
+        // DYNAMIC UNIQUE COUNTERS FOR ALL TABLES
+        let dynSchCounter = 1000;
+        let dynMatCounter = 1000;
+        let dynAssCounter = 1000;
+        let dynSemModCounter = 1000;
+        let dynF3Counter = 1000;
+
         function toggleDesktopSidebar() { document.getElementById('main-sidebar').classList.toggle('collapsed'); }
         function toggleMobileSidebar() { document.getElementById('main-sidebar').classList.toggle('mobile-open'); }
 
@@ -1604,6 +1594,7 @@ Upon successful completion of this Module, students will have the knowledge and 
 
             if (mId && dbState.courses[cId].modules[mId]) {
                 let modInputs = {};
+                // .sch-cr, .sch-lh etc. are now tagged with .mod-data properly to guarantee correct restore.
                 document.querySelectorAll('.mod-data, #step-6 input, #step-6 textarea, #step-7 input, #step-7 textarea, #step-7 .total-input, #step-11 input, #step-11 textarea, #step-8 input, #step-8 textarea').forEach((el, i) => {
                     if (!el.id) el.id = 'm_dyn_' + i; 
                     if (el.hasAttribute('contenteditable')) {
@@ -1658,18 +1649,6 @@ Upon successful completion of this Module, students will have the knowledge and 
                 if(mData.schHtml !== undefined) document.getElementById('tbody-sch').innerHTML = mData.schHtml;
                 if(mData.assessHtml !== undefined) {
                     document.getElementById('tbody-assess').innerHTML = mData.assessHtml;
-                } else {
-                    let oldVal = mData.inputs && mData.inputs['m-ass'];
-                    if (oldVal) {
-                        document.getElementById('tbody-assess').innerHTML = "";
-                        let lines = (typeof oldVal === 'object' ? oldVal.value : oldVal).split('\n');
-                        lines.forEach(l => {
-                            if(l.trim()) {
-                                let p = l.split('|');
-                                addAssessRow(p[0]||'', p[1]||'', p[2]||'', p[3]||'', p[4]||'');
-                            }
-                        });
-                    }
                 }
 
                 if (mData.inputs) { 
@@ -1698,6 +1677,45 @@ Upon successful completion of this Module, students will have the knowledge and 
                 performSave(false, false);
             }
             isProgrammaticChange = false;
+        }
+
+        // --- SILENT LOAD FIX (Prevents [object Object] error on Export) ---
+        function loadStateSilent(cId, mId) {
+            let course = dbState.courses[cId]; if(!course) return;
+            if (course.programData.inputs) { 
+                for (const [id, valObj] of Object.entries(course.programData.inputs)) { 
+                    let el = document.getElementById(id); 
+                    if (el) { 
+                        if(el.hasAttribute('contenteditable')) {
+                            el.innerText = typeof valObj === 'object' ? valObj.value : valObj;
+                            if(typeof valObj === 'object' && valObj.manual) el.setAttribute('data-manual', valObj.manual);
+                        } else {
+                            el.value = typeof valObj === 'object' ? valObj.value : valObj;
+                        } 
+                    } 
+                } 
+            }
+            if (mId && course.modules[mId]) {
+                let mData = course.modules[mId].moduleData;
+                if(mData.matrixHtml !== undefined) document.getElementById('tbody-matrix').innerHTML = mData.matrixHtml;
+                if(mData.schHtml !== undefined) document.getElementById('tbody-sch').innerHTML = mData.schHtml;
+                if(mData.assessHtml !== undefined) document.getElementById('tbody-assess').innerHTML = mData.assessHtml;
+                
+                if (mData.inputs) { 
+                    for (const [id, valObj] of Object.entries(mData.inputs)) { 
+                        let el = document.getElementById(id); 
+                        if (el) { 
+                            if(el.hasAttribute('contenteditable')) {
+                                el.innerText = typeof valObj === 'object' ? valObj.value : valObj;
+                                if(typeof valObj === 'object' && valObj.manual) el.setAttribute('data-manual', valObj.manual);
+                            } else {
+                                el.value = typeof valObj === 'object' ? valObj.value : valObj;
+                            } 
+                        } 
+                    } 
+                }
+            }
+            recalculateAllRows();
         }
 
         function createNewCourse() {
@@ -1994,7 +2012,6 @@ Upon successful completion of this Module, students will have the knowledge and 
             let devDesig = extractSection(rawText, ["Designation and Office:"], ["E-mail and Contact:"]);
             let devMail = extractSection(rawText, ["E-mail and Contact:"], ["PART D", "Annexes", "12."]);
 
-            // Parse HTML for the 11.9 Schedule Table specifically
             let schData = [];
             let tempDiv = document.createElement('div');
             tempDiv.innerHTML = rawHtml;
@@ -2012,7 +2029,6 @@ Upon successful completion of this Module, students will have the knowledge and 
                 let rows = targetTable.querySelectorAll('tr');
                 for(let i=0; i<rows.length; i++) {
                     let cells = Array.from(rows[i].querySelectorAll('td')).map(td => td.innerText.trim());
-                    // Check if it looks like a data row (starts with a number and has many columns)
                     if(cells.length >= 7 && cells[0].match(/^\d+$/)) { 
                         schData.push({
                             wk: cells[0], top: cells[1], det: cells[2], ped: cells[3], res: cells[4],
@@ -2080,14 +2096,12 @@ Upon successful completion of this Module, students will have the knowledge and 
             semCount = 0; annexCount = 0; f3RowCount = 0;
             addSemesterBlock(); addMatrixRow(); addF3Row();
             
-            // Fill schedule
             if(schData.length > 0) {
                 schData.forEach(r => addSchRow(r.top, r.det, r.res, r.cr, r.lh, r.f2f, r.bf2f, r.bsync, r.basync, r.esync, r.easync)); 
             } else {
                 addSchRow();
             }
 
-            // Fill assessments
             if(assessLines.length > 0) {
                 assessLines.forEach(line => {
                     let parts = line.split('|').map(s=>s.trim());
@@ -2105,100 +2119,7 @@ Upon successful completion of this Module, students will have the knowledge and 
             setTimeout(()=> { document.getElementById('import-success-msg').style.display = 'none'; }, 8000);
         }
 
-        // --- FORM 3 BUILDER ---
-        function addF3Row() {
-            f3RowCount++;
-            const tb = document.getElementById('tbody-f3-details');
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td class="center">${tb.rows.length + 1}</td>
-                <td><select class="form3-input prog-data" id="f3-det-type-${f3RowCount}"><option value="Add">Add</option><option value="Remove">Remove</option><option value="Revise Title">Revise Title</option><option value="Revise Credit">Revise Credit</option></select></td>
-                <td><input type="text" class="form3-input prog-data center" id="f3-det-code-${f3RowCount}"></td>
-                <td><input type="text" class="form3-input prog-data" id="f3-det-title-${f3RowCount}"></td>
-                <td><input type="number" class="form3-input prog-data f3-cr-calc center" id="f3-det-cr-${f3RowCount}" oninput="calcF3Total()"></td>
-                <td><input type="text" class="form3-input prog-data" id="f3-det-rsn-${f3RowCount}"></td>
-            `;
-            tb.appendChild(tr);
-            calcF3Total();
-        }
-
-        function calcF3Total() {
-            let total = 0;
-            document.querySelectorAll('.f3-cr-calc').forEach(inp => {
-                total += Number(inp.value) || 0;
-            });
-            document.getElementById('f3-tot-calc').innerText = total;
-        }
-
-        // --- DATA SYNC ---
-        function performSave(isManual = false, forceLocal = false) {
-            saveCurrentToDB(); 
-            const statusEl = document.getElementById('sync-status-text');
-            const uid = auth.currentUser ? auth.currentUser.uid : 'guest';
-            
-            let payload = { dbState: dbState, activeCourseId: activeCourseId, activeModuleId: activeModuleId, timestamp: new Date().toISOString() };
-            
-            if (navigator.onLine && !forceLocal && userDocRef) {
-                statusEl.innerText = "Saving to Cloud...";
-                userDocRef.set(payload).then(() => {
-                    statusEl.innerText = "Synced to Cloud"; statusEl.parentElement.style.color = "var(--royal-green-light)";
-                    if(isManual) alert("Successfully saved to Cloud Archive!");
-                }).catch(err => { console.error("Cloud save failed", err); saveToLocal(payload, uid, isManual); });
-            } else {
-                saveToLocal(payload, uid, isManual);
-            }
-        }
-
-        function saveToLocal(payload, uid, isManual) {
-            const statusEl = document.getElementById('sync-status-text');
-            localStorage.setItem('rasfahi_archive_' + uid, JSON.stringify(payload));
-            statusEl.innerText = "Saved to Browser (Offline)"; statusEl.parentElement.style.color = "orange";
-            if(isManual) alert("Saved locally to Browser Bank!");
-        }
-
-        window.addEventListener('online', () => {
-            const statusEl = document.getElementById('sync-status-text');
-            statusEl.innerText = "Back Online. Syncing...";
-            const uid = auth.currentUser ? auth.currentUser.uid : 'guest';
-            const localData = localStorage.getItem('rasfahi_archive_' + uid);
-            if (localData && userDocRef) {
-                userDocRef.set(JSON.parse(localData)).then(() => {
-                    statusEl.innerText = "Synced to Cloud"; statusEl.parentElement.style.color = "var(--royal-green-light)";
-                });
-            }
-        });
-
-        window.addEventListener('offline', () => { document.getElementById('sync-status-text').innerText = "Offline Mode"; document.getElementById('sync-status-text').parentElement.style.color = "orange"; });
-
-        function restoreData(uid) {
-            const statusEl = document.getElementById('sync-status-text');
-            statusEl.innerText = "Loading Archive...";
-            if (navigator.onLine && userDocRef) {
-                userDocRef.get().then((doc) => {
-                    if (doc.exists && doc.data().dbState && Object.keys(doc.data().dbState.courses).length > 0) {
-                        dbState = doc.data().dbState; loadStateFromMemory(doc.data().activeCourseId, doc.data().activeModuleId, true);
-                        statusEl.innerText = "Loaded from Cloud"; statusEl.parentElement.style.color = "var(--royal-green-light)";
-                    } else { loadLocal(uid); }
-                }).catch(err => { loadLocal(uid); });
-            } else { loadLocal(uid); }
-        }
-
-        function loadLocal(uid) {
-            const statusEl = document.getElementById('sync-status-text');
-            const localData = localStorage.getItem('rasfahi_archive_' + uid);
-            if (localData) {
-                let data = JSON.parse(localData);
-                if(data.dbState && Object.keys(data.dbState.courses).length > 0) {
-                    dbState = data.dbState; loadStateFromMemory(data.activeCourseId, data.activeModuleId, true);
-                } else { initDefaultDB(); }
-                statusEl.innerText = "Loaded from Browser"; statusEl.parentElement.style.color = "var(--royal-green-light)";
-            } else {
-                initDefaultDB(); statusEl.innerText = "Ready (New Archive)";
-            }
-            isProgrammaticChange = false; 
-        }
-
-        // --- 4. DYNAMIC BUILDERS ---
+        // --- 4. DYNAMIC BUILDERS WITH UNIQUE IDS TO PREVENT DATA OVERWRITE ---
         function addSemesterBlock() {
             semCount++;
             const container = document.getElementById('semesters-container');
@@ -2218,7 +2139,8 @@ Upon successful completion of this Module, students will have the knowledge and 
         }
 
         function addModuleToSem(id) {
-            const tb = document.getElementById(`tbody-sem-${id}`); const rCount = tb.rows.length + 1; const tr = document.createElement('tr');
+            dynSemModCounter++;
+            const tb = document.getElementById(`tbody-sem-${id}`); const rCount = dynSemModCounter; const tr = document.createElement('tr');
             tr.innerHTML = `<td><input type="text" class="rtl-input" style="font-size:1.15rem;" id="dyn_sem_${id}_r${rCount}_1"></td><td><input type="text" class="ltr-input" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_2"></td><td><input type="number" class="ltr-input p-cr" value="0" oninput="calcP(this)" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_3"></td><td><input type="number" class="ltr-input p-th" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_4"></td><td><input type="number" class="ltr-input p-ch" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_5"></td><td><input type="text" class="ltr-input p-wch" value="0" readonly style="font-size:1.1rem; text-align:center; color:var(--royal-blue); font-weight:bold;" id="dyn_sem_${id}_r${rCount}_6"></td><td><button class="btn-danger" onclick="deleteRow(this); recalculateAllRows();"><i class="fas fa-times"></i></button></td>`;
             tb.appendChild(tr);
         }
@@ -2275,46 +2197,50 @@ Upon successful completion of this Module, students will have the knowledge and 
         }
 
         function addMatrixRow() {
-            const tb = document.getElementById('tbody-matrix'); const rCount = tb.rows.length + 1; const tr = document.createElement('tr');
-            tr.innerHTML = `<td><textarea class="rtl-input" rows="2" id="dyn_mat_${rCount}_1"></textarea></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${rCount}_2"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${rCount}_3"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${rCount}_4"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${rCount}_5"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${rCount}_6"></td><td><button class="btn-danger" onclick="deleteRow(this)"><i class="fas fa-times"></i></button></td>`;
+            dynMatCounter++;
+            const tb = document.getElementById('tbody-matrix'); const c = dynMatCounter; const tr = document.createElement('tr');
+            tr.innerHTML = `<td><textarea class="rtl-input" rows="2" id="dyn_mat_${c}_1"></textarea></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${c}_2"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${c}_3"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${c}_4"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${c}_5"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${c}_6"></td><td><button class="btn-danger" onclick="deleteRow(this)"><i class="fas fa-times"></i></button></td>`;
             tb.appendChild(tr);
         }
 
         function addAssessRow(title='', details='', form='', length='', weight='') {
+            dynAssCounter++;
             const tb = document.getElementById('tbody-assess'); 
+            const c = dynAssCounter;
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="center" style="vertical-align: middle;">${tb.rows.length + 1}</td>
-                <td><input type="text" class="ltr-input mod-data" style="font-weight:bold; color:var(--danger);" value="${title}"></td>
-                <td><textarea class="rtl-input mod-data" rows="2">${details}</textarea></td>
-                <td><input type="text" class="ltr-input mod-data" style="font-style:italic;" value="${form}"></td>
-                <td><input type="text" class="ltr-input mod-data" value="${length}"></td>
-                <td><input type="text" class="ltr-input mod-data" value="${weight}"></td>
+                <td><input type="text" class="ltr-input mod-data" style="font-weight:bold; color:var(--danger);" value="${title}" id="dyn_ass_${c}_1"></td>
+                <td><textarea class="rtl-input mod-data" rows="2" id="dyn_ass_${c}_2">${details}</textarea></td>
+                <td><input type="text" class="ltr-input mod-data" style="font-style:italic;" value="${form}" id="dyn_ass_${c}_3"></td>
+                <td><input type="text" class="ltr-input mod-data" value="${length}" id="dyn_ass_${c}_4"></td>
+                <td><input type="text" class="ltr-input mod-data" value="${weight}" id="dyn_ass_${c}_5"></td>
                 <td style="vertical-align: middle;"><button class="btn-danger" onclick="deleteRow(this)"><i class="fas fa-times"></i></button></td>
             `;
             tb.appendChild(tr);
         }
 
         function addSchRow(top="", det="", res="", cr="0", lh="0", f2f="0", bf2f="0", bsync="0", basync="0", esync="0", easync="0") {
-            const tb = document.getElementById('tbody-sch'); const c = tb.rows.length + 1; const tr = document.createElement('tr');
-            tr.innerHTML = `<td><input type="text" class="ltr-input" value="${c}" style="text-align:center; width:40px;" id="dyn_sch_${c}_0"></td>
-            <td><textarea class="rtl-input" rows="3" id="dyn_sch_${c}_1">${top}</textarea></td>
-            <td><textarea class="rtl-input" rows="3" id="dyn_sch_${c}_2">${det}</textarea></td>
-            <td><textarea class="rtl-input" rows="3" id="dyn_sch_${c}_3">ޙަރަކާތް: ކްލާހުގައި ދަރިވަރުން...</textarea></td>
-            <td><textarea class="ltr-input" rows="3" id="dyn_sch_${c}_4">${res}</textarea></td>
-            <td><input type="number" class="ltr-input sch-cr" value="${cr}" style="text-align:center;" oninput="calcRowLh(this); calcT()" id="dyn_sch_${c}_5"></td>
-            <td><input type="number" class="ltr-input sch-lh" value="${lh}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_6"></td>
-            <td><input type="number" class="ltr-input sch-f2f" value="${f2f}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_7"></td>
-            <td><input type="number" class="ltr-input sch-bf2f" value="${bf2f}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_8"></td>
-            <td><input type="number" class="ltr-input sch-bsync" value="${bsync}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_9"></td>
-            <td><input type="number" class="ltr-input sch-basync" value="${basync}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_10"></td>
-            <td><input type="number" class="ltr-input sch-esync" value="${esync}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_11"></td>
-            <td><input type="number" class="ltr-input sch-easync" value="${easync}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_12"></td>
+            dynSchCounter++;
+            const tb = document.getElementById('tbody-sch'); const c = dynSchCounter; const rowNum = tb.rows.length + 1; const tr = document.createElement('tr');
+            // Adding explicit .mod-data to all dynamic schedule inputs ensures they get saved flawlessly and survive reloading.
+            tr.innerHTML = `<td><input type="text" class="ltr-input mod-data" value="${rowNum}" style="text-align:center; width:40px;" id="dyn_sch_${c}_0"></td>
+            <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_1">${top}</textarea></td>
+            <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_2">${det}</textarea></td>
+            <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_3">ޙަރަކާތް: ކްލާހުގައި ދަރިވަރުން...</textarea></td>
+            <td><textarea class="ltr-input mod-data" rows="3" id="dyn_sch_${c}_4">${res}</textarea></td>
+            <td><input type="number" class="ltr-input sch-cr mod-data" value="${cr}" style="text-align:center;" oninput="calcRowLh(this); calcT()" id="dyn_sch_${c}_5"></td>
+            <td><input type="number" class="ltr-input sch-lh mod-data" value="${lh}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_6"></td>
+            <td><input type="number" class="ltr-input sch-f2f mod-data" value="${f2f}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_7"></td>
+            <td><input type="number" class="ltr-input sch-bf2f mod-data" value="${bf2f}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_8"></td>
+            <td><input type="number" class="ltr-input sch-bsync mod-data" value="${bsync}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_9"></td>
+            <td><input type="number" class="ltr-input sch-basync mod-data" value="${basync}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_10"></td>
+            <td><input type="number" class="ltr-input sch-esync mod-data" value="${esync}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_11"></td>
+            <td><input type="number" class="ltr-input sch-easync mod-data" value="${easync}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_12"></td>
             <td><button class="btn-danger" onclick="deleteRow(this); calcT();"><i class="fas fa-times"></i></button></td>`;
             tb.appendChild(tr); calcT();
         }
 
-        // ކްރެޑިޓް ޖެހުމުން އޮޓޯއިން ލަރނިންގ އަވާސް (ކްރެޑިޓް x 10) ހަދައިދޭ ފަންކްޝަން
         function calcRowLh(inputElem) {
             let row = inputElem.closest('tr');
             let cr = parseFloat(inputElem.value) || 0;
@@ -2324,7 +2250,6 @@ Upon successful completion of this Module, students will have the knowledge and 
             }
         }
 
-        // ހުރިހާ ގޮޅިއެއްގެ ޓޯޓަލް އެންމެ ތިރިއަށް ގެނެސްދޭ ފަންކްޝަން
         function calcT() {
             let cols = ['cr', 'lh', 'f2f', 'bf2f', 'bsync', 'basync', 'esync', 'easync'];
             cols.forEach(col => { 
@@ -2335,6 +2260,32 @@ Upon successful completion of this Module, students will have the knowledge and 
                     el.innerText = Math.round(total * 100) / 100; 
                 }
             });
+        }
+
+        // --- FORM 3 BUILDER ---
+        function addF3Row() {
+            dynF3Counter++;
+            f3RowCount++;
+            const tb = document.getElementById('tbody-f3-details');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="center">${tb.rows.length + 1}</td>
+                <td><select class="form3-input prog-data" id="f3-det-type-${dynF3Counter}"><option value="Add">Add</option><option value="Remove">Remove</option><option value="Revise Title">Revise Title</option><option value="Revise Credit">Revise Credit</option></select></td>
+                <td><input type="text" class="form3-input prog-data center" id="f3-det-code-${dynF3Counter}"></td>
+                <td><input type="text" class="form3-input prog-data" id="f3-det-title-${dynF3Counter}"></td>
+                <td><input type="number" class="form3-input prog-data f3-cr-calc center" id="f3-det-cr-${dynF3Counter}" oninput="calcF3Total()"></td>
+                <td><input type="text" class="form3-input prog-data" id="f3-det-rsn-${dynF3Counter}"></td>
+            `;
+            tb.appendChild(tr);
+            calcF3Total();
+        }
+
+        function calcF3Total() {
+            let total = 0;
+            document.querySelectorAll('.f3-cr-calc').forEach(inp => {
+                total += Number(inp.value) || 0;
+            });
+            document.getElementById('f3-tot-calc').innerText = total;
         }
 
         // --- 5. EXPORT STYLES (Strict Black & White, Proper Word RTL, Break Elements) ---
@@ -2393,7 +2344,8 @@ Upon successful completion of this Module, students will have the knowledge and 
                     <tr><td>Name</td><td>${document.getElementById('f3-sum-name-c').value}</td><td>${document.getElementById('f3-sum-name-r').value}</td><td>${document.getElementById('f3-sum-name-rs').value}</td></tr>
                     <tr><td>Total Credits</td><td>${document.getElementById('f3-sum-cred-c').value}</td><td>${document.getElementById('f3-sum-cred-r').value}</td><td>${document.getElementById('f3-sum-cred-rs').value}</td></tr>
                     <tr><td>Number of modules for credit revision</td><td>${document.getElementById('f3-sum-modcr-c').value}</td><td>${document.getElementById('f3-sum-modcr-r').value}</td><td>${document.getElementById('f3-sum-modcr-rs').value}</td></tr>
-                    <tr><td>Add Exit Point</td><td>${document.getElementById('f3-sum-exit-c').value}</td><td>${document.getElementById('f3-sum-exit-r').value}</td><td>${document.getElementById('f3-sum-exit-rs').value}</td></tr>
+                    <tr><td>Add Exit Point</td><td>${document.getElementById('f3-sum-exit-c').value}</td><td>${document.getElementById('f3-sum-exit-r').value}</td><td>${document.getElementById
+('f3-sum-exit-rs').value}</td></tr>
                     <tr><td>Duration</td><td>${document.getElementById('f3-sum-dur-c').value}</td><td>${document.getElementById('f3-sum-dur-r').value}</td><td>${document.getElementById('f3-sum-dur-rs').value}</td></tr>
                     <tr><td>Add new modules</td><td>${document.getElementById('f3-sum-addmod-c').value}</td><td>${document.getElementById('f3-sum-addmod-r').value}</td><td>${document.getElementById('f3-sum-addmod-rs').value}</td></tr>
                     <tr><td>Remove Modules</td><td>${document.getElementById('f3-sum-remmod-c').value}</td><td>${document.getElementById('f3-sum-remmod-r').value}</td><td>${document.getElementById('f3-sum-remmod-rs').value}</td></tr>
@@ -2925,19 +2877,6 @@ Upon successful completion of this Module, students will have the knowledge and 
             return html;
         }
 
-        function loadStateSilent(cId, mId) {
-            let course = dbState.courses[cId]; if(!course) return;
-            if (course.programData.inputs) { for (const [id, value] of Object.entries(course.programData.inputs)) { let el = document.getElementById(id); if (el) { if(el.hasAttribute('contenteditable')) el.innerText = value; else el.value = value; } } }
-            if (mId && course.modules[mId]) {
-                let mData = course.modules[mId].moduleData;
-                if(mData.matrixHtml !== undefined) document.getElementById('tbody-matrix').innerHTML = mData.matrixHtml;
-                if(mData.schHtml !== undefined) document.getElementById('tbody-sch').innerHTML = mData.schHtml;
-                if(mData.assessHtml !== undefined) document.getElementById('tbody-assess').innerHTML = mData.assessHtml;
-                if (mData.inputs) { for (const [id, value] of Object.entries(mData.inputs)) { let el = document.getElementById(id); if (el) { if(el.hasAttribute('contenteditable')) el.innerText = value; else el.value = value; } } }
-            }
-            recalculateAllRows();
-        }
-
         function buildFullProgramHTML() {
             saveCurrentToDB();
             let originalModId = activeModuleId; let originalCourseId = activeCourseId;
@@ -3108,6 +3047,39 @@ Upon successful completion of this Module, students will have the knowledge and 
                 <table border="1" cellpadding="8"><tr><td class="bg-gray" width="8%">11.12</td><td class="bg-gray">Course Materials (Required/Recommended)</td></tr><tr><td colspan="2" class="rtl-p">ކިޔަވައިދިނުމަށް ބޭނުންކުރާނެ މައިގަނޑު ފޮތްތަކާއި ނޯޓުތައް.</td></tr></table><div class="table-separator">&nbsp;</div>
                 <table border="1" cellpadding="8"><tr><td class="bg-gray" width="8%">11.13</td><td class="bg-gray">Teaching and Learning Methods</td></tr><tr><td colspan="2" class="rtl-p">ކްލާހުގައި ދޭ ލެކްޗަރތައް.</td></tr></table><div class="table-separator">&nbsp;</div>
                 <table border="1" cellpadding="8"><tr><td class="bg-gray" width="8%">11.14</td><td class="bg-gray">Additional Information</td></tr><tr><td colspan="2" class="rtl-p">މި މާއްދާ ފުރިހަމަކުރުމަށް ކަނޑައެޅިފައިވާ ޢަމަލީ ގަޑިތަކުގައި ދަރިވަރުންގެ ޙާޟިރީ 100% ފުރިހަމަ ކުރަންޖެހޭނެއެވެ.</td></tr></table>
+            </div>`;
+        }
+
+        function buildSampleStructureHTML() {
+            return `
+            <div class="export-wrapper">
+                <h3 style="margin-top:0;">10. Program Structure Summary</h3>
+                <h4 style="margin-top:20px; font-size:14pt;">Semester 1</h4>
+                <table border="1" cellpadding="6">
+                    <tr><th class="bg-gray">Module Title</th><th class="bg-gray">Code</th><th class="bg-gray">Credits</th><th class="bg-gray">Learning Hrs</th><th class="bg-gray">Contact Hrs</th><th class="bg-gray">Weekly Hrs</th></tr>
+                    <tr><td class="rtl-p">دروس اللغة العربية (1)</td><td class="center">ARA5001</td><td class="center">15</td><td class="center">150</td><td class="center">50</td><td class="center">3.3</td></tr>
+                    <tr><td colspan="2" class="bg-gray" style="text-align:right;">SEM TOTALS:</td><td class="bg-gray center">15</td><td class="bg-gray center">150</td><td class="bg-gray center">50</td><td class="bg-gray center">3.3</td></tr>
+                    <tr><td colspan="2" class="bg-gray" style="text-align:right; font-size:11pt; background-color:#cbd5e1 !important; color:#0f172a !important;">CUMULATIVE GRAND TOTAL:</td><td class="bg-gray center" style="font-size:11pt; background-color:#cbd5e1 !important; color:#0f172a !important;">15</td><td class="bg-gray center" style="font-size:11pt; background-color:#cbd5e1 !important; color:#0f172a !important;">150</td><td class="bg-gray center" style="font-size:11pt; background-color:#cbd5e1 !important; color:#0f172a !important;">50</td><td class="bg-gray center" style="background-color:#cbd5e1 !important;">-</td></tr>
+                </table>
+            </div>`;
+        }
+
+        function buildSampleForm3HTML() {
+            return `
+            <div class="export-wrapper">
+                <div style="text-align:center; margin-bottom: 30px;">
+                    <img src="https://raw.githubusercontent.com/alibrahimdidi/iumlogo/main/ium.png" alt="IUM Logo" style="max-width: 300px; height: auto;">
+                </div>
+                <h1 class="center" style="font-size: 20pt; border:none; margin-top:0; page-break-before: avoid;">Revision of Existing Programmes (Form 3)</h1>
+                <p style="margin-bottom:30px;"><i>This form can be submitted to the Curriculum Committee once the Kulliyya has completed the information stated in this form.</i></p>
+                <table border="1" cellpadding="8">
+                    <tr><td colspan="2" class="bg-gray center">Name of the Program Proposed for Revision</td></tr>
+                    <tr><td width="40%">Name of Kulliyya:</td><td>Kulliyyah of Arabic Language</td></tr>
+                    <tr><td>Program Name:</td><td>Diploma in Teaching Arabic Language</td></tr>
+                    <tr><td>MNQF Level:</td><td>Level 5</td></tr>
+                    <tr><td>Total Credits:</td><td>120</td></tr>
+                    <tr><td>Standard Duration:</td><td>1 Year</td></tr>
+                </table>
             </div>`;
         }
 
