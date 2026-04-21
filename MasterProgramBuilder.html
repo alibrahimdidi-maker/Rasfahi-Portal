@@ -1857,6 +1857,74 @@ Upon successful completion of this Module, students will have the knowledge and 
             list.innerHTML = html;
         }
 
+        // --- DATA SYNC ---
+        function performSave(isManual = false, forceLocal = false) {
+            saveCurrentToDB(); 
+            const statusEl = document.getElementById('sync-status-text');
+            const uid = auth.currentUser ? auth.currentUser.uid : 'guest';
+            
+            let payload = { dbState: dbState, activeCourseId: activeCourseId, activeModuleId: activeModuleId, timestamp: new Date().toISOString() };
+            
+            if (navigator.onLine && !forceLocal && userDocRef) {
+                statusEl.innerText = "Saving to Cloud...";
+                userDocRef.set(payload).then(() => {
+                    statusEl.innerText = "Synced to Cloud"; statusEl.parentElement.style.color = "var(--royal-green-light)";
+                    if(isManual) alert("Successfully saved to Cloud Archive!");
+                }).catch(err => { console.error("Cloud save failed", err); saveToLocal(payload, uid, isManual); });
+            } else {
+                saveToLocal(payload, uid, isManual);
+            }
+        }
+
+        function saveToLocal(payload, uid, isManual) {
+            const statusEl = document.getElementById('sync-status-text');
+            localStorage.setItem('rasfahi_archive_' + uid, JSON.stringify(payload));
+            statusEl.innerText = "Saved to Browser (Offline)"; statusEl.parentElement.style.color = "orange";
+            if(isManual) alert("Saved locally to Browser Bank!");
+        }
+
+        window.addEventListener('online', () => {
+            const statusEl = document.getElementById('sync-status-text');
+            statusEl.innerText = "Back Online. Syncing...";
+            const uid = auth.currentUser ? auth.currentUser.uid : 'guest';
+            const localData = localStorage.getItem('rasfahi_archive_' + uid);
+            if (localData && userDocRef) {
+                userDocRef.set(JSON.parse(localData)).then(() => {
+                    statusEl.innerText = "Synced to Cloud"; statusEl.parentElement.style.color = "var(--royal-green-light)";
+                });
+            }
+        });
+
+        window.addEventListener('offline', () => { document.getElementById('sync-status-text').innerText = "Offline Mode"; document.getElementById('sync-status-text').parentElement.style.color = "orange"; });
+
+        function restoreData(uid) {
+            const statusEl = document.getElementById('sync-status-text');
+            statusEl.innerText = "Loading Archive...";
+            if (navigator.onLine && userDocRef) {
+                userDocRef.get().then((doc) => {
+                    if (doc.exists && doc.data().dbState && Object.keys(doc.data().dbState.courses).length > 0) {
+                        dbState = doc.data().dbState; loadStateFromMemory(doc.data().activeCourseId, doc.data().activeModuleId, true);
+                        statusEl.innerText = "Loaded from Cloud"; statusEl.parentElement.style.color = "var(--royal-green-light)";
+                    } else { loadLocal(uid); }
+                }).catch(err => { loadLocal(uid); });
+            } else { loadLocal(uid); }
+        }
+
+        function loadLocal(uid) {
+            const statusEl = document.getElementById('sync-status-text');
+            const localData = localStorage.getItem('rasfahi_archive_' + uid);
+            if (localData) {
+                let data = JSON.parse(localData);
+                if(data.dbState && Object.keys(data.dbState.courses).length > 0) {
+                    dbState = data.dbState; loadStateFromMemory(data.activeCourseId, data.activeModuleId, true);
+                } else { initDefaultDB(); }
+                statusEl.innerText = "Loaded from Browser"; statusEl.parentElement.style.color = "var(--royal-green-light)";
+            } else {
+                initDefaultDB(); statusEl.innerText = "Ready (New Archive)";
+            }
+            isProgrammaticChange = false; 
+        }
+
         // --- BACKUP / IMPORT LOGIC ---
         function exportDatabase() {
             saveCurrentToDB();
@@ -2998,73 +3066,6 @@ Upon successful completion of this Module, students will have the knowledge and 
                     <tr><td>1</td><td class="rtl-p" style="font-size:11pt;">އިމާމުކަމާއި ބަންގިއާއި ޤަމަތުގެ ފިޤުހު</td><td class="rtl-p" style="font-size:11pt;">ބަންގިއާއި ޤަމަތުގެ ޙުކުމްތައް...</td><td class="rtl-p" style="font-size:11pt;">1. Group activities</td><td style="text-align:left; font-size:10pt;">Handouts</td><td>3</td><td>30</td><td style="background:#e2efda !important;">15</td><td style="background:#ddebf7 !important;">5</td><td style="background:#ddebf7 !important;">5</td><td style="background:#ddebf7 !important;">5</td><td style="background:#fff2cc !important;">9</td><td style="background:#fff2cc !important;">6</td></tr>
                     <tr><td colspan="5" class="bg-gray" style="text-align:right;">TOTAL</td><td class="bg-gray">3</td><td class="bg-gray">30</td><td class="bg-gray">15</td><td class="bg-gray">5</td><td class="bg-gray">5</td><td class="bg-gray">5</td><td class="bg-gray">9</td><td class="bg-gray">6</td></tr>
                 </table>
-                <div class="table-separator">&nbsp;</div>
-
-                <table border="1" cellpadding="8" style="width:100%; border-collapse: collapse;">
-                    <tr>
-                        <td class="bg-gray" width="15%" valign="top"><b>11.10</b></td>
-                        <td class="bg-gray" valign="top"><b>Assessment Methods and Grading Criteria</b></td>
-                    </tr>
-                    <tr>
-                        <td class="bg-gray" valign="top" style="vertical-align: top;"><b>Assessment Methods</b></td>
-                        <td valign="top" style="vertical-align: top;">
-                            <div style="margin-bottom: 15px;">
-                                <i>Assessment Methods for Face-to-Face Delivery, Blended and E-Learning Modality</i><br><br>
-                                <i>The students are required to obtain 50% in each controlled assessment component to achieve a pass</i><br><br>
-                                <i>In E-learning and Blended modality all final exams will be conducted face-face under the supervision of invigilators</i><br><br>
-                                <b>Continuous Assessments: </b> <span style="color:#991B1B; font-weight:bold;">40%</span><br><br>
-                                <b>Final Exam: </b> <span style="color:#991B1B; font-weight:bold;">60%</span>
-                            </div>
-                            <table border="1" cellpadding="6" style="width:100%; border-collapse: collapse; text-align:center;">
-                                <tr class="bg-gray">
-                                    <td width="5%">#</td>
-                                    <td width="25%">Assessment Task Title</td>
-                                    <td width="35%">Details</td>
-                                    <td width="15%">Form of Assessment</td>
-                                    <td width="10%">Length or Word Limit</td>
-                                    <td width="10%">Weightage %</td>
-                                </tr>
-                                <tr>
-                                    <td>1</td>
-                                    <td style="font-weight:bold; text-align:left; color:#991B1B;">Written assignment</td>
-                                    <td class="rtl-p" style="text-align:right;">ކަށުކަމާކެމީގެ ޒަމާނީ މައްސަލައަކާ ގުޅޭގޮތުން ދިރާސީ ކަރުދާހެއް ލިޔުން.</td>
-                                    <td style="color:#991B1B; font-style:italic;">Uncontrolled</td>
-                                    <td style="color:#991B1B;">2000 words</td>
-                                    <td style="color:#991B1B;">30%</td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="bg-gray" valign="top" style="vertical-align: top;"><b>Grading Criteria</b></td>
-                        <td valign="top" class="center" style="vertical-align: top; text-align: center;">
-                            <table border="1" cellpadding="6" style="width:70%; margin: 0 auto; border-collapse: collapse; text-align:center;">
-                                <tr class="bg-gray">
-                                    <td>SCORE</td>
-                                    <td>DESCRIPTION</td>
-                                    <td class="rtl-p center">التفصيل</td>
-                                    <td>GPA</td>
-                                    <td>GRADE</td>
-                                </tr>
-                                <tr><td>85-100</td><td>High Distinction</td><td class="rtl-p center">ممتاز</td><td>4.0</td><td>HD</td></tr>
-                                <tr><td>75-84</td><td>Distinction</td><td class="rtl-p center">جيد جدا</td><td>3.0</td><td>DN</td></tr>
-                                <tr><td>65-74</td><td>Credit</td><td class="rtl-p center">جيد</td><td>2.0</td><td>CR</td></tr>
-                                <tr><td>50-64</td><td>Pass</td><td class="rtl-p center">مقبول</td><td>1.0</td><td>PP</td></tr>
-                                <tr><td>45-49</td><td>Fail Conditional</td><td class="rtl-p center">راسب مشروط</td><td>0.0</td><td>FC</td></tr>
-                                <tr><td>00-49</td><td>Fail</td><td class="rtl-p center">راسب</td><td>0.0</td><td>FF</td></tr>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
-                <div class="table-separator">&nbsp;</div>
-                <table border="1" cellpadding="8">
-                    <tr><td class="bg-gray" width="8%">11.11</td><td colspan="2" class="bg-gray">List of Reference Materials (in APA format)</td></tr>
-                    <tr><td colspan="3" class="rtl-p"><div style="direction:ltr; text-align:left; font-weight:bold; font-family:sans-serif;">Core Texts:</div><ul style="margin-right:30px; margin-bottom:20px;"><li>سابق ، السيد . (2013). فقه السنة</li></ul></td></tr>
-                </table>
-                <div class="table-separator">&nbsp;</div>
-                <table border="1" cellpadding="8"><tr><td class="bg-gray" width="8%">11.12</td><td class="bg-gray">Course Materials (Required/Recommended)</td></tr><tr><td colspan="2" class="rtl-p">ކިޔަވައިދިނުމަށް ބޭނުންކުރާނެ މައިގަނޑު ފޮތްތަކާއި ނޯޓުތައް.</td></tr></table><div class="table-separator">&nbsp;</div>
-                <table border="1" cellpadding="8"><tr><td class="bg-gray" width="8%">11.13</td><td class="bg-gray">Teaching and Learning Methods</td></tr><tr><td colspan="2" class="rtl-p">ކްލާހުގައި ދޭ ލެކްޗަރތައް.</td></tr></table><div class="table-separator">&nbsp;</div>
-                <table border="1" cellpadding="8"><tr><td class="bg-gray" width="8%">11.14</td><td class="bg-gray">Additional Information</td></tr><tr><td colspan="2" class="rtl-p">މި މާއްދާ ފުރިހަމަކުރުމަށް ކަނޑައެޅިފައިވާ ޢަމަލީ ގަޑިތަކުގައި ދަރިވަރުންގެ ޙާޟިރީ 100% ފުރިހަމަ ކުރަންޖެހޭނެއެވެ.</td></tr></table>
             </div>`;
         }
 
