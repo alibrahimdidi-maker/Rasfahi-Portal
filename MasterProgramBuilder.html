@@ -2043,7 +2043,7 @@ Upon successful completion of this Module, students will have the knowledge and 
             return cleanText(searchArea.substring(0, endIndex));
         }
 
-        function parseWordToForms(rawText, rawHtml) {
+function parseWordToForms(rawText, rawHtml) {
             let tempDiv = document.createElement('div');
             tempDiv.innerHTML = rawHtml;
             let data = {};
@@ -2052,7 +2052,6 @@ Upon successful completion of this Module, students will have the knowledge and 
             // 1. EXTRACT PROGRAM DATA (PART A & B)
             // ----------------------------------------------------
             
-            // Try to extract Institution Name
             data.aInst = extractSection(rawText, ["Institution Name:", "Name of HEI:", "HEI Name:"], ["1. Institutional Capacity", "Program Name:", "Programme Outline"]);
             if (!data.aInst) data.aInst = "ޒާދް އެކަޑެމީ"; // Fallback
 
@@ -2112,9 +2111,15 @@ Upon successful completion of this Module, students will have the knowledge and 
             let tds = Array.from(tempDiv.querySelectorAll('td'));
             
             function getNextCell(idx) {
-                for(let j = idx + 1; j < tds.length && j <= idx + 3; j++) {
+                // Fixed: Allow parsing up to 4 cells ahead and handle "students will be able to" correctly.
+                for(let j = idx + 1; j < tds.length && j <= idx + 4; j++) {
                     let txt = tds[j].innerText.trim();
-                    if(txt !== "" && !txt.match(/^11\.\d+$/) && !txt.toLowerCase().includes("students will be able to")) {
+                    if(txt !== "" && !txt.match(/^11\.\d+$/)) {
+                        // Strip out the boilerplate text from Learning Outcomes so the actual points load
+                        if (txt.toLowerCase().includes("students will be able to")) {
+                            let parts = txt.split(/:/);
+                            if (parts.length > 1) return cleanText(parts.slice(1).join(':'));
+                        }
                         return cleanText(txt);
                     }
                 }
@@ -2158,37 +2163,47 @@ Upon successful completion of this Module, students will have the knowledge and 
                 if (txt.includes("expected learning outcomes") || txt === "11.8 expected learning outcomes") {
                     if(!data.mOutcomes) data.mOutcomes = getNextCell(i);
                 }
-                
-                // ފާހަގަކުރެވޭ: 11.11 References އަށް td ލޫޕް ބޭނުންކުރުން ހުއްޓާލާފައި ސީދާ rawText އިން ނަގާގޮތަށް ވަނީ ބަދަލުކުރެވިފައި
 
-                if (txt.includes("course materials") || txt.includes("11.12")) {
+                // Properly parse Materials, Pedagogy and Info
+                if (txt.includes("course materials") || txt === "11.12 course materials") {
                     if(!data.cMat) data.cMat = getNextCell(i);
                 }
-                if (txt.includes("teaching and learning methods") || txt.includes("11.13")) {
+                if (txt.includes("teaching and learning methods") || txt === "11.13 teaching and learning methods") {
                     if(!data.cTeach) data.cTeach = getNextCell(i);
                 }
-                if (txt.includes("additional information") || txt.includes("11.14")) {
+                if (txt.includes("additional information") || txt === "11.14 additional information") {
                     if(!data.cAdd) data.cAdd = getNextCell(i);
                 }
-                if (txt.includes("full name")) {
+
+                // Fixed Developer Info Extraction
+                if (txt === "full name" || txt === "full name:" || txt.includes("full name:")) {
                     let parts = rawTxt.split(/full name:?/i);
                     if(parts.length > 1 && parts[1].trim()) data.devName = cleanText(parts[1]);
                     else if(!data.devName) data.devName = getNextCell(i);
                 }
-                if (txt.includes("highest qualification")) {
+                if (txt === "highest qualification" || txt === "highest qualification:" || txt.includes("highest qualification:")) {
                     let parts = rawTxt.split(/highest qualification:?/i);
                     if(parts.length > 1 && parts[1].trim()) data.devQual = cleanText(parts[1]);
                     else if(!data.devQual) data.devQual = getNextCell(i);
                 }
-                if (txt.includes("designation")) {
+                if (txt === "designation and office" || txt === "designation" || txt.includes("designation:") || txt.includes("designation and office:")) {
                     let parts = rawTxt.split(/designation.*?:?/i);
                     if(parts.length > 1 && parts[1].trim()) data.devDesig = cleanText(parts[1]);
                     else if(!data.devDesig) data.devDesig = getNextCell(i);
                 }
-                if (txt.includes("e-mail")) {
+                if (txt === "e-mail and contact" || txt === "e-mail" || txt.includes("e-mail:") || txt.includes("e-mail and contact:")) {
                     let parts = rawTxt.split(/e-mail.*?:?/i);
                     if(parts.length > 1 && parts[1].trim()) data.devMail = cleanText(parts[1]);
                     else if(!data.devMail) data.devMail = getNextCell(i);
+                }
+
+                // Catch References if they are inside a single TD (MQA format standard)
+                if (txt.includes("core texts:") && txt.includes("additional reference")) {
+                    let refParts = rawTxt.split(/Additional Reference[s]?:?/i);
+                    if (refParts.length > 1) {
+                        data.refCore = cleanText(refParts[0].replace(/Core Texts:?/i, ''));
+                        data.refAdd = cleanText(refParts[1]);
+                    }
                 }
             }
 
@@ -2229,26 +2244,30 @@ Upon successful completion of this Module, students will have the knowledge and 
                     });
                 }
                 
-                // Assessment Table
+                // Assessment Table Fixed Match
                 if(tText.includes("assessment task title") || tText.includes("weightage")) {
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
                         let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
-                        if(cells.length >= 5 && cells[0].match(/^\d+$/)) {
-                            data.assessData.push(cells);
+                        if(cells.length >= 5 && !cells[0].toLowerCase().includes("assessment task")) {
+                            let isNumber = cells[0].match(/^\d+$/);
+                            let hasPercent = cells.some(c => c.includes('%'));
+                            if (isNumber || hasPercent || cells.length >= 6) {
+                                data.assessData.push(cells);
+                            }
                         }
                     });
                 }
             });
 
-            // Grading/Assessment Percentages (from rawText)
-            let caMatch = rawText.match(/Continuous Assessments.*?(\d+%?)/i);
-            data.caPer = caMatch ? caMatch[1] : "40%";
-            let feMatch = rawText.match(/Final Exam.*?(\d+%?)/i);
-            data.fePer = feMatch ? feMatch[1] : "60%";
+            // Grading/Assessment Percentages (More robust Regex)
+            let caMatch = rawText.match(/Continuous Assessments[\s\S]{0,20}?(\d{1,3}\s*%)/i);
+            data.caPer = caMatch ? caMatch[1].trim() : "40%";
+            let feMatch = rawText.match(/Final Exam[\s\S]{0,20}?(\d{1,3}\s*%)/i);
+            data.fePer = feMatch ? feMatch[1].trim() : "60%";
 
             // ----------------------------------------------------
-            // 4. APPLY FALLBACKS IF CELLS MISSED ANYTHING (މިބައި ވަރަށް މުހިންމު)
+            // 4. APPLY FALLBACKS IF CELLS MISSED ANYTHING
             // ----------------------------------------------------
             if (!data.mName) data.mName = extractSection(rawText, ["11.1 Module Name", "Module Name", "11.1"], ["Module Description", "11.2"]);
             if (!data.mDesc) data.mDesc = extractSection(rawText, ["Module Description"], ["11.2", "Module Code"]);
@@ -2258,19 +2277,15 @@ Upon successful completion of this Module, students will have the knowledge and 
             if (!data.mMeth) data.mMeth = extractSection(rawText, ["Methods of Delivery"], ["11.5", "Minimum Qualification"]);
             if (!data.mQual) data.mQual = extractSection(rawText, ["Minimum Qualification"], ["11.6", "Prerequisite"]);
             
-            // 11.8 Expected Learning Outcomes (އިތުރު ޢިބާރާތްތައް ނުހިމެނޭގޮތަށް ބަދަލުކުރެވިފައި)
             if (!data.mOutcomes) data.mOutcomes = extractSection(rawText, ["students will be able to:"], ["Subjects/modules", "11.9"]);
             
-            // 11.11 References (ސީދާ rawText އިން ފޯމަށް ނެގޭގޮތަށް ބަދަލުކުރެވިފައި)
             if (!data.refCore) data.refCore = extractSection(rawText, ["Core Texts:"], ["Additional Reference:"]);
             if (!data.refAdd) data.refAdd = extractSection(rawText, ["Additional Reference:"], ["11.12", "Course Materials"]);
 
-            // 11.12, 11.13, 11.14 (Fallback އަށް އިތުރުކުރެވިފައި)
             if (!data.cMat) data.cMat = extractSection(rawText, ["11.12 Course Materials", "Course Materials (Required/Recommended)", "Course Materials"], ["11.13", "Teaching and Learning"]);
             if (!data.cTeach) data.cTeach = extractSection(rawText, ["11.13 Teaching and Learning", "Teaching and Learning Methods"], ["11.14", "Additional Information"]);
             if (!data.cAdd) data.cAdd = extractSection(rawText, ["11.14 Additional Information", "Additional Information"], ["Developed by", "Full name:"]);
 
-            // Developer Info (Fallback އަށް އިތުރުކުރެވިފައި)
             if (!data.devName) data.devName = extractSection(rawText, ["Full name:"], ["Highest Qualification:"]);
             if (!data.devQual) data.devQual = extractSection(rawText, ["Highest Qualification:"], ["Designation and Office:", "Designation:"]);
             if (!data.devDesig) data.devDesig = extractSection(rawText, ["Designation and Office:", "Designation:"], ["E-mail and Contact:", "E-mail:"]);
