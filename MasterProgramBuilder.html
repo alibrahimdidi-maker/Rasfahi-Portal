@@ -1720,10 +1720,14 @@ Upon successful completion of this Module, students will have the knowledge and 
 
         function createNewCourse() {
             saveCurrentToDB();
+            
             let nCid = "c_" + Date.now(); let nMid = "m_" + Date.now();
             dbState.courses[nCid] = { id: nCid, name: "New Blank Program", programData: { inputs: {}, sCount: 0, aCount: 0, f3Count:0 }, modules: {} };
             dbState.courses[nCid].modules[nMid] = { id: nMid, name: "New Module", code: "MOD01", moduleData: { inputs: {} } };
             
+            activeCourseId = nCid;
+            activeModuleId = nMid;
+
             isProgrammaticChange = true;
             document.querySelectorAll('input, textarea').forEach(el => { if(el.type!=='password') el.value=''; });
             document.getElementById('semesters-container').innerHTML = ""; document.getElementById('annex-container').innerHTML = "";
@@ -1734,7 +1738,10 @@ Upon successful completion of this Module, students will have the knowledge and 
             
             extractDOMToState(nCid, nMid);
             isProgrammaticChange = false;
-            loadStateFromMemory(nCid, nMid);
+            
+            updateTopTitleStatus();
+            if(document.getElementById('step-10').classList.contains('active')) renderArchive();
+            performSave(false, false);
         }
 
         function createNewModule(cId) {
@@ -1743,16 +1750,22 @@ Upon successful completion of this Module, students will have the knowledge and 
             dbState.courses[cId].modules[nMid] = { id: nMid, name: "New Module", code: "NEW", moduleData: {} };
             
             if(cId === activeCourseId) {
+                activeModuleId = nMid;
                 isProgrammaticChange = true;
+                
                 document.querySelectorAll('.mod-data').forEach(el => {
                     if(el.hasAttribute('contenteditable')) el.innerText = '0';
                     else el.value = '';
                 });
                 document.getElementById('tbody-matrix').innerHTML = ""; document.getElementById('tbody-sch').innerHTML = ""; document.getElementById('tbody-assess').innerHTML = "";
+                
                 addSchRow(); addMatrixRow(); addAssessRow();
                 extractDOMToState(cId, nMid);
+                
                 isProgrammaticChange = false;
-                loadStateFromMemory(cId, nMid);
+                updateTopTitleStatus();
+                if(document.getElementById('step-10').classList.contains('active')) renderArchive();
+                performSave(false, false);
             } else {
                 renderArchive(); performSave(false, false);
             }
@@ -2086,6 +2099,9 @@ Upon successful completion of this Module, students will have the knowledge and 
                 } 
             };
 
+            activeCourseId = nCid;
+            activeModuleId = nMid;
+
             isProgrammaticChange = true;
             document.getElementById('semesters-container').innerHTML = ""; 
             document.getElementById('annex-container').innerHTML = "";
@@ -2113,7 +2129,10 @@ Upon successful completion of this Module, students will have the knowledge and 
             
             extractDOMToState(nCid, nMid); 
             isProgrammaticChange = false;
-            loadStateFromMemory(nCid, nMid); 
+            
+            updateTopTitleStatus();
+            renderArchive();
+            performSave(false, false);
             
             document.getElementById('import-success-msg').style.display = 'block';
             setTimeout(()=> { document.getElementById('import-success-msg').style.display = 'none'; }, 8000);
@@ -2128,11 +2147,11 @@ Upon successful completion of this Module, students will have the knowledge and 
                 <div class="table-responsive"><table class="builder-table">
                         <thead><tr><th width="30%">Module Title</th><th width="15%">Code</th><th width="10%">Credits</th><th width="10%">Learning Hrs</th><th width="10%">Contact Hrs</th><th width="15%">Weekly Hrs</th><th width="10%">Del</th></tr></thead>
                         <tbody id="tbody-sem-${semCount}">
-                            <tr><td><input type="text" class="rtl-input" value="دروس اللغة العربية (1)" style="font-size:1.15rem;" id="dyn_sem_${semCount}_r1_1"></td><td><input type="text" class="ltr-input" value="ARA5001" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_2"></td><td><input type="number" class="ltr-input p-cr" value="15" oninput="calcP(this)" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_3"></td><td><input type="number" class="ltr-input p-th" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_4"></td><td><input type="number" class="ltr-input p-ch" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_5"></td><td><input type="text" class="ltr-input p-wch" value="0" readonly style="font-size:1.1rem; text-align:center; color:var(--royal-blue); font-weight:bold;" id="dyn_sem_${semCount}_r1_6"></td><td><button class="btn-danger" onclick="deleteRow(this); recalculateAllRows();"><i class="fas fa-times"></i></button></td></tr>
+                            <tr><td><input type="text" class="rtl-input prog-data" value="دروس اللغة العربية (1)" style="font-size:1.15rem;" id="dyn_sem_${semCount}_r1_1"></td><td><input type="text" class="ltr-input prog-data" value="ARA5001" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_2"></td><td><input type="number" class="ltr-input p-cr prog-data" value="15" oninput="calcP(this)" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_3"></td><td><input type="number" class="ltr-input p-th prog-data" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_4"></td><td><input type="number" class="ltr-input p-ch prog-data" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${semCount}_r1_5"></td><td><input type="text" class="ltr-input p-wch prog-data" value="0" readonly style="font-size:1.1rem; text-align:center; color:var(--royal-blue); font-weight:bold;" id="dyn_sem_${semCount}_r1_6"></td><td><button class="btn-danger" onclick="deleteRow(this); recalculateAllRows();"><i class="fas fa-times"></i></button></td></tr>
                         </tbody>
                         <tfoot>
-                            <tr class="tfoot-total"><td colspan="2" style="text-align:right;">SEM TOTALS:</td><td><div contenteditable="true" class="total-input st-cr" id="st-cr-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input st-th" id="st-th-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input st-ch" id="st-ch-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input st-wch" id="st-wch-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td></td></tr>
-                            <tr class="tfoot-total"><td colspan="2" style="text-align:right; font-size:11pt; color:#64748b;">CUMULATIVE GRAND TOTAL:</td><td><div contenteditable="true" class="total-input c-cr" id="c-cr-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input c-th" id="c-th-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input c-ch" id="c-ch-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td style="color:#64748b;">-</td><td></td></tr>
+                            <tr class="tfoot-total"><td colspan="2" style="text-align:right;">SEM TOTALS:</td><td><div contenteditable="true" class="total-input st-cr prog-data" id="st-cr-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input st-th prog-data" id="st-th-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input st-ch prog-data" id="st-ch-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input st-wch prog-data" id="st-wch-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td></td></tr>
+                            <tr class="tfoot-total"><td colspan="2" style="text-align:right; font-size:11pt; color:#64748b;">CUMULATIVE GRAND TOTAL:</td><td><div contenteditable="true" class="total-input c-cr prog-data" id="c-cr-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input c-th prog-data" id="c-th-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td><div contenteditable="true" class="total-input c-ch prog-data" id="c-ch-${semCount}" oninput="manualOverrideTotal(this)">0</div></td><td style="color:#64748b;">-</td><td></td></tr>
                         </tfoot>
                     </table></div><button class="btn btn-outline" onclick="addModuleToSem('${semCount}')"><i class="fas fa-plus"></i> Add Module to Sem ${semCount}</button>`;
             container.appendChild(div); recalculateAllRows();
@@ -2141,7 +2160,7 @@ Upon successful completion of this Module, students will have the knowledge and 
         function addModuleToSem(id) {
             dynSemModCounter++;
             const tb = document.getElementById(`tbody-sem-${id}`); const rCount = dynSemModCounter; const tr = document.createElement('tr');
-            tr.innerHTML = `<td><input type="text" class="rtl-input" style="font-size:1.15rem;" id="dyn_sem_${id}_r${rCount}_1"></td><td><input type="text" class="ltr-input" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_2"></td><td><input type="number" class="ltr-input p-cr" value="0" oninput="calcP(this)" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_3"></td><td><input type="number" class="ltr-input p-th" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_4"></td><td><input type="number" class="ltr-input p-ch" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_5"></td><td><input type="text" class="ltr-input p-wch" value="0" readonly style="font-size:1.1rem; text-align:center; color:var(--royal-blue); font-weight:bold;" id="dyn_sem_${id}_r${rCount}_6"></td><td><button class="btn-danger" onclick="deleteRow(this); recalculateAllRows();"><i class="fas fa-times"></i></button></td>`;
+            tr.innerHTML = `<td><input type="text" class="rtl-input prog-data" style="font-size:1.15rem;" id="dyn_sem_${id}_r${rCount}_1"></td><td><input type="text" class="ltr-input prog-data" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_2"></td><td><input type="number" class="ltr-input p-cr prog-data" value="0" oninput="calcP(this)" style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_3"></td><td><input type="number" class="ltr-input p-th prog-data" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_4"></td><td><input type="number" class="ltr-input p-ch prog-data" value="0" readonly style="font-size:1.1rem; text-align:center;" id="dyn_sem_${id}_r${rCount}_5"></td><td><input type="text" class="ltr-input p-wch prog-data" value="0" readonly style="font-size:1.1rem; text-align:center; color:var(--royal-blue); font-weight:bold;" id="dyn_sem_${id}_r${rCount}_6"></td><td><button class="btn-danger" onclick="deleteRow(this); recalculateAllRows();"><i class="fas fa-times"></i></button></td>`;
             tb.appendChild(tr);
         }
 
@@ -2192,14 +2211,14 @@ Upon successful completion of this Module, students will have the knowledge and 
 
         function addAnnexBlock() {
             annexCount++; const container = document.getElementById('annex-container'); const div = document.createElement('div'); div.className = 'dynamic-block';
-            div.innerHTML = `<h3>Annex Document <button class="remove-block-btn" onclick="this.parentElement.parentElement.remove();"><i class="fas fa-trash"></i></button></h3><div class="form-group"><input type="text" class="ltr-input annex-title" placeholder="Annex Title" value="ޒާދް އެކަޑެމީގެ ޕްރޮގްރާމްތަކުގެ ދަރިވަރުންގެ ޤަވާޢިދު" id="dyn_anx_${annexCount}_1"></div><div class="form-group"><textarea class="rtl-input tall-textarea annex-content" id="dyn_anx_${annexCount}_2">ޒާދް އެކަޑެމީގެ ކޮންމެ ދަރިވަރަކީ...</textarea></div>`;
+            div.innerHTML = `<h3>Annex Document <button class="remove-block-btn" onclick="this.parentElement.parentElement.remove();"><i class="fas fa-trash"></i></button></h3><div class="form-group"><input type="text" class="ltr-input annex-title prog-data" placeholder="Annex Title" value="ޒާދް އެކަޑެމީގެ ޕްރޮގްރާމްތަކުގެ ދަރިވަރުންގެ ޤަވާޢިދު" id="dyn_anx_${annexCount}_1"></div><div class="form-group"><textarea class="rtl-input tall-textarea annex-content prog-data" id="dyn_anx_${annexCount}_2">ޒާދް އެކަޑެމީގެ ކޮންމެ ދަރިވަރަކީ...</textarea></div>`;
             container.appendChild(div);
         }
 
         function addMatrixRow() {
             dynMatCounter++;
             const tb = document.getElementById('tbody-matrix'); const c = dynMatCounter; const tr = document.createElement('tr');
-            tr.innerHTML = `<td><textarea class="rtl-input" rows="2" id="dyn_mat_${c}_1"></textarea></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${c}_2"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${c}_3"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${c}_4"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${c}_5"></td><td><input type="text" class="ltr-input" style="text-align:center;" id="dyn_mat_${c}_6"></td><td><button class="btn-danger" onclick="deleteRow(this)"><i class="fas fa-times"></i></button></td>`;
+            tr.innerHTML = `<td><textarea class="rtl-input mod-data" rows="2" id="dyn_mat_${c}_1"></textarea></td><td><input type="text" class="ltr-input mod-data" style="text-align:center;" id="dyn_mat_${c}_2"></td><td><input type="text" class="ltr-input mod-data" style="text-align:center;" id="dyn_mat_${c}_3"></td><td><input type="text" class="ltr-input mod-data" style="text-align:center;" id="dyn_mat_${c}_4"></td><td><input type="text" class="ltr-input mod-data" style="text-align:center;" id="dyn_mat_${c}_5"></td><td><input type="text" class="ltr-input mod-data" style="text-align:center;" id="dyn_mat_${c}_6"></td><td><button class="btn-danger" onclick="deleteRow(this)"><i class="fas fa-times"></i></button></td>`;
             tb.appendChild(tr);
         }
 
@@ -2344,8 +2363,7 @@ Upon successful completion of this Module, students will have the knowledge and 
                     <tr><td>Name</td><td>${document.getElementById('f3-sum-name-c').value}</td><td>${document.getElementById('f3-sum-name-r').value}</td><td>${document.getElementById('f3-sum-name-rs').value}</td></tr>
                     <tr><td>Total Credits</td><td>${document.getElementById('f3-sum-cred-c').value}</td><td>${document.getElementById('f3-sum-cred-r').value}</td><td>${document.getElementById('f3-sum-cred-rs').value}</td></tr>
                     <tr><td>Number of modules for credit revision</td><td>${document.getElementById('f3-sum-modcr-c').value}</td><td>${document.getElementById('f3-sum-modcr-r').value}</td><td>${document.getElementById('f3-sum-modcr-rs').value}</td></tr>
-                    <tr><td>Add Exit Point</td><td>${document.getElementById('f3-sum-exit-c').value}</td><td>${document.getElementById('f3-sum-exit-r').value}</td><td>${document.getElementById
-('f3-sum-exit-rs').value}</td></tr>
+                    <tr><td>Add Exit Point</td><td>${document.getElementById('f3-sum-exit-c').value}</td><td>${document.getElementById('f3-sum-exit-r').value}</td><td>${document.getElementById('f3-sum-exit-rs').value}</td></tr>
                     <tr><td>Duration</td><td>${document.getElementById('f3-sum-dur-c').value}</td><td>${document.getElementById('f3-sum-dur-r').value}</td><td>${document.getElementById('f3-sum-dur-rs').value}</td></tr>
                     <tr><td>Add new modules</td><td>${document.getElementById('f3-sum-addmod-c').value}</td><td>${document.getElementById('f3-sum-addmod-r').value}</td><td>${document.getElementById('f3-sum-addmod-rs').value}</td></tr>
                     <tr><td>Remove Modules</td><td>${document.getElementById('f3-sum-remmod-c').value}</td><td>${document.getElementById('f3-sum-remmod-r').value}</td><td>${document.getElementById('f3-sum-remmod-rs').value}</td></tr>
