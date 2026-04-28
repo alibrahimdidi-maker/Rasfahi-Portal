@@ -1072,7 +1072,7 @@
         function initCharts() {
             if(document.getElementById('studentProgressChart')) progressChartInstance = new Chart(document.getElementById('studentProgressChart').getContext('2d'), { type: 'bar', data: { labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu'], datasets: [{ label: 'Points', data: [10, 20, 15, 0, 0], backgroundColor: '#0B6623' }] }, options: { scales: { y: { beginAtZero: true, max: 50 } } } });
             if(document.getElementById('studentPieChart')) studentPieInstance = new Chart(document.getElementById('studentPieChart').getContext('2d'), { type: 'doughnut', data: { labels: ['Completed', 'Pending'], datasets: [{ data: [2, 1], backgroundColor: ['#00008B', '#FFA500'] }] } });
-            if(document.getElementById('lecturerProgressChart')) lecturerChart = new Chart(document.getElementById('lecturerProgressChart').getContext('2d'), { type: 'bar', data: { labels: ['ނުފަށާ', 'ފަށާފައިވާ', 'ނިންމާފައިވާ', 'ނަތީޖާ ލިބިފައިވާ'], datasets: [{ label: 'ލެކްޗަރަރުންގެ ޢަދަދު', data: [5, 12, 8, 3], backgroundColor: ['#808080', '#FFA500', '#0B6623', '#00008B'] }] }});
+            if(document.getElementById('lecturerProgressChart')) lecturerChart = new Chart(document.getElementById('lecturerProgressChart').getContext('2d'), { type: 'bar', data: { labels: ['ނުފަށާ', 'ފަށާފައިވާ', 'ނިންމާފައިވާ', 'ނަތީޖާ ލިބިފައިވާ'], datasets: [{ label: 'ލެކްޗަރަރުންގެ ޢަދަދު', data: [0, 0, 0, 0], backgroundColor: ['#808080', '#FFA500', '#0B6623', '#00008B'] }] }});
         }
         
         function formatText(command) { document.execCommand(command, false, null); document.getElementById('dailyLogDetails').focus(); }
@@ -1191,7 +1191,7 @@
             marksBody.innerHTML = '';
 
             const rTd = (val, high) => {
-                if(val === null || val === undefined || isNaN(val)) return `<td>-</td>`;
+                if(val === null || val === undefined || isNaN(val) || val === '') return `<td>-</td>`;
                 if(val === high && high > 0) return `<td class="score-highest">${val}</td>`;
                 return `<td class="score-low">${val}</td>`;
             };
@@ -1276,7 +1276,15 @@
             }, allStudents[0]);
             
             if (document.getElementById('dashBestStudentName')) {
-                document.getElementById('dashBestStudentName').innerText = bestStudent.name;
+                document.getElementById('dashBestStudentName').innerText = bestStudent.name || "N/A";
+                const card = document.getElementById('dashBestStudentName').closest('.royal-card');
+                if(card) {
+                    const ps = card.querySelectorAll('p');
+                    if(ps.length >= 2) {
+                        const totalMarks = (bestStudent.tp1_high || 0) + (bestStudent.tp2_high || 0);
+                        ps[1].innerText = currentLang === 'dv' ? `ޖުމްލަ މާކުސް: ${totalMarks}` : `Total Marks: ${totalMarks}`;
+                    }
+                }
             }
 
             // 2. އެކްޓިވް ސްކޫލް އަދި ޖުމްލަ ދަރިވަރުންގެ ޢަދަދު
@@ -1291,20 +1299,53 @@
                 if (count > maxCount) { maxCount = count; mostActiveSchool = school; }
             }
 
-            const dashboardSection = document.getElementById('dashboard');
-            if (dashboardSection) {
-                const activeCard = dashboardSection.querySelector('.purple-border');
-                if (activeCard) {
-                    const ps = activeCard.querySelectorAll('p');
+            const schoolLabel = document.querySelector('span[lang-key="dashActiveSchool"]');
+            if (schoolLabel) {
+                const card = schoolLabel.closest('.royal-card');
+                if (card) {
+                    const ps = card.querySelectorAll('p');
                     if (ps.length >= 2) {
                         ps[0].innerText = mostActiveSchool || "N/A";
-                        ps[1].innerText = currentLang === 'dv' ? `${allStudents.length} ދަރިވަރުން ފޮނުވިފައި` : `${allStudents.length} Students Assigned`;
+                        ps[1].innerText = currentLang === 'dv' ? `${maxCount} ދަރިވަރުން ފޮނުވިފައި` : `${maxCount} Students Assigned`;
                     }
                 }
+            }
 
-                const inactiveCard = dashboardSection.querySelector('.red-border');
-                if (inactiveCard) {
-                    const ul = inactiveCard.querySelector('ul');
+            // 3. އެންމެ ހީވާގި ސުޕަވައިޒަރ ހޯދުން
+            const supCounts = {};
+            allStudents.forEach(s => {
+                if(s.sup && s.sup.trim() !== "") {
+                    let obsCount = 0;
+                    if(s.tp1[0]) obsCount++; if(s.tp1[1]) obsCount++; if(s.tp1[2]) obsCount++;
+                    if(s.tp2[0]) obsCount++; if(s.tp2[1]) obsCount++; if(s.tp2[2]) obsCount++;
+                    supCounts[s.sup] = (supCounts[s.sup] || 0) + obsCount;
+                }
+            });
+            
+            let bestSup = "";
+            let supMax = 0;
+            for (const [sup, count] of Object.entries(supCounts)) {
+                if (count > supMax) { supMax = count; bestSup = sup; }
+            }
+
+            const supLabel = document.querySelector('span[lang-key="dashBestSup"]');
+            if (supLabel) {
+                const card = supLabel.closest('.royal-card');
+                if (card) {
+                    const ps = card.querySelectorAll('p');
+                    if (ps.length >= 2) {
+                        ps[0].innerText = bestSup || "N/A";
+                        ps[1].innerText = currentLang === 'dv' ? `${supMax} އޮބްޒަވޭޝަން ނިމިފައި` : `${supMax} Obs. Done`;
+                    }
+                }
+            }
+
+            // 4. ގުޅަންޖެހޭ ސްކޫލްތައް (Inactive Schools)
+            const inactiveLabel = document.querySelector('span[lang-key="dashInactiveSchool"]');
+            if (inactiveLabel) {
+                const card = inactiveLabel.closest('.royal-card');
+                if (card) {
+                    const ul = card.querySelector('ul');
                     if (ul) {
                         const activeSchoolNames = Object.keys(schoolCounts);
                         const inactive = schoolsList.filter(sch => !activeSchoolNames.includes(sch));
@@ -1320,7 +1361,7 @@
                 }
             }
 
-            // 3. ބާ ޗާޓް (Bar Chart) އަޕްޑޭޓްކުރުން
+            // 5. ބާ ޗާޓް (Bar Chart) އަޕްޑޭޓްކުރުން
             let notStarted = 0, started = 0, finished = 0, results = 0;
             allStudents.forEach(s => {
                 const hasTp1 = s.tp1_high > 0;
@@ -1395,32 +1436,12 @@
                         if (stdDatalist) {
                             stdDatalist.innerHTML += `<option value="${studentObj.id} - ${studentObj.name}">`;
                         }
-
-                        const rTd = (val, high) => {
-                            if(val === null || isNaN(val)) return `<td>-</td>`;
-                            if(val === high && high > 0) return `<td class="score-highest">${val}</td>`;
-                            return `<td class="score-low">${val}</td>`;
-                        };
-
-                        if (marksBody) {
-                            marksBody.innerHTML += `
-                                <tr data-sup="${studentObj.sup}" data-master="${studentObj.master}" data-school="${studentObj.school}">
-                                    <td style="text-align:left; font-weight:bold;">${studentObj.name}</td>
-                                    <td style="text-align:left;">${studentObj.id}</td>
-                                    <td style="text-align:left;">${studentObj.school}</td>
-                                    <td style="text-align:left;" class="sup-col">${studentObj.sup}</td>
-                                    ${rTd(studentObj.tp1[0], studentObj.tp1_high)}${rTd(studentObj.tp1[1], studentObj.tp1_high)}${rTd(studentObj.tp1[2], studentObj.tp1_high)}
-                                    ${rTd(studentObj.tp2[0], studentObj.tp2_high)}${rTd(studentObj.tp2[1], studentObj.tp2_high)}${rTd(studentObj.tp2[2], studentObj.tp2_high)}
-                                    <td class="master-col" style="font-weight:bold; color:var(--royal-purple);">-</td>
-                                </tr>
-                            `;
-                        }
                     }
                 }
 
                 alert(currentLang === 'dv' ? "ސީއެސްވީ (CSV) ޑޭޓާ ސޮފްޓްވެއަރއަށް އިމްޕޯރޓް ކުރެވިއްޖެ." : "CSV Data Imported Successfully.");
                 
-                filterMarksTable(); 
+                renderMarksTable();
                 updateAdminDashboard(); 
             };
 
