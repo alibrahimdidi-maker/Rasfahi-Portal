@@ -643,12 +643,33 @@
     }
     verifyLicense();
 
-    // --- 1. REAL DATA PREP (NO DUMMY DATA) ---
+    // --- 1. LOCAL STORAGE & DATA PREP ---
     let allStudents = [];
-    let globalTasks = []; // Holds all tasks for all roles
+    let globalTasks = []; 
     let uniqueSchools = new Set();
     let uniqueSupervisors = new Set();
     let uniqueMasters = new Set();
+    
+    function saveToLocal() {
+        localStorage.setItem('rasfahi_students', JSON.stringify(allStudents));
+        localStorage.setItem('rasfahi_tasks', JSON.stringify(globalTasks));
+        localStorage.setItem('rasfahi_schools', JSON.stringify(Array.from(uniqueSchools)));
+        localStorage.setItem('rasfahi_sups', JSON.stringify(Array.from(uniqueSupervisors)));
+        localStorage.setItem('rasfahi_masters', JSON.stringify(Array.from(uniqueMasters)));
+    }
+
+    function loadFromLocal() {
+        const st = localStorage.getItem('rasfahi_students');
+        const ts = localStorage.getItem('rasfahi_tasks');
+        const sc = localStorage.getItem('rasfahi_schools');
+        const su = localStorage.getItem('rasfahi_sups');
+        const ma = localStorage.getItem('rasfahi_masters');
+        if(st) allStudents = JSON.parse(st);
+        if(ts) globalTasks = JSON.parse(ts);
+        if(sc) uniqueSchools = new Set(JSON.parse(sc));
+        if(su) uniqueSupervisors = new Set(JSON.parse(su));
+        if(ma) uniqueMasters = new Set(JSON.parse(ma));
+    }
     
     function populateDatalists() {
         const stdDatalist = document.getElementById('allStudentsDatalist');
@@ -685,7 +706,7 @@
             if(masterDatalist) masterDatalist.innerHTML += `<option value="${m}">`;
         });
         
-        updateTaskAssigneeList();
+        if(document.getElementById('taskAssignee')) updateTaskAssigneeList();
     }
 
     // --- 2. MULTI-LANGUAGE TRANSLATIONS ---
@@ -797,7 +818,7 @@
         const email = document.getElementById('username').value.toLowerCase();
         const roleSelect = document.getElementById('userRole');
         
-        if(email.includes('admin') || email.includes('coordinator')) {
+        if(email.includes('admin') || email.includes('coordinator') || email.includes('agisa') || email.includes('visama')) {
             roleSelect.value = 'admin';
         }
         else if(email.includes('lecturer') || email.includes('supervisor') || email.includes('dr.')) {
@@ -818,6 +839,7 @@
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app-container').style.display = 'flex';
             
+            loadFromLocal();
             populateDatalists();
             setupRoleUI();
             initCharts(); 
@@ -1014,6 +1036,7 @@
         
         if(progressChartInstance) { progressChartInstance.data.datasets[0].data[3] += 10; progressChartInstance.update(); }
         
+        saveToLocal();
         triggerManualSave();
         dropdown.value = ""; document.getElementById('dailyLogDetails').innerHTML = "";
     }
@@ -1078,6 +1101,7 @@
             totalPct: 0 
         };
         globalTasks.push(newTask);
+        saveToLocal();
         
         alert(currentLang==='dv' ? "ޓާސްކް ކާމިޔާބުކަމާއެކު އެސައިންކުރެވިއްޖެ!" : "Task Assigned Successfully!");
         
@@ -1102,6 +1126,7 @@
         task.subTasks.forEach(st => { if(st.done) calculatedPct += st.pct; });
         task.totalPct = calculatedPct;
         
+        saveToLocal();
         renderUnifiedTasks();
     }
 
@@ -1110,6 +1135,7 @@
         if(!task) return;
         task.totalPct = 100;
         if(task.subTasks) task.subTasks.forEach(st => st.done = true);
+        saveToLocal();
         renderUnifiedTasks();
     }
 
@@ -1130,7 +1156,6 @@
             let isAssignedToMe = false;
             let isCreatedByMe = (task.creator.toLowerCase() === currentUser.toLowerCase());
             
-            // Check if actionable for me
             if (currentRole === 'lecturer' && task.targetRole === 'lecturer' && (task.targetUser === 'all' || task.targetUser.toLowerCase() === currentUser.toLowerCase())) isAssignedToMe = true;
             else if (currentRole === 'master' && task.targetRole === 'master' && (task.targetUser === 'all' || task.targetUser.toLowerCase() === currentUser.toLowerCase())) isAssignedToMe = true;
             else if (currentRole === 'student' && task.targetRole === 'student' && (task.targetUser === 'all' || task.targetUser.toLowerCase() === currentUser.toLowerCase() || task.targetUser === allStudents.find(s => s.name.toLowerCase() === currentUser.toLowerCase())?.id)) isAssignedToMe = true;
@@ -1140,14 +1165,12 @@
             let bBg = task.totalPct >= 100 ? '#e6f2ff' : '#FFE4B5';
             let bColor = task.totalPct >= 100 ? 'var(--royal-blue)' : '#8B6508';
             
-            // Global Admin View
             if (globalAdminTable) {
                 hasGlobalTasks = true;
                 let color = task.totalPct >= 100 ? 'green' : 'orange';
                 globalAdminTable.innerHTML += `<tr><td>${task.title}</td><td>${task.targetUser} (${task.targetRole})</td><td style="color:${color}; font-weight:bold;">${task.totalPct}%</td></tr>`;
             }
 
-            // Build Subtask HTML
             let subHtml = '';
             if(task.subTasks && task.subTasks.length > 0) {
                 task.subTasks.forEach((st, idx) => {
@@ -1308,6 +1331,7 @@
         st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
         allStudents[studentIndex] = st;
 
+        saveToLocal();
         renderMarksTable(); updateAdminDashboard(); updateCharts(); renderFormBank(); triggerManualSave();
         alert(currentLang === 'dv' ? `${st.name} ގެ މާކުސް ކާމިޔާބުކަމާއެކު ރިޕޯރޓަށް ސޭވްކުރެވިއްޖެ!` : `Marks for ${st.name} saved successfully!`);
     }
@@ -1390,10 +1414,6 @@
         }
     }
 
-    function downloadDummyDataCSV() { 
-        alert(currentLang === 'dv' ? "ޑަމީ ޑޭޓާ ފަންކްޝަން ވަނީ އުނިކުރެވިފައި." : "Dummy Data generator has been disabled.");
-    }
-
     function processCSV() {
         const fileInput = document.getElementById('csvUpload');
         if (!fileInput.files.length) { alert(currentLang === 'dv' ? "ފުރަތަމަ ސީއެސްވީ (CSV) ފައިލްއެއް ޚިޔާރުކުރައްވާ!" : "Please select a CSV file first."); return; }
@@ -1430,6 +1450,7 @@
                     if(cols[2]) uniqueSupervisors.add(cols[2]);
                 }
             }
+            saveToLocal();
             populateDatalists();
             renderMarksTable(); 
             updateAdminDashboard(); 
@@ -1447,6 +1468,12 @@
             uniqueSchools.clear(); uniqueSupervisors.clear(); uniqueMasters.clear();
             const stdDatalist = document.getElementById('allStudentsDatalist'); const marksBody = document.getElementById('fullMarksBody');
             if (stdDatalist) stdDatalist.innerHTML = ''; if (marksBody) marksBody.innerHTML = '';
+            
+            localStorage.removeItem('rasfahi_students');
+            localStorage.removeItem('rasfahi_tasks');
+            localStorage.removeItem('rasfahi_schools');
+            localStorage.removeItem('rasfahi_sups');
+            localStorage.removeItem('rasfahi_masters');
             
             updateAdminDashboard(); populateDatalists(); renderUnifiedTasks(); updateCharts(); renderFormBank();
             alert(currentLang === 'dv' ? "ސިސްޓަމްގެ ހުރިހާ ޑޭޓާއެއް ފޮހެލެވިއްޖެ. (ހާޑް ރީސެޓް ކާމިޔާބު)" : "Hard Reset Complete. All data wiped."); 
