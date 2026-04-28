@@ -1007,9 +1007,8 @@
             sidebar.innerHTML = menuHtml;
             showSection(defaultSection, sidebar.firstElementChild);
             
-            if(currentRole==='admin' && allStudents.length > 0) {
-                const best = allStudents.reduce((prev, current) => (prev.tp1_high + prev.tp2_high > current.tp1_high + current.tp2_high) ? prev : current);
-                if(document.getElementById('dashBestStudentName')) document.getElementById('dashBestStudentName').innerText = `${best.name}`;
+            if(currentRole==='admin') {
+                updateAdminDashboard();
             }
         }
 
@@ -1259,9 +1258,87 @@
             allStudents[studentIndex] = st;
 
             renderMarksTable();
+            updateAdminDashboard(); // މާކުސް އަޕްޑޭޓްވުމުން ޑޭޝްބޯޑްވެސް އަޕްޑޭޓްކުރުން
             triggerManualSave();
             
             alert(currentLang === 'dv' ? `${st.name} ގެ މާކުސް ކާމިޔާބުކަމާއެކު ރިޕޯރޓަށް ސޭވްކުރެވިއްޖެ!` : `Marks for ${st.name} saved successfully!`);
+        }
+
+        // ޑޭޝްބޯޑްގެ މަޢުލޫމާތު ޑައިނަމިކްކޮށް އަޕްޑޭޓްކުރާ ފަންކްޝަން
+        function updateAdminDashboard() {
+            if (!allStudents || allStudents.length === 0) return;
+
+            // 1. އެންމެ ރަނގަޅު ދަރިވަރު (Best Student) ހޯދުން
+            const bestStudent = allStudents.reduce((prev, current) => {
+                const prevTotal = (prev.tp1_high || 0) + (prev.tp2_high || 0);
+                const currTotal = (current.tp1_high || 0) + (current.tp2_high || 0);
+                return (currTotal > prevTotal) ? current : prev;
+            }, allStudents[0]);
+            
+            if (document.getElementById('dashBestStudentName')) {
+                document.getElementById('dashBestStudentName').innerText = bestStudent.name;
+            }
+
+            // 2. އެކްޓިވް ސްކޫލް އަދި ޖުމްލަ ދަރިވަރުންގެ ޢަދަދު
+            const schoolCounts = {};
+            allStudents.forEach(s => {
+                if(s.school && s.school.trim() !== "") schoolCounts[s.school] = (schoolCounts[s.school] || 0) + 1;
+            });
+            
+            let mostActiveSchool = "";
+            let maxCount = 0;
+            for (const [school, count] of Object.entries(schoolCounts)) {
+                if (count > maxCount) { maxCount = count; mostActiveSchool = school; }
+            }
+
+            const dashboardSection = document.getElementById('dashboard');
+            if (dashboardSection) {
+                const activeCard = dashboardSection.querySelector('.purple-border');
+                if (activeCard) {
+                    const ps = activeCard.querySelectorAll('p');
+                    if (ps.length >= 2) {
+                        ps[0].innerText = mostActiveSchool || "N/A";
+                        ps[1].innerText = currentLang === 'dv' ? `${allStudents.length} ދަރިވަރުން ފޮނުވިފައި` : `${allStudents.length} Students Assigned`;
+                    }
+                }
+
+                const inactiveCard = dashboardSection.querySelector('.red-border');
+                if (inactiveCard) {
+                    const ul = inactiveCard.querySelector('ul');
+                    if (ul) {
+                        const activeSchoolNames = Object.keys(schoolCounts);
+                        const inactive = schoolsList.filter(sch => !activeSchoolNames.includes(sch));
+                        ul.innerHTML = '';
+                        if (inactive.length === 0) {
+                            ul.innerHTML = `<li style="color:var(--royal-green); font-weight:bold;">${currentLang === 'dv' ? 'ހުރިހާ ސްކޫލަކަށް ކުދިން ފޮނުވިފައި' : 'All schools are active'}</li>`;
+                        } else {
+                            inactive.slice(0, 3).forEach(sch => {
+                                ul.innerHTML += `<li>${sch} (No Students)</li>`;
+                            });
+                        }
+                    }
+                }
+            }
+
+            // 3. ބާ ޗާޓް (Bar Chart) އަޕްޑޭޓްކުރުން
+            let notStarted = 0, started = 0, finished = 0, results = 0;
+            allStudents.forEach(s => {
+                const hasTp1 = s.tp1_high > 0;
+                const hasTp2 = s.tp2_high > 0;
+                const hasMaster = s.masterScore > 0;
+
+                if (!hasTp1 && !hasTp2) notStarted++;
+                else if ((hasTp1 || hasTp2) && !hasMaster) {
+                    if (hasTp1 && hasTp2) finished++;
+                    else started++;
+                }
+                else if (hasMaster) results++;
+            });
+
+            if (lecturerChart) {
+                lecturerChart.data.datasets[0].data = [notStarted, started, finished, results];
+                lecturerChart.update();
+            }
         }
 
         function downloadDummyDataCSV() { 
@@ -1344,11 +1421,7 @@
                 alert(currentLang === 'dv' ? "ސީއެސްވީ (CSV) ޑޭޓާ ސޮފްޓްވެއަރއަށް އިމްޕޯރޓް ކުރެވިއްޖެ." : "CSV Data Imported Successfully.");
                 
                 filterMarksTable(); 
-                
-                if (lecturerChart) { 
-                    lecturerChart.data.datasets[0].data = [2, 15, 10, 5]; 
-                    lecturerChart.update(); 
-                }
+                updateAdminDashboard(); 
             };
 
             reader.readAsText(file);
@@ -1372,10 +1445,7 @@
                 if (stdDatalist) stdDatalist.innerHTML = '';
                 if (marksBody) marksBody.innerHTML = '';
 
-                if (lecturerChart) { 
-                    lecturerChart.data.datasets[0].data = [0, 0, 0, 0]; 
-                    lecturerChart.update(); 
-                }
+                updateAdminDashboard();
 
                 alert(currentLang === 'dv' ? "ސިސްޓަމްގެ ހުރިހާ ޑޭޓާއެއް ފޮހެލެވިއްޖެ. (ހާޑް ރީސެޓް ކާމިޔާބު)" : "Hard Reset Complete. All data wiped."); 
             } 
