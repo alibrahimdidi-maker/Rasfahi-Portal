@@ -123,14 +123,20 @@
         .score-highest { background-color: var(--royal-green); color: var(--white); font-weight: bold; border-radius: 4px; padding: 5px; }
         .score-low { color: #888; font-weight: normal; }
         
-        .task-card { border-radius: 10px; padding: 18px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-right: 6px solid #ccc; background: #fff; flex-wrap: wrap; gap: 10px;}
+        .task-card { border-radius: 10px; padding: 18px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-start; flex-direction:column; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border-right: 6px solid #ccc; background: #fff; gap: 10px; position:relative;}
         .task-card.pending { border-right-color: #FFA500; background: #fffdf5;}
         .task-card.approved { border-right-color: var(--royal-green); background: #f4fff4;}
-        .task-badge { font-size: 12px; padding: 5px 10px; border-radius: 4px; font-weight: bold; }
+        .task-badge { font-size: 12px; padding: 5px 10px; border-radius: 4px; font-weight: bold; position:absolute; top:15px; left:15px; direction:ltr;}
 
         .task-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; background: var(--light-gold); padding: 10px; border-radius: 6px; border: 1px solid #e0d0a0;}
         .task-row input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit;}
         .task-row input.percent { flex: 0 0 80px; text-align: center;}
+        
+        .subtask-item { display:flex; align-items:center; gap:10px; margin:5px 0; background:#f9f9f9; padding:8px; border-radius:4px; width:100%; border:1px solid #eee; }
+        .subtask-item input[type="checkbox"] { transform: scale(1.3); accent-color: var(--royal-green); cursor:pointer;}
+
+        .progress-bar-container { width: 100%; background: #e0e0e0; border-radius: 8px; height: 12px; margin-top: 10px; overflow: hidden; }
+        .progress-bar-fill { background: var(--royal-green); height: 100%; transition: width 0.4s ease; }
 
         /* Rubric Specific */
         .total-score-board { position: sticky; top: 0; background: var(--dark-blue); color: var(--royal-gold); padding: 15px 25px; border-radius: 8px; font-size: 26px; text-align: left; direction: ltr; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.4); z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;}
@@ -177,8 +183,8 @@
             <p class="subtitle">Cloud Login Portal</p>
             
             <div class="input-group-en">
-                <label>Username (Email):</label>
-                <input type="email" id="username" placeholder="coordinator.agisa@ium.edu.mv" oninput="autoDetectRole()">
+                <label>User Identifier (Email or Exact Name in CSV):</label>
+                <input type="text" id="username" placeholder="Dr. Hassan Niyaz / coordinator@ium.edu.mv" oninput="autoDetectRole()">
             </div>
             
             <div class="input-group-en">
@@ -262,42 +268,63 @@
                             <canvas id="lecturerProgressChart" height="200"></canvas>
                         </div>
                         
-                        <div class="royal-card gold-border">
-                            <h3 style="color:var(--royal-gold);"><i class="fas fa-tasks"></i> <span lang-key="lblCreateTask">އައު ޓާސްކް ކްރިއޭޓް ކުރުން (+ Splitter)</span></h3>
-                            <div class="form-group" style="margin-top:10px;">
-                                <input type="text" id="newTaskTitle" lang-key="phTaskName" placeholder="މައި ޓާސްކްގެ ނަން (މިސާލު: Lesson Plan)">
-                                
-                                <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px; border-bottom:1px solid #eee; padding-bottom:15px;">
-                                    <label lang-key="lblAssignTarget" style="color:var(--royal-purple);">ޙަވާލުކުރަނީ ކާކަށް؟</label>
-                                    
-                                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                                        <input type="checkbox" id="chkStudents" checked style="width:auto;"><label style="margin:0;" lang-key="optToStudent">ދަރިވަރުންނަށް</label>
-                                        <select id="assignStudentList" style="flex:1; padding:8px; min-width:150px;"><option value="all">All Students (TP1 & TP2)</option></select>
-                                    </div>
-                                    
-                                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                                        <input type="checkbox" id="chkSup" style="width:auto;"><label style="margin:0;" lang-key="optToSupervisor">ސުޕަވައިޒަރަށް</label>
-                                        <input type="text" list="allSupervisorsDatalist" id="assignSupInput" placeholder="Search Supervisor..." style="flex:1; padding:8px; min-width:150px;">
-                                    </div>
+                        <div class="royal-card gold-border" style="overflow-y:auto; max-height:300px;">
+                            <h3 style="color:var(--royal-gold);"><i class="fas fa-chart-line"></i> <span lang-key="lblGlobalTasks">ގްލޯބަލް ޓާސްކް ޕްރޮގްރެސް</span></h3>
+                            <table class="data-table" style="font-size:13px; margin-top:10px; min-width:100%;">
+                                <thead><tr><th>Task Name</th><th>Assignee</th><th>Status</th></tr></thead>
+                                <tbody id="adminGlobalTaskListBody">
+                                    <tr><td colspan="3" style="color:#888;">No tasks generated yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
 
-                                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                                        <input type="checkbox" id="chkMaster" style="width:auto;"><label style="margin:0;" lang-key="optToMaster">މާސްޓަރ ޓީޗަރަށް</label>
-                                        <input type="text" list="allMastersDatalist" id="assignMasterInput" placeholder="Search Master Teacher..." style="flex:1; padding:8px; min-width:150px;">
-                                    </div>
-                                </div>
+                <div id="unified-task-center" class="section">
+                    <h2 class="royal-heading"><i class="fas fa-tasks"></i> <span lang-key="menuTasks">ޓާސްކް މެނޭޖްމަންޓް ސެންޓަރ</span></h2>
+                    
+                    <div id="taskCreatorUI" class="royal-card gold-border" style="margin-bottom:25px;">
+                        <h3 style="color:var(--royal-gold);"><i class="fas fa-plus-circle"></i> <span lang-key="lblCreateTask">އައު ޓާސްކް ކްރިއޭޓް ކުރުން (+ Splitter)</span></h3>
+                        <div class="form-group" style="margin-top:10px;">
+                            <input type="text" id="newTaskTitle" lang-key="phTaskName" placeholder="މައި ޓާސްކްގެ ނަން (މިސާލު: Lesson Plan / Portfolio)">
+                            
+                            <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px; border-bottom:1px solid #eee; padding-bottom:15px;">
+                                <label lang-key="lblAssignTarget" style="color:var(--royal-purple);">ޙަވާލުކުރަނީ ކާކަށް؟</label>
                                 
-                                <div id="taskSplitContainer" style="margin-top:15px;">
-                                    <label>ސަބް-ޓާސްކް އަދި ޕަސެންޓޭޖް (%):</label>
-                                    <div class="task-row">
-                                        <input type="text" lang-key="phSubTask" placeholder="ސަބް-ޓާސްކް 1...">
-                                        <input type="number" class="percent" placeholder="%" min="1" max="100">
-                                    </div>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; margin-top:10px;">
-                                    <button class="action-btn small" onclick="addTaskRow()" style="background:var(--royal-purple);"><i class="fas fa-plus"></i> <span lang-key="btnAddPart">ބައެއް އިތުރުކުރޭ</span></button>
-                                    <button class="btn-royal action-btn" style="padding:10px 15px; width:auto;" onclick="createAdminTask()"><i class="fas fa-paper-plane"></i> <span lang-key="btnAssignTask">އެސައިންކުރޭ</span></button>
+                                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                    <select id="taskTargetRole" style="padding:8px; min-width:150px;" onchange="updateTaskAssigneeList()">
+                                        <option value="student" lang-key="optToStudent">ދަރިވަރުންނަށް</option>
+                                        <option value="lecturer" class="admin-only-opt" lang-key="optToSupervisor">ސުޕަވައިޒަރަށް</option>
+                                        <option value="master" class="admin-only-opt" lang-key="optToMaster">މާސްޓަރ ޓީޗަރަށް</option>
+                                    </select>
+                                    <select id="taskAssignee" style="flex:1; padding:8px; min-width:150px;">
+                                        </select>
                                 </div>
                             </div>
+                            
+                            <div id="taskSplitContainer" style="margin-top:15px;">
+                                <label>ސަބް-ޓާސްކް އަދި ޕަސެންޓޭޖް (%) [ޖުމްލަ 100 އަށް ވާގޮތަށް]:</label>
+                                <div class="task-row">
+                                    <input type="text" lang-key="phSubTask" placeholder="ސަބް-ޓާސްކް (މިސާލު: ޑްރާފްޓް ހެދުން)...">
+                                    <input type="number" class="percent" placeholder="%" min="1" max="100">
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                                <button class="action-btn small" onclick="addTaskRow()" style="background:var(--royal-purple);"><i class="fas fa-plus"></i> <span lang-key="btnAddPart">ބައެއް އިތުރުކުރޭ</span></button>
+                                <button class="btn-royal action-btn" style="padding:10px 15px; width:auto;" onclick="createNewTask()"><i class="fas fa-paper-plane"></i> <span lang-key="btnAssignTask">އެސައިންކުރޭ</span></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 style="color:var(--royal-green); margin-bottom:15px;"><i class="fas fa-clipboard-list"></i> <span lang-key="lblMyTasks">އަޅުގަނޑާ ޙަވާލުކުރެވިފައިވާ ޓާސްކްތައް (My Tasks)</span></h3>
+                    <div class="card-grid" id="myActionableTasksArea">
+                        <p style="color:#666;">No tasks assigned to you yet.</p>
+                    </div>
+
+                    <div id="tasksAssignedByMeSection">
+                        <h3 style="color:#1a237e; margin-bottom:15px; margin-top:30px;"><i class="fas fa-eye"></i> <span lang-key="lblCreatedTasks">އަޅުގަނޑު އެސައިންކުރި ޓާސްކްތަކުގެ ޕްރޮގްރެސް</span></h3>
+                        <div class="card-grid" id="tasksCreatedByMeArea">
+                            <p style="color:#666;">You haven't assigned any tasks.</p>
                         </div>
                     </div>
                 </div>
@@ -359,27 +386,6 @@
                 <div id="coordinator-admin" class="section">
                     <h2 class="royal-heading" lang-key="menuAdmin">އެޑްމިން ޕެނަލް (ޑޭޓާ އަދި ސެޓަޕް)</h2>
                     
-                    <div class="royal-card" style="margin-bottom:20px;">
-                        <h3 style="color:#1a237e;"><i class="fas fa-users-cog"></i> <span lang-key="lblAssignStd">މެނުއަލްކޮށް ދަރިވަރުން އެސައިންކުރުން</span></h3>
-                        <div class="form-grid" style="margin-top:15px; border:2px dashed var(--royal-gold); padding:20px; border-radius:8px; background:#fffdf5;">
-                            <div class="form-group">
-                                <label lang-key="thStudent">ދަރިވަރު ސެލެކްޓްކުރައްވާ:</label>
-                                <input type="text" list="allStudentsDatalist" id="assignStudent" placeholder="ދަރިވަރުގެ ނަން...">
-                            </div>
-                            <div class="form-group">
-                                <label lang-key="thSup">ސުޕަވައިޒަރ / ލެކްޗަރަރ:</label>
-                                <input type="text" list="allSupervisorsDatalist" id="assignSup" placeholder="ސުޕަވައިޒަރގެ ނަން...">
-                            </div>
-                            <div class="form-group">
-                                <label lang-key="optToMaster">މާސްޓަރ ޓީޗަރ:</label>
-                                <input type="text" list="allMastersDatalist" id="assignMaster" placeholder="މާސްޓަރ ޓީޗަރގެ ނަން...">
-                            </div>
-                            <div class="form-group" style="justify-content:flex-end;">
-                                <button class="btn-royal action-btn" style="padding:12px;" onclick="alert('އެސައިން ކުރެވިއްޖެ!')"><i class="fas fa-link"></i> <span lang-key="btnAssignTask">ގުޅުވާލާ (Assign)</span></button>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="royal-card">
                         <h3><i class="fas fa-database"></i> <span lang-key="adminDataUpload">ޑޭޓާ އަޕްލޯޑް އަދި އެކްސްޕޯރޓް</span></h3>
                         <div class="form-grid" style="margin-top:15px;">
@@ -392,7 +398,6 @@
                                 <input type="file" accept=".csv" id="csvUpload" style="margin-top:10px; background:#fff;">
                                 <div style="display:flex; gap:10px; margin-top:10px;">
                                     <button class="action-btn" style="flex:1;" onclick="processCSV()"><i class="fas fa-upload"></i> <span lang-key="adminBtnUpload">އަޕްލޯޑްކުރޭ</span></button>
-                                    <button class="action-btn" style="flex:1; background:#666;" onclick="downloadDummyDataCSV()"><i class="fas fa-download"></i> <span lang-key="adminDummy">300 ކުދިންގެ ޑޭޓާ (CSV)</span></button>
                                 </div>
                             </div>
                         </div>
@@ -440,7 +445,7 @@
                 </div>
 
                 <div id="student-eval" class="section">
-                    <h2 class="royal-heading" lang-key="menuTasks">ޑޭޝްބޯޑް އަދި އެކްޝަން ސެންޓަރ</h2>
+                    <h2 class="royal-heading" lang-key="menuStudent">މައި ޑޭޝްބޯޑް</h2>
                     
                     <div class="card-grid">
                         <div class="royal-card">
@@ -453,56 +458,54 @@
                         </div>
                     </div>
 
-                    <h3 style="color:var(--royal-purple); margin-bottom:15px; margin-top:30px;"><i class="fas fa-tasks"></i> ޙަވާލުކުރެވިފައިވާ ޓާސްކްތައް</h3>
-                    <div class="card-grid" id="studentTaskArea">
-                        </div>
-
-                    <h3 style="color:#1a237e; margin-top:30px; margin-bottom:15px;"><i class="fas fa-calendar-check"></i> <span lang-key="formTitleLog">ޑެއިލީ އެޓެންޑެންސް، ރިފްލެކްޝަން އަދި ވޯކް ލޮގް</span></h3>
-                    <div class="royal-card">
-                        <div class="form-grid" style="grid-template-columns: 1fr;">
-                            <div class="form-group">
-                                <label lang-key="lblTodayTask">މިއަދު ކުރި މަސައްކަތް (ޑްރޮޕްޑައުން އިން ޚިޔާރުކުރައްވާ)</label>
-                                <select id="dailyTaskDropdown" style="border:2px solid var(--royal-gold);">
-                                    <option value="" lang-key="optSelect">-- އިޚްތިޔާރު ކުރައްވާ --</option>
-                                    <option value="Meeting">ކޯޑިނޭޝަން މީޓިންގ</option>
-                                    <option value="Class">ކްލާސް ނެގުން / ކިޔަވައިދިނުން</option>
-                                    <option value="Assist">މާސްޓަރ ޓީޗަރަށް އެހީވުން</option>
-                                    <option value="Supervision">ސުޕަވިޝަން / އޮބްޒަވޭޝަން</option>
-                                    <option value="LessonPlan">ލެސަން ޕްލޭން ތައްޔާރުކުރުން</option>
-                                    <option value="Reflection">ރިފްލެކްޝަން ލިޔުން</option>
-                                    <option value="ResourcePrep">ޓީޗިންގ ރިސޯސް ތައްޔާރުކުރުން</option>
-                                    <option value="Marking">ކުދިންގެ ފޮތް މާކުކުރުން</option>
-                                    <option value="Extracurricular">އިތުރު ހަރަކާތްތަކުގައި ބައިވެރިވުން</option>
-                                    <option value="ParentMeeting">ބެލެނިވެރިންގެ ބައްދަލުވުން</option>
-                                    <option value="PeerObs">ޕިއަރ އޮބްޒަވޭޝަން ހެދުން</option>
-                                    <option value="PD">ޕްރޮފެޝަނަލް ޑިވެލޮޕްމަންޓް (PD)</option>
-                                    <option value="Assembly">އެސެމްބްލީ ޑިއުޓީ</option>
-                                    <option value="Relief">ރިލީފް ގަޑި ނެގުން</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label lang-key="lblDetails">މަސައްކަތުގެ ތަފްސީލު / ރިފްލެކްޝަން:</label>
-                                <div class="editor-toolbar" style="direction:ltr;">
-                                    <button type="button" onclick="formatText('bold')"><i class="fas fa-bold"></i></button>
-                                    <button type="button" onclick="formatText('italic')"><i class="fas fa-italic"></i></button>
-                                    <button type="button" onclick="formatText('underline')"><i class="fas fa-underline"></i></button>
-                                    <button type="button" onclick="formatText('justifyLeft')"><i class="fas fa-align-left"></i></button>
-                                    <button type="button" onclick="formatText('justifyCenter')"><i class="fas fa-align-center"></i></button>
-                                    <button type="button" onclick="formatText('justifyRight')"><i class="fas fa-align-right"></i></button>
-                                    <button type="button" onclick="formatText('justifyFull')"><i class="fas fa-align-justify"></i></button>
-                                    <button type="button" onclick="formatText('insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
+                    <div id="studentLogSection">
+                        <h3 style="color:#1a237e; margin-top:30px; margin-bottom:15px;"><i class="fas fa-calendar-check"></i> <span lang-key="formTitleLog">ޑެއިލީ އެޓެންޑެންސް، ރިފްލެކްޝަން އަދި ވޯކް ލޮގް</span></h3>
+                        <div class="royal-card">
+                            <div class="form-grid" style="grid-template-columns: 1fr;">
+                                <div class="form-group">
+                                    <label lang-key="lblTodayTask">މިއަދު ކުރި މަސައްކަތް (ޑްރޮޕްޑައުން އިން ޚިޔާރުކުރައްވާ)</label>
+                                    <select id="dailyTaskDropdown" style="border:2px solid var(--royal-gold);">
+                                        <option value="" lang-key="optSelect">-- އިޚްތިޔާރު ކުރައްވާ --</option>
+                                        <option value="Meeting">ކޯޑިނޭޝަން މީޓިންގ</option>
+                                        <option value="Class">ކްލާސް ނެގުން / ކިޔަވައިދިނުން</option>
+                                        <option value="Assist">މާސްޓަރ ޓީޗަރަށް އެހީވުން</option>
+                                        <option value="Supervision">ސުޕަވިޝަން / އޮބްޒަވޭޝަން</option>
+                                        <option value="LessonPlan">ލެސަން ޕްލޭން ތައްޔާރުކުރުން</option>
+                                        <option value="Reflection">ރިފްލެކްޝަން ލިޔުން</option>
+                                        <option value="ResourcePrep">ޓީޗިންގ ރިސޯސް ތައްޔާރުކުރުން</option>
+                                        <option value="Marking">ކުދިންގެ ފޮތް މާކުކުރުން</option>
+                                        <option value="Extracurricular">އިތުރު ހަރަކާތްތަކުގައި ބައިވެރިވުން</option>
+                                        <option value="ParentMeeting">ބެލެނިވެރިންގެ ބައްދަލުވުން</option>
+                                        <option value="PeerObs">ޕިއަރ އޮބްޒަވޭޝަން ހެދުން</option>
+                                        <option value="PD">ޕްރޮފެޝަނަލް ޑިވެލޮޕްމަންޓް (PD)</option>
+                                        <option value="Assembly">އެސެމްބްލީ ޑިއުޓީ</option>
+                                        <option value="Relief">ރިލީފް ގަޑި ނެގުން</option>
+                                    </select>
                                 </div>
-                                <div contenteditable="true" id="dailyLogDetails" class="rich-editor" dir="auto"></div>
+                                
+                                <div class="form-group">
+                                    <label lang-key="lblDetails">މަސައްކަތުގެ ތަފްސީލު / ރިފްލެކްޝަން:</label>
+                                    <div class="editor-toolbar" style="direction:ltr;">
+                                        <button type="button" onclick="formatText('bold')"><i class="fas fa-bold"></i></button>
+                                        <button type="button" onclick="formatText('italic')"><i class="fas fa-italic"></i></button>
+                                        <button type="button" onclick="formatText('underline')"><i class="fas fa-underline"></i></button>
+                                        <button type="button" onclick="formatText('justifyLeft')"><i class="fas fa-align-left"></i></button>
+                                        <button type="button" onclick="formatText('justifyCenter')"><i class="fas fa-align-center"></i></button>
+                                        <button type="button" onclick="formatText('justifyRight')"><i class="fas fa-align-right"></i></button>
+                                        <button type="button" onclick="formatText('justifyFull')"><i class="fas fa-align-justify"></i></button>
+                                        <button type="button" onclick="formatText('insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
+                                    </div>
+                                    <div contenteditable="true" id="dailyLogDetails" class="rich-editor" dir="auto"></div>
+                                </div>
                             </div>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; border-top:1px solid #eee; padding-top:15px; flex-wrap:wrap; gap:10px;">
-                            <div id="studentStars" style="font-size:20px; color:#ddd;"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
-                            <span style="font-size:18px; font-weight:bold; color:#1a237e;" id="stdPoints">0</span>
-                            <p id="studentMotivation" style="font-size:14px; font-weight:bold; color:var(--royal-purple);"></p>
-                            <button class="action-btn" onclick="tickSessionComplete()" style="background:var(--royal-gold); color:var(--dark-blue); font-weight:bold; font-size:16px;">
-                                <i class="fas fa-check-double"></i> <span lang-key="btnFinishSession">ލޮގް ސޭވްކޮށް ޕޮއިންޓް ހޯދާ</span>
-                            </button>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; border-top:1px solid #eee; padding-top:15px; flex-wrap:wrap; gap:10px;">
+                                <div id="studentStars" style="font-size:20px; color:#ddd;"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+                                <span style="font-size:18px; font-weight:bold; color:#1a237e;" id="stdPoints">0</span>
+                                <p id="studentMotivation" style="font-size:14px; font-weight:bold; color:var(--royal-purple);"></p>
+                                <button class="action-btn" onclick="tickSessionComplete()" style="background:var(--royal-gold); color:var(--dark-blue); font-weight:bold; font-size:16px;">
+                                    <i class="fas fa-check-double"></i> <span lang-key="btnFinishSession">ލޮގް ސޭވްކޮށް ޕޮއިންޓް ހޯދާ</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -642,20 +645,18 @@
 
     // --- 1. REAL DATA PREP (NO DUMMY DATA) ---
     let allStudents = [];
-    let globalTasks = []; 
+    let globalTasks = []; // Holds all tasks for all roles
     let uniqueSchools = new Set();
     let uniqueSupervisors = new Set();
     let uniqueMasters = new Set();
     
     function populateDatalists() {
         const stdDatalist = document.getElementById('allStudentsDatalist');
-        const assignStdSelect = document.getElementById('assignStudentList');
+        const assignStdSelect = document.getElementById('taskAssignee');
         if(stdDatalist) stdDatalist.innerHTML = '';
-        if(assignStdSelect) assignStdSelect.innerHTML = '<option value="all">All Students (TP1 & TP2)</option>';
         
         allStudents.forEach(st => {
             if(stdDatalist) stdDatalist.innerHTML += `<option value="${st.id} - ${st.name}">`;
-            if(assignStdSelect) assignStdSelect.innerHTML += `<option value="${st.id}">${st.id} - ${st.name}</option>`;
         });
 
         const schoolDatalist = document.getElementById('allSchoolsDatalist');
@@ -683,6 +684,8 @@
         uniqueMasters.forEach(m => {
             if(masterDatalist) masterDatalist.innerHTML += `<option value="${m}">`;
         });
+        
+        updateTaskAssigneeList();
     }
 
     // --- 2. MULTI-LANGUAGE TRANSLATIONS ---
@@ -690,20 +693,21 @@
     const translations = {
         dv: {
             softwareNameShort: "ރަސްފަހި ޓީ.ޕީ", statusAutoSave: "ކްލައުޑަށް ސޭވްވަނީ...", statusOnline: "އޮންލައިން", saveBtn: "މެނުއަލް ސޭވް", btnLogout: "ލޮގްއައުޓް", pdfBtn: "ފޯމު ޕީޑީއެފް",
-            menuDashboard: "މެއިން ޑޭޝްބޯޑް (އެޑްމިން)", menuStudent: "ދަރިވަރުގެ ޑޭޝްބޯޑް / ޓާސްކް", menuObservation: "ލެސަން އޮބްޒަރވޭޝަން ފޯމު", menuTasks: "ޓާސްކް އަދި އެކްޝަން ސެންޓަރ", menuAdmin: "އެޑްމިން ޕެނަލް (ޑޭޓާ / ސެޓަޕް)", menuFormBank: "ފޯމު ބޭންކް އަދި މާކުސް އެމެންޑް",
+            menuDashboard: "މެއިން ޑޭޝްބޯޑް (އެޑްމިން)", menuStudent: "މައި ޑޭޝްބޯޑް", menuObservation: "ލެސަން އޮބްޒަރވޭޝަން ފޯމު", menuTasks: "ޓާސްކް މެނޭޖްމަންޓް ސެންޓަރ", menuAdmin: "އެޑްމިން ޕެނަލް (ޑޭޓާ / ސެޓަޕް)", menuFormBank: "ފޯމު ބޭންކް އަދި މާކުސް އެމެންޑް",
             dashBestStd: "އެންމެ ރަނގަޅު ދަރިވަރު", dashCompleted: "ޓީ.ޕީ ފުރިހަމަކޮށްފައި", dashBestSup: "އެންމެ ހީވާގި ސުޕަވައިޒަރ", dashOngoing: "އޮބްޒަވޭޝަން ނިމިފައި", dashActiveSchool: "އެންމެ އެކްޓިވް ސްކޫލް", dashInactiveSchool: "ގުޅަންޖެހޭ ސްކޫލްތައް", dashStudents: "ދަރިވަރުން ފޮނުވިފައި", chartLecturer: "ލެކްޗަރަރުންގެ ޓީ.ޕީ ޓައިމްލައިން / ޕްރޮގްރެސް", chartTitleProgress: "ދަރިވަރުން މަސައްކަތް ނިންމާ މިންވަރު", chartTitleSchools: "ސްކޫލްތަކުގެ ތަފާސްހިސާބު",
-            lblCreateTask: "އައު ޓާސްކް ކްރިއޭޓް ކުރުން (+ Splitter)", phTaskName: "މައި ޓާސްކްގެ ނަން (މިސާލު: Lesson Plan)", phSubTask: "ސަބް-ޓާސްކް 1...", btnAddPart: "ބައެއް އިތުރުކުރޭ", btnAssignTask: "އެސައިންކުރޭ", lblAssignTarget: "ޙަވާލުކުރަނީ ކާކަށް؟", lblAssignStd: "މެނުއަލްކޮށް ދަރިވަރުން އެސައިންކުރުން", lblFileLimit: "ފައިލް ސައިޒް: 10MB އަށްވުރެ ބޮޑުނުކުރައްވާ.", optToStudent: "ދަރިވަރުންނަށް", optToSupervisor: "ސުޕަވައިޒަރަށް", optToMaster: "މާސްޓަރ ޓީޗަރަށް",
+            lblCreateTask: "އައު ޓާސްކް ކްރިއޭޓް ކުރުން (+ Splitter)", phTaskName: "މައި ޓާސްކްގެ ނަން (މިސާލު: Lesson Plan / Portfolio)", phSubTask: "ސަބް-ޓާސްކް 1...", btnAddPart: "ބައެއް އިތުރުކުރޭ", btnAssignTask: "އެސައިންކުރޭ", lblAssignTarget: "ޙަވާލުކުރަނީ ކާކަށް؟", lblAssignStd: "މެނުއަލްކޮށް ދަރިވަރުން އެސައިންކުރުން", lblFileLimit: "ފައިލް ސައިޒް: 10MB އަށްވުރެ ބޮޑުނުކުރައްވާ.", optToStudent: "ދަރިވަރުންނަށް", optToSupervisor: "ސުޕަވައިޒަރަށް", optToMaster: "މާސްޓަރ ޓީޗަރަށް",
             marksTableTitle: "މާކުސް ރިޕޯރޓް (TP1 & TP2)", lblFilterStudent: "ދަރިވަރު ފިލްޓަރ:", lblFilterSchool: "ސްކޫލް ފިލްޓަރ:", optAllSchools: "ހުރިހާ ސްކޫލެއް", lblFilterSup: "ސުޕަވައިޒަރ ފިލްޓަރ:", optAllSup: "ހުރިހާ ސުޕަވައިޒަރުން", btnExportCSV: "CSV / Excel އެކްސްޕޯރޓް", btnExportPDF: "PDF އެކްސްޕޯރޓް", thStudent: "ދަރިވަރުގެ ނަން", thID: "އައި.ޑީ", thSchool: "ސްކޫލް", thSup: "ސުޕަވައިޒަރ", thTP1Marks: "TP 1 (މާކުސް)", thTP2Marks: "TP 2 (މާކުސް)", thMasterMarks: "މާސްޓަރ ޓީޗަރ", thObs1: "Obs 1", thObs2: "Obs 2", thObs3: "Obs 3", thAction: "އެކްޝަން", lblObsNo: "އޮބްޒަވޭޝަން ނަންބަރ", formBankDesc: "މިއީ ކުރިން ފިލްކޮށްފައިވާ ފޯމުތަކެވެ. މާކުސް ބަދަލުކުރާނަމަ ސަބަބު ބަޔާންކޮށް ވެރިފިކޭޝަން ފުރިހަމަކުރަންޖެހޭނެއެވެ.", lblReceivedForms: "ލިބިފައިވާ އޮބްޒަވޭޝަން ފޯމުތައް",
             lblFullName: "ދަރިވަރުގެ ފުރިހަމަ ނަން", phFullName: "ދަރިވަރުގެ ނަން", lblIdCard: "އައި.ޑީ / ސްޓޫޑެންޓް ނަންބަރ", lblCourse: "ކޯހުގެ ނަން / ބެޗް", lblTpLevel: "ޓީ.ޕީ ލެވެލް", formTitleLog: "ޑެއިލީ އެޓެންޑެންސް، ރިފްލެކްޝަން އަދި ވޯކް ލޮގް", btnFinishSession: "ލޮގް ސޭވްކޮށް ޕޮއިންޓް ހޯދާ", lblTodayTask: "މިއަދު ކުރި މަސައްކަތް (ޑްރޮޕްޑައުން އިން ޚިޔާރުކުރައްވާ)", optSelect: "-- އިޚްތިޔާރު ކުރައްވާ --", lblDetails: "މަސައްކަތުގެ ތަފްސީލު / ރިފްލެކްޝަން:", phDetails: "މަސައްކަތުގެ ގޮޅިއަށް ލިޔުމަށް...", lblStudentSig: "ދަރިވަރުގެ ސޮއި (ޓަޗް):", lblLecturerSig: "ލެކްޗަރަރ / ސުޕަވައިޒަރގެ ސޮއި (ޓަޗް):", btnClear: "ސާފުކުރައްވާ", btnSubmitForm: "ފޯމު ސަބްމިޓް ކުރައްވާ", 
             lblTotalMarks: "ޖުމްލަ މާކުސް:", thCompetencies: "COMPETENCIES (ކްރައިޓީރިއާ)", thScale1: "ދަށް (1)", thScale2: "އާދައިގެ (2)", thScale3: "ރަނގަޅު (3)", thScale4: "ވަރަށް ރަނގަޅު (4)", thScale5: "ފުރިހަމަ (5)", 
             lblAutoSuggest: "އޮޓޯ ސަޖެސްޝަން އަދި ފީޑްބެކް (ދަށް މާކުސް ލިބުނު ބައިތަކަށް):", phAutoSuggest: "މާކުސް ދެއްވުމުން އޮޓޯއިން މިތަނަށް ޢިލްމީ ފީޑްބެކް އަންނާނެއެވެ...",
             lblObserverComment: "އިތުރު ނޯޓް އަދި ކޮމެންޓް:", phComment: "ފާހަގަކުރުންތައް މެނުއަލްކޮށް ލިޔުއްވާ...", btnSaveMarks: "މާކުސް ކްލައުޑަށް ސޭވްކުރައްވާ",
             adminDataUpload: "ޑޭޓާ އަޕްލޯޑް އަދި އެކްސްޕޯރޓް", adminStudentCsv: "ދަރިވަރުންގެ CSV އަޕްލޯޑް / ޑައުންލޯޑް", adminDummy: "300 ކުދިންގެ ޑޭޓާ (CSV)", adminBtnUpload: "އަޕްލޯޑްކުރޭ", adminHardReset: "ސިސްޓަމް ހާޑް ރީސެޓް", adminResetDesc: "މުޅި ސޮފްޓްވެއަރގެ ޑޭޓާ ފޮހެލުމަށް 3 ވެރިފިކޭޝަން ފުރިހަމަކުރަންޖެހޭނެއެވެ. މިއީ ހަމައެކަނި އެކަޑެމިކް އެފެއަރޒަށް ކުރެވޭނެ ކަމެކެވެ.", adminBtnReset: "ހާޑް ރީސެޓް ފައްޓަވާ", lblLecInfo: "ލެކްޗަރަރ އިންފޮމޭޝަން ޝީޓް",
-            lblTopic: "ޓޮޕިކް (މެނުއަލް)", lblModule: "މޮޑިއުލް (މެނުއަލް)", lblGrade: "ގްރޭޑް", lblSchool: "ސްކޫލް (ސަރޗް / ޑްރޮޕްޑައުން)", lblObsType: "އޮބްޒަވޭޝަން ވައްތަރު (ޓީޕީ 1 / 2)", lblMarksStatus: "މާކުސް ދެވޭ / ނުދެވޭ", optMarksEnable: "މާކުސް ދެވޭނެ (Final)", optMarksDisable: "މާކުސް ނުދެވޭނެ (Draft)", phSearchStd: "ދަރިވަރުގެ ނަން ނުވަތަ އައި.ޑީ އިން ސަރޗްކުރައްވާ (އޮޓޯ ފިލްކުރުމަށް)...", lblDate: "ތާރީޚް"
+            lblTopic: "ޓޮޕިކް (މެނުއަލް)", lblModule: "މޮޑިއުލް (މެނުއަލް)", lblGrade: "ގްރޭޑް", lblSchool: "ސްކޫލް (ސަރޗް / ޑްރޮޕްޑައުން)", lblObsType: "އޮބްޒަވޭޝަން ވައްތަރު (ޓީޕީ 1 / 2)", lblMarksStatus: "މާކުސް ދެވޭ / ނުދެވޭ", optMarksEnable: "މާކުސް ދެވޭނެ (Final)", optMarksDisable: "މާކުސް ނުދެވޭނެ (Draft)", phSearchStd: "ދަރިވަރުގެ ނަން ނުވަތަ އައި.ޑީ އިން ސަރޗްކުރައްވާ (އޮޓޯ ފިލްކުރުމަށް)...", lblDate: "ތާރީޚް",
+            lblGlobalTasks: "ގްލޯބަލް ޓާސްކް ޕްރޮގްރެސް", lblMyTasks: "އަޅުގަނޑާ ޙަވާލުކުރެވިފައިވާ ޓާސްކްތައް (My Tasks)", lblCreatedTasks: "އަޅުގަނޑު އެސައިންކުރި ޓާސްކްތަކުގެ ޕްރޮގްރެސް"
         },
         en: {
             softwareNameShort: "Rasfahi TP", statusAutoSave: "Saving to Cloud...", statusOnline: "Online", saveBtn: "Manual Save", btnLogout: "Logout", pdfBtn: "Export PDF",
-            menuDashboard: "Main Dashboard (Admin)", menuStudent: "Student Dashboard / Tasks", menuObservation: "Lesson Observation Form", menuTasks: "Task & Action Center", menuAdmin: "Admin Panel (Data / Setup)", menuFormBank: "Form Bank & Amend Marks",
+            menuDashboard: "Main Dashboard (Admin)", menuStudent: "My Dashboard", menuObservation: "Lesson Observation Form", menuTasks: "Task Management Center", menuAdmin: "Admin Panel (Data / Setup)", menuFormBank: "Form Bank & Amend Marks",
             dashBestStd: "Best Student", dashCompleted: "TP Completed", dashBestSup: "Most Active Supervisor", dashOngoing: "Obs. Done", dashActiveSchool: "Most Active School", dashInactiveSchool: "Schools to Contact", dashStudents: "Students Assigned", chartLecturer: "Lecturer TP Timeline / Progress", chartTitleProgress: "Task Progress", chartTitleSchools: "School Statistics",
             lblCreateTask: "Create New Task (+ Splitter)", phTaskName: "Main Task Name (e.g. Lesson Plan)", phSubTask: "Sub-Task 1...", btnAddPart: "Add Part", btnAssignTask: "Assign Task", lblAssignTarget: "Assign To:", lblAssignStd: "Manually Assign Students to Supervisors", lblFileLimit: "File Limit: Max 10MB.", optToStudent: "Students", optToSupervisor: "Supervisors", optToMaster: "Master Teachers",
             marksTableTitle: "Marks Report (TP1 & TP2)", lblFilterStudent: "Filter Student:", lblFilterSchool: "Filter School:", optAllSchools: "All Schools", lblFilterSup: "Filter Supervisor:", optAllSup: "All Supervisors", btnExportCSV: "Export CSV / Excel", btnExportPDF: "Export PDF", thStudent: "Student Name", thID: "ID", thSchool: "School", thSup: "Supervisor", thTP1Marks: "TP 1 (Supervisor)", thTP2Marks: "TP 2 (Supervisor)", thMasterMarks: "Master Teacher", thObs1: "Obs 1", thObs2: "Obs 2", thObs3: "Obs 3", thAction: "Action", lblObsNo: "Observation No.", formBankDesc: "These are previously submitted forms. Amending marks requires a valid reason and verification code.", lblReceivedForms: "Received Observation Forms",
@@ -712,11 +716,12 @@
             lblAutoSuggest: "Auto Suggestions & Feedback (For low scored areas):", phAutoSuggest: "Academic feedback will automatically appear here based on scores...",
             lblObserverComment: "Additional Notes & Comments:", phComment: "Write manual comments here...", btnSaveMarks: "Save Marks to Cloud",
             adminDataUpload: "Data Upload & Export", adminStudentCsv: "Student CSV Upload / Download", adminDummy: "Download 300 Students (CSV)", adminBtnUpload: "Upload", adminHardReset: "System Hard Reset", adminResetDesc: "Requires 3-step verification to wipe all system data. Academic Affairs only.", adminBtnReset: "Initiate Hard Reset", lblLecInfo: "Lecturer Information Sheet",
-            lblTopic: "Topic (Manual)", lblModule: "Module (Manual)", lblGrade: "Grade", lblSchool: "School (Search / Dropdown)", lblObsType: "Observation Type", lblMarksStatus: "Marks Status", optMarksEnable: "Marks Enabled (Final)", optMarksDisable: "Draft Mode (No Marks)", phSearchStd: "Search by Student Name or ID (Auto-fill)...", lblDate: "Date"
+            lblTopic: "Topic (Manual)", lblModule: "Module (Manual)", lblGrade: "Grade", lblSchool: "School (Search / Dropdown)", lblObsType: "Observation Type", lblMarksStatus: "Marks Status", optMarksEnable: "Marks Enabled (Final)", optMarksDisable: "Draft Mode (No Marks)", phSearchStd: "Search by Student Name or ID (Auto-fill)...", lblDate: "Date",
+            lblGlobalTasks: "Global Task Progress", lblMyTasks: "Tasks Assigned To Me", lblCreatedTasks: "Progress of Tasks I Assigned"
         },
         ar: {
             softwareNameShort: "رسفهي TP", statusAutoSave: "جاري الحفظ...", statusOnline: "متصل", saveBtn: "حفظ يدوي", btnLogout: "تسجيل خروج", pdfBtn: "تصدير PDF",
-            menuDashboard: "اللوحة الرئيسية (مسؤول)", menuStudent: "لوحة الطالب / المهام", menuObservation: "استمارة تقييم الدرس", menuTasks: "مركز المهام", menuAdmin: "لوحة الإدارة (البيانات)", menuFormBank: "بنك النماذج وتعديل الدرجات",
+            menuDashboard: "اللوحة الرئيسية (مسؤول)", menuStudent: "لوحتي", menuObservation: "استمارة تقييم الدرس", menuTasks: "مركز المهام", menuAdmin: "لوحة الإدارة (البيانات)", menuFormBank: "بنك النماذج وتعديل الدرجات",
             dashBestStd: "أفضل طالب", dashCompleted: "مكتمل", dashBestSup: "المشرف الأنشط", dashOngoing: "تقييم منجز", dashActiveSchool: "المدرسة الأنشط", dashInactiveSchool: "مدارس غير متصلة", dashStudents: "طالب", chartLecturer: "تقدم المحاضرين", chartTitleProgress: "نسبة إنجاز المهام", chartTitleSchools: "إحصائيات المدارس",
             lblCreateTask: "إنشاء مهمة جديدة", phTaskName: "اسم المهمة الرئيسية", phSubTask: "مهمة فرعية 1...", btnAddPart: "إضافة جزء", btnAssignTask: "تعيين المهمة", lblAssignTarget: "تعيين إلى:", lblAssignStd: "تعيين المشرفين للطلاب", lblFileLimit: "حجم الملف: 10MB كحد أقصى.", optToStudent: "الطلاب", optToSupervisor: "المشرفين", optToMaster: "المعلم الأساسي",
             marksTableTitle: "تقرير درجات الطلاب", lblFilterStudent: "تصفية الطلاب:", lblFilterSchool: "تصفية المدرسة:", optAllSchools: "جميع المدارس", lblFilterSup: "تصفية المشرف:", optAllSup: "جميع المشرفين", btnExportCSV: "تصدير CSV", btnExportPDF: "تصدير PDF", thStudent: "اسم الطالب", thID: "الرقم الجامعي", thSchool: "المدرسة", thSup: "المشرف", thTP1Marks: "TP1 درجات", thTP2Marks: "TP2 درجات", thMasterMarks: "المعلم الأساسي", thObs1: "الملاحظة 1", thObs2: "الملاحظة 2", thObs3: "الملاحظة 3", thAction: "إجراء", lblObsNo: "رقم الملاحظة", formBankDesc: "تتطلب تعديل الدرجات سببًا ورمز تحقق.", lblReceivedForms: "النماذج المستلمة",
@@ -725,7 +730,8 @@
             lblAutoSuggest: "الاقتراحات التلقائية والملاحظات:", phAutoSuggest: "ستظهر الملاحظات الأكاديمية هنا تلقائيًا...",
             lblObserverComment: "ملاحظات إضافية:", phComment: "اكتب الملاحظات يدويًا...", btnSaveMarks: "حفظ الدرجات سحابياً",
             adminDataUpload: "رفع وتصدير البيانات", adminStudentCsv: "رفع / تحميل ملف الطلاب", adminDummy: "تحميل بيانات 300 طالب", adminBtnUpload: "رفع", adminHardReset: "إعادة ضبط النظام", adminResetDesc: "يتطلب تحقق من 3 خطوات لمسح البيانات.", adminBtnReset: "بدء إعادة الضبط", lblLecInfo: "معلومات المحاضرين",
-            lblTopic: "موضوع (يدوي)", lblModule: "وحدة (يدوي)", lblGrade: "صف", lblSchool: "مدرسة (قائمة)", lblObsType: "نوع الملاحظة", lblMarksStatus: "حالة الدرجات", optMarksEnable: "م مفعل (نهائي)", optMarksDisable: "مسودة (لا يوجد درجات)", phSearchStd: "البحث عن طالب (تعبئة تلقائية)...", lblDate: "تاريخ"
+            lblTopic: "موضوع (يدوي)", lblModule: "وحدة (يدوي)", lblGrade: "صف", lblSchool: "مدرسة (قائمة)", lblObsType: "نوع الملاحظة", lblMarksStatus: "حالة الدرجات", optMarksEnable: "مفعل (نهائي)", optMarksDisable: "مسودة (لا يوجد درجات)", phSearchStd: "البحث عن طالب (تعبئة تلقائية)...", lblDate: "تاريخ",
+            lblGlobalTasks: "التقدم العالمي في المهام", lblMyTasks: "المهام المعينة لي", lblCreatedTasks: "المهام التي قمت بتعيينها"
         }
     };
     
@@ -791,10 +797,10 @@
         const email = document.getElementById('username').value.toLowerCase();
         const roleSelect = document.getElementById('userRole');
         
-        if(email.includes('admin') || email.includes('coordinator') || email.includes('agisa') || email.includes('visama')) {
+        if(email.includes('admin') || email.includes('coordinator')) {
             roleSelect.value = 'admin';
         }
-        else if(email.includes('lecturer') || email.includes('supervisor') || email.includes('ali.ibrahim')) {
+        else if(email.includes('lecturer') || email.includes('supervisor') || email.includes('dr.')) {
             roleSelect.value = 'lecturer';
         }
         else if(email.includes('master')) {
@@ -808,7 +814,7 @@
     function handleLogin() {
         if(document.getElementById('username').value && document.getElementById('password').value === "@7791550") {
             currentRole = document.getElementById('userRole').value;
-            currentUser = document.getElementById('username').value;
+            currentUser = document.getElementById('username').value.trim();
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app-container').style.display = 'flex';
             
@@ -841,6 +847,7 @@
 
         if (currentRole === 'admin') {
             menuHtml += `<div class="sidebar-item active" onclick="showSection('dashboard', this)"><i class="fas fa-chart-line"></i> <span lang-key="menuDashboard">މެއިން ޑޭޝްބޯޑް</span></div>`;
+            menuHtml += `<div class="sidebar-item" onclick="showSection('unified-task-center', this)"><i class="fas fa-tasks"></i> <span lang-key="menuTasks">ޓާސްކް ސެންޓަރ</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('all-marks-section', this)"><i class="fas fa-table"></i> <span lang-key="marksTableTitle">މާކުސް ރިޕޯރޓް</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('coordinator-admin', this)"><i class="fas fa-users-cog"></i> <span lang-key="menuAdmin">އެޑްމިން ޕެނަލް</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('observation-form', this)"><i class="fas fa-clipboard-check"></i> <span lang-key="menuObservation">އޮބްޒަރވޭޝަން ފޯމު</span></div>`;
@@ -848,7 +855,8 @@
             filterMarksTable(); 
         } 
         else if (currentRole === 'lecturer' || currentRole === 'master') {
-            menuHtml += `<div class="sidebar-item active" onclick="showSection('student-eval', this)"><i class="fas fa-tasks"></i> <span lang-key="menuTasks">ޓާސްކް</span></div>`;
+            menuHtml += `<div class="sidebar-item active" onclick="showSection('student-eval', this)"><i class="fas fa-user-graduate"></i> <span lang-key="menuStudent">މައި ޑޭޝްބޯޑް</span></div>`;
+            menuHtml += `<div class="sidebar-item" onclick="showSection('unified-task-center', this)"><i class="fas fa-tasks"></i> <span lang-key="menuTasks">ޓާސްކް ސެންޓަރ</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('observation-form', this)"><i class="fas fa-clipboard-check"></i> <span lang-key="menuObservation">އޮބްޒަރވޭޝަން ފޯމު</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('form-bank-section', this)"><i class="fas fa-university"></i> <span lang-key="menuFormBank">ފޯމު ބޭންކް</span></div>`;
             defaultSection = 'student-eval';
@@ -866,7 +874,8 @@
             filterMarksTable(); 
         } 
         else {
-            menuHtml += `<div class="sidebar-item active" onclick="showSection('student-eval', this)"><i class="fas fa-user-graduate"></i> <span lang-key="menuTasks">ދަރިވަރުގެ ޑޭޝްބޯޑް</span></div>`;
+            menuHtml += `<div class="sidebar-item active" onclick="showSection('student-eval', this)"><i class="fas fa-user-graduate"></i> <span lang-key="menuStudent">މައި ޑޭޝްބޯޑް</span></div>`;
+            menuHtml += `<div class="sidebar-item" onclick="showSection('unified-task-center', this)"><i class="fas fa-tasks"></i> <span lang-key="menuTasks">ޓާސްކް ސެންޓަރ</span></div>`;
             defaultSection = 'student-eval';
         }
         
@@ -876,13 +885,15 @@
         if(currentRole === 'admin') updateAdminDashboard();
         
         if (currentRole !== 'student') {
-            const logSection = document.querySelector('h3 .fa-calendar-check');
-            if(logSection && logSection.parentElement) {
-                logSection.parentElement.style.display = 'none';
-                logSection.parentElement.nextElementSibling.style.display = 'none';
-            }
+            document.getElementById('studentLogSection').style.display = 'none';
+            document.querySelectorAll('.admin-only-opt').forEach(opt => opt.style.display = currentRole==='admin'?'block':'none');
+        } else {
+            document.getElementById('taskCreatorUI').style.display = 'none';
+            document.getElementById('tasksAssignedByMeSection').style.display = 'none';
         }
-        renderRoleTasks();
+        
+        updateTaskAssigneeList();
+        renderUnifiedTasks();
         renderFormBank();
     }
 
@@ -894,6 +905,7 @@
         else if(document.querySelector('.sidebar-item.active')) document.querySelector('.sidebar-item.active').classList.remove('active');
         
         if(sectionId === 'observation-form') setTimeout(resizeCanvases, 100);
+        if(sectionId === 'unified-task-center') renderUnifiedTasks();
     }
 
     function logout() { location.reload(); }
@@ -970,12 +982,13 @@
         }
 
         let completedTasks = 0, pendingTasks = 0;
-        let myRoleTarget = currentRole + "s";
-        if (currentRole === 'lecturer') myRoleTarget = "lecturers";
-        let myTasks = globalTasks.filter(t => t.targets.includes(myRoleTarget));
+        let myTasks = globalTasks.filter(t => t.targetUser === currentUser || t.targetUser === 'all');
+        if(currentRole !== 'student') {
+            myTasks = globalTasks.filter(t => t.creator === currentUser);
+        }
         
         myTasks.forEach(t => {
-            if(t.status === 'approved' || t.status === 'submitted') completedTasks++;
+            if(t.totalPct >= 100) completedTasks++;
             else pendingTasks++;
         });
 
@@ -1005,6 +1018,28 @@
         dropdown.value = ""; document.getElementById('dailyLogDetails').innerHTML = "";
     }
 
+    /* === UNIFIED TASK SYSTEM LOGIC === */
+    function updateTaskAssigneeList() {
+        const role = document.getElementById('taskTargetRole').value;
+        const select = document.getElementById('taskAssignee');
+        select.innerHTML = '';
+        
+        if (role === 'student') {
+            select.innerHTML += '<option value="all">All Students</option>';
+            allStudents.forEach(st => {
+                if(currentRole === 'admin' || (currentRole === 'lecturer' && st.sup.toLowerCase() === currentUser.toLowerCase()) || (currentRole === 'master' && st.master.toLowerCase() === currentUser.toLowerCase())) {
+                    select.innerHTML += `<option value="${st.id}">${st.name} (${st.id})</option>`;
+                }
+            });
+        } else if (role === 'lecturer') {
+            select.innerHTML += '<option value="all">All Lecturers/Supervisors</option>';
+            uniqueSupervisors.forEach(sup => select.innerHTML += `<option value="${sup}">${sup}</option>`);
+        } else if (role === 'master') {
+            select.innerHTML += '<option value="all">All Master Teachers</option>';
+            uniqueMasters.forEach(m => select.innerHTML += `<option value="${m}">${m}</option>`);
+        }
+    }
+
     function addTaskRow() {
         const container = document.getElementById('taskSplitContainer');
         const row = document.createElement('div'); row.className = 'task-row';
@@ -1013,18 +1048,14 @@
         container.appendChild(row);
     }
 
-    function createAdminTask() {
+    function createNewTask() {
         const title = document.getElementById('newTaskTitle').value.trim();
-        if(!title) { alert(currentLang==='dv' ? "މައި ޓާސްކްގެ ނަން ލިޔުއްވާ!" : "Enter task title!"); return; }
-
-        let targets = [];
-        if(document.getElementById('chkStudents') && document.getElementById('chkStudents').checked) targets.push("students");
-        if(document.getElementById('chkSup') && document.getElementById('chkSup').checked) targets.push("lecturers");
-        if(document.getElementById('chkMaster') && document.getElementById('chkMaster').checked) targets.push("masters");
+        const targetRole = document.getElementById('taskTargetRole').value;
+        const targetUser = document.getElementById('taskAssignee').value;
         
-        if(targets.length === 0) { alert(currentLang==='dv' ? "ޙަވާލުކުރާނެ ފަރާތެއް ޓިކްކުރައްވާ!" : "Select an assignee!"); return;}
+        if(!title) { alert(currentLang==='dv' ? "މައި ޓާސްކްގެ ނަން ލިޔުއްވާ!" : "Enter task title!"); return; }
+        if(!targetUser) { alert("Assignee target is empty!"); return; }
 
-        const targetStudent = document.getElementById('assignStudentList').value; 
         const subTasks = [];
         const rows = document.querySelectorAll('#taskSplitContainer .task-row');
         let totalPercent = 0;
@@ -1032,76 +1063,133 @@
         rows.forEach(row => {
             const name = row.querySelector('input[type="text"]').value.trim();
             const pct = parseInt(row.querySelector('input[type="number"]').value) || 0;
-            if(name) { subTasks.push({ name: name, percent: pct }); totalPercent += pct; }
+            if(name) { subTasks.push({ name: name, pct: pct, done: false }); totalPercent += pct; }
         });
 
         if(subTasks.length > 0 && totalPercent !== 100) { alert(currentLang==='dv' ? "ސަބް-ޓާސްކްތަކުގެ ޕަސެންޓޭޖް އެއްކުރުމުން 100 އަށް އަރަންވާނެއެވެ!" : "Total percentage must equal 100!"); return; }
 
-        const newTask = { id: 'task_' + Date.now(), title: title, targets: targets, targetStudent: targetStudent, subTasks: subTasks, status: 'pending' };
+        const newTask = { 
+            id: 'task_' + Date.now(), 
+            title: title, 
+            creator: currentUser, 
+            targetRole: targetRole, 
+            targetUser: targetUser, 
+            subTasks: subTasks, 
+            totalPct: 0 
+        };
         globalTasks.push(newTask);
+        
         alert(currentLang==='dv' ? "ޓާސްކް ކާމިޔާބުކަމާއެކު އެސައިންކުރެވިއްޖެ!" : "Task Assigned Successfully!");
         
         document.getElementById('newTaskTitle').value = "";
         document.getElementById('taskSplitContainer').innerHTML = `
-            <label>ސަބް-ޓާސްކް އަދި ޕަސެންޓޭޖް (%):</label>
+            <label>ސަބް-ޓާސްކް އަދި ޕަސެންޓޭޖް (%) [ޖުމްލަ 100 އަށް ވާގޮތަށް]:</label>
             <div class="task-row">
                 <input type="text" placeholder="${translations[currentLang]?.phSubTask || 'ސަބް-ޓާސްކް 1...'}">
                 <input type="number" class="percent" placeholder="%" min="1" max="100">
             </div>
         `;
-        renderRoleTasks(); 
-        updateCharts(); 
+        renderUnifiedTasks();
     }
 
-    function renderRoleTasks() {
-        const taskArea = document.getElementById('studentTaskArea');
-        if(!taskArea) return;
-        taskArea.innerHTML = '';
+    function toggleSubTask(taskId, subIndex, checkbox) {
+        const task = globalTasks.find(t => t.id === taskId);
+        if(!task) return;
         
-        let myRoleTarget = currentRole + "s";
-        if (currentRole === 'lecturer') myRoleTarget = "lecturers";
+        task.subTasks[subIndex].done = checkbox.checked;
         
-        const myTasks = globalTasks.filter(t => t.targets.includes(myRoleTarget));
+        let calculatedPct = 0;
+        task.subTasks.forEach(st => { if(st.done) calculatedPct += st.pct; });
+        task.totalPct = calculatedPct;
         
-        if(myTasks.length === 0) { taskArea.innerHTML = `<p style="color:#666;">${currentLang==='dv' ? 'އެސައިން ކުރެވިފައިވާ އެއްވެސް ޓާސްކެއް ނެތް.' : 'No tasks assigned.'}</p>`; return; }
+        renderUnifiedTasks();
+    }
 
-        myTasks.forEach(task => {
-            let subTaskHtml = '';
-            task.subTasks.forEach(st => { subTaskHtml += `<p style="font-size:13px; color:#555; margin:5px 0;">• ${st.name} (${st.percent}%)</p>`; });
+    function completeFullTask(taskId) {
+        const task = globalTasks.find(t => t.id === taskId);
+        if(!task) return;
+        task.totalPct = 100;
+        if(task.subTasks) task.subTasks.forEach(st => st.done = true);
+        renderUnifiedTasks();
+    }
+
+    function renderUnifiedTasks() {
+        const myActionableArea = document.getElementById('myActionableTasksArea');
+        const tasksCreatedByMeArea = document.getElementById('tasksCreatedByMeArea');
+        const globalAdminTable = document.getElementById('adminGlobalTaskListBody');
+        
+        if (myActionableArea) myActionableArea.innerHTML = '';
+        if (tasksCreatedByMeArea) tasksCreatedByMeArea.innerHTML = '';
+        if (globalAdminTable) globalAdminTable.innerHTML = '';
+        
+        let hasMyTasks = false;
+        let hasCreatedTasks = false;
+        let hasGlobalTasks = false;
+
+        globalTasks.forEach(task => {
+            let isAssignedToMe = false;
+            let isCreatedByMe = (task.creator.toLowerCase() === currentUser.toLowerCase());
             
-            let statusClass = task.status === 'pending' ? 'pending' : 'approved';
-            let statusText = task.status === 'pending' ? (currentLang==='dv'?'ޕެންޑިންގ':'Pending') : (currentLang==='dv'?'ފޮނުވިފައި':'Submitted');
-            let badgeBg = task.status === 'pending' ? '#FFE4B5' : '#e6f2ff';
-            let badgeColor = task.status === 'pending' ? '#8B6508' : 'var(--royal-blue)';
+            // Check if actionable for me
+            if (currentRole === 'lecturer' && task.targetRole === 'lecturer' && (task.targetUser === 'all' || task.targetUser.toLowerCase() === currentUser.toLowerCase())) isAssignedToMe = true;
+            else if (currentRole === 'master' && task.targetRole === 'master' && (task.targetUser === 'all' || task.targetUser.toLowerCase() === currentUser.toLowerCase())) isAssignedToMe = true;
+            else if (currentRole === 'student' && task.targetRole === 'student' && (task.targetUser === 'all' || task.targetUser.toLowerCase() === currentUser.toLowerCase() || task.targetUser === allStudents.find(s => s.name.toLowerCase() === currentUser.toLowerCase())?.id)) isAssignedToMe = true;
+
+            let statusText = task.totalPct >= 100 ? (currentLang==='dv'?'ފުރިހަމަވެފައި':'Completed') : (currentLang==='dv'?'ޕެންޑިންގ':'Pending');
+            let badgeClass = task.totalPct >= 100 ? "approved" : "pending";
+            let bBg = task.totalPct >= 100 ? '#e6f2ff' : '#FFE4B5';
+            let bColor = task.totalPct >= 100 ? 'var(--royal-blue)' : '#8B6508';
             
-            let actionHtml = '';
-            if (task.status === 'pending') {
-                actionHtml = `
-                    <div style="display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
-                        <input type="file" style="width:150px; font-size:11px;" accept=".pdf,.doc,.docx">
-                        <button class="action-btn small" style="background:#FFA500;" onclick="submitAssignedTask('${task.id}', this)"><i class="fas fa-paper-plane"></i> ${currentLang==='dv'?'ފޮނުވާ':'Submit'}</button>
+            // Global Admin View
+            if (globalAdminTable) {
+                hasGlobalTasks = true;
+                let color = task.totalPct >= 100 ? 'green' : 'orange';
+                globalAdminTable.innerHTML += `<tr><td>${task.title}</td><td>${task.targetUser} (${task.targetRole})</td><td style="color:${color}; font-weight:bold;">${task.totalPct}%</td></tr>`;
+            }
+
+            // Build Subtask HTML
+            let subHtml = '';
+            if(task.subTasks && task.subTasks.length > 0) {
+                task.subTasks.forEach((st, idx) => {
+                    let checked = st.done ? 'checked' : '';
+                    let disabled = !isAssignedToMe ? 'disabled' : '';
+                    subHtml += `<label class="subtask-item"><input type="checkbox" ${checked} ${disabled} onchange="toggleSubTask('${task.id}', ${idx}, this)"> ${st.name} (${st.pct}%)</label>`;
+                });
+            } else if (isAssignedToMe && task.totalPct < 100) {
+                subHtml = `
+                    <div style="margin-top:10px;">
+                        <input type="file" style="width:100%; font-size:11px; margin-bottom:5px;" accept=".pdf,.doc,.docx">
+                        <button class="action-btn small" style="background:#FFA500; width:100%;" onclick="completeFullTask('${task.id}')"><i class="fas fa-paper-plane"></i> ${currentLang==='dv'?'ފޮނުވާ':'Submit Work'}</button>
                     </div>`;
             }
 
-            taskArea.innerHTML += `
-                <div class="task-card ${statusClass}" id="${task.id}">
-                    <div><h4 style="margin:0;">${task.title}</h4>${subTaskHtml}<span class="task-badge" style="background:${badgeBg}; color:${badgeColor};">${statusText}</span></div>
-                    ${actionHtml}
-                </div>
-            `;
-        });
-    }
+            let cardHtml = `
+                <div class="task-card ${badgeClass}" id="${task.id}">
+                    <span class="task-badge" style="background:${bBg}; color:${bColor};">${statusText}</span>
+                    <div style="width:100%; margin-top:20px;">
+                        <h4 style="margin:0; color:#1a237e;">${task.title}</h4>
+                        <p style="font-size:12px; color:#666; margin:5px 0;">Assigned to: ${task.targetUser}</p>
+                        <div class="progress-bar-container"><div class="progress-bar-fill" style="width:${task.totalPct}%;"></div></div>
+                        <p style="text-align:right; font-size:12px; margin:5px 0; font-weight:bold; color:var(--royal-green);">${task.totalPct}%</p>
+                    </div>
+                    <div style="width:100%;">${subHtml}</div>
+                </div>`;
 
-    function submitAssignedTask(taskId, btn) {
-        const file = btn.parentElement.querySelector('input[type="file"]');
-        if(file && file.files.length > 0) { if(file.files[0].size > 10485760) { alert("File is too large! Maximum 10MB."); return; } } 
-        else { alert(currentLang==='dv' ? "ފައިލް އަޕްލޯޑްކުރައްވާ!" : "Please upload a file!"); return; }
+            if (isAssignedToMe && myActionableArea) {
+                hasMyTasks = true;
+                myActionableArea.innerHTML += cardHtml;
+            }
+            if (isCreatedByMe && tasksCreatedByMeArea) {
+                hasCreatedTasks = true;
+                tasksCreatedByMeArea.innerHTML += cardHtml;
+            }
+        });
+
+        if (!hasMyTasks && myActionableArea) myActionableArea.innerHTML = `<p style="color:#666;">${currentLang==='dv'?'އަދި އެއްވެސް ޓާސްކެއް ޙަވާލުކުރެވިފައެއް ނުވޭ.':'No tasks assigned to you yet.'}</p>`;
+        if (!hasCreatedTasks && tasksCreatedByMeArea) tasksCreatedByMeArea.innerHTML = `<p style="color:#666;">${currentLang==='dv'?'އަދި އެއްވެސް ޓާސްކެއް އެސައިންކޮށްފައެއް ނުވޭ.':'You haven\'t assigned any tasks.'}</p>`;
+        if (!hasGlobalTasks && globalAdminTable) globalAdminTable.innerHTML = `<tr><td colspan="3" style="color:#888;">No tasks generated yet.</td></tr>`;
         
-        const taskIndex = globalTasks.findIndex(t => t.id === taskId);
-        if(taskIndex > -1) globalTasks[taskIndex].status = 'submitted';
-        
-        renderRoleTasks();
-        updateCharts(); 
+        updateCharts();
     }
 
     function renderFormBank() {
@@ -1129,9 +1217,6 @@
             }
         });
     }
-
-    function openAmendModal(stdName, obsName) { document.getElementById('amendStudentName').innerText = stdName; document.getElementById('amendObsName').innerText = obsName; document.getElementById('amendModal').style.display = 'flex'; }
-    function saveAmendment() { if(!document.getElementById('amendReason').value || !document.getElementById('amendCode').value) { alert("ސަބަބާއި ކޯޑު ލިޔުއްވާ!"); return; } alert("ވެރިފިކޭޝަން ކާމިޔާބު! މާކުސް ބަދަލުކުރެވިއްޖެ."); document.getElementById('amendModal').style.display = 'none'; }
 
     // --- 6. AUTOFILL & FILTERS ---
     function autoFillStudentObs() {
@@ -1260,7 +1345,7 @@
             if (card) {
                 const ps = card.querySelectorAll('p');
                 if (ps.length >= 2) {
-                    ps[0].innerText = mostActiveSchool || "N/A";
+                    document.getElementById('dashActiveSchoolName').innerText = mostActiveSchool || "N/A";
                     ps[1].innerText = currentLang === 'dv' ? `${maxCount} ދަރިވަރުން ފޮނުވިފައި` : `${maxCount} Students Assigned`;
                 }
             }
@@ -1293,17 +1378,14 @@
 
         const inactiveLabel = document.querySelector('span[lang-key="dashInactiveSchool"]');
         if (inactiveLabel) {
-            const card = inactiveLabel.closest('.royal-card');
-            if (card) {
-                const ul = card.querySelector('ul');
-                if (ul) {
-                    const activeSchoolNames = Object.keys(schoolCounts);
-                    const allSchoolsArr = Array.from(uniqueSchools);
-                    const inactive = allSchoolsArr.filter(sch => !activeSchoolNames.includes(sch));
-                    ul.innerHTML = '';
-                    if (inactive.length === 0) { ul.innerHTML = `<li style="color:var(--royal-green); font-weight:bold;">${currentLang === 'dv' ? 'ހުރިހާ ސްކޫލަކަށް ކުދިން ފޮނުވިފައި' : 'All schools are active'}</li>`; } 
-                    else { inactive.slice(0, 3).forEach(sch => { ul.innerHTML += `<li>${sch} (No Students)</li>`; }); }
-                }
+            const list = document.getElementById('inactiveSchoolsList');
+            if (list) {
+                const activeSchoolNames = Object.keys(schoolCounts);
+                const allSchoolsArr = Array.from(uniqueSchools);
+                const inactive = allSchoolsArr.filter(sch => !activeSchoolNames.includes(sch));
+                list.innerHTML = '';
+                if (inactive.length === 0) { list.innerHTML = `<li style="color:var(--royal-green); font-weight:bold;">${currentLang === 'dv' ? 'ހުރިހާ ސްކޫލަކަށް ކުދިން ފޮނުވިފައި' : 'All schools are active'}</li>`; } 
+                else { inactive.slice(0, 3).forEach(sch => { list.innerHTML += `<li>${sch} (No Students)</li>`; }); }
             }
         }
     }
@@ -1366,7 +1448,7 @@
             const stdDatalist = document.getElementById('allStudentsDatalist'); const marksBody = document.getElementById('fullMarksBody');
             if (stdDatalist) stdDatalist.innerHTML = ''; if (marksBody) marksBody.innerHTML = '';
             
-            updateAdminDashboard(); populateDatalists(); renderRoleTasks(); updateCharts(); renderFormBank();
+            updateAdminDashboard(); populateDatalists(); renderUnifiedTasks(); updateCharts(); renderFormBank();
             alert(currentLang === 'dv' ? "ސިސްޓަމްގެ ހުރިހާ ޑޭޓާއެއް ފޮހެލެވިއްޖެ. (ހާޑް ރީސެޓް ކާމިޔާބު)" : "Hard Reset Complete. All data wiped."); 
         } 
     }
