@@ -184,7 +184,7 @@
             
             <div class="input-group-en">
                 <label>User Identifier (Email or Exact Name in CSV):</label>
-                <input type="text" id="username" placeholder="Dr. Hassan Niyaz / coordinator@ium.edu.mv" oninput="autoDetectRole()">
+                <input type="text" id="username" placeholder="Exact Name in CSV (e.g. Dr. Hassan Niyaz)" oninput="autoDetectRole()">
             </div>
             
             <div class="input-group-en">
@@ -928,6 +928,9 @@
         
         if(sectionId === 'observation-form') setTimeout(resizeCanvases, 100);
         if(sectionId === 'unified-task-center') renderUnifiedTasks();
+        if(sectionId === 'form-bank-section') renderFormBank();
+        if(sectionId === 'dashboard') updateAdminDashboard();
+        if(sectionId === 'student-eval') updateCharts();
     }
 
     function logout() { location.reload(); }
@@ -1050,7 +1053,7 @@
         if (role === 'student') {
             select.innerHTML += '<option value="all">All Students</option>';
             allStudents.forEach(st => {
-                if(currentRole === 'admin' || (currentRole === 'lecturer' && st.sup.toLowerCase() === currentUser.toLowerCase()) || (currentRole === 'master' && st.master.toLowerCase() === currentUser.toLowerCase())) {
+                if(currentRole === 'admin' || (currentRole === 'lecturer' && st.sup.trim().toLowerCase() === currentUser.trim().toLowerCase()) || (currentRole === 'master' && st.master.trim().toLowerCase() === currentUser.trim().toLowerCase())) {
                     select.innerHTML += `<option value="${st.id}">${st.name} (${st.id})</option>`;
                 }
             });
@@ -1154,11 +1157,11 @@
 
         globalTasks.forEach(task => {
             let isAssignedToMe = false;
-            let isCreatedByMe = (task.creator.toLowerCase() === currentUser.toLowerCase());
+            let isCreatedByMe = (task.creator.trim().toLowerCase() === currentUser.trim().toLowerCase());
             
-            if (currentRole === 'lecturer' && task.targetRole === 'lecturer' && (task.targetUser === 'all' || task.targetUser.toLowerCase() === currentUser.toLowerCase())) isAssignedToMe = true;
-            else if (currentRole === 'master' && task.targetRole === 'master' && (task.targetUser === 'all' || task.targetUser.toLowerCase() === currentUser.toLowerCase())) isAssignedToMe = true;
-            else if (currentRole === 'student' && task.targetRole === 'student' && (task.targetUser === 'all' || task.targetUser.toLowerCase() === currentUser.toLowerCase() || task.targetUser === allStudents.find(s => s.name.toLowerCase() === currentUser.toLowerCase())?.id)) isAssignedToMe = true;
+            if (currentRole === 'lecturer' && task.targetRole === 'lecturer' && (task.targetUser === 'all' || task.targetUser.trim().toLowerCase() === currentUser.trim().toLowerCase())) isAssignedToMe = true;
+            else if (currentRole === 'master' && task.targetRole === 'master' && (task.targetUser === 'all' || task.targetUser.trim().toLowerCase() === currentUser.trim().toLowerCase())) isAssignedToMe = true;
+            else if (currentRole === 'student' && task.targetRole === 'student' && (task.targetUser === 'all' || task.targetUser.trim().toLowerCase() === currentUser.trim().toLowerCase() || task.targetUser === allStudents.find(s => s.name.trim().toLowerCase() === currentUser.trim().toLowerCase())?.id)) isAssignedToMe = true;
 
             let statusText = task.totalPct >= 100 ? (currentLang==='dv'?'ފުރިހަމަވެފައި':'Completed') : (currentLang==='dv'?'ޕެންޑިންގ':'Pending');
             let badgeClass = task.totalPct >= 100 ? "approved" : "pending";
@@ -1231,11 +1234,15 @@
                 }
             };
 
-            if (currentRole === 'admin' || (currentRole === 'lecturer' && st.sup.toLowerCase() === currentUser.toLowerCase())) {
+            const isAdmin = currentRole === 'admin';
+            const isMyStudentLec = currentRole === 'lecturer' && st.sup.trim().toLowerCase() === currentUser.trim().toLowerCase();
+            const isMyStudentMaster = currentRole === 'master' && st.master.trim().toLowerCase() === currentUser.trim().toLowerCase();
+
+            if (isAdmin || isMyStudentLec) {
                 addRow("TP1 - Obs 1", st.tp1[0]); addRow("TP1 - Obs 2", st.tp1[1]); addRow("TP1 - Obs 3", st.tp1[2]);
                 addRow("TP2 - Obs 1", st.tp2[0]); addRow("TP2 - Obs 2", st.tp2[1]); addRow("TP2 - Obs 3", st.tp2[2]);
             }
-            if (currentRole === 'admin' || (currentRole === 'master' && st.master.toLowerCase() === currentUser.toLowerCase())) {
+            if (isAdmin || isMyStudentMaster) {
                 addRow("Master Teacher Final", st.masterScore);
             }
         });
@@ -1265,8 +1272,8 @@
             const trSchool = rows[i].getAttribute('data-school') ? rows[i].getAttribute('data-school').toLowerCase() : '';
             
             let showRow = false;
-            if(currentRole === 'lecturer' && trSup !== currentUser.toLowerCase()) { showRow = false; }
-            else if (currentRole === 'master' && trMaster !== currentUser.toLowerCase()) { showRow = false; } 
+            if(currentRole === 'lecturer' && trSup !== currentUser.trim().toLowerCase()) { showRow = false; }
+            else if (currentRole === 'master' && trMaster !== currentUser.trim().toLowerCase()) { showRow = false; } 
             else if(text.includes(search) && trSup.includes(sup) && trSchool.includes(school)) { showRow = true; }
             
             if(showRow) rows[i].style.display = ""; else rows[i].style.display = "none";
@@ -1580,7 +1587,7 @@
     function exportLecturerInfoPDF() {
         let assignedHtml = '';
         allStudents.forEach(st => {
-            if (st.sup.toLowerCase() === currentUser.toLowerCase()) {
+            if (st.sup.trim().toLowerCase() === currentUser.trim().toLowerCase()) {
                 assignedHtml += `<tr><td>${st.name}</td><td>${st.id}</td><td>${st.course}</td><td>${st.school}</td></tr>`;
             }
         });
