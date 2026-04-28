@@ -714,7 +714,7 @@
         </div>
     </div>
 
-    <script>
+<script>
         // --- 1. DUMMY DATA GENERATION (300 Students, 30 Schools) ---
         const maldivianFirstNames = ["Ahmed", "Ali", "Hassan", "Hussain", "Mohamed", "Ibrahim", "Abdulla", "Aminath", "Fathimath", "Aishath", "Mariyam", "Hawwa", "Khadheeja", "Shiuna", "Niuma", "Haleemath", "Zuleykha", "Abdul", "Moosa", "Ismail"];
         const maldivianLastNames = ["Didi", "Manik", "Rasheed", "Naseer", "Waheed", "Shareef", "Zahir", "Niyaz", "Saeed", "Haleem", "Naseem", "Shakir", "Riza", "Jaleel"];
@@ -792,7 +792,7 @@
                 }
 
                 const rTd = (val, high) => {
-                    if(val === null) return `<td>-</td>`;
+                    if(val === null || val === undefined || isNaN(val)) return `<td>-</td>`;
                     if(val === high && high > 0) return `<td class="score-highest">${val}</td>`;
                     return `<td class="score-low">${val}</td>`;
                 };
@@ -944,11 +944,11 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-container').style.display = 'flex';
                 
-                generateDummyData(); // Build 300 students and filter options
+                generateDummyData(); 
                 setupRoleUI();
                 initCharts(); 
                 initSignaturePads(); 
-                switchLanguage('dv'); // Default app to Dhivehi after login
+                switchLanguage('dv'); 
                 
                 if(document.getElementById('obsDate')) document.getElementById('obsDate').valueAsDate = new Date();
 
@@ -970,7 +970,6 @@
             const badgeText = document.getElementById('userRole').options[document.getElementById('userRole').selectedIndex].text;
             document.getElementById('roleBadge').innerText = badgeText;
 
-            // Admin UI
             if (currentRole === 'admin') {
                 menuHtml += `<div class="sidebar-item active" onclick="showSection('dashboard', this)"><i class="fas fa-chart-line"></i> <span lang-key="menuDashboard">މެއިން ޑޭޝްބޯޑް</span></div>`;
                 menuHtml += `<div class="sidebar-item" onclick="showSection('all-marks-section', this)"><i class="fas fa-table"></i> <span lang-key="marksTableTitle">މާކުސް ރިޕޯރޓް</span></div>`;
@@ -979,7 +978,6 @@
                 defaultSection = 'dashboard';
                 filterMarksTable(); 
             } 
-            // Lecturer/Supervisor UI (NO MARKS REPORT TAB)
             else if (currentRole === 'lecturer') {
                 menuHtml += `<div class="sidebar-item active" onclick="showSection('observation-form', this)"><i class="fas fa-clipboard-check"></i> <span lang-key="menuObservation">އޮބްޒަރވޭޝަން ފޯމު</span></div>`;
                 menuHtml += `<div class="sidebar-item" onclick="showSection('form-bank-section', this)"><i class="fas fa-university"></i> <span lang-key="menuFormBank">ފޯމު ބޭންކް</span></div>`;
@@ -991,7 +989,6 @@
                 document.querySelectorAll('.master-header, .master-col').forEach(el => el.style.display = 'none'); 
                 filterMarksTable(); 
             } 
-            // Master Teacher UI (NO MARKS REPORT TAB)
             else if (currentRole === 'master') {
                 menuHtml += `<div class="sidebar-item active" onclick="showSection('observation-form', this)"><i class="fas fa-clipboard-check"></i> <span lang-key="menuObservation">އޮބްޒަރވޭޝަން ފޯމު</span></div>`;
                 menuHtml += `<div class="sidebar-item" onclick="showSection('form-bank-section', this)"><i class="fas fa-university"></i> <span lang-key="menuFormBank">ފޯމު ބޭންކް</span></div>`;
@@ -1002,7 +999,6 @@
                 document.querySelectorAll('.tp1-header, .tp2-header, .sup-col').forEach(el => el.style.display = 'none'); 
                 filterMarksTable();
             } 
-            // Student UI
             else {
                 menuHtml += `<div class="sidebar-item active" onclick="showSection('student-eval', this)"><i class="fas fa-user-graduate"></i> <span lang-key="menuStudent">ދަރިވަރުގެ ޑޭޝްބޯޑް</span></div>`;
                 defaultSection = 'student-eval';
@@ -1160,7 +1156,7 @@
             const search = document.getElementById('filterStudentMarks') ? document.getElementById('filterStudentMarks').value.toLowerCase() : '';
             const sup = document.getElementById('filterSupervisorMarks') ? document.getElementById('filterSupervisorMarks').value.toLowerCase() : '';
             const school = document.getElementById('filterSchoolMarks') ? document.getElementById('filterSchoolMarks').value.toLowerCase() : '';
-            const rows = document.getElementById('fullMarksBody').getElementsByTagName('tr');
+            const rows = document.getElementById('fullMarksBody') ? document.getElementById('fullMarksBody').getElementsByTagName('tr') : [];
             
             for(let i=0; i<rows.length; i++) {
                 const text = rows[i].innerText.toLowerCase();
@@ -1188,184 +1184,250 @@
                 statusEl.style.color = "#00FF00";
             }, 800);
         }
-        function submitRubricMarks() { triggerManualSave(); }
-        
+
+        // މާކުސް ޓޭބަލް ރީފްރެޝްކޮށް އަޕްޑޭޓްކުރާ ފަންކްޝަން
+        function renderMarksTable() {
+            const marksBody = document.getElementById('fullMarksBody');
+            if (!marksBody) return;
+            marksBody.innerHTML = '';
+
+            const rTd = (val, high) => {
+                if(val === null || val === undefined || isNaN(val)) return `<td>-</td>`;
+                if(val === high && high > 0) return `<td class="score-highest">${val}</td>`;
+                return `<td class="score-low">${val}</td>`;
+            };
+
+            allStudents.forEach(studentObj => {
+                marksBody.innerHTML += `
+                    <tr data-sup="${studentObj.sup}" data-master="${studentObj.master}" data-school="${studentObj.school}">
+                        <td style="text-align:left; font-weight:bold;">${studentObj.name}</td>
+                        <td style="text-align:left;">${studentObj.id}</td>
+                        <td style="text-align:left;">${studentObj.school}</td>
+                        <td style="text-align:left;" class="sup-col">${studentObj.sup}</td>
+                        ${rTd(studentObj.tp1[0], studentObj.tp1_high)}${rTd(studentObj.tp1[1], studentObj.tp1_high)}${rTd(studentObj.tp1[2], studentObj.tp1_high)}
+                        ${rTd(studentObj.tp2[0], studentObj.tp2_high)}${rTd(studentObj.tp2[1], studentObj.tp2_high)}${rTd(studentObj.tp2[2], studentObj.tp2_high)}
+                        <td class="master-col" style="font-weight:bold; color:var(--royal-purple);">${studentObj.masterScore !== null ? studentObj.masterScore : '-'}</td>
+                    </tr>
+                `;
+            });
+            
+            filterMarksTable(); // ފިލްޓަރތައް އަލުން އެޕްލައިކުރުން
+        }
+
+        // ފޯމުން މާކުސް ނަގައި ޓޭބަލްއަށް ސޭވްކުރާ ފަންކްޝަން
+        function submitRubricMarks() {
+            const stdID = document.getElementById('obsStdID').value.trim();
+            const obsType = document.getElementById('obsTypeSelect').value;
+            const marksStatus = document.getElementById('obsMarksStatus').value;
+            
+            if (!stdID) {
+                alert(currentLang === 'dv' ? "ދަރިވަރުގެ އައި.ޑީ ޖައްސަވާ! (ސަރޗް ބޮކްސް ބޭނުންކުރައްވާ)" : "Please enter a Student ID!");
+                return;
+            }
+
+            if (marksStatus === 'disabled') {
+                alert(currentLang === 'dv' ? "މިއީ ޑްރާފްޓް (މާކުސް ނުދެވޭ) އޮބްޒަވޭޝަނެކެވެ. މާކުސް ރިޕޯޓަކަށް ނުދާނެއެވެ." : "This is a Draft observation. Marks will not be saved to the report.");
+                return;
+            }
+
+            let total = 0; 
+            document.querySelectorAll('#rubricForm input[type="radio"]:checked').forEach(r => total += parseInt(r.value));
+
+            if (total === 0) {
+                 alert(currentLang === 'dv' ? "މާކުސް ދެއްވާފައި ނުވޭ! ރޫބްރިކް ފުރިހަމަކުރައްވާ." : "No marks assigned! Please complete the rubric.");
+                 return;
+            }
+
+            const studentIndex = allStudents.findIndex(s => s.id === stdID);
+            if (studentIndex === -1) {
+                alert(currentLang === 'dv' ? "ތި އައި.ޑީ އަށް ދަރިވަރަކު ނުފެނުނު! ސީއެސްވީގައި އިން އައި.ޑީއެއްތޯ ޗެކްކުރައްވާ." : "Student ID not found in database!");
+                return;
+            }
+
+            let st = allStudents[studentIndex];
+            if (obsType === "TP1-Obs1") st.tp1[0] = total;
+            else if (obsType === "TP1-Obs2") st.tp1[1] = total;
+            else if (obsType === "TP1-Obs3") st.tp1[2] = total;
+            else if (obsType === "TP2-Obs1") st.tp2[0] = total;
+            else if (obsType === "TP2-Obs2") st.tp2[1] = total;
+            else if (obsType === "TP2-Obs3") st.tp2[2] = total;
+            else if (obsType === "MasterFinal") st.masterScore = total;
+
+            st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
+            st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
+
+            allStudents[studentIndex] = st;
+
+            renderMarksTable();
+            triggerManualSave();
+            
+            alert(currentLang === 'dv' ? `${st.name} ގެ މާކުސް ކާމިޔާބުކަމާއެކު ރިޕޯރޓަށް ސޭވްކުރެވިއްޖެ!` : `Marks for ${st.name} saved successfully!`);
+        }
+
         function downloadDummyDataCSV() { 
             let csvContent = "data:text/csv;charset=utf-8,Student_Name,Student_ID,Supervisor,School,TP1_Obs1,TP1_Obs2,TP1_Obs3,TP2_Obs1,TP2_Obs2,TP2_Obs3\n";
             allStudents.forEach(s => {
                 csvContent += `"${s.name}","${s.id}","${s.sup}","${s.school}",${s.tp1[0]||''},${s.tp1[1]||''},${s.tp1[2]||''},${s.tp2[0]||''},${s.tp2[1]||''},${s.tp2[2]||''}\n`;
             });
             const a = document.createElement("a"); a.href = encodeURI(csvContent); a.download = `300_Students_Dummy_Data.csv`; document.body.appendChild(a); a.click(); document.body.removeChild(a); 
-        }  // <--- މި ބްރެކެޓް އިތުރުކޮށްލައްވާ!
+        }
 
-// --- މައްސަލަ ޙައްލުކުރެވިފައިވާ ކޯޑު ---
+        function processCSV() {
+            const fileInput = document.getElementById('csvUpload');
+            if (!fileInput.files.length) {
+                alert(currentLang === 'dv' ? "ފުރަތަމަ ސީއެސްވީ (CSV) ފައިލްއެއް ޚިޔާރުކުރައްވާ!" : "Please select a CSV file first.");
+                return;
+            }
 
-function processCSV() {
-    const fileInput = document.getElementById('csvUpload');
-    if (!fileInput.files.length) {
-        alert(currentLang === 'dv' ? "ފުރަތަމަ ސީއެސްވީ (CSV) ފައިލްއެއް ޚިޔާރުކުރައްވާ!" : "Please select a CSV file first.");
-        return;
-    }
+            const file = fileInput.files[0];
+            const reader = new FileReader();
 
-    const file = fileInput.files[0];
-    const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = text.split('\n');
 
-    reader.onload = function(e) {
-        const text = e.target.result;
-        const rows = text.split('\n');
+                allStudents = [];
+                const stdDatalist = document.getElementById('allStudentsDatalist');
+                const marksBody = document.getElementById('fullMarksBody');
+                
+                if (stdDatalist) stdDatalist.innerHTML = '';
+                if (marksBody) marksBody.innerHTML = '';
 
-        // އައު ޑޭޓާ އެޅުމުގެ ކުރިން ކުރީގެ ޑޭޓާ ހުސްކުރުން
-        allStudents = [];
-        const stdDatalist = document.getElementById('allStudentsDatalist');
-        const marksBody = document.getElementById('fullMarksBody');
-        
-        if (stdDatalist) stdDatalist.innerHTML = '';
-        if (marksBody) marksBody.innerHTML = '';
+                for (let i = 1; i < rows.length; i++) {
+                    if (!rows[i].trim()) continue; 
 
-        // ސީއެސްވީ ފައިލްގެ ފުރަތަމަ ރޯ (Header) ދޫކޮށްލުމަށްފަހު ޑޭޓާ ކިޔުން (i = 1)
-        for (let i = 1; i < rows.length; i++) {
-            if (!rows[i].trim()) continue; // ހުސް ރޯތައް ދޫކޮށްލުން
+                    const cols = rows[i].split(',').map(col => col.replace(/(^"|"$)/g, '').trim());
 
-            const cols = rows[i].split(',').map(col => col.replace(/(^"|"$)/g, '').trim());
+                    if (cols.length >= 4) {
+                        const studentObj = {
+                            name: cols[0],
+                            id: cols[1],
+                            sup: cols[2],      
+                            school: cols[3],   
+                            course: "B.Ed Primary", 
+                            master: "Assigned Master", 
+                            tp1: [parseInt(cols[4])||null, parseInt(cols[5])||null, parseInt(cols[6])||null], 
+                            tp2: [parseInt(cols[7])||null, parseInt(cols[8])||null, parseInt(cols[9])||null], 
+                            masterScore: null,
+                            tp1_high: Math.max(parseInt(cols[4])||0, parseInt(cols[5])||0, parseInt(cols[6])||0),
+                            tp2_high: Math.max(parseInt(cols[7])||0, parseInt(cols[8])||0, parseInt(cols[9])||0)
+                        };
 
-            if (cols.length >= 4) {
-                const studentObj = {
-                    name: cols[0],
-                    id: cols[1],
-                    sup: cols[2],      // ރަނގަޅުކުރެވިފައިވާ އިންޑެކްސް
-                    school: cols[3],   // ރަނގަޅުކުރެވިފައިވާ އިންޑެކްސް
-                    course: "B.Ed Primary", 
-                    master: "Assigned Master", 
-                    tp1: [parseInt(cols[4])||null, parseInt(cols[5])||null, parseInt(cols[6])||null], // ރަނގަޅުކުރެވިފައިވާ އިންޑެކްސް
-                    tp2: [parseInt(cols[7])||null, parseInt(cols[8])||null, parseInt(cols[9])||null], // ރަނގަޅުކުރެވިފައިވާ އިންޑެކްސް
-                    masterScore: null,
-                    tp1_high: Math.max(parseInt(cols[4])||0, parseInt(cols[5])||0, parseInt(cols[6])||0),
-                    tp2_high: Math.max(parseInt(cols[7])||0, parseInt(cols[8])||0, parseInt(cols[9])||0)
-                };
+                        allStudents.push(studentObj);
 
-                allStudents.push(studentObj);
+                        if (stdDatalist) {
+                            stdDatalist.innerHTML += `<option value="${studentObj.id} - ${studentObj.name}">`;
+                        }
 
-                // ޑޭޓާލިސްޓަށް ނަން އިތުރުކުރުން
-                if (stdDatalist) {
-                    stdDatalist.innerHTML += `<option value="${studentObj.id} - ${studentObj.name}">`;
+                        const rTd = (val, high) => {
+                            if(val === null || isNaN(val)) return `<td>-</td>`;
+                            if(val === high && high > 0) return `<td class="score-highest">${val}</td>`;
+                            return `<td class="score-low">${val}</td>`;
+                        };
+
+                        if (marksBody) {
+                            marksBody.innerHTML += `
+                                <tr data-sup="${studentObj.sup}" data-master="${studentObj.master}" data-school="${studentObj.school}">
+                                    <td style="text-align:left; font-weight:bold;">${studentObj.name}</td>
+                                    <td style="text-align:left;">${studentObj.id}</td>
+                                    <td style="text-align:left;">${studentObj.school}</td>
+                                    <td style="text-align:left;" class="sup-col">${studentObj.sup}</td>
+                                    ${rTd(studentObj.tp1[0], studentObj.tp1_high)}${rTd(studentObj.tp1[1], studentObj.tp1_high)}${rTd(studentObj.tp1[2], studentObj.tp1_high)}
+                                    ${rTd(studentObj.tp2[0], studentObj.tp2_high)}${rTd(studentObj.tp2[1], studentObj.tp2_high)}${rTd(studentObj.tp2[2], studentObj.tp2_high)}
+                                    <td class="master-col" style="font-weight:bold; color:var(--royal-purple);">-</td>
+                                </tr>
+                            `;
+                        }
+                    }
                 }
 
-                // ޓޭބަލްއަށް ޑޭޓާ އިތުރުކުރުން
-                const rTd = (val, high) => {
-                    if(val === null || isNaN(val)) return `<td>-</td>`;
-                    if(val === high && high > 0) return `<td class="score-highest">${val}</td>`;
-                    return `<td class="score-low">${val}</td>`;
-                };
-
-                if (marksBody) {
-                    marksBody.innerHTML += `
-                        <tr data-sup="${studentObj.sup}" data-master="${studentObj.master}" data-school="${studentObj.school}">
-                            <td style="text-align:left; font-weight:bold;">${studentObj.name}</td>
-                            <td style="text-align:left;">${studentObj.id}</td>
-                            <td style="text-align:left;">${studentObj.school}</td>
-                            <td style="text-align:left;" class="sup-col">${studentObj.sup}</td>
-                            ${rTd(studentObj.tp1[0], studentObj.tp1_high)}${rTd(studentObj.tp1[1], studentObj.tp1_high)}${rTd(studentObj.tp1[2], studentObj.tp1_high)}
-                            ${rTd(studentObj.tp2[0], studentObj.tp2_high)}${rTd(studentObj.tp2[1], studentObj.tp2_high)}${rTd(studentObj.tp2[2], studentObj.tp2_high)}
-                            <td class="master-col" style="font-weight:bold; color:var(--royal-purple);">-</td>
-                        </tr>
-                    `;
+                alert(currentLang === 'dv' ? "ސީއެސްވީ (CSV) ޑޭޓާ ސޮފްޓްވެއަރއަށް އިމްޕޯރޓް ކުރެވިއްޖެ." : "CSV Data Imported Successfully.");
+                
+                filterMarksTable(); 
+                
+                if (lecturerChart) { 
+                    lecturerChart.data.datasets[0].data = [2, 15, 10, 5]; 
+                    lecturerChart.update(); 
                 }
-            }
+            };
+
+            reader.readAsText(file);
         }
 
-        alert(currentLang === 'dv' ? "ސީއެސްވީ (CSV) ޑޭޓާ ސޮފްޓްވެއަރއަށް އިމްޕޯރޓް ކުރެވިއްޖެ." : "CSV Data Imported Successfully.");
-        
-        // ފިލްޓަރ އަޕްޑޭޓްކުރުން
-        filterMarksTable(); 
-        
-        if (lecturerChart) { 
-            lecturerChart.data.datasets[0].data = [2, 15, 10, 5]; 
-            lecturerChart.update(); 
-        }
-    };
+        function threeStepHardReset() { 
+            if (currentRole !== 'admin') { 
+                alert("Access Denied!"); 
+                return;
+            } 
+            
+            if (prompt("Step 1 Password: (@7791550)") === "@7791550" && 
+                prompt("Step 2 Code: (DEAN2026)") === "DEAN2026" && 
+                confirm("Confirm Full Database Wipe?")) {
+                
+                allStudents = [];
+                
+                const stdDatalist = document.getElementById('allStudentsDatalist');
+                const marksBody = document.getElementById('fullMarksBody');
+                
+                if (stdDatalist) stdDatalist.innerHTML = '';
+                if (marksBody) marksBody.innerHTML = '';
 
-    reader.readAsText(file);
-}
+                if (lecturerChart) { 
+                    lecturerChart.data.datasets[0].data = [0, 0, 0, 0]; 
+                    lecturerChart.update(); 
+                }
 
-function threeStepHardReset() { 
-    if (currentRole !== 'admin') { 
-        alert("Access Denied!"); 
-        return;
-    } 
-    
-    if (prompt("Step 1 Password: (@7791550)") === "@7791550" && 
-        prompt("Step 2 Code: (DEAN2026)") === "DEAN2026" && 
-        confirm("Confirm Full Database Wipe?")) {
-        
-        // އެރޭ އަދި ޑޭޓާބޭސް ހުސްކުރުން
-        allStudents = [];
-        
-        // ފެންނަން ހުރި ޓޭބަލްތަކާއި ލިސްޓުތައް ހުސްކުރުން
-        const stdDatalist = document.getElementById('allStudentsDatalist');
-        const marksBody = document.getElementById('fullMarksBody');
-        
-        if (stdDatalist) stdDatalist.innerHTML = '';
-        if (marksBody) marksBody.innerHTML = '';
-
-        // ޑޭޝްބޯޑް ޗާޓުތައް ހުސްކުރުން
-        if (lecturerChart) { 
-            lecturerChart.data.datasets[0].data = [0, 0, 0, 0]; 
-            lecturerChart.update(); 
+                alert(currentLang === 'dv' ? "ސިސްޓަމްގެ ހުރިހާ ޑޭޓާއެއް ފޮހެލެވިއްޖެ. (ހާޑް ރީސެޓް ކާމިޔާބު)" : "Hard Reset Complete. All data wiped."); 
+            } 
         }
 
-        alert(currentLang === 'dv' ? "ސިސްޓަމްގެ ހުރިހާ ޑޭޓާއެއް ފޮހެލެވިއްޖެ. (ހާޑް ރީސެޓް ކާމިޔާބު)" : "Hard Reset Complete. All data wiped."); 
-    } 
-}
+        // --- 7. THE 55 CRITERIA RUBRIC ---
+        const criteriaList = [
+            { cat: { dv: "ޕްލޭނިންގ (ފިލާވަޅު ރޭވުން)", en: "PLANNING", ar: "التخطيط" } },
+            { id: "p1", dv: "އެކަށީގެންވާ ލަރނިންގ އޮބްޖެކްޓިވްސް ކަނޑައެޅުން", en: "Delineates appropriate learning objectives", ar: "يحدد أهداف التعلم المناسبة" }, { id: "p2", dv: "އެކަށީގެންވާ ކިޔަވައިދިނުމުގެ ސްޓްރެޓަޖީތައް އިޚްތިޔާރުކުރުން", en: "Selects appropriate teaching strategies", ar: "يختار استراتيجيات التدريس" }, { id: "p3", dv: "ރަނގަޅު ހަރަކާތްތަކާއި ވަސީލަތްތައް ބޭނުންކުރުން", en: "Uses effective learning activities and resources", ar: "يستخدم الموارد بشكل فعال" }, { id: "p4", dv: "ދަރިވަރުންގެ ތަފާތު ބޭނުންތަކަށް ރިޢާޔަތްކުރުން", en: "Caters to students diverse needs", ar: "يلبي احتياجات الطلاب" }, { id: "p5", dv: "މަންހަޖުގެ ހުރިހާ ބައިތަކެއް ހިމެނުން", en: "Addresses all elements of the curriculum", ar: "يتناول جميع عناصر المنهج" }, { id: "p6", dv: "އެސެސްމަންޓް ސްޓްރެޓަޖީތަކާއި ޓޫލްސް ބަޔާންކުރުން", en: "Assessment strategies and tools stated", ar: "استراتيجيات التقييم" }, { id: "p7", dv: "ވަގުތު ބެހިފައިވާ ރަނގަޅު ތާވަލެއް އެކުލަވާލުން", en: "Develops a workable time schedule", ar: "يضع جدولا زمنيا" },
+            { cat: { dv: "ލެސަން އިމްޕްލިމެންޓޭޝަން (ފިލާވަޅު ނެގުން)", en: "LESSON IMPLEMENTATION", ar: "تنفيذ الدرس" } },
+            { id: "i1", dv: "ލަރނިންގ އިންޓެންޝަންސް ދަރިވަރުންނާ ހިއްސާކުރުން", en: "Learning intentions shared with students", ar: "مشاركة أهداف التعلم" }, { id: "i2", dv: "ސަކްސެސް ކްރައިޓީރިއާ ދަރިވަރުންނާ މަޝްވަރާކުރުން", en: "Success criteria discussed with students", ar: "مناقشة معايير النجاح" }, { id: "i3", dv: "ސަކްސެސް ކްރައިޓީރިއާ ފެންނަން ބެހެއްޓުން", en: "Success criteria was displayed", ar: "عرض معايير النجاح" }, { id: "i4", dv: "ލަރނިންގ އިންޓެންޝަންސް ފެންނަން ބެހެއްޓުން", en: "Learning intentions were displayed", ar: "عرض أهداف التعلم" }, { id: "i5", dv: "ފިލާވަޅުގައި ސަކްސެސް ކްރައިޓީރިއާ އެސެސްކުރުން", en: "Success criteria was assessed in the lesson", ar: "تقييم معايير النجاح" }, { id: "i6", dv: "މަދުވެގެން ދެ ކީ ކޮމްޕިޓެންސީ ބޭނުންކުރުން", en: "At least two key competencies were used", ar: "استخدام الكفاءات الأساسية" }, { id: "i7", dv: "ކީ ކޮމްޕިޓެންސީސް ދަރިވަރުންނާ ހިއްސާކުރުން", en: "Key competencies shared with students", ar: "مشاركة الكفاءات" }, { id: "i8", dv: "މަދުވެގެން އެއް ވެލިއު ޙާޞިލްކުރުމަށް ފިލާވަޅު ރޭވުން", en: "Lesson prepared to achieve at least one shared value", ar: "تحقيق قيمة مشتركة" }, { id: "i9", dv: "ކްލާސްރޫމް ތަރުތީބުކޮށްފައިވާ ގޮތް", en: "Class Arrangement", ar: "ترتيب الفصل" }, { id: "i10", dv: "ސެޓް އިންޑަކްޝަން: ކުރީގެ މަޢުލޫމާތާއި އައު ފިލާވަޅު ގުޅުވުން", en: "Set induction: linked prior learning to new", ar: "ربط التعلم السابق" }, { id: "i11", dv: "ވަސީލަތްތައް އެކަށީގެންވާ ގޮތަށް ބޭނުންކުރުން", en: "Materials used appropriately", ar: "استخدام المواد" }, { id: "i12", dv: "އެހީތެރި މާޙައުލެއް ޤާއިމުކުރުން", en: "Establishes a supportive learning environment", ar: "بيئة داعمة" }, { id: "i13", dv: "ރަނގަޅު އަޚްލާޤަށް ހިތްވަރުދިނުން", en: "Reinforces good behaviour", ar: "تعزيز السلوك" }, { id: "i14", dv: "ދަރިވަރުންގެ ޝައުޤުވެރިކަން ދެމެހެއްޓުން", en: "Sustains students Interest", ar: "الحفاظ على الاهتمام" }, { id: "i15", dv: "ފައިދާހުރި މަޝްވަރާތަކާއި ފަރިތަކުރުންތައް", en: "Useful classroom discussions and exercises", ar: "مناقشات مفيدة" }, { id: "i16", dv: "ބައިވެރިވުމަށް ހިތްވަރުދިނުން", en: "Encourages Participation", ar: "التشجيع على المشاركة" }, { id: "i17", dv: "ޤަވާޢިދުތަކާއި ރޫޓީންތައް ހިފެހެއްޓުން", en: "Sets and enforces rules and routines", ar: "تطبيق القواعد" }, { id: "i18", dv: "ގުޅުން ބަދަހިކޮށް މުޢާމަލާތްކުރުން", en: "Establishes interaction and rapport", ar: "تأسيس التفاعل" }, { id: "i19", dv: "ދަރިވަރުންނަށް އަޅާލުމާއި އޯގާތެރިކަން ދެއްކުން", en: "Shows care and concern for students", ar: "الاهتمام بالطلاب" }, { id: "i20", dv: "އަޑާއި ބަސްމަގު އެކަށީގެންވާ ގޮތަށް ބޭނުންކުރުން", en: "Uses voice and language appropriately", ar: "استخدام الصوت المناسب" }, { id: "i21", dv: "ދަރިވަރުންނަށް ރަނގަޅު ފީޑްބެކް ދިނުން", en: "Gives proper feedback to students", ar: "تقديم الملاحظات" }, { id: "i22", dv: "ފިލާވަޅު ހުށަހަޅައިދޭ ގޮތް ސާފުކަން", en: "Delivery of the lesson is clear and precise", ar: "تقديم واضح للدرس" }, { id: "i23", dv: "އައި.ސީ.ޓީ / މީޑިއާ / ވަސީލަތްތައް ބޭނުންކުރުން", en: "Uses ICT / media / resource", ar: "استخدام التكنولوجيا" }, { id: "i24", dv: "ކުރިން އެނގިފައިވާ މަޢުލޫމާތާ ގުޅުވުން", en: "Relates information to prior knowledge", ar: "ربط المعلومات" }, { id: "i25", dv: "އައު މަޢުލޫމާތު ފޯރުކޮށްދިނުން", en: "Shared up to date information", ar: "مشاركة معلومات محدثة" }, { id: "i26", dv: "ތަފާތު ލެވެލްތަކުގެ ސުވާލަށް ޖަވާބުދިނުމަށް ހިތްވަރުދިނުން", en: "Encourages students to answer different levels of questions", ar: "مستويات الأسئلة" }, { id: "i27", dv: "ބޭނުންވާ ޙާލަތުގައި ސުވާލާއި ޖަވާބު ތަކުރާރުކުރުން", en: "Restates questions and answer when necessary", ar: "إعادة الأسئلة" }, { id: "i28", dv: "ވަކިވަކި އަދި ގްރޫޕް މަސައްކަތް ބެލެހެއްޓުން", en: "Organizes & monitors individual & group learning", ar: "تنظيم التعلم" }, { id: "i29", dv: "އެކަށީގެންވާ ގޮތަށް ސުވާލުކޮށް ޖަވާބުދިނުން", en: "Questions and responds appropriately", ar: "الأسئلة والإجابات" }, { id: "i30", dv: "ސާފު އިރުޝާދާއި ތަފްސީލު ދިނުން", en: "Gives clear explanations and instructions", ar: "تفسيرات واضحة" }, { id: "i31", dv: "ތަފާތު ފެންވަރުގެ ސުވާލުތައް ކުރިމަތިކުރުވުން", en: "Presents with different levels of questions", ar: "مستويات الأسئلة المختلفة" }, { id: "i32", dv: "ދަރިވަރުންނާ ގުޅިގެން ރަނގަޅަށް މުޢާމަލާތްކުރުން", en: "Interacts and communicates with students appropriately", ar: "التواصل مع الطلاب" }, { id: "i33", dv: "ތަފާތު ފެންވަރަށް ޚާއްޞަ ތަކެއްޗާއި މަސައްކަތް ބޭނުންކުރުން", en: "Differentiated materials and tasks were used", ar: "مواد متمايزة" }, { id: "i34", dv: "ވިސްނުން ތަރައްޤީކުރާ (ޕްރޯބިންގ) ސުވާލު ކުރުން", en: "Uses probing questions when necessary", ar: "أسئلة استقصائية" }, { id: "i35", dv: "ގުޅިގެން މަސައްކަތްކުރާ މާޙައުލެއް ޤާއިމުކުރުން", en: "Establishes a collaborative environment", ar: "بيئة تعاونية" }, { id: "i36", dv: "ދަރިވަރުންނާއެކު ރަނގަޅު ގުޅުމެއް ބޭއްވުން", en: "Maintains a good rapport with the students", ar: "علاقة جيدة مع الطلاب" }, { id: "i37", dv: "ފްލެކްސިބަލް މާޙައުލެއް ޤާއިމުކުރުން", en: "Presents a flexible learning environment", ar: "بيئة مرنة" }, { id: "i38", dv: "ޙަޤީޤީ ދުނިޔޭގެ ކަންކަމާ ފިލާވަޅު ގުޅުވުން", en: "Content applied to real world situations", ar: "تطبيق في العالم الحقيقي" }, { id: "i39", dv: "ގުޅޭ އަދި އެކަށީގެންވާ މަޢުލޫމާތު ފޯރުކޮށްދިނުން", en: "Relevant and appropriate information delivered", ar: "معلومات مناسبة" }, { id: "i40", dv: "މައުޟޫޢާ ގުޅޭ ނަމޫނާތައް ދެއްކުން", en: "Presents relevant Examples relates to the content", ar: "أمثلة ذات صلة" }, { id: "i41", dv: "ކުށް ހީތައް ދެނެގަނެ އެކަންކަން ރަނގަޅުކުރުން", en: "Misconceptions are identified and addressed", ar: "معالجة المفاهيم الخاطئة" }, { id: "i42", dv: "ޗެލެންޖިންގ އަދި އޮތެންޓިކް ހަރަކާތްތައް ދިނުން", en: "Challenging and authentic activities are given", ar: "أنشطة صعبة" }, { id: "i43", dv: "އުފެއްދުންތެރިކަމާއި ހޯދައިބެލުމަށް ބާރުއެޅުން", en: "Emphasizes on exploration and creativity", ar: "تأكيد على الإبداع" },
+            { cat: { dv: "އިވެލުއޭޝަން (ވަޒަންކުރުން)", en: "EVALUATION", ar: "التقييم" } },
+            { id: "e1", dv: "ފިލާވަޅުގެ މައިގަނޑު ނުކުތާތައް ޚުލާޞާކުރުން", en: "Summarizes all the key points of the lesson", ar: "تلخيص النقاط الرئيسية" }, { id: "e2", dv: "ރަނގަޅު ވަގުތުގައި ބިނާކުރަނިވި ފީޑްބެކް ދިނުން", en: "Provide constructive feedback in a timely manner", ar: "تقديم تغذية راجعة بناءة" }, { id: "e3", dv: "މަޤްޞަދު ޙާޞިލްވި މިންވަރު ވަޒަންކުރުން", en: "Achievement of learning objectives assessed", ar: "تقييم أهداف التعلم" }, { id: "e4", dv: "ފިލާވަޅުގެ ކުރިން، ތެރޭގައި، ފަހުން ދަރިވަރުންނަށް އެނގޭ މިންވަރު ބެލުން", en: "Students understanding analyzed before, during, after", ar: "تحليل الفهم" }, { id: "e5", dv: "ވަޒަންކުރުމަށް ބޭނުންކުރި ގޮތް އެކަށީގެންވުން", en: "Tool used to assess is appropriate and accurate", ar: "أداة التقييم مناسبة" }
+        ];
 
-// --- 7. THE 55 CRITERIA RUBRIC ---
-const criteriaList = [
-    { cat: { dv: "ޕްލޭނިންގ (ފިލާވަޅު ރޭވުން)", en: "PLANNING", ar: "التخطيط" } },
-    { id: "p1", dv: "އެކަށީގެންވާ ލަރނިންގ އޮބްޖެކްޓިވްސް ކަނޑައެޅުން", en: "Delineates appropriate learning objectives", ar: "يحدد أهداف التعلم المناسبة" }, { id: "p2", dv: "އެކަށީގެންވާ ކިޔަވައިދިނުމުގެ ސްޓްރެޓަޖީތައް އިޚްތިޔާރުކުރުން", en: "Selects appropriate teaching strategies", ar: "يختار استراتيجيات التدريس" }, { id: "p3", dv: "ރަނގަޅު ހަރަކާތްތަކާއި ވަސީލަތްތައް ބޭނުންކުރުން", en: "Uses effective learning activities and resources", ar: "يستخدم الموارد بشكل فعال" }, { id: "p4", dv: "ދަރިވަރުންގެ ތަފާތު ބޭނުންތަކަށް ރިޢާޔަތްކުރުން", en: "Caters to students diverse needs", ar: "يلبي احتياجات الطلاب" }, { id: "p5", dv: "މަންހަޖުގެ ހުރިހާ ބައިތަކެއް ހިމެނުން", en: "Addresses all elements of the curriculum", ar: "يتناول جميع عناصر المنهج" }, { id: "p6", dv: "އެސެސްމަންޓް ސްޓްރެޓަޖީތަކާއި ޓޫލްސް ބަޔާންކުރުން", en: "Assessment strategies and tools stated", ar: "استراتيجيات التقييم" }, { id: "p7", dv: "ވަގުތު ބެހިފައިވާ ރަނގަޅު ތާވަލެއް އެކުލަވާލުން", en: "Develops a workable time schedule", ar: "يضع جدولا زمنيا" },
-    { cat: { dv: "ލެސަން އިމްޕްލިމެންޓޭޝަން (ފިލާވަޅު ނެގުން)", en: "LESSON IMPLEMENTATION", ar: "تنفيذ الدرس" } },
-    { id: "i1", dv: "ލަރނިންގ އިންޓެންޝަންސް ދަރިވަރުންނާ ހިއްސާކުރުން", en: "Learning intentions shared with students", ar: "مشاركة أهداف التعلم" }, { id: "i2", dv: "ސަކްސެސް ކްރައިޓީރިއާ ދަރިވަރުންނާ މަޝްވަރާކުރުން", en: "Success criteria discussed with students", ar: "مناقشة معايير النجاح" }, { id: "i3", dv: "ސަކްސެސް ކްރައިޓީރިއާ ފެންނަން ބެހެއްޓުން", en: "Success criteria was displayed", ar: "عرض معايير النجاح" }, { id: "i4", dv: "ލަރނިންގ އިންޓެންޝަންސް ފެންނަން ބެހެއްޓުން", en: "Learning intentions were displayed", ar: "عرض أهداف التعلم" }, { id: "i5", dv: "ފިލާވަޅުގައި ސަކްސެސް ކްރައިޓީރިއާ އެސެސްކުރުން", en: "Success criteria was assessed in the lesson", ar: "تقييم معايير النجاح" }, { id: "i6", dv: "މަދުވެގެން ދެ ކީ ކޮމްޕިޓެންސީ ބޭނުންކުރުން", en: "At least two key competencies were used", ar: "استخدام الكفاءات الأساسية" }, { id: "i7", dv: "ކީ ކޮމްޕިޓެންސީސް ދަރިވަރުންނާ ހިއްސާކުރުން", en: "Key competencies shared with students", ar: "مشاركة الكفاءات" }, { id: "i8", dv: "މަދުވެގެން އެއް ވެލިއު ޙާޞިލްކުރުމަށް ފިލާވަޅު ރޭވުން", en: "Lesson prepared to achieve at least one shared value", ar: "تحقيق قيمة مشتركة" }, { id: "i9", dv: "ކްލާސްރޫމް ތަރުތީބުކޮށްފައިވާ ގޮތް", en: "Class Arrangement", ar: "ترتيب الفصل" }, { id: "i10", dv: "ސެޓް އިންޑަކްޝަން: ކުރީގެ މަޢުލޫމާތާއި އައު ފިލާވަޅު ގުޅުވުން", en: "Set induction: linked prior learning to new", ar: "ربط التعلم السابق" }, { id: "i11", dv: "ވަސީލަތްތައް އެކަށީގެންވާ ގޮތަށް ބޭނުންކުރުން", en: "Materials used appropriately", ar: "استخدام المواد" }, { id: "i12", dv: "އެހީތެރި މާޙައުލެއް ޤާއިމުކުރުން", en: "Establishes a supportive learning environment", ar: "بيئة داعمة" }, { id: "i13", dv: "ރަނގަޅު އަޚްލާޤަށް ހިތްވަރުދިނުން", en: "Reinforces good behaviour", ar: "تعزيز السلوك" }, { id: "i14", dv: "ދަރިވަރުންގެ ޝައުޤުވެރިކަން ދެމެހެއްޓުން", en: "Sustains students Interest", ar: "الحفاظ على الاهتمام" }, { id: "i15", dv: "ފައިދާހުރި މަޝްވަރާތަކާއި ފަރިތަކުރުންތައް", en: "Useful classroom discussions and exercises", ar: "مناقشات مفيدة" }, { id: "i16", dv: "ބައިވެރިވުމަށް ހިތްވަރުދިނުން", en: "Encourages Participation", ar: "التشجيع على المشاركة" }, { id: "i17", dv: "ޤަވާޢިދުތަކާއި ރޫޓީންތައް ހިފެހެއްޓުން", en: "Sets and enforces rules and routines", ar: "تطبيق القواعد" }, { id: "i18", dv: "ގުޅުން ބަދަހިކޮށް މުޢާމަލާތްކުރުން", en: "Establishes interaction and rapport", ar: "تأسيس التفاعل" }, { id: "i19", dv: "ދަރިވަރުންނަށް އަޅާލުމާއި އޯގާތެރިކަން ދެއްކުން", en: "Shows care and concern for students", ar: "الاهتمام بالطلاب" }, { id: "i20", dv: "އަޑާއި ބަސްމަގު އެކަށީގެންވާ ގޮތަށް ބޭނުންކުރުން", en: "Uses voice and language appropriately", ar: "استخدام الصوت المناسب" }, { id: "i21", dv: "ދަރިވަރުންނަށް ރަނގަޅު ފީޑްބެކް ދިނުން", en: "Gives proper feedback to students", ar: "تقديم الملاحظات" }, { id: "i22", dv: "ފިލާވަޅު ހުށަހަޅައިދޭ ގޮތް ސާފުކަން", en: "Delivery of the lesson is clear and precise", ar: "تقديم واضح للدرس" }, { id: "i23", dv: "އައި.ސީ.ޓީ / މީޑިއާ / ވަސީލަތްތައް ބޭނުންކުރުން", en: "Uses ICT / media / resource", ar: "استخدام التكنولوجيا" }, { id: "i24", dv: "ކުރިން އެނގިފައިވާ މަޢުލޫމާތާ ގުޅުވުން", en: "Relates information to prior knowledge", ar: "ربط المعلومات" }, { id: "i25", dv: "އައު މަޢުލޫމާތު ފޯރުކޮށްދިނުން", en: "Shared up to date information", ar: "مشاركة معلومات محدثة" }, { id: "i26", dv: "ތަފާތު ލެވެލްތަކުގެ ސުވާލަށް ޖަވާބުދިނުމަށް ހިތްވަރުދިނުން", en: "Encourages students to answer different levels of questions", ar: "مستويات الأسئلة" }, { id: "i27", dv: "ބޭނުންވާ ޙާލަތުގައި ސުވާލާއި ޖަވާބު ތަކުރާރުކުރުން", en: "Restates questions and answer when necessary", ar: "إعادة الأسئلة" }, { id: "i28", dv: "ވަކިވަކި އަދި ގްރޫޕް މަސައްކަތް ބެލެހެއްޓުން", en: "Organizes & monitors individual & group learning", ar: "تنظيم التعلم" }, { id: "i29", dv: "އެކަށީގެންވާ ގޮތަށް ސުވާލުކޮށް ޖަވާބުދިނުން", en: "Questions and responds appropriately", ar: "الأسئلة والإجابات" }, { id: "i30", dv: "ސާފު އިރުޝާދާއި ތަފްސީލު ދިނުން", en: "Gives clear explanations and instructions", ar: "تفسيرات واضحة" }, { id: "i31", dv: "ތަފާތު ފެންވަރުގެ ސުވާލުތައް ކުރިމަތިކުރުވުން", en: "Presents with different levels of questions", ar: "مستويات الأسئلة المختلفة" }, { id: "i32", dv: "ދަރިވަރުންނާ ގުޅިގެން ރަނގަޅަށް މުޢާމަލާތްކުރުން", en: "Interacts and communicates with students appropriately", ar: "التواصل مع الطلاب" }, { id: "i33", dv: "ތަފާތު ފެންވަރަށް ޚާއްޞަ ތަކެއްޗާއި މަސައްކަތް ބޭނުންކުރުން", en: "Differentiated materials and tasks were used", ar: "مواد متمايزة" }, { id: "i34", dv: "ވިސްނުން ތަރައްޤީކުރާ (ޕްރޯބިންގ) ސުވާލު ކުރުން", en: "Uses probing questions when necessary", ar: "أسئلة استقصائية" }, { id: "i35", dv: "ގުޅިގެން މަސައްކަތްކުރާ މާޙައުލެއް ޤާއިމުކުރުން", en: "Establishes a collaborative environment", ar: "بيئة تعاونية" }, { id: "i36", dv: "ދަރިވަރުންނާއެކު ރަނގަޅު ގުޅުމެއް ބޭއްވުން", en: "Maintains a good rapport with the students", ar: "علاقة جيدة مع الطلاب" }, { id: "i37", dv: "ފްލެކްސިބަލް މާޙައުލެއް ޤާއިމުކުރުން", en: "Presents a flexible learning environment", ar: "بيئة مرنة" }, { id: "i38", dv: "ޙަޤީޤީ ދުނިޔޭގެ ކަންކަމާ ފިލާވަޅު ގުޅުވުން", en: "Content applied to real world situations", ar: "تطبيق في العالم الحقيقي" }, { id: "i39", dv: "ގުޅޭ އަދި އެކަށީގެންވާ މަޢުލޫމާތު ފޯރުކޮށްދިނުން", en: "Relevant and appropriate information delivered", ar: "معلومات مناسبة" }, { id: "i40", dv: "މައުޟޫޢާ ގުޅޭ ނަމޫނާތައް ދެއްކުން", en: "Presents relevant Examples relates to the content", ar: "أمثلة ذات صلة" }, { id: "i41", dv: "ކުށް ހީތައް ދެނެގަނެ އެކަންކަން ރަނގަޅުކުރުން", en: "Misconceptions are identified and addressed", ar: "معالجة المفاهيم الخاطئة" }, { id: "i42", dv: "ޗެލެންޖިންގ އަދި އޮތެންޓިކް ހަރަކާތްތައް ދިނުން", en: "Challenging and authentic activities are given", ar: "أنشطة صعبة" }, { id: "i43", dv: "އުފެއްދުންތެރިކަމާއި ހޯދައިބެލުމަށް ބާރުއެޅުން", en: "Emphasizes on exploration and creativity", ar: "تأكيد على الإبداع" },
-    { cat: { dv: "އިވެލުއޭޝަން (ވަޒަންކުރުން)", en: "EVALUATION", ar: "التقييم" } },
-    { id: "e1", dv: "ފިލާވަޅުގެ މައިގަނޑު ނުކުތާތައް ޚުލާޞާކުރުން", en: "Summarizes all the key points of the lesson", ar: "تلخيص النقاط الرئيسية" }, { id: "e2", dv: "ރަނގަޅު ވަގުތުގައި ބިނާކުރަނިވި ފީޑްބެކް ދިނުން", en: "Provide constructive feedback in a timely manner", ar: "تقديم تغذية راجعة بناءة" }, { id: "e3", dv: "މަޤްޞަދު ޙާޞިލްވި މިންވަރު ވަޒަންކުރުން", en: "Achievement of learning objectives assessed", ar: "تقييم أهداف التعلم" }, { id: "e4", dv: "ފިލާވަޅުގެ ކުރިން، ތެރޭގައި، ފަހުން ދަރިވަރުންނަށް އެނގޭ މިންވަރު ބެލުން", en: "Students understanding analyzed before, during, after", ar: "تحليل الفهم" }, { id: "e5", dv: "ވަޒަންކުރުމަށް ބޭނުންކުރި ގޮތް އެކަށީގެންވުން", en: "Tool used to assess is appropriate and accurate", ar: "أداة التقييم مناسبة" }
-];
+        const maxScore = criteriaList.filter(c => !c.cat).length * 5; 
 
-const maxScore = criteriaList.filter(c => !c.cat).length * 5; 
-
-function initRubric() {
-    const tbody = document.getElementById('rubricBody');
-    tbody.innerHTML = ''; 
-    criteriaList.forEach(item => {
-        if (item.cat) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<th colspan="6" class="category-header" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${item.cat[currentLang] || item.cat.en}</th>`;
-            tbody.appendChild(tr);
-        } else {
-            const tr = document.createElement('tr');
-            let rowHTML = `<td class="criteria-text" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${item[currentLang] || item.en}</td>`;
-            for (let i = 1; i <= 5; i++) { 
-                rowHTML += `<td><input type="radio" name="${item.id}" value="${i}" onchange="calculateRubricTotal()"></td>`; 
-            }
-            tr.innerHTML = rowHTML;
-            tbody.appendChild(tr);
+        function initRubric() {
+            const tbody = document.getElementById('rubricBody');
+            tbody.innerHTML = ''; 
+            criteriaList.forEach(item => {
+                if (item.cat) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<th colspan="6" class="category-header" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${item.cat[currentLang] || item.cat.en}</th>`;
+                    tbody.appendChild(tr);
+                } else {
+                    const tr = document.createElement('tr');
+                    let rowHTML = `<td class="criteria-text" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${item[currentLang] || item.en}</td>`;
+                    for (let i = 1; i <= 5; i++) { 
+                        rowHTML += `<td><input type="radio" name="${item.id}" value="${i}" onchange="calculateRubricTotal()"></td>`; 
+                    }
+                    tr.innerHTML = rowHTML;
+                    tbody.appendChild(tr);
+                }
+            });
+            
+            document.querySelectorAll('#rubricForm input[type="radio"], #rubricForm textarea').forEach(el => {
+                el.addEventListener('change', () => triggerManualSave());
+            });
+            calculateRubricTotal(); 
         }
-    });
-    
-    document.querySelectorAll('#rubricForm input[type="radio"], #rubricForm textarea').forEach(el => {
-        el.addEventListener('change', () => triggerManualSave());
-    });
-    calculateRubricTotal(); 
-}
 
         function calculateRubricTotal() {
             let total = 0; 
             document.querySelectorAll('#rubricForm input[type="radio"]:checked').forEach(r => total += parseInt(r.value));
             const scoreBoard = document.querySelector('.total-score-board');
             
-            // Check if Marks Status is Enabled or Disabled
             const isDraftMode = document.getElementById('obsMarksStatus') && document.getElementById('obsMarksStatus').value === 'disabled';
 
-            // މާކުސް ދައްކާ ބައިގެ ކޮންޓްރޯލް
             if (isDraftMode) {
                 document.getElementById('scoreDisplay').innerText = (currentLang === 'dv' ? `DRAFT (މާކުސް ނުގުނާނެ)` : `DRAFT MODE`);
-                scoreBoard.style.color = "#888"; // Draft mode ގައި އަޅިކުލަ
+                scoreBoard.style.color = "#888"; 
             } else {
                 document.getElementById('scoreDisplay').innerText = `${total} / ${maxScore}`;
                 if(total < (maxScore * 0.4)) scoreBoard.style.color = "#ff4d4d"; 
@@ -1373,7 +1435,6 @@ function initRubric() {
                 else scoreBoard.style.color = "var(--royal-gold)"; 
             }
             
-            // Auto Feedback (މާކުސް ދިނަސް އަދި ނުދިނަސް ފީޑްބެކް ޖެނެރޭޓްކުރާނެ)
             let strengths = "", suggestions = "";
             const t = autoDict[currentLang] || autoDict.en;
             criteriaList.forEach(item => {
@@ -1389,9 +1450,6 @@ function initRubric() {
             document.getElementById('autoSuggestions').value = (strengths?`--- ${t.sTitle} ---\n${strengths}\n`:"") + (suggestions?`--- ${t.iTitle} ---\n${suggestions}`:"");
         }
 
-        // --- THE FIX: NATIVE BROWSER PRINT ENGINE FOR 100% RELIABLE PDF EXPORT ---
-        // This completely bypasses html2canvas/html2pdf bugs and handles fonts & RTL natively.
-        
         function generateSafePDF(htmlContent, filename, orientation) {
             const printWindow = window.open('', '', 'width=1000,height=800');
             const basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
@@ -1487,7 +1545,6 @@ function initRubric() {
             generateSafePDF(tableHtml, 'Lecturer_Info', 'portrait');
         }
 
-        // Fixed blank page issue by switching to generateSafePDF approach for observation form
         function exportExactPDF() {
             const stdName = document.getElementById('obsStdName').value || '_______________________';
             const stdID = document.getElementById('obsStdID').value || '________________';
