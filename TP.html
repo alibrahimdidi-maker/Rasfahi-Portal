@@ -1476,25 +1476,33 @@
         let hasForms = false;
         
         allStudents.forEach(st => {
+            const stSup = (st.sup || '').trim().toLowerCase();
+            const stMaster = (st.master || '').trim().toLowerCase();
+            const cUser = (currentUser || '').trim().toLowerCase();
+
             let addRow = (obsName, marks, stdId) => {
-                if(marks !== null && marks > 0 && !isNaN(marks)) {
+                if(marks !== null && marks !== undefined && marks > 0 && !isNaN(marks)) {
                     hasForms = true;
+                    let displayDate = st.lastUpdated || new Date().toISOString().split('T')[0];
                     fbBody.innerHTML += `
                         <tr>
-                            <td>${st.name}</td><td>${new Date().toISOString().split('T')[0]}</td><td>${obsName}</td><td style="font-weight:bold; color:var(--royal-green);">${marks}</td>
+                            <td>${st.name}</td><td>${displayDate}</td><td>${obsName}</td><td style="font-weight:bold; color:var(--royal-green);">${marks}</td>
                             <td>
-                                <button class="action-btn small" onclick="openAmendModal('${stdId}', '${st.name}', '${obsName}')"><i class="fas fa-edit"></i> Amend</button>
-                                <button class="action-btn small" style="background:#8b0000;" onclick="deleteForm3Step('${stdId}', '${obsName}')"><i class="fas fa-trash"></i> Delete</button>
+                                <button class="action-btn small" onclick="openAmendModal('${stdId}', '${st.name}', '${obsName}')" title="Amend"><i class="fas fa-edit"></i></button>
+                                <button class="action-btn small" style="background:#8b0000;" onclick="deleteForm3Step('${stdId}', '${obsName}')" title="Delete"><i class="fas fa-trash"></i></button>
                             </td>
                         </tr>`;
                 }
             };
 
             const isAdmin = currentRole === 'admin';
-            const isMyStudentLec = currentRole === 'lecturer' && (currentUser.toLowerCase().includes(st.sup.trim().toLowerCase()) || st.sup.trim().toLowerCase().includes(currentUser.toLowerCase()));
-            const isMyStudentMaster = currentRole === 'master' && (currentUser.toLowerCase().includes(st.master.trim().toLowerCase()) || st.master.trim().toLowerCase().includes(currentUser.toLowerCase()));
+            const isMyStudentLec = currentRole === 'lecturer' && cUser && stSup && (stSup.includes(cUser) || cUser.includes(stSup));
+            const isMyStudentMaster = currentRole === 'master' && cUser && stMaster && (stMaster.includes(cUser) || cUser.includes(stMaster));
 
             if (isAdmin || isMyStudentLec) {
+                if(!st.tp1) st.tp1 = [null,null,null];
+                if(!st.tp2) st.tp2 = [null,null,null];
+                
                 addRow("TP1 - Obs 1", st.tp1[0], st.id); addRow("TP1 - Obs 2", st.tp1[1], st.id); addRow("TP1 - Obs 3", st.tp1[2], st.id);
                 addRow("TP2 - Obs 1", st.tp2[0], st.id); addRow("TP2 - Obs 2", st.tp2[1], st.id); addRow("TP2 - Obs 3", st.tp2[2], st.id);
                 addRow("Portfolio Evaluation", st.portfolioScore, st.id);
@@ -1784,6 +1792,12 @@
         if (studentIndex === -1) { alert(currentLang === 'dv' ? "ތި އައި.ޑީ އަށް ދަރިވަރަކު ނުފެނުނު! ސީއެސްވީގައި އިން އައި.ޑީއެއްތޯ ޗެކްކުރައްވާ." : "Student ID not found in database!"); return; }
 
         let st = allStudents[studentIndex];
+        if(!st.tp1) st.tp1 = [null,null,null];
+        if(!st.tp2) st.tp2 = [null,null,null];
+        
+        const dateInput = document.getElementById('obsDate').value;
+        st.lastUpdated = dateInput ? dateInput : new Date().toISOString().split('T')[0];
+
         if (obsType === "TP1-Obs1") st.tp1[0] = total; else if (obsType === "TP1-Obs2") st.tp1[1] = total; else if (obsType === "TP1-Obs3") st.tp1[2] = total;
         else if (obsType === "TP2-Obs1") st.tp2[0] = total; else if (obsType === "TP2-Obs2") st.tp2[1] = total; else if (obsType === "TP2-Obs3") st.tp2[2] = total;
         else if (obsType === "MasterFinal") st.masterScore = total;
@@ -1829,7 +1843,8 @@
                         portfolioScore: parseInt(cols[11])||null,
                         tp1_high: Math.max(parseInt(cols[4])||0, parseInt(cols[5])||0, parseInt(cols[6])||0),
                         tp2_high: Math.max(parseInt(cols[7])||0, parseInt(cols[8])||0, parseInt(cols[9])||0),
-                        points: 0
+                        points: 0,
+                        lastUpdated: new Date().toISOString().split('T')[0]
                     };
                     allStudents.push(studentObj);
                     if(cols[3]) uniqueSchools.add(cols[3]);
