@@ -146,7 +146,7 @@
         .rubric-table th { background-color: #1a237e; color: var(--white); font-size: 14px; position: sticky; top: 0; z-index: 50; }
         .rubric-table td.criteria-text { font-weight: bold; color: var(--dark-blue); width: 45%; font-size: 15px; text-align: right; line-height:1.4;}
         .category-header { background-color: var(--royal-green) !important; color: var(--white); font-size: 18px; padding: 12px !important; text-align: right !important;}
-        input[type="radio"] { transform: scale(1.6); accent-color: var(--royal-gold); cursor: pointer; }
+        input[type="radio"], input[type="number"] { transform: scale(1.2); accent-color: var(--royal-gold); cursor: pointer; }
         .auto-feedback-box { width: 100%; height: 160px; padding: 15px; border: 2px solid var(--royal-gold); border-radius: 8px; margin-top: 10px; font-family: inherit; font-size: 15px; background: #FFFDF0; resize: vertical; box-sizing: border-box; line-height: 1.8;}
 
         .modal-overlay { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:100000; justify-content:center; align-items:center; }
@@ -184,13 +184,13 @@
             
             <div class="input-group-en">
                 <label>User Identifier (Email or Exact Name in CSV):</label>
-                <input type="text" id="username" placeholder="e.g. su.hassan.niyaz@rasfahi.com" oninput="autoDetectRole()">
+                <input type="text" id="username" placeholder="Exact Name in CSV (e.g. Dr. Hassan Niyaz)" oninput="autoDetectRole()">
                 <small style="color:#FFF; display:block; margin-top:5px; font-size:11px;">Admin Default: admin@rasfahi.com</small>
             </div>
             
             <div class="input-group-en">
-                <label>User Role (Auto-Detected):</label>
-                <select id="userRole" disabled>
+                <label>User Role (Auto-Detected or Select):</label>
+                <select id="userRole">
                     <option value="admin">Faculty Dean / Coordinator (Admin)</option>
                     <option value="lecturer">Supervisor / Lecturer</option>
                     <option value="master">Master Teacher (School)</option>
@@ -226,9 +226,12 @@
                 <span style="color:#FFF; margin-right:15px; font-size:14px;"><i class="fas fa-user"></i> <span id="displayUserName">User</span></span>
                 <button onclick="switchLanguage('dv')" class="active">ދިވެހި</button>
                 <button onclick="switchLanguage('en')">English</button>
+                <button onclick="switchLanguage('ar')">العربية</button>
             </div>
             <div class="status-indicators">
                 <span id="sync-status" style="color:var(--royal-gold);"><i class="fas fa-cloud"></i> <span lang-key="statusAutoSave">ކްލައުޑަށް ސޭވްވަނީ...</span></span>
+                <span id="online-indicator" class="online-status"><i class="fas fa-wifi"></i> <span lang-key="statusOnline">އޮންލައިން</span></span>
+                <button class="action-btn" onclick="triggerManualSave()" style="background:var(--royal-green);"><i class="fas fa-save"></i> <span lang-key="saveBtn">މެނުއަލް ސޭވް</span></button>
                 <button class="action-btn" style="background:#8b0000; border:1px solid var(--royal-gold);" onclick="logout()"><i class="fas fa-sign-out-alt"></i> <span lang-key="btnLogout">ލޮގްއައުޓް</span></button>
             </div>
         </div>
@@ -637,7 +640,7 @@
                         
                         <div class="total-score-board" style="margin-top:20px; background:#0A1128;">
                             <span><i class="fas fa-folder-open"></i> Portfolio Total:</span>
-                            <span id="portScoreDisplay" style="font-weight:bold; font-size:32px;">0 / 25</span>
+                            <span id="portScoreDisplay" style="font-weight:bold; font-size:32px;">0 / 100</span>
                         </div>
 
                         <form id="portfolioForm">
@@ -645,12 +648,13 @@
                                 <table class="rubric-table">
                                     <thead>
                                         <tr>
-                                            <th style="width:45%;">PORTFOLIO CRITERIA</th>
-                                            <th style="width:11%; background:#ff4d4d;">Needs Imp. (1)</th>
-                                            <th style="width:11%; background:#ffa64d;">Satisfactory (2)</th>
-                                            <th style="width:11%; background:#ffd24d;">Good (3)</th>
-                                            <th style="width:11%; background:#99cc00;">Very Good (4)</th>
-                                            <th style="width:11%; background:#0B6623;">Excellent (5)</th>
+                                            <th style="width:40%;">PORTFOLIO CRITERIA</th>
+                                            <th style="width:10%; background:#0B6623;">(5)</th>
+                                            <th style="width:10%; background:#99cc00;">(4)</th>
+                                            <th style="width:10%; background:#ffd24d;">(3)</th>
+                                            <th style="width:10%; background:#ffa64d;">(2)</th>
+                                            <th style="width:10%; background:#ff4d4d;">(1)</th>
+                                            <th style="width:10%; background:#333;">Score</th>
                                         </tr>
                                     </thead>
                                     <tbody id="portfolioBody">
@@ -1510,7 +1514,7 @@
         portfolioCriteriaList.forEach(item => {
             const tr = document.createElement('tr');
             let rowHTML = `<td class="criteria-text" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${item[currentLang] || item.en}</td>`;
-            for (let i = 1; i <= 5; i++) { rowHTML += `<td><input type="radio" name="${item.id}" value="${i}" onchange="calcPortfolio()"></td>`; }
+            for (let i = 5; i >= 1; i--) { rowHTML += `<td><input type="radio" name="${item.id}" value="${i}" onchange="calcPortfolio()"></td>`; }
             tr.innerHTML = rowHTML; tbody.appendChild(tr);
         });
     }
@@ -1649,6 +1653,7 @@
         } 
     }
 
+    // TP Rubric Criteria
     const criteriaList = [
         { cat: { dv: "ޕްލޭނިންގ (ފިލާވަޅު ރޭވުން)", en: "PLANNING", ar: "التخطيط" } },
         { id: "p1", dv: "އެކަށީގެންވާ ލަރނިންގ އޮބްޖެކްޓިވްސް ކަނޑައެޅުން", en: "Delineates appropriate learning objectives", ar: "يحدد أهداف التعلم المناسبة" }, { id: "p2", dv: "އެކަށީގެންވާ ކިޔަވައިދިނުމުގެ ސްޓްރެޓަޖީތައް އިޚްތިޔާރުކުރުން", en: "Selects appropriate teaching strategies", ar: "يختار استراتيجيات التدريس" }, { id: "p3", dv: "ރަނގަޅު ހަރަކާތްތަކާއި ވަސީލަތްތައް ބޭނުންކުރުން", en: "Uses effective learning activities and resources", ar: "يستخدم الموارد بشكل فعال" }, { id: "p4", dv: "ދަރިވަރުންގެ ތަފާތު ބޭނުންތަކަށް ރިޢާޔަތްކުރުން", en: "Caters to students diverse needs", ar: "يلبي احتياجات الطلاب" }, { id: "p5", dv: "މަންހަޖުގެ ހުރިހާ ބައިތަކެއް ހިމެނުން", en: "Addresses all elements of the curriculum", ar: "يتناول جميع عناصر المنهج" }, { id: "p6", dv: "އެސެސްމަންޓް ސްޓްރެޓަޖީތަކާއި ޓޫލްސް ބަޔާންކުރުން", en: "Assessment strategies and tools stated", ar: "استراتيجيات التقييم" }, { id: "p7", dv: "ވަގުތު ބެހިފައިވާ ރަނގަޅު ތާވަލެއް އެކުލަވާލުން", en: "Develops a workable time schedule", ar: "يضع جدولا زمنيا" },
@@ -1659,89 +1664,6 @@
     ];
 
     const maxScore = criteriaList.filter(c => !c.cat).length * 5; 
-
-    function generateSafePDF(htmlContent, filename, orientation) {
-        const printWindow = window.open('', '', 'width=1000,height=800');
-        const basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
-        const fontPath = basePath + '/fonts/faruma.ttf';
-
-        printWindow.document.write(`
-            <html><head><title>${filename}</title><style>
-                @font-face { font-family: 'Faruma'; src: local('Faruma'), url('${fontPath}') format('truetype'); font-weight: normal; font-style: normal; }
-                @media print { @page { size: A4 ${orientation}; margin: 15mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin:0; padding:0;} }
-                body { font-family: 'Faruma', Arial, sans-serif; background: #fff; padding: 20px; } table { border-collapse: collapse; width: 100%; margin-bottom: 20px;} 
-                th, td { border: 1px solid #000; padding: 8px; } .score-highest { background-color: #0B6623 !important; color: #fff !important; font-weight: bold; }
-                .score-low { color: #555; } .page-break { page-break-before: always; }
-            </style></head><body>${htmlContent}<script>document.fonts.ready.then(() => { setTimeout(() => { window.print(); window.close(); }, 500); });<\/script></body></html>
-        `);
-        printWindow.document.close();
-    }
-
-    function exportFullMarksTable(type) {
-        if(type === 'csv') {
-            let csvContent = "data:text/csv;charset=utf-8,Student Name,ID,School,Supervisor,TP1_Obs1,TP1_Obs2,TP1_Obs3,TP2_Obs1,TP2_Obs2,TP2_Obs3,Master_Score,Portfolio\n";
-            const rows = document.getElementById('fullMarksBody').getElementsByTagName('tr');
-            for(let i=0; i<rows.length; i++) {
-                if(rows[i].style.display !== 'none') {
-                    let cols = rows[i].getElementsByTagName('td'); let rowData = [];
-                    for(let j=0; j<12; j++) { if(cols[j]) rowData.push(`"${cols[j].innerText.trim()}"`); }
-                    csvContent += rowData.join(",") + "\n";
-                }
-            }
-            const a = document.createElement("a"); a.href = encodeURI(csvContent); a.download = "All_Marks_Report.csv"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        } else {
-            const tableHtml = `<div style="direction:ltr; text-align:left;"><h2 style="color:#00008B; text-align:center; border-bottom:2px solid #D4AF37; padding-bottom:10px;">All Students Marks Report</h2>
-                <table style="font-size:12px; text-align:center;">
-                    <tr style="background:#00008B; color:#fff;">
-                        <th rowspan="2" style="padding:5px;">Student</th><th rowspan="2" style="padding:5px;">ID</th><th rowspan="2" style="padding:5px;">School</th><th rowspan="2" style="padding:5px;">Supervisor</th>
-                        <th colspan="3" style="padding:5px; background:#4B0082;">TP1 (Marks)</th><th colspan="3" style="padding:5px; background:#0B6623;">TP2 (Marks)</th>
-                        <th rowspan="2" style="padding:5px; background:#8b0000;">Master</th><th rowspan="2" style="padding:5px; background:#0A1128;">Portfolio</th>
-                    </tr>
-                    <tr style="background:#00008B; color:#fff;">
-                        <th style="padding:5px; background:#4B0082;">Obs 1</th><th style="padding:5px; background:#4B0082;">Obs 2</th><th style="padding:5px; background:#4B0082;">Obs 3</th>
-                        <th style="padding:5px; background:#0B6623;">Obs 1</th><th style="padding:5px; background:#0B6623;">Obs 2</th><th style="padding:5px; background:#0B6623;">Obs 3</th>
-                    </tr>
-                    ${document.getElementById('fullMarksBody').innerHTML.replace(/text-align:right/g, 'text-align:left')}
-                </table></div>`;
-            generateSafePDF(tableHtml, 'All_Marks_Report', 'landscape');
-        }
-    }
-
-    function exportLecturerInfoPDF() {
-        let assignedHtml = '';
-        allStudents.forEach(st => {
-            if (st.sup.trim().toLowerCase() === currentUser.trim().toLowerCase()) {
-                assignedHtml += `<tr><td>${st.name}</td><td>${st.id}</td><td>${st.course}</td><td>${st.school}</td></tr>`;
-            }
-        });
-        
-        if (assignedHtml === '') assignedHtml = '<tr><td colspan="4">No students currently assigned based on CSV data.</td></tr>';
-
-        const tableHtml = `<div style="direction:ltr; text-align:left;"><h2 style="color:#00008B; text-align:center; border-bottom:2px solid #D4AF37; padding-bottom:10px;">Lecturer Information Sheet</h2>
-            <table style="font-size:14px; margin-bottom:20px; width:100%;"><tr><td style="padding:8px; font-weight:bold; background:#F4F6F9; width:30%;">Name / Username:</td><td style="padding:8px;">${currentUser}</td></tr><tr><td style="padding:8px; font-weight:bold; background:#F4F6F9;">Role:</td><td style="padding:8px;">Supervisor / Lecturer</td></tr></table>
-            <h3 style="color:#00008B; margin-top:20px;">Assigned Students</h3><table style="font-size:12px; text-align:center; width:100%;"><tr style="background:#0B6623; color:#fff;"><th>Student</th><th>ID</th><th>Course</th><th>School</th></tr>${assignedHtml}</table></div>`;
-        generateSafePDF(tableHtml, 'Lecturer_Info', 'portrait');
-    }
-
-    function exportExactPDF() {
-        const stdName = document.getElementById('obsStdName').value || '_______________________'; const stdID = document.getElementById('obsStdID').value || '________________'; const course = document.getElementById('obsCourse').value || '________________'; const dateStr = document.getElementById('obsDate').value || new Date().toLocaleDateString('en-GB'); const gradeTopic = (document.getElementById('obsGrade').value || '') + ' ' + (document.getElementById('obsSection') ? document.getElementById('obsSection').value : '') + ' / ' + (document.getElementById('obsTopic').value || ''); const schoolMod = (document.getElementById('obsSchool').value || '') + ' / ' + (document.getElementById('obsModule').value || ''); const obsType = document.getElementById('obsTypeSelect') ? document.getElementById('obsTypeSelect').options[document.getElementById('obsTypeSelect').selectedIndex].text : '';
-        let totalScore = document.getElementById('scoreDisplay').innerText.split('/')[0].trim(); if(document.getElementById('obsMarksStatus').value === 'disabled') totalScore = "DRAFT";
-        
-        const lecCanvas = document.getElementById('lecturerSigPad'); const stdCanvas = document.getElementById('studentSigPad'); const isCanvasBlank = (c) => { const ctx = c.getContext('2d'); const p = new Uint32Array(ctx.getImageData(0,0,c.width,c.height).data.buffer); return !p.some(color => color !== 0); }; const supSigData = (!isCanvasBlank(lecCanvas)) ? lecCanvas.toDataURL('image/png') : ''; const stdSigData = (!isCanvasBlank(stdCanvas)) ? stdCanvas.toDataURL('image/png') : ''; const sigHtml = (img) => img ? `<img src="${img}" style="max-height:50px; display:block; margin:0 auto; margin-bottom:5px;">` : `<div style="height:50px;"></div>`;
-        const isRTL = (currentLang === 'dv' || currentLang === 'ar'); const textDir = isRTL ? 'rtl' : 'ltr'; const textAlign = isRTL ? 'right' : 'left'; const t = pdfDict[currentLang] || pdfDict.en; 
-
-        let html = `<div style="direction: ${textDir}; color:#000; text-align:${textAlign};"><div style="border: 2px solid #00008B; padding: 15px; border-radius: 5px;"><div style="text-align:center; border-bottom: 2px solid #00008B; padding-bottom:10px; margin-bottom:15px;"><h3 style="margin:0; font-size:26px; padding-bottom:5px;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</h3><h4 style="margin:5px 0; font-size:16px;">${t.ium}</h4><h4 style="margin:2px 0; font-size:14px;">${t.koe}</h4><div style="margin-top:10px;"><span style="background: #00008B; color: white; padding: 5px 15px; border-radius: 5px; font-weight:bold;">${t.title}</span></div></div>
-            <table style="margin-bottom:15px; font-size:14px; text-align:${textAlign}; line-height:1.6; border:none; width:100%;"><tr><td style="width:55%; border:none;"><strong>${t.stdName}</strong> ${stdName}</td><td style="width:45%; border:none;"><strong>${t.date}</strong> ${dateStr}</td></tr><tr><td style="border:none;"><strong>${t.id}</strong> ${stdID}</td><td style="border:none;"><strong>${t.course}</strong> ${course}</td></tr><tr><td style="border:none;"><strong>${t.gradeTopic}</strong> ${gradeTopic}</td><td style="border:none;"><strong>${t.schoolMod}</strong> ${schoolMod}</td></tr><tr><td colspan="2" style="border:none;"><strong>${t.obsType}</strong> ${obsType}</td></tr></table>
-            <table style="font-size:12px; margin-bottom: 15px; width:100%; border-collapse: collapse;"><thead><tr style="background:#00008B; color:#ffffff;"><th style="padding:8px; text-align:${textAlign}; width:45%; border: 1px solid #000; -webkit-print-color-adjust: exact;">COMPETENCIES</th><th style="border: 1px solid #000; text-align:center;">5</th><th style="border: 1px solid #000; text-align:center;">4</th><th style="border: 1px solid #000; text-align:center;">3</th><th style="border: 1px solid #000; text-align:center;">2</th><th style="border: 1px solid #000; text-align:center;">1</th></tr></thead><tbody>`;
-        criteriaList.forEach(item => {
-            if (item.cat) html += `<tr><th colspan="6" style="background:#F4F6F9; color:#0B6623; text-align:${textAlign}; padding:6px; border: 1px solid #000; -webkit-print-color-adjust: exact;">${item.cat[currentLang] || item.cat.en}</th></tr>`;
-            else { let sel = null; const r = document.querySelector(`input[name="${item.id}"]:checked`); if(r) sel = parseInt(r.value); const check = (val) => sel === val ? '<span style="font-size:16px; font-weight:bold;">X</span>' : ''; html += `<tr><td style="text-align:${textAlign}; padding:4px; border: 1px solid #000;">${item[currentLang] || item.en}</td><td style="text-align:center; border: 1px solid #000;">${check(5)}</td><td style="text-align:center; border: 1px solid #000;">${check(4)}</td><td style="text-align:center; border: 1px solid #000;">${check(3)}</td><td style="text-align:center; border: 1px solid #000;">${check(2)}</td><td style="text-align:center; border: 1px solid #000;">${check(1)}</td></tr>`; }
-        });
-        html += `</tbody></table><div class="page-break"></div> <div style="background:#F4F6F9; padding:10px; border-left: 5px solid #00008B; margin-bottom:15px; -webkit-print-color-adjust: exact;"><strong>${t.total}</strong> <span style="font-size:20px; font-weight:bold;">${totalScore}</span> / 275</div>
-            <div style="border:1px solid #000; padding:15px; min-height:80px; margin-bottom:25px;"><strong>Comments & Feedback:</strong><br><p style="font-size:14px; margin-top:10px; line-height:1.6;">${document.getElementById('autoSuggestions').value.replace(/\n/g, '<br>')}<br><br>${document.getElementById('observerComments').value.replace(/\n/g, '<br>')}</p></div>
-            <table style="width:100%; text-align:center; font-size:14px; border:none; margin-top:30px;"><tr><td style="width:50%; padding:0 20px; border:none;">${sigHtml(supSigData)}<div style="border-bottom: 1px solid #000; margin-bottom: 5px;"></div><strong>${t.supSig}</strong></td><td style="width:50%; padding:0 20px; border:none;">${sigHtml(stdSigData)}<div style="border-bottom: 1px solid #000; margin-bottom: 5px;"></div><strong>${t.stdSig}</strong></td></tr></table></div></div>`;
-        generateSafePDF(html, `Observation_${stdName.replace(/\s+/g, '_')}_${obsType}`, 'portrait');
-    }
 
     // Init app
     switchLanguage('dv');
