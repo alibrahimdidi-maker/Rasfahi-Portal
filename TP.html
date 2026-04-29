@@ -69,8 +69,8 @@
         .top-nav { background: var(--dark-blue); color: var(--royal-gold); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); z-index: 10; flex-wrap: wrap; gap: 10px;}
         .nav-controls button { background: transparent; border: 1px solid var(--royal-gold); color: var(--royal-gold); padding: 6px 15px; border-radius: 4px; cursor: pointer; margin-left: 5px; font-family: inherit; font-size: 14px;}
         .nav-controls button:hover, .nav-controls button.active { background: var(--royal-gold); color: var(--dark-blue); font-weight: bold;}
-        .status-indicators span { margin-right: 15px; font-size: 14px; font-weight: bold;} 
-        .online-status { color: #00FF00; } .offline-status { color: #FFA500; }
+        .status-indicators { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .status-indicators span { font-size: 14px; font-weight: bold;} 
         
         .workspace { display: flex; flex: 1; overflow: hidden; width: 100vw;}
         .sidebar { width: 280px; background: #1a237e; color: var(--white); padding: 20px 0; overflow-y: auto; display: flex; flex-direction: column; flex-shrink: 0; box-shadow: inset -5px 0 10px rgba(0,0,0,0.1);}
@@ -147,7 +147,7 @@
         .rubric-table td.criteria-text { font-weight: bold; color: var(--dark-blue); width: 45%; font-size: 15px; text-align: right; line-height:1.4;}
         .category-header { background-color: var(--royal-green) !important; color: var(--white); font-size: 18px; padding: 12px !important; text-align: right !important;}
         input[type="radio"] { transform: scale(1.6); accent-color: var(--royal-gold); cursor: pointer; }
-        .auto-feedback-box { width: 100%; height: 160px; padding: 15px; border: 2px solid var(--royal-gold); border-radius: 8px; margin-top: 10px; font-family: inherit; font-size: 15px; background: #FFFDF0; resize: vertical; box-sizing: border-box; line-height: 1.8;}
+        .auto-feedback-box { width: 100%; height: 200px; padding: 15px; border: 2px solid var(--royal-gold); border-radius: 8px; margin-top: 10px; font-family: inherit; font-size: 15px; background: #FFFDF0; resize: vertical; box-sizing: border-box; line-height: 1.8; font-weight: 500;}
 
         .modal-overlay { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:100000; justify-content:center; align-items:center; }
         .modal-box { background:#fff; padding:30px; border-radius:12px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.5); border-top:5px solid var(--royal-purple); }
@@ -229,8 +229,10 @@
                 <button onclick="switchLanguage('ar')">عربي</button>
             </div>
             <div class="status-indicators">
-                <span id="sync-status" style="color:var(--royal-gold);"><i class="fas fa-cloud"></i> <span lang-key="statusAutoSave">ކްލައުޑަށް ސޭވްވަނީ...</span></span>
-                <button class="action-btn" style="background:#8b0000; border:1px solid var(--royal-gold);" onclick="logout()"><i class="fas fa-sign-out-alt"></i> <span lang-key="btnLogout">ލޮގްއައުޓް</span></button>
+                <button class="action-btn small" style="background:#0B6623; border:1px solid #fff;" onclick="manualLocalSave()"><i class="fas fa-save"></i> <span lang-key="btnLocalSave">ލޯކަލް ސޭވް</span></button>
+                <button class="action-btn small" style="background:#D4AF37; color:#0A1128; font-weight:bold; border:1px solid #fff;" onclick="manualCloudSync()"><i class="fas fa-cloud-upload-alt"></i> <span lang-key="btnCloudSync">ކްލައުޑް ސިންކް</span></button>
+                <span id="sync-status" style="color:var(--royal-gold); margin-left:10px; font-size:12px; font-weight:normal;"></span>
+                <button class="action-btn small" style="background:#8b0000; border:1px solid var(--royal-gold); margin-left:10px;" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </div>
 
@@ -466,6 +468,24 @@
                         </div>
                     </div>
 
+                    <div id="studentMyMarksSection" style="display:none; margin-top:20px;">
+                        <h3 style="color:var(--royal-purple); margin-bottom:15px;"><i class="fas fa-award"></i> މަގޭ މާކުސް (My Assessment Scores)</h3>
+                        <div class="royal-card gold-border">
+                            <table class="data-table" style="font-size:14px; text-align:center;">
+                                <thead>
+                                    <tr>
+                                        <th>TP1 (Total)</th><th>TP2 (Total)</th><th>Master Final</th><th>Portfolio</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td id="myTp1Mark">-</td><td id="myTp2Mark">-</td><td id="myMasterMark">-</td><td id="myPortMark">-</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <div id="studentLogSection">
                         <h3 style="color:#1a237e; margin-top:30px; margin-bottom:15px;"><i class="fas fa-calendar-check"></i> <span lang-key="formTitleLog">ޑެއިލީ އެޓެންޑެންސް، ރިފްލެކްޝަން އަދި ވޯކް ލޮގް</span></h3>
                         <div class="royal-card">
@@ -693,6 +713,28 @@
     }
     verifyLicense();
 
+    // --- REALTIME SYNC (Cross-Tab Broadcast) ---
+    const syncChannel = new BroadcastChannel('rasfahi_sync_channel');
+    syncChannel.onmessage = function(event) {
+        if(event.data === 'data_updated') {
+            loadFromLocal();
+            updateAllViews();
+            const statusEl = document.getElementById('sync-status');
+            statusEl.innerText = currentLang==='dv'?'އަޕްޑޭޓްވެއްޖެ':'Synced';
+            setTimeout(() => { statusEl.innerText = ''; }, 2000);
+        }
+    };
+
+    function updateAllViews() {
+        populateDatalists();
+        if(document.getElementById('all-marks-section').classList.contains('active')) renderMarksTable();
+        if(document.getElementById('unified-task-center').classList.contains('active')) renderUnifiedTasks();
+        if(document.getElementById('form-bank-section').classList.contains('active')) renderFormBank();
+        if(document.getElementById('dashboard').classList.contains('active')) updateAdminDashboard();
+        updateCharts();
+        updateStudentMyMarks();
+    }
+
     // --- 1. LOCAL STORAGE & DATA PREP ---
     let allStudents = [];
     let globalTasks = []; 
@@ -708,6 +750,7 @@
         localStorage.setItem('rasfahi_sups', JSON.stringify(Array.from(uniqueSupervisors)));
         localStorage.setItem('rasfahi_masters', JSON.stringify(Array.from(uniqueMasters)));
         localStorage.setItem('rasfahi_directory', JSON.stringify(userDirectory));
+        syncChannel.postMessage('data_updated');
     }
 
     function loadFromLocal() {
@@ -784,7 +827,7 @@
     let currentLang = 'en'; 
     const translations = {
         dv: {
-            softwareNameShort: "ރަސްފަހި ޓީ.ޕީ", statusAutoSave: "ކްލައުޑަށް ސޭވްވަނީ...", statusOnline: "އޮންލައިން", saveBtn: "މެނުއަލް ސޭވް", btnLogout: "ލޮގްއައުޓް", pdfBtn: "ފޯމު ޕީޑީއެފް",
+            softwareNameShort: "ރަސްފަހި ޓީ.ޕީ", statusAutoSave: "ކްލައުޑަށް ސޭވްވަނީ...", btnLogout: "ލޮގްއައުޓް", pdfBtn: "ފޯމު ޕީޑީއެފް", btnLocalSave: "ލޯކަލް ސޭވް", btnCloudSync: "ކްލައުޑް ސިންކް",
             menuDashboard: "މެއިން ޑޭޝްބޯޑް (އެޑްމިން)", menuStudent: "މައި ޑޭޝްބޯޑް", menuObservation: "ލެސަން އޮބްޒަރވޭޝަން ފޯމު", menuTasks: "ޓާސްކް މެނޭޖްމަންޓް ސެންޓަރ", menuAdmin: "އެޑްމިން ޕެނަލް (ޑޭޓާ / ސެޓަޕް)", menuFormBank: "ފޯމު ބޭންކް އަދި މާކުސް އެމެންޑް", menuPortfolio: "ޕޯޓްފޯލިއޯ އިވެލުއޭޝަން",
             dashBestStd: "އެންމެ ރަނގަޅު ދަރިވަރު", dashCompleted: "ޓީ.ޕީ ފުރިހަމަކޮށްފައި", dashBestSup: "އެންމެ ހީވާގި ސުޕަވައިޒަރ", dashOngoing: "އޮބްޒަވޭޝަން ނިމިފައި", dashActiveSchool: "އެންމެ އެކްޓިވް ސްކޫލް", dashInactiveSchool: "ގުޅަންޖެހޭ ސްކޫލްތައް", dashStudents: "ދަރިވަރުން ފޮނުވިފައި", chartLecturer: "ލެކްޗަރަރުންގެ ޓީ.ޕީ ޓައިމްލައިން / ޕްރޮގްރެސް", chartTitleProgress: "ދަރިވަރުން މަސައްކަތް ނިންމާ މިންވަރު", chartTitleSchools: "ސްކޫލްތަކުގެ ތަފާސްހިސާބު",
             lblCreateTask: "އައު ޓާސްކް ކްރިއޭޓް ކުރުން (+ Splitter)", phTaskName: "މައި ޓާސްކްގެ ނަން (މިސާލު: Lesson Plan / Portfolio)", phSubTask: "ސަބް-ޓާސްކް 1...", btnAddPart: "ބައެއް އިތުރުކުރޭ", btnAssignTask: "އެސައިންކުރޭ", lblAssignTarget: "ޙަވާލުކުރަނީ ކާކަށް؟", lblAssignStd: "މެނުއަލްކޮށް ދަރިވަރުން އެސައިންކުރުން", lblFileLimit: "ފައިލް ސައިޒް: 10MB އަށްވުރެ ބޮޑުނުކުރައްވާ.", optToStudent: "ދަރިވަރުންނަށް", optToSupervisor: "ސުޕަވައިޒަރަށް", optToMaster: "މާސްޓަރ ޓީޗަރަށް",
@@ -798,7 +841,7 @@
             lblGlobalTasks: "ގްލޯބަލް ޓާސްކް ޕްރޮގްރެސް", lblMyTasks: "އަޅުގަނޑާ ޙަވާލުކުރެވިފައިވާ ޓާސްކްތައް (My Tasks)", lblCreatedTasks: "އަޅުގަނޑު އެސައިންކުރި ޓާސްކްތަކުގެ ޕްރޮގްރެސް"
         },
         en: {
-            softwareNameShort: "Rasfahi TP", statusAutoSave: "Saving to Cloud...", statusOnline: "Online", saveBtn: "Manual Save", btnLogout: "Logout", pdfBtn: "Export PDF",
+            softwareNameShort: "Rasfahi TP", statusAutoSave: "Saving to Cloud...", btnLogout: "Logout", pdfBtn: "Export PDF", btnLocalSave: "Local Save", btnCloudSync: "Cloud Sync",
             menuDashboard: "Main Dashboard (Admin)", menuStudent: "My Dashboard", menuObservation: "Lesson Observation Form", menuTasks: "Task Management Center", menuAdmin: "Admin Panel (Data / Setup)", menuFormBank: "Form Bank & Amend Marks", menuPortfolio: "Portfolio Evaluation",
             dashBestStd: "Best Student", dashCompleted: "TP Completed", dashBestSup: "Most Active Supervisor", dashOngoing: "Obs. Done", dashActiveSchool: "Most Active School", dashInactiveSchool: "Schools to Contact", dashStudents: "Students Assigned", chartLecturer: "Lecturer TP Timeline / Progress", chartTitleProgress: "Task Progress", chartTitleSchools: "School Statistics",
             lblCreateTask: "Create New Task (+ Splitter)", phTaskName: "Main Task Name (e.g. Lesson Plan)", phSubTask: "Sub-Task 1...", btnAddPart: "Add Part", btnAssignTask: "Assign Task", lblAssignTarget: "Assign To:", lblAssignStd: "Manually Assign Students to Supervisors", lblFileLimit: "File Limit: Max 10MB.", optToStudent: "Students", optToSupervisor: "Supervisors", optToMaster: "Master Teachers",
@@ -812,7 +855,7 @@
             lblGlobalTasks: "Global Task Progress", lblMyTasks: "Tasks Assigned To Me", lblCreatedTasks: "Progress of Tasks I Assigned"
         },
         ar: {
-            softwareNameShort: "رسفهي TP", statusAutoSave: "جاري الحفظ...", statusOnline: "متصل", saveBtn: "حفظ يدوي", btnLogout: "تسجيل خروج", pdfBtn: "تصدير PDF",
+            softwareNameShort: "رسفهي TP", statusAutoSave: "جاري الحفظ...", btnLogout: "تسجيل خروج", pdfBtn: "تصدير PDF", btnLocalSave: "حفظ محلي", btnCloudSync: "مزامنة سحابية",
             menuDashboard: "اللوحة الرئيسية (مسؤول)", menuStudent: "لوحتي", menuObservation: "استمارة تقييم الدرس", menuTasks: "مركز المهام", menuAdmin: "لوحة الإدارة (البيانات)", menuFormBank: "بنك النماذج وتعديل الدرجات", menuPortfolio: "تقييم المحفظة",
             dashBestStd: "أفضل طالب", dashCompleted: "مكتمل", dashBestSup: "المشرف الأنشط", dashOngoing: "تقييم منجز", dashActiveSchool: "المدرسة الأنشط", dashInactiveSchool: "مدارس غير متصلة", dashStudents: "طالب", chartLecturer: "تقدم المحاضرين", chartTitleProgress: "نسبة إنجاز المهام", chartTitleSchools: "إحصائيات المدارس",
             lblCreateTask: "إنشاء مهمة جديدة", phTaskName: "اسم المهمة الرئيسية", phSubTask: "مهمة فرعية 1...", btnAddPart: "إضافة جزء", btnAssignTask: "تعيين المهمة", lblAssignTarget: "تعيين إلى:", lblAssignStd: "تعيين المشرفين للطلاب", lblFileLimit: "حجم الملف: 10MB كحد أقصى.", optToStudent: "الطلاب", optToSupervisor: "المشرفين", optToMaster: "المعلم الأساسي",
@@ -834,18 +877,34 @@
     };
 
     const autoDict = {
-        dv: { excellent: "ވަރަށް ފުރިހަމަ މަސައްކަތެއް! މިއީ ނަމޫނާއެއްގެ ގޮތުގައި ބެލެވިދާނެ ކަމެއް.", improve: "މިބައި އިތުރަށް ތަރައްޤީކުރުމަށް، ޢަމަލީ ގޮތުން ދަރިވަރުން ބައިވެރިކުރެވޭނެ އުކުޅުތައް ބޭނުންކުރެއްވުން މުހިންމެވެ.", sTitle: "ފާހަގަކޮށްލެވޭ ރަނގަޅު ކަންތައްތައް:", iTitle: "އިތުރަށް ރަނގަޅުކުރަންޖެހޭ (ސަޖެސްޝަން):" },
-        en: { excellent: "Excellent work! Keep maintaining this high standard.", improve: "To improve this area, consider integrating more interactive and student-centered methods.", sTitle: "Key Strengths:", iTitle: "Areas for Improvement (Academic Suggestions):" },
-        ar: { excellent: "عمل ممتاز! استمر في الحفاظ على هذا المستوى العالي.", improve: "لتحسين هذا المجال، فكر في دمج المزيد من الأساليب التفاعلية المتمحورة حول الطالب.", sTitle: "نقاط القوة:", iTitle: "مجالات التحسين:" }
+        dv: { 
+            excellentTitle: "ފާހަގަކޮށްލެވޭ ކާމިޔާބީތައް (Exemplary Pedagogical Attainments):", 
+            goodTitle: "އިތުރަށް ފުރިހަމަކުރެވިދާނެ ދާއިރާތައް (Areas with Potential for Enhancement):",
+            improveTitle: "ޚާއްޞަ ސަމާލުކަމެއްދީގެން ރަނގަޅުކުރަންޖެހޭ ކަންކަން (Critical Areas Requiring Pedagogical Intervention):",
+            improveAction: "މަތީގައި ފާހަގަކުރެވިފައިވާ ކަންކަން ރަނގަޅުކުރުމަށްޓަކައި، ދަރިވަރުން ޝާމިލުކުރުވޭނެ އެކްޓިވް ލަރނިންގ ސްޓްރެޓަޖީތައް (Active Learning Strategies) އަދި ޑިފަރެންޝިއޭޓެޑް އިންސްޓްރަކްޝަން (Differentiated Instruction) ބޭނުންކުރެއްވުން މުހިންމެވެ." 
+        },
+        en: { 
+            excellentTitle: "Exemplary Pedagogical Attainments:", 
+            goodTitle: "Areas with Potential for Enhancement:",
+            improveTitle: "Critical Areas Requiring Pedagogical Intervention:",
+            improveAction: "To improve the above areas, it is crucial to implement Active Learning Strategies and Differentiated Instruction to cater to diverse student needs." 
+        },
+        ar: { 
+            excellentTitle: "نقاط القوة والإنجازات التربوية المتميزة:", 
+            goodTitle: "مجالات يمكن تعزيزها وتطويرها:",
+            improveTitle: "مجالات حاسمة تتطلب تدخلاً تربويًا:",
+            improveAction: "لتحسين المجالات المذكورة أعلاه، من الضروري تنفيذ استراتيجيات التعلم النشط والتعليم المتمايز." 
+        }
     };
 
     function switchLanguage(lang) {
         currentLang = lang;
         document.querySelectorAll('.nav-controls button').forEach(btn => btn.classList.remove('active'));
-        if(event && event.target) {
+        if(event && event.target && event.target.tagName === 'BUTTON') {
              event.target.classList.add('active');
         } else {
-             document.querySelector(`button[onclick="switchLanguage('${lang}')"]`).classList.add('active');
+             const btn = document.querySelector(`button[onclick="switchLanguage('${lang}')"]`);
+             if(btn) btn.classList.add('active');
         }
         
         const isRTL = (lang === 'dv' || lang === 'ar');
@@ -933,20 +992,36 @@
             populateDatalists();
             setupRoleUI();
             initCharts(); 
-            updateCharts();
+            updateAllViews();
             initSignaturePads(); 
             switchLanguage('dv'); 
             
             if(document.getElementById('obsDate')) document.getElementById('obsDate').valueAsDate = new Date();
-
-            setInterval(() => { 
-                const s = document.getElementById('sync-status'); 
-                s.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> ' + (translations[currentLang].statusAutoSave); 
-                setTimeout(() => { s.innerHTML = '<i class="fas fa-check-circle"></i> ' + (currentLang==='dv'?'ސޭވް ވެއްޖެ':'Saved'); }, 1000); 
-            }, 30000);
         } else {
             document.getElementById('login-error').style.display = 'block';
         }
+    }
+
+    function manualLocalSave() {
+        saveToLocal();
+        alert(currentLang==='dv' ? "ލޯކަލް ބްރައުޒަރަށް ސޭވްކުރެވިއްޖެ!" : "Data saved locally successfully!");
+    }
+
+    function manualCloudSync() {
+        saveToLocal();
+        const statusEl = document.getElementById('sync-status');
+        statusEl.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${currentLang==='dv'?'ކްލައުޑަށް ސިންކްކުރަނީ...':'Syncing to Cloud...'}`;
+        setTimeout(() => { 
+            statusEl.innerHTML = `<i class="fas fa-check-circle"></i> ${currentLang==='dv'?'ސިންކްވެއްޖެ':'Synced'}`; 
+            setTimeout(()=>statusEl.innerHTML='', 3000);
+            alert(currentLang==='dv' ? "ކްލައުޑަށް ކާމިޔާބުކަމާއެކު ސިންކްކުރެވިއްޖެ!" : "Cloud sync completed successfully!");
+        }, 1200);
+    }
+
+    function triggerManualSave() {
+        const statusEl = document.getElementById('sync-status');
+        statusEl.innerHTML = `<i class="fas fa-cloud-upload-alt"></i> ${currentLang==='dv'?'ސޭވްވަނީ...':'Saving...'}`;
+        setTimeout(() => { statusEl.innerHTML = `<i class="fas fa-check"></i>`; setTimeout(()=>statusEl.innerHTML='', 2000); }, 800);
     }
 
     function setupRoleUI() {
@@ -965,7 +1040,6 @@
             menuHtml += `<div class="sidebar-item" onclick="showSection('observation-form', this)"><i class="fas fa-clipboard-check"></i> <span lang-key="menuObservation">އޮބްޒަރވޭޝަން ފޯމު</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('portfolio-section', this)"><i class="fas fa-folder-open"></i> <span lang-key="menuPortfolio">ޕޯޓްފޯލިއޯ</span></div>`;
             defaultSection = 'dashboard';
-            filterMarksTable(); 
         } 
         else if (currentRole === 'lecturer' || currentRole === 'master') {
             menuHtml += `<div class="sidebar-item active" onclick="showSection('student-eval', this)"><i class="fas fa-user-graduate"></i> <span lang-key="menuStudent">މައި ޑޭޝްބޯޑް</span></div>`;
@@ -985,7 +1059,6 @@
                 if(document.getElementById('adminSupFilterDiv')) document.getElementById('adminSupFilterDiv').style.display = 'none';
                 document.querySelectorAll('.tp1-header, .tp2-header, .sup-col').forEach(el => el.style.display = 'none'); 
             }
-            filterMarksTable(); 
         } 
         else {
             menuHtml += `<div class="sidebar-item active" onclick="showSection('student-eval', this)"><i class="fas fa-user-graduate"></i> <span lang-key="menuStudent">މައި ޑޭޝްބޯޑް</span></div>`;
@@ -996,23 +1069,15 @@
         sidebar.innerHTML = menuHtml;
         showSection(defaultSection, sidebar.firstElementChild);
         
-        if(currentRole === 'admin') updateAdminDashboard();
-        
         if (currentRole !== 'student') {
             document.getElementById('studentLogSection').style.display = 'none';
             document.querySelectorAll('.admin-only-opt').forEach(opt => opt.style.display = currentRole==='admin'?'block':'none');
-            
-            if(document.getElementById('tasksNeedingApprovalSection')) {
-                document.getElementById('tasksNeedingApprovalSection').style.display = 'block';
-            }
+            if(document.getElementById('tasksNeedingApprovalSection')) document.getElementById('tasksNeedingApprovalSection').style.display = 'block';
         } else {
             document.getElementById('taskCreatorUI').style.display = 'none';
             document.getElementById('tasksAssignedByMeSection').style.display = 'none';
+            document.getElementById('studentMyMarksSection').style.display = 'block';
         }
-        
-        updateTaskAssigneeList();
-        renderUnifiedTasks();
-        renderFormBank();
     }
 
     function showSection(sectionId, element) { 
@@ -1023,10 +1088,7 @@
         else if(document.querySelector('.sidebar-item.active')) document.querySelector('.sidebar-item.active').classList.remove('active');
         
         if(sectionId === 'observation-form') setTimeout(resizeCanvases, 100);
-        if(sectionId === 'unified-task-center') renderUnifiedTasks();
-        if(sectionId === 'form-bank-section') renderFormBank();
-        if(sectionId === 'dashboard') updateAdminDashboard();
-        if(sectionId === 'student-eval') updateCharts();
+        updateAllViews();
     }
 
     function logout() { location.reload(); }
@@ -1127,7 +1189,7 @@
         
         studentPoints += 20; 
         
-        const studentIndex = allStudents.findIndex(s => s.name === currentUser);
+        const studentIndex = allStudents.findIndex(s => s.name === currentUser || s.name.toLowerCase().includes(currentUser.toLowerCase()));
         if(studentIndex > -1) {
             allStudents[studentIndex].points = (allStudents[studentIndex].points || 0) + 20;
             studentPoints = allStudents[studentIndex].points;
@@ -1145,6 +1207,17 @@
         saveToLocal();
         triggerManualSave();
         dropdown.value = ""; document.getElementById('dailyLogDetails').innerHTML = "";
+    }
+
+    function updateStudentMyMarks() {
+        if(currentRole !== 'student') return;
+        let myStd = allStudents.find(s => s.name.trim().toLowerCase() === currentUser.trim().toLowerCase());
+        if(!myStd) return;
+
+        document.getElementById('myTp1Mark').innerText = myStd.tp1_high > 0 ? myStd.tp1_high : '-';
+        document.getElementById('myTp2Mark').innerText = myStd.tp2_high > 0 ? myStd.tp2_high : '-';
+        document.getElementById('myMasterMark').innerText = myStd.masterScore ? myStd.masterScore : '-';
+        document.getElementById('myPortMark').innerText = myStd.portfolioScore ? myStd.portfolioScore : '-';
     }
 
     /* === UNIFIED TASK SYSTEM LOGIC === */
@@ -1299,7 +1372,11 @@
 
             if (currentRole === 'lecturer' && task.targetRole === 'lecturer' && (task.targetUser === 'all' || task.targetUser.trim().toLowerCase() === currentUser.trim().toLowerCase())) isAssignedToMe = true;
             else if (currentRole === 'master' && task.targetRole === 'master' && (task.targetUser === 'all' || task.targetUser.trim().toLowerCase() === currentUser.trim().toLowerCase())) isAssignedToMe = true;
-            else if (currentRole === 'student' && task.targetRole === 'student' && (task.targetUser === 'all' || task.targetUser.trim().toLowerCase() === currentUser.trim().toLowerCase() || task.targetUser === allStudents.find(s => s.name.trim().toLowerCase() === currentUser.trim().toLowerCase())?.id)) isAssignedToMe = true;
+            else if (currentRole === 'student' && task.targetRole === 'student') {
+                let myStdObj = allStudents.find(s => s.name.trim().toLowerCase() === currentUser.trim().toLowerCase());
+                let myId = myStdObj ? myStdObj.id : "";
+                if (task.targetUser === 'all' || task.targetUser === myId) isAssignedToMe = true;
+            }
 
             if ((currentRole === 'lecturer' || currentRole === 'master') && task.targetRole === 'student' && task.status === 'pending_approval') {
                 if (task.targetUser === 'all' || myStudentIds.includes(task.targetUser)) {
@@ -1407,8 +1484,8 @@
             };
 
             const isAdmin = currentRole === 'admin';
-            const isMyStudentLec = currentRole === 'lecturer' && st.sup.trim().toLowerCase() === currentUser.trim().toLowerCase();
-            const isMyStudentMaster = currentRole === 'master' && st.master.trim().toLowerCase() === currentUser.trim().toLowerCase();
+            const isMyStudentLec = currentRole === 'lecturer' && (currentUser.toLowerCase().includes(st.sup.trim().toLowerCase()) || st.sup.trim().toLowerCase().includes(currentUser.toLowerCase()));
+            const isMyStudentMaster = currentRole === 'master' && (currentUser.toLowerCase().includes(st.master.trim().toLowerCase()) || st.master.trim().toLowerCase().includes(currentUser.toLowerCase()));
 
             if (isAdmin || isMyStudentLec) {
                 addRow("TP1 - Obs 1", st.tp1[0]); addRow("TP1 - Obs 2", st.tp1[1]); addRow("TP1 - Obs 3", st.tp1[2]);
@@ -1421,7 +1498,7 @@
         });
         
         if(!hasForms) {
-            fbBody.innerHTML = `<tr><td colspan="5" style="color:#888;">${currentLang==='dv'?'އަދި އެއްވެސް ފޯމެއް ސަބްމިޓްކޮށްފައެއް ނެތް.':'No forms submitted yet.'}</td></tr>`;
+            fbBody.innerHTML = `<tr><td colspan="5" style="color:#888;">${currentLang==='dv'?'އަދި އެއްވެސް ފޯމެއް ސަބްމިޓްކޮށްފައެއް ނެތް. (ފޯމު ބޭންކަށް ފެންނާނީ މާކުސް ދީފައިވާ ފޯމުތައް އެކަނި)':'No graded forms submitted yet.'}</td></tr>`;
         }
     }
 
@@ -1451,18 +1528,24 @@
 
     function calculateRubricTotal() {
         let total = 0;
-        let lowScores = [];
         const statusElem = document.getElementById('obsMarksStatus');
         const isDraft = statusElem ? statusElem.value === 'disabled' : false;
+
+        const ad = autoDict[currentLang] || autoDict.en;
+        let excellentItems = [];
+        let goodItems = [];
+        let improveItems = [];
 
         document.querySelectorAll('#rubricForm input[type="radio"]:checked').forEach(r => {
             let val = parseInt(r.value);
             total += val;
-            if (val <= 2) {
-                const criteriaObj = criteriaList.find(c => c.id === r.name);
-                if (criteriaObj) {
-                    lowScores.push(criteriaObj[currentLang] || criteriaObj.en);
-                }
+            
+            const criteriaObj = criteriaList.find(c => c.id === r.name);
+            if (criteriaObj) {
+                let text = criteriaObj[currentLang] || criteriaObj.en;
+                if (val === 5) excellentItems.push(text);
+                else if (val === 3 || val === 4) goodItems.push(text);
+                else if (val <= 2) improveItems.push(text);
             }
         });
 
@@ -1478,15 +1561,16 @@
         }
 
         const suggestBox = document.getElementById('autoSuggestions');
-        if(suggestBox) {
-            const ad = autoDict[currentLang] || autoDict.en;
+        if (suggestBox) {
+            let feedback = "";
             if (total === 0) {
-                suggestBox.value = "";
-            } else if (lowScores.length === 0) {
-                suggestBox.value = `${ad.sTitle}\n- ${ad.excellent}`;
+                feedback = "";
             } else {
-                suggestBox.value = `${ad.iTitle}\n- ${lowScores.join('\n- ')}\n\n${ad.improve}`;
+                if (excellentItems.length > 0) feedback += `${ad.excellentTitle}\n• ${excellentItems.join('\n• ')}\n\n`;
+                if (goodItems.length > 0) feedback += `${ad.goodTitle}\n• ${goodItems.join('\n• ')}\n\n`;
+                if (improveItems.length > 0) feedback += `${ad.improveTitle}\n• ${improveItems.join('\n• ')}\n\n${ad.improveAction}`;
             }
+            suggestBox.value = feedback.trim();
         }
     }
 
@@ -1502,7 +1586,7 @@
         const reason = document.getElementById('amendReason').value;
         const code = document.getElementById('amendCode').value;
         if(reason.trim().length < 5) { alert(currentLang==='dv'?'ސަބަބު ތަފްސީލުކޮށް ލިޔުއްވާ!':'Please provide a detailed reason.'); return; }
-        if(code !== "AMEND2026") { alert(currentLang==='dv'?'ވެރިފިކޭޝަން ކޯޑު ނުބައި!':'Invalid verification code!'); return; }
+        if(code !== "AMEND2026") { alert(currentLang==='dv'?'ވެރިފިކޭޝަން ކޯޑު ނުބައި! (ކޯޑަކީ: AMEND2026)':'Invalid verification code!'); return; }
         
         alert(currentLang==='dv'?'މާކުސް ބަދަލުކުރުމުގެ ރިކުއެސްޓް ފޮނުވިއްޖެ.':'Amendment requested and logged securely.');
         document.getElementById('amendModal').style.display = 'none';
@@ -1540,19 +1624,12 @@
             const trSchool = rows[i].getAttribute('data-school') ? rows[i].getAttribute('data-school').toLowerCase() : '';
             
             let showRow = false;
-            if(currentRole === 'lecturer' && trSup !== currentUser.trim().toLowerCase()) { showRow = false; }
-            else if (currentRole === 'master' && trMaster !== currentUser.trim().toLowerCase()) { showRow = false; } 
+            if(currentRole === 'lecturer' && !trSup.includes(currentUser.trim().toLowerCase())) { showRow = false; }
+            else if (currentRole === 'master' && !trMaster.includes(currentUser.trim().toLowerCase())) { showRow = false; } 
             else if(text.includes(search) && trSup.includes(sup) && trSchool.includes(school)) { showRow = true; }
             
             if(showRow) rows[i].style.display = ""; else rows[i].style.display = "none";
         }
-    }
-
-    function triggerManualSave() {
-        const statusEl = document.getElementById('sync-status');
-        statusEl.innerHTML = `<i class="fas fa-cloud-upload-alt"></i> ${currentLang==='dv'?'ކްލައުޑަށް ސޭވްވަނީ...':'Saving to Cloud...'}`;
-        statusEl.style.color = "var(--royal-gold)";
-        setTimeout(() => { statusEl.innerHTML = `<i class="fas fa-check-circle"></i> ${currentLang==='dv'?'ކްލައުޑަށް ސޭވްވެއްޖެ':'Saved to Cloud'}`; statusEl.style.color = "#00FF00"; }, 800);
     }
 
     function renderMarksTable() {
@@ -1623,7 +1700,7 @@
 
         allStudents[studentIndex].portfolioScore = total;
         saveToLocal();
-        renderMarksTable(); renderFormBank(); triggerManualSave();
+        updateAllViews();
         alert(`${allStudents[studentIndex].name} ގެ ޕޯޓްފޯލިއޯ މާކުސް ސޭވްކުރެވިއްޖެ!`);
     }
 
@@ -1652,7 +1729,7 @@
         allStudents[studentIndex] = st;
 
         saveToLocal();
-        renderMarksTable(); updateAdminDashboard(); updateCharts(); renderFormBank(); triggerManualSave();
+        updateAllViews();
         alert(currentLang === 'dv' ? `${st.name} ގެ މާކުސް ކާމިޔާބުކަމާއެކު ރިޕޯރޓަށް ސޭވްކުރެވިއްޖެ!` : `Marks for ${st.name} saved successfully!`);
     }
 
@@ -1705,16 +1782,49 @@
                 }
             }
             saveToLocal();
-            populateDatalists();
-            renderMarksTable(); 
-            updateAdminDashboard(); 
-            updateCharts(); 
-            renderFormBank();
+            updateAllViews();
             
             console.log("Auto-Generated Login Dictionary:", userDirectory);
             alert(currentLang === 'dv' ? "ސީއެސްވީ (CSV) ޑޭޓާ އިމްޕޯރޓް ކުރެވިއްޖެ. ލޮގިން އީމެއިލްތައް ކްރިއޭޓްވެއްޖެ." : "CSV Data Imported. Auto-Emails generated.");
         };
         reader.readAsText(file);
+    }
+
+    function updateAdminDashboard() {
+        if(currentRole !== 'admin') return;
+        
+        let bestStd = null; let bestScore = 0;
+        allStudents.forEach(st => {
+            let total = st.tp1_high + st.tp2_high + (st.masterScore||0) + (st.portfolioScore||0);
+            if(total > bestScore) { bestScore = total; bestStd = st; }
+        });
+        document.getElementById('dashBestStudentName').innerText = bestStd ? bestStd.name : '-';
+        
+        const schoolCount = {};
+        allStudents.forEach(st => { schoolCount[st.school] = (schoolCount[st.school] || 0) + 1; });
+        let activeSchool = '-'; let maxStds = 0;
+        for(const s in schoolCount) { if(schoolCount[s] > maxStds) { maxStds = schoolCount[s]; activeSchool = s; } }
+        document.getElementById('dashActiveSchoolName').innerText = activeSchool;
+        
+        const inactiveList = document.getElementById('inactiveSchoolsList');
+        inactiveList.innerHTML = '';
+        let foundInactive = false;
+        uniqueSchools.forEach(s => {
+            if(schoolCount[s] < 2) { inactiveList.innerHTML += `<li>${s}</li>`; foundInactive = true; }
+        });
+        if(!foundInactive) inactiveList.innerHTML = '<li>All schools active.</li>';
+
+        const gTable = document.getElementById('adminGlobalTaskListBody');
+        if(gTable) {
+            gTable.innerHTML = '';
+            if(globalTasks.length === 0) gTable.innerHTML = '<tr><td colspan="3" style="color:#888;">No tasks generated yet.</td></tr>';
+            else {
+                globalTasks.forEach(task => {
+                    let color = task.status === 'approved' ? 'green' : (task.status === 'pending_approval' ? 'blue' : 'orange');
+                    gTable.innerHTML += `<tr><td>${task.title}</td><td>${task.targetUser}</td><td style="color:${color}; font-weight:bold;">${task.totalPct}%</td></tr>`;
+                });
+            }
+        }
     }
 
     function threeStepHardReset() { 
@@ -1732,7 +1842,7 @@
             localStorage.removeItem('rasfahi_masters');
             localStorage.removeItem('rasfahi_directory');
             
-            updateAdminDashboard(); populateDatalists(); renderUnifiedTasks(); updateCharts(); renderFormBank(); renderMarksTable();
+            updateAllViews();
             alert(currentLang === 'dv' ? "ސިސްޓަމްގެ ހުރިހާ ޑޭޓާއެއް ފޮހެލެވިއްޖެ. (ހާޑް ރީސެޓް ކާމިޔާބު)" : "Hard Reset Complete. All data wiped."); 
         } 
     }
@@ -1798,7 +1908,7 @@
     function exportLecturerInfoPDF() {
         let assignedHtml = '';
         allStudents.forEach(st => {
-            if (st.sup.trim().toLowerCase() === currentUser.trim().toLowerCase()) {
+            if (st.sup.trim().toLowerCase().includes(currentUser.trim().toLowerCase()) || currentUser.trim().toLowerCase().includes(st.sup.trim().toLowerCase())) {
                 assignedHtml += `<tr><td>${st.name}</td><td>${st.id}</td><td>${st.course}</td><td>${st.school}</td></tr>`;
             }
         });
