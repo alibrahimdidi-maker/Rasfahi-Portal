@@ -101,7 +101,7 @@
         
         .action-btn { background: #1a237e; color: #fff; border: none; padding: 12px 18px; border-radius: 6px; cursor: pointer; white-space: nowrap; font-size: 15px; transition: 0.2s;} 
         .action-btn:hover { background: var(--royal-purple); transform: scale(1.02);}
-        .action-btn.small { padding: 8px 12px; font-size: 13px; }
+        .action-btn.small { padding: 8px 12px; font-size: 13px; margin: 2px;}
 
         /* Rich Text Editor */
         .editor-toolbar { background: var(--bg-light); border: 1px solid #ccc; border-bottom: none; border-radius: 6px 6px 0 0; padding: 8px; display: flex; gap: 5px; flex-wrap:wrap;}
@@ -440,12 +440,16 @@
                         <p id="amendStudentName" style="font-weight:bold; color:#1a237e; margin-bottom:5px;"></p>
                         <p id="amendObsName" style="font-size:14px; color:#666; margin-top:0;"></p>
                         <div class="form-group" style="margin-top:15px;">
+                            <label>އައު މާކުސް (New Score):</label>
+                            <input type="number" id="amendNewScore" min="1" max="275" placeholder="Enter new validated score">
+                        </div>
+                        <div class="form-group" style="margin-top:10px;">
                             <label>ބަދަލުކުރަން ބޭނުންވާ ސަބަބު (Reason):</label>
                             <textarea id="amendReason" style="height:80px;"></textarea>
                         </div>
                         <div class="form-group">
                             <label>ވެރިފިކޭޝަން ކޯޑު:</label>
-                            <input type="text" id="amendCode" placeholder="Enter Code">
+                            <input type="text" id="amendCode" placeholder="Enter Code (AMEND2026)">
                         </div>
                         <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
                             <button class="action-btn" style="background:#666;" onclick="document.getElementById('amendModal').style.display='none'">ކެންސަލް</button>
@@ -720,8 +724,8 @@
             loadFromLocal();
             updateAllViews();
             const statusEl = document.getElementById('sync-status');
-            statusEl.innerText = currentLang==='dv'?'އަޕްޑޭޓްވެއްޖެ':'Synced';
-            setTimeout(() => { statusEl.innerText = ''; }, 2000);
+            statusEl.innerHTML = currentLang==='dv'?'<i class="fas fa-check-circle"></i> އަޕްޑޭޓްވެއްޖެ':'<i class="fas fa-check-circle"></i> Synced';
+            setTimeout(() => { statusEl.innerHTML = ''; }, 2000);
         }
     };
 
@@ -1472,13 +1476,16 @@
         let hasForms = false;
         
         allStudents.forEach(st => {
-            let addRow = (obsName, marks) => {
+            let addRow = (obsName, marks, stdId) => {
                 if(marks !== null && marks > 0 && !isNaN(marks)) {
                     hasForms = true;
                     fbBody.innerHTML += `
                         <tr>
                             <td>${st.name}</td><td>${new Date().toISOString().split('T')[0]}</td><td>${obsName}</td><td style="font-weight:bold; color:var(--royal-green);">${marks}</td>
-                            <td><button class="action-btn small" onclick="openAmendModal('${st.name}', '${obsName}')"><i class="fas fa-edit"></i> Amend</button></td>
+                            <td>
+                                <button class="action-btn small" onclick="openAmendModal('${stdId}', '${st.name}', '${obsName}')"><i class="fas fa-edit"></i> Amend</button>
+                                <button class="action-btn small" style="background:#8b0000;" onclick="deleteForm3Step('${stdId}', '${obsName}')"><i class="fas fa-trash"></i> Delete</button>
+                            </td>
                         </tr>`;
                 }
             };
@@ -1488,12 +1495,12 @@
             const isMyStudentMaster = currentRole === 'master' && (currentUser.toLowerCase().includes(st.master.trim().toLowerCase()) || st.master.trim().toLowerCase().includes(currentUser.toLowerCase()));
 
             if (isAdmin || isMyStudentLec) {
-                addRow("TP1 - Obs 1", st.tp1[0]); addRow("TP1 - Obs 2", st.tp1[1]); addRow("TP1 - Obs 3", st.tp1[2]);
-                addRow("TP2 - Obs 1", st.tp2[0]); addRow("TP2 - Obs 2", st.tp2[1]); addRow("TP2 - Obs 3", st.tp2[2]);
-                addRow("Portfolio Evaluation", st.portfolioScore);
+                addRow("TP1 - Obs 1", st.tp1[0], st.id); addRow("TP1 - Obs 2", st.tp1[1], st.id); addRow("TP1 - Obs 3", st.tp1[2], st.id);
+                addRow("TP2 - Obs 1", st.tp2[0], st.id); addRow("TP2 - Obs 2", st.tp2[1], st.id); addRow("TP2 - Obs 3", st.tp2[2], st.id);
+                addRow("Portfolio Evaluation", st.portfolioScore, st.id);
             }
             if (isAdmin || isMyStudentMaster) {
-                addRow("Master Teacher Final", st.masterScore);
+                addRow("Master Teacher Final", st.masterScore, st.id);
             }
         });
         
@@ -1574,22 +1581,79 @@
         }
     }
 
-    function openAmendModal(stdName, obsName) {
+    let currentAmendTarget = { id: '', obsName: '' };
+    function openAmendModal(stdId, stdName, obsName) {
+        currentAmendTarget = { id: stdId, obsName: obsName };
         document.getElementById('amendStudentName').innerText = stdName;
         document.getElementById('amendObsName').innerText = obsName;
+        document.getElementById('amendNewScore').value = '';
         document.getElementById('amendReason').value = '';
         document.getElementById('amendCode').value = '';
         document.getElementById('amendModal').style.display = 'flex';
     }
 
     function saveAmendment() {
+        const newScore = parseInt(document.getElementById('amendNewScore').value);
         const reason = document.getElementById('amendReason').value;
         const code = document.getElementById('amendCode').value;
+        
+        if(isNaN(newScore) || newScore <= 0 || newScore > 275) { alert(currentLang==='dv'?'މާކުސް ރަނގަޅެއް ނޫން!':'Invalid Score!'); return; }
         if(reason.trim().length < 5) { alert(currentLang==='dv'?'ސަބަބު ތަފްސީލުކޮށް ލިޔުއްވާ!':'Please provide a detailed reason.'); return; }
         if(code !== "AMEND2026") { alert(currentLang==='dv'?'ވެރިފިކޭޝަން ކޯޑު ނުބައި! (ކޯޑަކީ: AMEND2026)':'Invalid verification code!'); return; }
         
-        alert(currentLang==='dv'?'މާކުސް ބަދަލުކުރުމުގެ ރިކުއެސްޓް ފޮނުވިއްޖެ.':'Amendment requested and logged securely.');
+        let stIndex = allStudents.findIndex(s => s.id === currentAmendTarget.id);
+        if(stIndex === -1) return;
+        let st = allStudents[stIndex];
+
+        if (currentAmendTarget.obsName === "TP1 - Obs 1") st.tp1[0] = newScore;
+        else if (currentAmendTarget.obsName === "TP1 - Obs 2") st.tp1[1] = newScore;
+        else if (currentAmendTarget.obsName === "TP1 - Obs 3") st.tp1[2] = newScore;
+        else if (currentAmendTarget.obsName === "TP2 - Obs 1") st.tp2[0] = newScore;
+        else if (currentAmendTarget.obsName === "TP2 - Obs 2") st.tp2[1] = newScore;
+        else if (currentAmendTarget.obsName === "TP2 - Obs 3") st.tp2[2] = newScore;
+        else if (currentAmendTarget.obsName === "Master Teacher Final") st.masterScore = newScore;
+        else if (currentAmendTarget.obsName === "Portfolio Evaluation") st.portfolioScore = newScore;
+
+        st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
+        st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
+
+        saveToLocal();
+        updateAllViews();
+        
+        alert(currentLang==='dv'?'މާކުސް ކާމިޔާބުކަމާއެކު ބަދަލުކުރެވިއްޖެ!':'Marks amended successfully!');
         document.getElementById('amendModal').style.display = 'none';
+    }
+
+    function deleteForm3Step(stdId, obsName) {
+        if(prompt(currentLang==='dv'?"ސްޓެޕް 1: ފޮހެލުމަށްޓަކައި 'DELETE' ޓައިޕްކުރައްވާ:":"Step 1: Type 'DELETE' to proceed:") !== 'DELETE') {
+            alert('Cancelled.'); return;
+        }
+        if(prompt(currentLang==='dv'?"ސްޓެޕް 2: އޮތޮރައިޒޭޝަން ކޯޑު ޖައްސަވާ (DEL2026):":"Step 2: Enter Authorization Code:") !== 'DEL2026') {
+            alert('Invalid Code. Cancelled.'); return;
+        }
+        if(!confirm(currentLang==='dv'?"ސްޓެޕް 3: މި ފޯމުގެ ޑޭޓާ އެއްކޮށް ފޮހެލަން ބޭނުންކަން ޔަޤީންތޯ؟":"Step 3: Are you sure you want to permanently delete this record?")) {
+            return;
+        }
+
+        let stIndex = allStudents.findIndex(s => s.id === stdId);
+        if(stIndex === -1) return;
+        let st = allStudents[stIndex];
+
+        if (obsName === "TP1 - Obs 1") st.tp1[0] = null;
+        else if (obsName === "TP1 - Obs 2") st.tp1[1] = null;
+        else if (obsName === "TP1 - Obs 3") st.tp1[2] = null;
+        else if (obsName === "TP2 - Obs 1") st.tp2[0] = null;
+        else if (obsName === "TP2 - Obs 2") st.tp2[1] = null;
+        else if (obsName === "TP2 - Obs 3") st.tp2[2] = null;
+        else if (obsName === "Master Teacher Final") st.masterScore = null;
+        else if (obsName === "Portfolio Evaluation") st.portfolioScore = null;
+
+        st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
+        st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
+
+        saveToLocal();
+        updateAllViews();
+        alert(currentLang==='dv'?'ފޯމު ކާމިޔާބުކަމާއެކު ފޮހެލެވިއްޖެ!':'Form deleted successfully!');
     }
 
     // --- 6. AUTOFILL & FILTERS ---
