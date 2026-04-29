@@ -402,6 +402,9 @@
                             <div class="form-group" style="border:1px solid #ccc; padding:15px; border-radius:8px; background:var(--bg-light);">
                                 <label style="color:#1a237e; font-size:16px;"><i class="fas fa-chalkboard-teacher"></i> <span lang-key="lblLecInfo">ލެކްޗަރަރ އިންފޮމޭޝަން ޝީޓް</span></label>
                                 <button class="btn-royal action-btn" style="background:#1a237e; margin-top:10px;" onclick="exportLecturerInfoPDF()"><i class="fas fa-file-pdf"></i> <span lang-key="btnExportPDF">ޕީޑީއެފް ޑައުންލޯޑް</span></button>
+                                
+                                <label style="color:#4B0082; font-size:16px; margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;"><i class="fas fa-users"></i> އޮޓޯ އީމެއިލް ލިސްޓް</label>
+                                <button class="action-btn small" style="background:#4B0082; margin-top:5px;" onclick="exportAccountsCSV()"><i class="fas fa-download"></i> ޔޫޒަރ އެކައުންޓްތައް</button>
                             </div>
                             <div class="form-group" style="border:1px solid #ccc; padding:15px; border-radius:8px; background:var(--bg-light);">
                                 <label style="color:var(--royal-green); font-size:16px;"><i class="fas fa-file-csv"></i> <span lang-key="adminStudentCsv">ދަރިވަރުންގެ CSV އަޕްލޯޑް / ޑައުންލޯޑް</span></label>
@@ -837,18 +840,21 @@
     }
 
     function generateEmail(name, role, id) {
-        let clean = name.toLowerCase().replace(/dr\.|mr\.|ms\.|mrs\./g, '').trim();
-        let parts = clean.split(/\s+/);
+        if (!name) return '';
+        let clean = name.toLowerCase().replace(/(dr\.|mr\.|ms\.|mrs\.)/g, '').trim();
+        let parts = clean.split(/\s+/).filter(p => p);
         let first = parts[0];
         let last = parts.length > 1 ? parts[parts.length - 1] : '';
         
+        let namePart = last ? `${first}.${last}` : first;
+        
         if (role === 'student') {
             let idNum = id ? id.toString().slice(-4) : '0000';
-            return `su${idNum}.${first}.${last}@rasfahi.com`;
+            return `su${idNum}.${namePart}@rasfahi.com`;
         } else if (role === 'lecturer') {
-            return `su.${first}.${last}@rasfahi.com`;
+            return `su.${namePart}@rasfahi.com`;
         } else if (role === 'master') {
-            return `ma.${first}.${last}@rasfahi.com`;
+            return `ma.${namePart}@rasfahi.com`;
         }
         return '';
     }
@@ -1269,7 +1275,12 @@
         if (role === 'student') {
             select.innerHTML += '<option value="all">All Students</option>';
             allStudents.forEach(st => {
-                if (isMyStudent(st)) {
+                let canAssign = false;
+                if (currentRole === 'admin') canAssign = true;
+                else if (currentRole === 'lecturer' && st.sup && st.sup.toLowerCase().includes(currentUser.toLowerCase())) canAssign = true;
+                else if (currentRole === 'master' && st.master && st.master.toLowerCase().includes(currentUser.toLowerCase())) canAssign = true;
+                
+                if (canAssign) {
                     select.innerHTML += `<option value="${st.id}">${st.name} (${st.id})</option>`;
                 }
             });
@@ -1408,6 +1419,7 @@
 
             const tUser = task.targetUser.trim().toLowerCase();
 
+            // Check if assigned to ME
             if (tUser === 'all') {
                 if (currentRole === task.targetRole) isAssignedToMe = true;
             } else {
@@ -1416,17 +1428,21 @@
                 } else if (currentRole === 'master' && task.targetRole === 'master') {
                     if (tUser === cUser || tUser.includes(cUser) || cUser.includes(tUser)) isAssignedToMe = true;
                 } else if (currentRole === 'student' && task.targetRole === 'student') {
-                    let myStdObj = allStudents.find(s => s.name.trim().toLowerCase() === cUser || s.id.trim().toLowerCase() === cUser);
-                    if (myStdObj && tUser === myStdObj.id.toLowerCase()) isAssignedToMe = true;
+                    let myStdObj = allStudents.find(s => s.name.toLowerCase() === cUser || s.id.toLowerCase() === cUser);
+                    if (myStdObj && (tUser === myStdObj.id.toLowerCase() || tUser === myStdObj.name.toLowerCase())) isAssignedToMe = true;
                 }
             }
 
-            if ((currentRole === 'lecturer' || currentRole === 'master') && task.targetRole === 'student' && task.status === 'pending_approval') {
-                if (tUser === 'all') {
-                    needsMyApproval = true;
-                } else {
+            // Check if it needs my approval
+            if (task.targetRole === 'student' && task.status === 'pending_approval') {
+                if (currentRole === 'admin') needsMyApproval = true;
+                else if (tUser === 'all' && (currentRole === 'lecturer' || currentRole === 'master')) needsMyApproval = true;
+                else {
                     let std = allStudents.find(s => s.id.toLowerCase() === tUser);
-                    if (std && isMyStudent(std)) needsMyApproval = true;
+                    if (std) {
+                        if (currentRole === 'lecturer' && std.sup.toLowerCase().includes(cUser)) needsMyApproval = true;
+                        if (currentRole === 'master' && std.master.toLowerCase().includes(cUser)) needsMyApproval = true;
+                    }
                 }
             }
 
@@ -1514,11 +1530,19 @@
         const fbBody = document.getElementById('formBankBody');
         if(!fbBody) return;
         fbBody.innerHTML = '';
-        
         let hasForms = false;
-        
+
         allStudents.forEach(st => {
-            if (!isMyStudent(st)) return;
+            let canView = false;
+            const cUserRaw = document.getElementById('username').value.trim().toLowerCase();
+            const cUser = currentUser.toLowerCase();
+            
+            if (currentRole === 'admin') canView = true;
+            else if (currentRole === 'lecturer' && st.sup && (st.sup.toLowerCase().includes(cUser) || cUserRaw.includes(st.sup.toLowerCase().replace(/\s/g,'')))) canView = true;
+            else if (currentRole === 'master' && st.master && st.master.toLowerCase().includes(cUser)) canView = true;
+            else if (currentRole === 'student' && st.id === (allStudents.find(s=>s.name===currentUser)||{}).id) canView = true;
+
+            if (!canView) return;
 
             let addRow = (obsName, marks, stdId) => {
                 if(marks !== null && marks !== undefined && marks > 0 && !isNaN(marks)) {
@@ -1535,17 +1559,14 @@
                 }
             };
 
-            if (currentRole === 'admin' || currentRole === 'lecturer') {
-                if(!st.tp1) st.tp1 = [null,null,null];
-                if(!st.tp2) st.tp2 = [null,null,null];
-                
-                addRow("TP1 - Obs 1", st.tp1[0], st.id); addRow("TP1 - Obs 2", st.tp1[1], st.id); addRow("TP1 - Obs 3", st.tp1[2], st.id);
-                addRow("TP2 - Obs 1", st.tp2[0], st.id); addRow("TP2 - Obs 2", st.tp2[1], st.id); addRow("TP2 - Obs 3", st.tp2[2], st.id);
-                addRow("Portfolio Evaluation", st.portfolioScore, st.id);
-            }
-            if (currentRole === 'admin' || currentRole === 'master') {
-                addRow("Master Teacher Final", st.masterScore, st.id);
-            }
+            addRow("TP1 - Obs 1", st.tp1 ? st.tp1[0] : null, st.id); 
+            addRow("TP1 - Obs 2", st.tp1 ? st.tp1[1] : null, st.id); 
+            addRow("TP1 - Obs 3", st.tp1 ? st.tp1[2] : null, st.id);
+            addRow("TP2 - Obs 1", st.tp2 ? st.tp2[0] : null, st.id); 
+            addRow("TP2 - Obs 2", st.tp2 ? st.tp2[1] : null, st.id); 
+            addRow("TP2 - Obs 3", st.tp2 ? st.tp2[2] : null, st.id);
+            addRow("Portfolio Evaluation", st.portfolioScore, st.id);
+            addRow("Master Teacher Final", st.masterScore, st.id);
         });
         
         if(!hasForms) {
@@ -1619,11 +1640,11 @@
         if (suggestBox) {
             let fb = "";
             if (total > 0) {
-                if (excellentItems.length > 0) fb += `<div style="color:#D4AF37; margin-bottom:12px;"><strong><span style="font-size:18px;">★★★★★</span> ${ad.excellentTitle}</strong><br>• ${excellentItems.join('<br>• ')}</div>`;
-                if (vGoodItems.length > 0) fb += `<div style="color:#0B6623; margin-bottom:12px;"><strong><span style="font-size:18px;">★★★★☆</span> ${ad.vgoodTitle}</strong><br>• ${vGoodItems.join('<br>• ')}</div>`;
-                if (goodItems.length > 0) fb += `<div style="color:#1a237e; margin-bottom:12px;"><strong><span style="font-size:18px;">★★★☆☆</span> ${ad.goodTitle}</strong><br>• ${goodItems.join('<br>• ')}</div>`;
-                if (satItems.length > 0) fb += `<div style="color:#b8860b; margin-bottom:12px;"><strong><span style="font-size:18px;">★★☆☆☆</span> ${ad.satisfactoryTitle}</strong><br>• ${satItems.join('<br>• ')}</div>`;
-                if (improveItems.length > 0) fb += `<div style="color:#dc143c; margin-bottom:12px;"><strong><span style="font-size:18px;">★☆☆☆☆</span> ${ad.improveTitle}</strong><br>• ${improveItems.join('<br>• ')}<br><br><em style="color:#000;">${ad.improveAction}</em></div>`;
+                if (excellentItems.length > 0) fb += `<div style="color:#D4AF37; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★★★★</span> ${ad.excellentTitle}</strong><br>• ${excellentItems.join('<br>• ')}</div>`;
+                if (vGoodItems.length > 0) fb += `<div style="color:#0B6623; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★★★☆</span> ${ad.vgoodTitle}</strong><br>• ${vGoodItems.join('<br>• ')}</div>`;
+                if (goodItems.length > 0) fb += `<div style="color:#1a237e; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★★☆☆</span> ${ad.goodTitle}</strong><br>• ${goodItems.join('<br>• ')}</div>`;
+                if (satItems.length > 0) fb += `<div style="color:#b8860b; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★☆☆☆</span> ${ad.satisfactoryTitle}</strong><br>• ${satItems.join('<br>• ')}</div>`;
+                if (improveItems.length > 0) fb += `<div style="color:#dc143c; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★☆☆☆☆</span> ${ad.improveTitle}</strong><br>• ${improveItems.join('<br>• ')}<br><br><em style="color:#000;">${ad.improveAction}</em></div>`;
             }
             suggestBox.innerHTML = fb || `<span style="color:#888;">${translations[currentLang].phAutoSuggest}</span>`;
         }
@@ -1709,8 +1730,8 @@
         const val = document.getElementById('searchStudentObs').value;
         if(val && val.includes(" - ")) {
             const parts = val.split(" - ");
-            document.getElementById('obsStdID').value = parts[0]; document.getElementById('obsStdName').value = parts[1]; document.getElementById('obsCourse').value = "B.Ed Primary / Batch 5";
-            const student = allStudents.find(s => s.id === parts[0]);
+            document.getElementById('obsStdID').value = parts[0].trim(); document.getElementById('obsStdName').value = parts[1].trim(); document.getElementById('obsCourse').value = "B.Ed Primary / Batch 5";
+            const student = allStudents.find(s => s.id.toLowerCase() === parts[0].trim().toLowerCase());
             if(student) document.getElementById('obsSchool').value = student.school;
         }
     }
@@ -1719,7 +1740,7 @@
         const val = document.getElementById('searchStudentPort').value;
         if(val && val.includes(" - ")) {
             const parts = val.split(" - ");
-            document.getElementById('portStdID').value = parts[0]; document.getElementById('portStdName').value = parts[1];
+            document.getElementById('portStdID').value = parts[0].trim(); document.getElementById('portStdName').value = parts[1].trim();
         }
     }
 
@@ -1813,7 +1834,7 @@
         document.querySelectorAll('#portfolioForm input[type="radio"]:checked').forEach(r => total += parseInt(r.value));
         if (total === 0) { alert("މާކުސް ދެއްވާފައި ނުވޭ!"); return; }
 
-        const studentIndex = allStudents.findIndex(s => s.id === stdID);
+        const studentIndex = allStudents.findIndex(s => s.id.toLowerCase() === stdID.toLowerCase());
         if (studentIndex === -1) { alert("ދަރިވަރު ނުފެނުނު!"); return; }
 
         allStudents[studentIndex].portfolioScore = total;
@@ -1836,7 +1857,7 @@
         document.querySelectorAll('#rubricForm input[type="radio"]:checked').forEach(r => total += parseInt(r.value));
         if (total === 0) { alert(currentLang === 'dv' ? "މާކުސް ދެއްވާފައި ނުވޭ! ރޫބްރިކް ފުރިހަމަކުރައްވާ." : "No marks assigned! Please complete the rubric."); return; }
 
-        const studentIndex = allStudents.findIndex(s => s.id === stdID);
+        const studentIndex = allStudents.findIndex(s => s.id.toLowerCase() === stdID.toLowerCase());
         if (studentIndex === -1) { alert(currentLang === 'dv' ? "ތި އައި.ޑީ އަށް ދަރިވަރަކު ނުފެނުނު! ސީއެސްވީގައި އިން އައި.ޑީއެއްތޯ ޗެކްކުރައްވާ." : "Student ID not found in database!"); return; }
 
         let st = allStudents[studentIndex];
@@ -1866,6 +1887,18 @@
         const a = document.createElement("a");
         a.href = encodeURI(csvContent);
         a.download = "Rasfahi_Dummy_Students.csv";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    function exportAccountsCSV() {
+        let csvContent = "data:text/csv;charset=utf-8,Full Name,Role,Generated Login Email\n";
+        for (let email in userDirectory) {
+            let u = userDirectory[email];
+            csvContent += `"${u.name}","${u.role}","${email}"\n`;
+        }
+        const a = document.createElement("a");
+        a.href = encodeURI(csvContent);
+        a.download = "Rasfahi_Auto_Emails.csv";
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 
@@ -1921,7 +1954,6 @@
             saveToLocal();
             updateAllViews();
             
-            console.log("Auto-Generated Login Dictionary:", userDirectory);
             alert(currentLang === 'dv' ? "ސީއެސްވީ (CSV) ޑޭޓާ އިމްޕޯރޓް ކުރެވިއްޖެ. ލޮގިން އީމެއިލްތައް ކްރިއޭޓްވެއްޖެ." : "CSV Data Imported. Auto-Emails generated.");
         };
         reader.readAsText(file);
@@ -2001,13 +2033,15 @@
         const fontPath = basePath + '/fonts/faruma.ttf';
 
         printWindow.document.write(`
-            <html><head><title>${filename}</title><style>
+            <html><head><title>${filename}</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+            <style>
                 @font-face { font-family: 'Faruma'; src: local('Faruma'), url('${fontPath}') format('truetype'); font-weight: normal; font-style: normal; }
                 @media print { @page { size: A4 ${orientation}; margin: 15mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin:0; padding:0;} }
                 body { font-family: 'Faruma', Arial, sans-serif; background: #fff; padding: 20px; } table { border-collapse: collapse; width: 100%; margin-bottom: 20px;} 
                 th, td { border: 1px solid #000; padding: 8px; } .score-highest { background-color: #0B6623 !important; color: #fff !important; font-weight: bold; }
                 .score-low { color: #555; } .page-break { page-break-before: always; }
-            </style></head><body>${htmlContent}<script>document.fonts.ready.then(() => { setTimeout(() => { window.print(); window.close(); }, 500); });<\/script></body></html>
+            </style></head><body>${htmlContent}<script>document.fonts.ready.then(() => { setTimeout(() => { window.print(); window.close(); }, 800); });<\/script></body></html>
         `);
         printWindow.document.close();
     }
@@ -2073,7 +2107,7 @@
             else { let sel = null; const r = document.querySelector(`input[name="${item.id}"]:checked`); if(r) sel = parseInt(r.value); const check = (val) => sel === val ? '<span style="font-size:16px; font-weight:bold;">X</span>' : ''; html += `<tr><td style="text-align:${textAlign}; padding:4px; border: 1px solid #000;">${item[currentLang] || item.en}</td><td style="text-align:center; border: 1px solid #000;">${check(5)}</td><td style="text-align:center; border: 1px solid #000;">${check(4)}</td><td style="text-align:center; border: 1px solid #000;">${check(3)}</td><td style="text-align:center; border: 1px solid #000;">${check(2)}</td><td style="text-align:center; border: 1px solid #000;">${check(1)}</td></tr>`; }
         });
         html += `</tbody></table><div class="page-break"></div> <div style="background:#F4F6F9; padding:10px; border-left: 5px solid #00008B; margin-bottom:15px; -webkit-print-color-adjust: exact;"><strong>${t.total}</strong> <span style="font-size:20px; font-weight:bold;">${totalScore}</span> / 275</div>
-            <div style="border:1px solid #000; padding:15px; min-height:80px; margin-bottom:25px;"><strong>Comments & Feedback:</strong><br><p style="font-size:14px; margin-top:10px; line-height:1.6;">${document.getElementById('autoSuggestions').innerHTML}<br><br>${document.getElementById('observerComments').value.replace(/\n/g, '<br>')}</p></div>
+            <div style="border:1px solid #000; padding:15px; min-height:80px; margin-bottom:25px;"><strong>Comments & Feedback:</strong><br><div style="font-size:14px; margin-top:10px; line-height:1.6;">${document.getElementById('autoSuggestions').innerHTML}<br><br>${document.getElementById('observerComments').value.replace(/\n/g, '<br>')}</div></div>
             <table style="width:100%; text-align:center; font-size:14px; border:none; margin-top:30px;"><tr><td style="width:50%; padding:0 20px; border:none;">${sigHtml(supSigData)}<div style="border-bottom: 1px solid #000; margin-bottom: 5px;"></div><strong>${t.supSig}</strong></td><td style="width:50%; padding:0 20px; border:none;">${sigHtml(stdSigData)}<div style="border-bottom: 1px solid #000; margin-bottom: 5px;"></div><strong>${t.stdSig}</strong></td></tr></table></div></div>`;
         generateSafePDF(html, `Observation_${stdName.replace(/\s+/g, '_')}_${obsType}`, 'portrait');
     }
