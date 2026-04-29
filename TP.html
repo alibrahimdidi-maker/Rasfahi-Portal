@@ -771,6 +771,30 @@
         if(ma) uniqueMasters = new Set(JSON.parse(ma));
         if(ud) userDirectory = JSON.parse(ud);
     }
+
+    // --- CORE ROBUST MATCHING LOGIC ---
+    // This function ensures the logged-in user matches the CSV data correctly.
+    function isMyStudent(student) {
+        if (!student) return false;
+        if (currentRole === 'admin') return true;
+        
+        const cUser = (currentUser || '').trim().toLowerCase();
+        
+        if (currentRole === 'lecturer') {
+            const stSup = (student.sup || '').trim().toLowerCase();
+            return stSup === cUser || stSup.includes(cUser) || cUser.includes(stSup);
+        }
+        if (currentRole === 'master') {
+            const stMaster = (student.master || '').trim().toLowerCase();
+            return stMaster === cUser || stMaster.includes(cUser) || cUser.includes(stMaster);
+        }
+        if (currentRole === 'student') {
+            const stName = (student.name || '').trim().toLowerCase();
+            const stId = (student.id || '').trim().toLowerCase();
+            return stName === cUser || stId === cUser;
+        }
+        return false;
+    }
     
     function populateDatalists() {
         const stdDatalist = document.getElementById('allStudentsDatalist');
@@ -1243,7 +1267,7 @@
         if (role === 'student') {
             select.innerHTML += '<option value="all">All Students</option>';
             allStudents.forEach(st => {
-                if(currentRole === 'admin' || (currentRole === 'lecturer' && st.sup.trim().toLowerCase() === currentUser.trim().toLowerCase()) || (currentRole === 'master' && st.master.trim().toLowerCase() === currentUser.trim().toLowerCase())) {
+                if (isMyStudent(st)) {
                     select.innerHTML += `<option value="${st.id}">${st.name} (${st.id})</option>`;
                 }
             });
@@ -1373,28 +1397,34 @@
         let hasApprovalTasks = false;
         let hasGlobalTasks = false;
 
-        let myStudentIds = [];
-        if (currentRole === 'lecturer' || currentRole === 'master') {
-            let myStds = allStudents.filter(s => (currentRole==='lecturer' && s.sup.trim().toLowerCase() === currentUser.trim().toLowerCase()) || (currentRole==='master' && s.master.trim().toLowerCase() === currentUser.trim().toLowerCase()));
-            myStudentIds = myStds.map(s => s.id);
-        }
+        const cUser = (currentUser || '').trim().toLowerCase();
 
         globalTasks.forEach(task => {
             let isAssignedToMe = false;
-            let isCreatedByMe = (task.creator.trim().toLowerCase() === currentUser.trim().toLowerCase());
+            let isCreatedByMe = (task.creator.trim().toLowerCase() === cUser);
             let needsMyApproval = false;
 
-            if (currentRole === 'lecturer' && task.targetRole === 'lecturer' && (task.targetUser === 'all' || task.targetUser.trim().toLowerCase() === currentUser.trim().toLowerCase())) isAssignedToMe = true;
-            else if (currentRole === 'master' && task.targetRole === 'master' && (task.targetUser === 'all' || task.targetUser.trim().toLowerCase() === currentUser.trim().toLowerCase())) isAssignedToMe = true;
-            else if (currentRole === 'student' && task.targetRole === 'student') {
-                let myStdObj = allStudents.find(s => s.name.trim().toLowerCase() === currentUser.trim().toLowerCase());
-                let myId = myStdObj ? myStdObj.id : "";
-                if (task.targetUser === 'all' || task.targetUser === myId) isAssignedToMe = true;
+            const tUser = task.targetUser.trim().toLowerCase();
+
+            if (tUser === 'all') {
+                if (currentRole === task.targetRole) isAssignedToMe = true;
+            } else {
+                if (currentRole === 'lecturer' && task.targetRole === 'lecturer') {
+                    if (tUser === cUser || tUser.includes(cUser) || cUser.includes(tUser)) isAssignedToMe = true;
+                } else if (currentRole === 'master' && task.targetRole === 'master') {
+                    if (tUser === cUser || tUser.includes(cUser) || cUser.includes(tUser)) isAssignedToMe = true;
+                } else if (currentRole === 'student' && task.targetRole === 'student') {
+                    let myStd = allStudents.find(s => s.name.trim().toLowerCase() === cUser || s.id.trim().toLowerCase() === cUser);
+                    if (myStd && tUser === myStd.id.toLowerCase()) isAssignedToMe = true;
+                }
             }
 
             if ((currentRole === 'lecturer' || currentRole === 'master') && task.targetRole === 'student' && task.status === 'pending_approval') {
-                if (task.targetUser === 'all' || myStudentIds.includes(task.targetUser)) {
+                if (tUser === 'all') {
                     needsMyApproval = true;
+                } else {
+                    let std = allStudents.find(s => s.id.toLowerCase() === tUser);
+                    if (std && isMyStudent(std)) needsMyApproval = true;
                 }
             }
 
@@ -1486,14 +1516,7 @@
         let hasForms = false;
         
         allStudents.forEach(st => {
-            const stSup = (st.sup || '').trim().toLowerCase();
-            const stMaster = (st.master || '').trim().toLowerCase();
-            const cUser = (currentUser || '').trim().toLowerCase();
-
-            // Fail-safe logic to check if lecturer matches the supervisor in CSV
-            const isMyStudentLec = currentRole === 'lecturer' && cUser && stSup && (stSup === cUser || stSup.includes(cUser) || cUser.includes(stSup) || (cUser.split(' ')[0] && stSup.includes(cUser.split(' ')[0])));
-            const isMyStudentMaster = currentRole === 'master' && cUser && stMaster && (stMaster === cUser || stMaster.includes(cUser) || cUser.includes(stMaster));
-            const isAdmin = currentRole === 'admin';
+            if (!isMyStudent(st)) return;
 
             let addRow = (obsName, marks, stdId) => {
                 if(marks !== null && marks !== undefined && marks > 0 && !isNaN(marks)) {
@@ -1510,7 +1533,7 @@
                 }
             };
 
-            if (isAdmin || isMyStudentLec) {
+            if (currentRole === 'admin' || currentRole === 'lecturer') {
                 if(!st.tp1) st.tp1 = [null,null,null];
                 if(!st.tp2) st.tp2 = [null,null,null];
                 
@@ -1518,7 +1541,7 @@
                 addRow("TP2 - Obs 1", st.tp2[0], st.id); addRow("TP2 - Obs 2", st.tp2[1], st.id); addRow("TP2 - Obs 3", st.tp2[2], st.id);
                 addRow("Portfolio Evaluation", st.portfolioScore, st.id);
             }
-            if (isAdmin || isMyStudentMaster) {
+            if (currentRole === 'admin' || currentRole === 'master') {
                 addRow("Master Teacher Final", st.masterScore, st.id);
             }
         });
@@ -1594,11 +1617,11 @@
         if (suggestBox) {
             let fb = "";
             if (total > 0) {
-                if (excellentItems.length > 0) fb += `<div style="color:#D4AF37; margin-bottom:12px;"><strong><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> ${ad.excellentTitle}</strong><br>• ${excellentItems.join('<br>• ')}</div>`;
-                if (vGoodItems.length > 0) fb += `<div style="color:#0B6623; margin-bottom:12px;"><strong><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> ${ad.vgoodTitle}</strong><br>• ${vGoodItems.join('<br>• ')}</div>`;
-                if (goodItems.length > 0) fb += `<div style="color:#1a237e; margin-bottom:12px;"><strong><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> ${ad.goodTitle}</strong><br>• ${goodItems.join('<br>• ')}</div>`;
-                if (satItems.length > 0) fb += `<div style="color:#b8860b; margin-bottom:12px;"><strong>${ad.satisfactoryTitle}</strong><br>• ${satItems.join('<br>• ')}</div>`;
-                if (improveItems.length > 0) fb += `<div style="color:#dc143c; margin-bottom:12px;"><strong>${ad.improveTitle}</strong><br>• ${improveItems.join('<br>• ')}<br><br><em style="color:#000;">${ad.improveAction}</em></div>`;
+                if (excellentItems.length > 0) fb += `<div style="color:#D4AF37; margin-bottom:12px;"><strong><span style="font-size:18px;">★★★★★</span> ${ad.excellentTitle}</strong><br>• ${excellentItems.join('<br>• ')}</div>`;
+                if (vGoodItems.length > 0) fb += `<div style="color:#0B6623; margin-bottom:12px;"><strong><span style="font-size:18px;">★★★★☆</span> ${ad.vgoodTitle}</strong><br>• ${vGoodItems.join('<br>• ')}</div>`;
+                if (goodItems.length > 0) fb += `<div style="color:#1a237e; margin-bottom:12px;"><strong><span style="font-size:18px;">★★★☆☆</span> ${ad.goodTitle}</strong><br>• ${goodItems.join('<br>• ')}</div>`;
+                if (satItems.length > 0) fb += `<div style="color:#b8860b; margin-bottom:12px;"><strong><span style="font-size:18px;">★★☆☆☆</span> ${ad.satisfactoryTitle}</strong><br>• ${satItems.join('<br>• ')}</div>`;
+                if (improveItems.length > 0) fb += `<div style="color:#dc143c; margin-bottom:12px;"><strong><span style="font-size:18px;">★☆☆☆☆</span> ${ad.improveTitle}</strong><br>• ${improveItems.join('<br>• ')}<br><br><em style="color:#000;">${ad.improveAction}</em></div>`;
             }
             suggestBox.innerHTML = fb || `<span style="color:#888;">${translations[currentLang].phAutoSuggest}</span>`;
         }
@@ -2004,9 +2027,7 @@
     function exportLecturerInfoPDF() {
         let assignedHtml = '';
         allStudents.forEach(st => {
-            const stSup = (st.sup || '').trim().toLowerCase();
-            const cUser = (currentUser || '').trim().toLowerCase();
-            if (stSup === cUser || stSup.includes(cUser) || cUser.includes(stSup)) {
+            if (isMyStudent(st)) {
                 assignedHtml += `<tr><td>${st.name}</td><td>${st.id}</td><td>${st.course}</td><td>${st.school}</td></tr>`;
             }
         });
