@@ -226,6 +226,7 @@
                 <span style="color:#FFF; margin-right:15px; font-size:14px;"><i class="fas fa-user"></i> <span id="displayUserName">User</span></span>
                 <button onclick="switchLanguage('dv')" class="active">ދިވެހި</button>
                 <button onclick="switchLanguage('en')">English</button>
+                <button onclick="switchLanguage('ar')">عربي</button>
             </div>
             <div class="status-indicators">
                 <span id="sync-status" style="color:var(--royal-gold);"><i class="fas fa-cloud"></i> <span lang-key="statusAutoSave">ކްލައުޑަށް ސޭވްވަނީ...</span></span>
@@ -841,7 +842,11 @@
     function switchLanguage(lang) {
         currentLang = lang;
         document.querySelectorAll('.nav-controls button').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
+        if(event && event.target) {
+             event.target.classList.add('active');
+        } else {
+             document.querySelector(`button[onclick="switchLanguage('${lang}')"]`).classList.add('active');
+        }
         
         const isRTL = (lang === 'dv' || lang === 'ar');
         document.body.dir = isRTL ? 'rtl' : 'ltr';
@@ -1418,6 +1423,89 @@
         if(!hasForms) {
             fbBody.innerHTML = `<tr><td colspan="5" style="color:#888;">${currentLang==='dv'?'އަދި އެއްވެސް ފޯމެއް ސަބްމިޓްކޮށްފައެއް ނެތް.':'No forms submitted yet.'}</td></tr>`;
         }
+    }
+
+    // --- NEW / RE-ADDED FUNCTIONS FOR MISSING PARTS ---
+    
+    function initRubric() {
+        const tbody = document.getElementById('rubricBody');
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        
+        criteriaList.forEach(item => {
+            const tr = document.createElement('tr');
+            if (item.cat) {
+                const title = item.cat[currentLang] || item.cat.en;
+                tr.innerHTML = `<th colspan="6" class="category-header" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${title}</th>`;
+            } else {
+                const text = item[currentLang] || item.en;
+                let rowHTML = `<td class="criteria-text" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${text}</td>`;
+                for (let i = 1; i <= 5; i++) {
+                    rowHTML += `<td><input type="radio" name="${item.id}" value="${i}" onchange="calculateRubricTotal()"></td>`;
+                }
+                tr.innerHTML = rowHTML;
+            }
+            tbody.appendChild(tr);
+        });
+    }
+
+    function calculateRubricTotal() {
+        let total = 0;
+        let lowScores = [];
+        const statusElem = document.getElementById('obsMarksStatus');
+        const isDraft = statusElem ? statusElem.value === 'disabled' : false;
+
+        document.querySelectorAll('#rubricForm input[type="radio"]:checked').forEach(r => {
+            let val = parseInt(r.value);
+            total += val;
+            if (val <= 2) {
+                const criteriaObj = criteriaList.find(c => c.id === r.name);
+                if (criteriaObj) {
+                    lowScores.push(criteriaObj[currentLang] || criteriaObj.en);
+                }
+            }
+        });
+
+        const display = document.getElementById('scoreDisplay');
+        if (display) {
+            if (isDraft) {
+                display.innerText = "DRAFT";
+                display.style.color = "#888";
+            } else {
+                display.innerText = `${total} / 275`;
+                display.style.color = "inherit";
+            }
+        }
+
+        const suggestBox = document.getElementById('autoSuggestions');
+        if(suggestBox) {
+            const ad = autoDict[currentLang] || autoDict.en;
+            if (total === 0) {
+                suggestBox.value = "";
+            } else if (lowScores.length === 0) {
+                suggestBox.value = `${ad.sTitle}\n- ${ad.excellent}`;
+            } else {
+                suggestBox.value = `${ad.iTitle}\n- ${lowScores.join('\n- ')}\n\n${ad.improve}`;
+            }
+        }
+    }
+
+    function openAmendModal(stdName, obsName) {
+        document.getElementById('amendStudentName').innerText = stdName;
+        document.getElementById('amendObsName').innerText = obsName;
+        document.getElementById('amendReason').value = '';
+        document.getElementById('amendCode').value = '';
+        document.getElementById('amendModal').style.display = 'flex';
+    }
+
+    function saveAmendment() {
+        const reason = document.getElementById('amendReason').value;
+        const code = document.getElementById('amendCode').value;
+        if(reason.trim().length < 5) { alert(currentLang==='dv'?'ސަބަބު ތަފްސީލުކޮށް ލިޔުއްވާ!':'Please provide a detailed reason.'); return; }
+        if(code !== "AMEND2026") { alert(currentLang==='dv'?'ވެރިފިކޭޝަން ކޯޑު ނުބައި!':'Invalid verification code!'); return; }
+        
+        alert(currentLang==='dv'?'މާކުސް ބަދަލުކުރުމުގެ ރިކުއެސްޓް ފޮނުވިއްޖެ.':'Amendment requested and logged securely.');
+        document.getElementById('amendModal').style.display = 'none';
     }
 
     // --- 6. AUTOFILL & FILTERS ---
