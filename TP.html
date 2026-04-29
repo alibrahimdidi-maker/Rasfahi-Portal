@@ -147,7 +147,11 @@
         .rubric-table td.criteria-text { font-weight: bold; color: var(--dark-blue); width: 45%; font-size: 15px; text-align: right; line-height:1.4;}
         .category-header { background-color: var(--royal-green) !important; color: var(--white); font-size: 18px; padding: 12px !important; text-align: right !important;}
         input[type="radio"] { transform: scale(1.6); accent-color: var(--royal-gold); cursor: pointer; }
-        
+        .auto-feedback-box { width: 100%; height: 160px; padding: 15px; border: 2px solid var(--royal-gold); border-radius: 8px; margin-top: 10px; font-family: inherit; font-size: 15px; background: #FFFDF0; resize: vertical; box-sizing: border-box; line-height: 1.8;}
+
+        .modal-overlay { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:100000; justify-content:center; align-items:center; }
+        .modal-box { background:#fff; padding:30px; border-radius:12px; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.5); border-top:5px solid var(--royal-purple); }
+
         @media (max-width: 768px) { 
             .workspace { flex-direction: column; } 
             .sidebar { width: 100%; flex-direction: row; overflow-x: auto; padding: 10px; -webkit-overflow-scrolling: touch;} 
@@ -166,14 +170,21 @@
     <datalist id="allSupervisorsDatalist"></datalist>
     <datalist id="allMastersDatalist"></datalist>
 
+    <div id="license-lock">
+        <div class="login-content-wrapper" style="text-align: center;">
+            <h1><i class="fas fa-lock"></i> LICENSE ERROR</h1>
+            <p style="color: var(--white); font-family: Arial; font-size: 16px; margin-top: 20px;">System Time Verification Failed or License Expired. Please ensure your device is connected to the internet to verify the network time.</p>
+        </div>
+    </div>
+
     <div id="login-screen">
         <div class="login-content-wrapper">
             <h1>RASFAHI TP</h1>
             <p class="subtitle">Cloud Login Portal</p>
             
             <div class="input-group-en">
-                <label>Email Address (Auto-Assigned from CSV):</label>
-                <input type="email" id="username" placeholder="e.g. su.hassan.niyaz@rasfahi.com" oninput="autoDetectRole()">
+                <label>User Identifier (Email or Exact Name in CSV):</label>
+                <input type="text" id="username" placeholder="e.g. su.hassan.niyaz@rasfahi.com" oninput="autoDetectRole()">
                 <small style="color:#FFF; display:block; margin-top:5px; font-size:11px;">Admin Default: admin@rasfahi.com</small>
             </div>
             
@@ -687,7 +698,7 @@
     let uniqueSchools = new Set();
     let uniqueSupervisors = new Set();
     let uniqueMasters = new Set();
-    let userDirectory = {}; // NEW: Maps email to actual name and role
+    let userDirectory = {};
     
     function saveToLocal() {
         localStorage.setItem('rasfahi_students', JSON.stringify(allStudents));
@@ -751,7 +762,6 @@
         if(document.getElementById('taskAssignee')) updateTaskAssigneeList();
     }
 
-    // Generate Standardized Email
     function generateEmail(name, role, id) {
         let clean = name.toLowerCase().replace(/dr\.|mr\.|ms\.|mrs\./g, '').trim();
         let parts = clean.split(/\s+/);
@@ -898,7 +908,6 @@
             currentRole = document.getElementById('userRole').value;
             let rawUser = document.getElementById('username').value.trim().toLowerCase();
             
-            // Map login email to actual user credentials
             loadFromLocal();
             
             if (rawUser === 'admin@rasfahi.com' || rawUser === 'admin') {
@@ -909,7 +918,6 @@
                 currentRole = userDirectory[rawUser].role;
                 document.getElementById('userRole').value = currentRole;
             } else {
-                // If not found in directory, allow bypass using manual input for testing purposes
                 currentUser = document.getElementById('username').value.trim();
             }
 
@@ -989,7 +997,6 @@
             document.getElementById('studentLogSection').style.display = 'none';
             document.querySelectorAll('.admin-only-opt').forEach(opt => opt.style.display = currentRole==='admin'?'block':'none');
             
-            // Show Approval Area for Supervisors
             if(document.getElementById('tasksNeedingApprovalSection')) {
                 document.getElementById('tasksNeedingApprovalSection').style.display = 'block';
             }
@@ -1115,7 +1122,6 @@
         
         studentPoints += 20; 
         
-        // Find current student object and update points permanently
         const studentIndex = allStudents.findIndex(s => s.name === currentUser);
         if(studentIndex > -1) {
             allStudents[studentIndex].points = (allStudents[studentIndex].points || 0) + 20;
@@ -1194,7 +1200,7 @@
             targetUser: targetUser, 
             subTasks: subTasks, 
             totalPct: 0,
-            status: 'pending' // 'pending', 'pending_approval', 'approved'
+            status: 'pending'
         };
         globalTasks.push(newTask);
         saveToLocal();
@@ -1230,7 +1236,6 @@
         const task = globalTasks.find(t => t.id === taskId);
         if(!task) return;
         
-        // If it's a student submitting, it goes to pending_approval for supervisor
         if (currentRole === 'student') {
             task.status = 'pending_approval';
         } else {
@@ -1250,7 +1255,6 @@
         task.status = 'approved';
         task.totalPct = 100;
         
-        // Add points to student
         const studentIndex = allStudents.findIndex(s => s.id === task.targetUser);
         if(studentIndex > -1) {
             allStudents[studentIndex].points = (allStudents[studentIndex].points || 0) + 50;
@@ -1277,7 +1281,6 @@
         let hasApprovalTasks = false;
         let hasGlobalTasks = false;
 
-        // Determine my students (for lecturers/masters)
         let myStudentIds = [];
         if (currentRole === 'lecturer' || currentRole === 'master') {
             let myStds = allStudents.filter(s => (currentRole==='lecturer' && s.sup.trim().toLowerCase() === currentUser.trim().toLowerCase()) || (currentRole==='master' && s.master.trim().toLowerCase() === currentUser.trim().toLowerCase()));
@@ -1293,7 +1296,6 @@
             else if (currentRole === 'master' && task.targetRole === 'master' && (task.targetUser === 'all' || task.targetUser.trim().toLowerCase() === currentUser.trim().toLowerCase())) isAssignedToMe = true;
             else if (currentRole === 'student' && task.targetRole === 'student' && (task.targetUser === 'all' || task.targetUser.trim().toLowerCase() === currentUser.trim().toLowerCase() || task.targetUser === allStudents.find(s => s.name.trim().toLowerCase() === currentUser.trim().toLowerCase())?.id)) isAssignedToMe = true;
 
-            // Check if supervisor needs to approve
             if ((currentRole === 'lecturer' || currentRole === 'master') && task.targetRole === 'student' && task.status === 'pending_approval') {
                 if (task.targetUser === 'all' || myStudentIds.includes(task.targetUser)) {
                     needsMyApproval = true;
@@ -1577,7 +1579,7 @@
             uniqueSchools.clear();
             uniqueSupervisors.clear();
             uniqueMasters.clear();
-            userDirectory = {}; // Clear previous directory mappings
+            userDirectory = {}; 
             
             const stdDatalist = document.getElementById('allStudentsDatalist'); 
             const marksBody = document.getElementById('fullMarksBody');
@@ -1605,7 +1607,6 @@
                     if(cols[2]) uniqueSupervisors.add(cols[2]);
                     if(studentObj.master) uniqueMasters.add(studentObj.master);
 
-                    // Generate expected emails for auto-login mapping
                     let stdEmail = generateEmail(cols[0], 'student', cols[1]);
                     let supEmail = generateEmail(cols[2], 'lecturer');
                     let masterEmail = generateEmail(studentObj.master, 'master');
@@ -1622,7 +1623,6 @@
             updateCharts(); 
             renderFormBank();
             
-            // Allow admin to see the generated emails in console for testing
             console.log("Auto-Generated Login Dictionary:", userDirectory);
             alert(currentLang === 'dv' ? "ސީއެސްވީ (CSV) ޑޭޓާ އިމްޕޯރޓް ކުރެވިއްޖެ. ލޮގިން އީމެއިލްތައް ކްރިއޭޓްވެއްޖެ." : "CSV Data Imported. Auto-Emails generated.");
         };
