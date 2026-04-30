@@ -668,7 +668,7 @@
                         
                         <div class="total-score-board" style="margin-top:20px; background:#0A1128;">
                             <span><i class="fas fa-folder-open"></i> Portfolio Total:</span>
-                            <span id="portScoreDisplay" style="font-weight:bold; font-size:32px;">0 / 37</span>
+                            <span id="portScoreDisplay" style="font-weight:bold; font-size:32px;">0 / 40 (0.0%)</span>
                         </div>
 
                         <form id="portfolioForm">
@@ -784,10 +784,11 @@
         if (currentRole === 'admin') return true;
         
         const cUser = (currentUser || '').trim().toLowerCase();
+        const rawU = document.getElementById('username').value.trim().toLowerCase();
         
         if (currentRole === 'lecturer') {
             const stSup = (student.sup || '').trim().toLowerCase();
-            return stSup === cUser || stSup.includes(cUser) || cUser.includes(stSup);
+            return stSup === cUser || stSup.includes(cUser) || cUser.includes(stSup) || stSup.replace(/\s/g,'').includes(rawU);
         }
         if (currentRole === 'master') {
             const stMaster = (student.master || '').trim().toLowerCase();
@@ -796,7 +797,7 @@
         if (currentRole === 'student') {
             const stName = (student.name || '').trim().toLowerCase();
             const stId = (student.id || '').trim().toLowerCase();
-            return stName === cUser || stId === cUser;
+            return stName === cUser || stId === rawU || stName.includes(cUser);
         }
         return false;
     }
@@ -1085,6 +1086,7 @@
             menuHtml += `<div class="sidebar-item" onclick="showSection('coordinator-admin', this)"><i class="fas fa-users-cog"></i> <span lang-key="menuAdmin">އެޑްމިން ޕެނަލް</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('observation-form', this)"><i class="fas fa-clipboard-check"></i> <span lang-key="menuObservation">އޮބްޒަރވޭޝަން ފޯމު</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('portfolio-section', this)"><i class="fas fa-folder-open"></i> <span lang-key="menuPortfolio">ޕޯޓްފޯލިއޯ</span></div>`;
+            menuHtml += `<div class="sidebar-item" onclick="showSection('form-bank-section', this)"><i class="fas fa-university"></i> <span lang-key="menuFormBank">ފޯމު ބޭންކް</span></div>`;
             defaultSection = 'dashboard';
         } 
         else if (currentRole === 'lecturer' || currentRole === 'master') {
@@ -1109,6 +1111,7 @@
         else {
             menuHtml += `<div class="sidebar-item active" onclick="showSection('student-eval', this)"><i class="fas fa-user-graduate"></i> <span lang-key="menuStudent">މައި ޑޭޝްބޯޑް</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('unified-task-center', this)"><i class="fas fa-tasks"></i> <span lang-key="menuTasks">ޓާސްކް ސެންޓަރ</span></div>`;
+            menuHtml += `<div class="sidebar-item" onclick="showSection('form-bank-section', this)"><i class="fas fa-university"></i> <span lang-key="menuFormBank">ފޯމު ބޭންކް</span></div>`;
             defaultSection = 'student-eval';
         }
         
@@ -1236,7 +1239,9 @@
         studentPoints += 20; 
         let myStdId = currentUser;
         
-        const studentIndex = allStudents.findIndex(s => s.name === currentUser || s.name.toLowerCase().includes(currentUser.toLowerCase()));
+        const rawU = document.getElementById('username').value.trim().toLowerCase();
+        const studentIndex = allStudents.findIndex(s => s.name.toLowerCase() === currentUser.toLowerCase() || s.id.toLowerCase() === rawU);
+        
         if(studentIndex > -1) {
             allStudents[studentIndex].points = (allStudents[studentIndex].points || 0) + 20;
             studentPoints = allStudents[studentIndex].points;
@@ -1275,9 +1280,12 @@
         if(currentRole !== 'student') return;
         
         let cUserStr = currentUser.trim().toLowerCase();
+        let rawU = document.getElementById('username').value.trim().toLowerCase();
+        
         let myStd = allStudents.find(s => 
+            s.name.trim().toLowerCase() === cUserStr || 
             s.name.trim().toLowerCase().includes(cUserStr) || 
-            s.id.trim().toLowerCase() === cUserStr
+            s.id.trim().toLowerCase() === rawU
         );
         if(!myStd) return;
 
@@ -1297,8 +1305,10 @@
             select.innerHTML += '<option value="all">All Students</option>';
             allStudents.forEach(st => {
                 let canAssign = false;
+                const rawU = document.getElementById('username').value.trim().toLowerCase();
+                
                 if (currentRole === 'admin') canAssign = true;
-                else if (currentRole === 'lecturer' && st.sup && st.sup.toLowerCase().includes(currentUser.toLowerCase())) canAssign = true;
+                else if (currentRole === 'lecturer' && st.sup && (st.sup.toLowerCase().includes(currentUser.toLowerCase()) || st.sup.replace(/\s/g,'').toLowerCase().includes(rawU))) canAssign = true;
                 else if (currentRole === 'master' && st.master && st.master.toLowerCase().includes(currentUser.toLowerCase())) canAssign = true;
                 
                 if (canAssign) {
@@ -1432,6 +1442,7 @@
         let hasGlobalTasks = false;
 
         const cUser = (currentUser || '').trim().toLowerCase();
+        const rawU = document.getElementById('username').value.trim().toLowerCase();
 
         globalTasks.forEach(task => {
             let isAssignedToMe = false;
@@ -1449,7 +1460,7 @@
                 } else if (currentRole === 'master' && task.targetRole === 'master') {
                     if (tUser === cUser || tUser.includes(cUser) || cUser.includes(tUser)) isAssignedToMe = true;
                 } else if (currentRole === 'student' && task.targetRole === 'student') {
-                    let myStdObj = allStudents.find(s => s.name.toLowerCase() === cUser || s.id.toLowerCase() === cUser);
+                    let myStdObj = allStudents.find(s => s.name.toLowerCase() === cUser || s.id.toLowerCase() === rawU);
                     if (myStdObj && (tUser === myStdObj.id.toLowerCase() || tUser === myStdObj.name.toLowerCase())) isAssignedToMe = true;
                 }
             }
@@ -1461,9 +1472,8 @@
                 else {
                     let std = allStudents.find(s => s.id.toLowerCase() === tUser);
                     if (std) {
-                        if (isMyStudent(std) && (currentRole === 'lecturer' || currentRole === 'master')) {
-                            needsMyApproval = true;
-                        }
+                        if (currentRole === 'lecturer' && std.sup && (std.sup.toLowerCase().includes(cUser) || std.sup.replace(/\s/g,'').toLowerCase().includes(rawU))) needsMyApproval = true;
+                        if (currentRole === 'master' && std.master && std.master.toLowerCase().includes(cUser)) needsMyApproval = true;
                     }
                 }
             }
@@ -1555,14 +1565,20 @@
         let hasForms = false;
 
         allStudents.forEach(st => {
-            if (!isMyStudent(st)) return; 
-
             let addRow = (obsName, marks, stdId, ownerRole) => {
                 let roleCanView = false;
-                if (currentRole === 'admin') roleCanView = true;
-                else if (currentRole === 'lecturer' && ownerRole === 'lecturer') roleCanView = true;
-                else if (currentRole === 'master' && ownerRole === 'master') roleCanView = true;
-                else if (currentRole === 'student') roleCanView = true;
+                
+                if (currentRole === 'admin') {
+                    roleCanView = true;
+                } else if (currentRole === 'lecturer' && (ownerRole === 'lecturer' || ownerRole === 'portfolio')) {
+                    const rawU = document.getElementById('username').value.trim().toLowerCase();
+                    if (st.sup && (st.sup.toLowerCase().includes(currentUser.toLowerCase()) || st.sup.replace(/\s/g,'').toLowerCase().includes(rawU))) roleCanView = true;
+                } else if (currentRole === 'master' && ownerRole === 'master') {
+                    if (st.master && st.master.toLowerCase().includes(currentUser.toLowerCase())) roleCanView = true;
+                } else if (currentRole === 'student') {
+                    const rawU = document.getElementById('username').value.trim().toLowerCase();
+                    if (st.id.toLowerCase() === rawU || st.name.toLowerCase() === currentUser.toLowerCase()) roleCanView = true;
+                }
 
                 if (!roleCanView) return;
 
@@ -1574,8 +1590,8 @@
                         <tr>
                             <td>${st.name}</td><td>${displayDate}</td><td>${obsName}</td><td style="font-weight:bold; color:var(--royal-green);">${numMarks}</td>
                             <td>
-                                <button class="action-btn small" onclick="openAmendModal('${stdId}', '${st.name}', '${obsName}')" title="Amend"><i class="fas fa-edit"></i></button>
-                                <button class="action-btn small" style="background:#8b0000;" onclick="deleteForm3Step('${stdId}', '${obsName}')" title="Delete"><i class="fas fa-trash"></i></button>
+                                ${currentRole !== 'student' ? `<button class="action-btn small" onclick="openAmendModal('${stdId}', '${st.name}', '${obsName}')" title="Amend"><i class="fas fa-edit"></i></button>
+                                <button class="action-btn small" style="background:#8b0000;" onclick="deleteForm3Step('${stdId}', '${obsName}')" title="Delete"><i class="fas fa-trash"></i></button>` : `<span style="font-size:12px; color:#888;">No Action</span>`}
                             </td>
                         </tr>`;
                 }
@@ -1587,7 +1603,7 @@
             addRow("TP2 - Obs 1", st.tp2 ? st.tp2[0] : null, st.id, 'lecturer'); 
             addRow("TP2 - Obs 2", st.tp2 ? st.tp2[1] : null, st.id, 'lecturer'); 
             addRow("TP2 - Obs 3", st.tp2 ? st.tp2[2] : null, st.id, 'lecturer');
-            addRow("Portfolio Evaluation", st.portfolioScore, st.id, 'lecturer');
+            addRow("Portfolio Evaluation", st.portfolioScore, st.id, 'portfolio');
             addRow("Master Teacher Final", st.masterScore, st.id, 'master');
         });
         
@@ -1817,7 +1833,7 @@
 
     // --- 7. PORTFOLIO LOGIC ---
     const portfolioCriteriaList = [
-        { id: "pf1", dv: "އިދާރީ ގުނަވަން ތައް", en: "Administrative elements", ar: "العناصر الإدارية", max: 2 },
+        { id: "pf1", dv: "އިދާރީ ގުނަވަން ތައް", en: "Administrative elements", ar: "العناصر الإدارية", max: 5 },
         { id: "pf2", dv: "ސްކޫލުން ދިމާވި ދަތިވި ކަންތައްތަކާއި ހައްލުކުރިގޮތް", en: "Challenges faced at school and how solved", ar: "التحديات التي تمت مواجهتها في المدرسة وكيفية حلها", max: 5 },
         { id: "pf3", dv: "ދަރިވަރުން ކުލާހުގަ ރަގަޅަށް ގެންދެވުނުކަންކަން", en: "Things done well in class", ar: "الأشياء التي تم إنجازها بشكل جيد في الفصل", max: 5 },
         { id: "pf4", dv: "ކިލާހުގައި ކިޔަވާދޭއިރު ދަރިވަރު ކިބައިގައިހުރި އެންމެ ރަގަޅު ކަންތައް", en: "Best student trait during teaching", ar: "أفضل سمة للطالب أثناء التدريس", max: 5 },
@@ -1845,7 +1861,8 @@
         let total = 0; 
         document.querySelectorAll('#portfolioForm input[type="radio"]:checked').forEach(r => total += parseInt(r.value));
         const display = document.getElementById('portScoreDisplay');
-        if(display) display.innerText = `${total} / 37`;
+        let pct = (total / 40) * 20;
+        if(display) display.innerText = `${total} / 40 (${pct.toFixed(1)}%)`;
     }
 
     function submitPortfolioMarks() {
