@@ -432,7 +432,7 @@
                 <div id="form-bank-section" class="section">
                     <h2 class="royal-heading" lang-key="menuFormBank">ފޯމު ބޭންކް</h2>
                     <div class="royal-card">
-                        <p style="margin-bottom:15px; color:#555;" lang-key="formBankDesc">މިއީ ކުރިން ފިލްކޮށްފައިވާ ފޯމުތަކެވެ. މާކުސް ބަދަލުކުރާނަމަ ސަބަބު ބަޔާންކޮށް ވެރިފިކޭޝަން ފުރިހަމަކުރަންޖެހޭނެއެވެ.</p>
+                        <p style="margin-bottom:15px; color:#555;" lang-key="formBankDesc">މިއީ ކުރިން ފިލްކޮށްފައިވާ ފޯމުތަކެވެ. ސްލިޕް ޑައުންލޯޑްކުރެވޭނެއެވެ.</p>
                         <div class="table-responsive">
                             <table class="data-table">
                                 <thead><tr><th lang-key="thStudent">ދަރިވަރު</th><th lang-key="lblDate">ތާރީޚް</th><th lang-key="lblObsNo">އޮބްޒަވޭޝަން / ޕޯޓްފޯލިއޯ</th><th lang-key="lblTotalMarks">މާކުސް</th><th lang-key="thAction">އެކްޝަން</th></tr></thead>
@@ -1305,6 +1305,7 @@
 
     function tickSessionComplete() {
         const dropdown = document.getElementById('dailyTaskDropdown');
+        const details = document.getElementById('dailyLogDetails').innerHTML;
         if(!dropdown.value) { alert("މަސައްކަތެއް ޚިޔާރުކުރައްވާ!"); return; }
         
         studentPoints += 20; 
@@ -1326,6 +1327,7 @@
             targetRole: 'student', 
             targetUser: myStdId, 
             subTasks: [], 
+            submissionText: details,
             totalPct: 100,
             status: 'pending_approval' 
         };
@@ -1467,6 +1469,11 @@
         const task = globalTasks.find(t => t.id === taskId);
         if(!task) return;
         
+        let content = document.getElementById('task_content_' + taskId);
+        if(content && content.value.trim() !== '') {
+            task.submissionText = content.value.trim();
+        }
+        
         if (currentRole === 'student') {
             task.status = 'pending_approval';
         } else {
@@ -1494,6 +1501,19 @@
         saveToLocal();
         renderUnifiedTasks();
         alert("ޓާސްކް އެޕްރޫވް ކުރެވިއްޖެ! ދަރިވަރަށް ޕޮއިންޓް ދެވިއްޖެ.");
+    }
+    
+    function editStudentTask(taskId) {
+        let task = globalTasks.find(t => t.id === taskId);
+        let reason = prompt(currentLang === 'dv' ? "އެޑިޓް ކުރަން ބޭނުންވާ ސަބަބު ލިޔުއްވާ (Reason for edit):" : "Reason for editing:");
+        if(!reason || reason.trim() === '') { alert("ސަބަބު ނުލިޔެ އެޑިޓެއް ނުކުރެވޭނެއެވެ."); return; }
+        
+        if(!task.editLogs) task.editLogs = [];
+        task.editLogs.push({ date: new Date().toISOString().split('T')[0], reason: reason });
+        task.status = 'pending';
+        
+        saveToLocal();
+        renderUnifiedTasks();
     }
 
     function renderUnifiedTasks() {
@@ -1534,13 +1554,18 @@
                 }
             }
 
-            // Check if it needs my approval (ONLY if I created the task)
+            // Check if it needs my approval
             if (task.status === 'pending_approval') {
-                if (task.creator.trim().toLowerCase() === cUser) {
-                    needsMyApproval = true;
-                }
                 if (currentRole === 'admin') {
                     needsMyApproval = true;
+                } else if (task.creator.trim().toLowerCase() === cUser) {
+                    needsMyApproval = true; 
+                } else if (task.targetRole === 'student') { 
+                    let std = allStudents.find(s => s.id.toLowerCase() === tUser || s.name.toLowerCase() === task.creator.toLowerCase());
+                    if (std) {
+                        if (currentRole === 'lecturer' && std.sup && (std.sup.toLowerCase().includes(cUser) || std.sup.replace(/\s/g,'').toLowerCase().includes(rawU))) needsMyApproval = true;
+                        if (currentRole === 'master' && std.master && std.master.toLowerCase().includes(cUser)) needsMyApproval = true;
+                    }
                 }
             }
 
@@ -1573,12 +1598,17 @@
                     let disabled = (!isAssignedToMe || task.status !== 'pending') ? 'disabled' : '';
                     subHtml += `<label class="subtask-item"><input type="checkbox" ${checked} ${disabled} onchange="toggleSubTask('${task.id}', ${idx}, this)"> ${st.name} (${st.pct}%)</label>`;
                 });
-            } else if (isAssignedToMe && task.status === 'pending') {
-                subHtml = `
+            }
+            
+            if (isAssignedToMe && task.status === 'pending') {
+                subHtml += `
                     <div style="margin-top:10px;">
+                        <textarea id="task_content_${task.id}" placeholder="Write submission notes / links here..." style="width:100%; height:60px; padding:10px; border:1px solid #ccc; border-radius:4px; font-family:inherit; margin-bottom:5px; box-sizing:border-box;"></textarea>
                         <input type="file" style="width:100%; font-size:11px; margin-bottom:5px;" accept=".pdf,.doc,.docx">
                         <button class="action-btn small" style="background:#FFA500; width:100%;" onclick="completeFullTask('${task.id}')"><i class="fas fa-paper-plane"></i> ${currentLang==='dv'?'ފޮނުވާ':'Submit Work'}</button>
                     </div>`;
+            } else if (isAssignedToMe && (task.status === 'pending_approval' || task.status === 'approved')) {
+                subHtml += `<button class="action-btn small" style="background:#8b0000; width:100%; margin-top:10px;" onclick="editStudentTask('${task.id}')"><i class="fas fa-edit"></i> Edit Submission</button>`;
             }
 
             let cardHtml = `
@@ -1603,12 +1633,20 @@
             }
             if (needsMyApproval && tasksApprovalArea) {
                 hasApprovalTasks = true;
+                let submissionDetails = task.submissionText ? `<div style="background:#FFFDF0; border:1px solid #D4AF37; padding:10px; margin-top:10px; border-radius:4px; font-size:14px; font-family:inherit;"><strong>Submission Notes:</strong><br>${task.submissionText}</div>` : '';
+                let logsHtml = '';
+                if(task.editLogs && task.editLogs.length > 0) {
+                    logsHtml = `<div style="font-size:11px; color:#8b0000; margin-top:10px;"><strong>Edit History:</strong><br>` + task.editLogs.map(l => `${l.date} - ${l.reason}`).join('<br>') + `</div>`;
+                }
+                
                 let approvalCard = `
                 <div class="task-card submitted" id="app_${task.id}">
                     <span class="task-badge" style="background:#f0f7ff; color:#3b82f6;">Pending Approval</span>
                     <div style="width:100%; margin-top:20px;">
                         <h4 style="margin:0; color:#1a237e;">${task.title}</h4>
                         <p style="font-size:12px; color:#666; margin:5px 0;">Student ID: ${task.targetUser}</p>
+                        ${submissionDetails}
+                        ${logsHtml}
                         <button class="action-btn small" style="background:var(--royal-green); width:100%; margin-top:10px;" onclick="approveTaskBySupervisor('${task.id}')"><i class="fas fa-check"></i> Approve Task</button>
                     </div>
                 </div>`;
@@ -1653,12 +1691,15 @@
                     hasForms = true;
                     let displayDate = st.lastUpdated || new Date().toISOString().split('T')[0];
                     
-                    let actionHtml = `<button class="action-btn small" style="background:var(--royal-purple);" onclick="downloadObservationSlip('${stdId}', '${obsName}', ${numMarks})" title="Download PDF"><i class="fas fa-file-pdf"></i> PDF</button>`;
+                    let actionHtml = `<button class="action-btn small" style="background:var(--royal-purple);" onclick="exportSavedExactPDF('${stdId}', '${obsName}')" title="Download Full Form PDF"><i class="fas fa-file-pdf"></i> Full Form PDF</button>`;
+                    actionHtml += ` <button class="action-btn small" style="background:#0B6623;" onclick="downloadObservationSlip('${stdId}', '${obsName}', ${numMarks})" title="Download Result Slip"><i class="fas fa-download"></i> Slip</button>`;
                     
-                    if (currentRole !== 'student') {
+                    if (currentRole === 'admin' || currentRole === 'lecturer' || currentRole === 'master') {
                         actionHtml += `
-                            <button class="action-btn small" onclick="openAmendModal('${stdId}', '${st.name}', '${obsName}')" title="Amend"><i class="fas fa-edit"></i></button>
-                            <button class="action-btn small" style="background:#8b0000;" onclick="deleteForm3Step('${stdId}', '${obsName}')" title="Delete"><i class="fas fa-trash"></i></button>`;
+                            <button class="action-btn small" style="background:#d4af37; color:#000;" onclick="openAmendModal('${stdId}', '${st.name}', '${obsName}')" title="Amend"><i class="fas fa-edit"></i></button>`;
+                    }
+                    if (currentRole === 'admin') {
+                        actionHtml += `<button class="action-btn small" style="background:#8b0000;" onclick="deleteForm3Step('${stdId}', '${obsName}')" title="Delete"><i class="fas fa-trash"></i></button>`;
                     }
                     
                     fbBody.innerHTML += `
@@ -1942,15 +1983,34 @@
         if (!stdID) { alert("ދަރިވަރު ޚިޔާރުކުރައްވާ!"); return; }
         
         let total = 0; 
-        document.querySelectorAll('#portfolioForm input[type="radio"]:checked').forEach(r => total += parseInt(r.value));
+        let rubricData = {};
+        document.querySelectorAll('#portfolioForm input[type="radio"]:checked').forEach(r => {
+            total += parseInt(r.value);
+            rubricData[r.name] = parseInt(r.value);
+        });
         if (total === 0) { alert("މާކުސް ދެއްވާފައި ނުވޭ!"); return; }
 
         const studentIndex = allStudents.findIndex(s => s.id.toLowerCase() === stdID.toLowerCase());
         if (studentIndex === -1) { alert("ދަރިވަރު ނުފެނުނު!"); return; }
 
         let pct = (total / 40) * 20;
-        allStudents[studentIndex].portfolioScore = parseFloat(pct.toFixed(1));
-        allStudents[studentIndex].lastUpdated = new Date().toISOString().split('T')[0];
+        let st = allStudents[studentIndex];
+        st.portfolioScore = parseFloat(pct.toFixed(1));
+        st.lastUpdated = new Date().toISOString().split('T')[0];
+        
+        // Save the full form structure
+        let formRecord = {
+            obsType: "Portfolio Evaluation",
+            date: st.lastUpdated,
+            total: st.portfolioScore,
+            rubricData: rubricData,
+            comments: "",
+            suggestions: ""
+        };
+        if(!st.savedForms) st.savedForms = [];
+        let existingIdx = st.savedForms.findIndex(f => f.obsType === "Portfolio Evaluation");
+        if(existingIdx > -1) st.savedForms[existingIdx] = formRecord;
+        else st.savedForms.push(formRecord);
         
         saveToLocal();
         updateAllViews();
@@ -1966,7 +2026,11 @@
         if (marksStatus === 'disabled') { alert(currentLang === 'dv' ? "މިއީ ޑްރާފްޓް (މާކުސް ނުދެވޭ) އޮބްޒަވޭޝަނެކެވެ. މާކުސް ރިޕޯޓަކަށް ނުދާނެއެވެ." : "This is a Draft observation. Marks will not be saved to the report."); return; }
 
         let total = 0; 
-        document.querySelectorAll('#rubricForm input[type="radio"]:checked').forEach(r => total += parseInt(r.value));
+        let rubricData = {};
+        document.querySelectorAll('#rubricForm input[type="radio"]:checked').forEach(r => {
+            total += parseInt(r.value);
+            rubricData[r.name] = parseInt(r.value);
+        });
         if (total === 0) { alert(currentLang === 'dv' ? "މާކުސް ދެއްވާފައި ނުވޭ! ރޫބްރިކް ފުރިހަމަކުރައްވާ." : "No marks assigned! Please complete the rubric."); return; }
 
         const studentIndex = allStudents.findIndex(s => s.id.toLowerCase() === stdID.toLowerCase());
@@ -1985,11 +2049,63 @@
 
         st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
         st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
+        
+        // Save full form data
+        let formRecord = {
+            obsType: obsType,
+            date: st.lastUpdated,
+            total: total,
+            rubricData: rubricData,
+            comments: document.getElementById('observerComments').value,
+            suggestions: document.getElementById('autoSuggestions').innerHTML
+        };
+        if(!st.savedForms) st.savedForms = [];
+        let existingIdx = st.savedForms.findIndex(f => f.obsType === obsType);
+        if(existingIdx > -1) st.savedForms[existingIdx] = formRecord;
+        else st.savedForms.push(formRecord);
+
         allStudents[studentIndex] = st;
 
         saveToLocal();
         updateAllViews();
         alert(currentLang === 'dv' ? `${st.name} ގެ މާކުސް ކާމިޔާބުކަމާއެކު ރިޕޯރޓަށް ސޭވްކުރެވިއްޖެ!` : `Marks for ${st.name} saved successfully!`);
+    }
+
+    function exportSavedExactPDF(stdId, obsType) {
+        let st = allStudents.find(s => s.id === stdId);
+        if(!st || !st.savedForms) return;
+        let formRecord = st.savedForms.find(f => f.obsType === obsType);
+        if(!formRecord) { alert("މި ފޯމުގެ ފުލް ޑޭޓާ ރެކޯޑްކުރެވިފައެއް ނެތް. (ކުރީގެ ވާޝަންއެއްގައި ސޭވްކޮށްފައިވާ ފޯމެއް)"); return; }
+
+        const isRTL = (currentLang === 'dv' || currentLang === 'ar'); 
+        const textDir = isRTL ? 'rtl' : 'ltr'; 
+        const textAlign = isRTL ? 'right' : 'left'; 
+        const t = pdfDict[currentLang] || pdfDict.en; 
+        
+        let cList = obsType === 'Portfolio Evaluation' ? portfolioCriteriaList : criteriaList;
+
+        let html = `<div style="direction: ${textDir}; color:#000; text-align:${textAlign};"><div style="border: 2px solid #00008B; padding: 15px; border-radius: 5px;"><div style="text-align:center; border-bottom: 2px solid #00008B; padding-bottom:10px; margin-bottom:15px;"><h3 style="margin:0; font-size:26px; padding-bottom:5px;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</h3><h4 style="margin:5px 0; font-size:16px;">${t.ium}</h4><h4 style="margin:2px 0; font-size:14px;">${t.koe}</h4><div style="margin-top:10px;"><span style="background: #00008B; color: white; padding: 5px 15px; border-radius: 5px; font-weight:bold;">${t.title}</span></div></div>
+            <table style="margin-bottom:15px; font-size:14px; text-align:${textAlign}; line-height:1.6; border:none; width:100%;"><tr><td style="width:55%; border:none;"><strong>${t.stdName}</strong> ${st.name}</td><td style="width:45%; border:none;"><strong>${t.date}</strong> ${formRecord.date}</td></tr><tr><td style="border:none;"><strong>${t.id}</strong> ${st.id}</td><td style="border:none;"><strong>Course:</strong> B.Ed Primary</td></tr><tr><td style="border:none;"><strong>School:</strong> ${st.school}</td><td style="border:none;"><strong>Supervisor:</strong> ${obsType.includes('Master') ? st.master : st.sup}</td></tr><tr><td colspan="2" style="border:none;"><strong>${t.obsType}</strong> ${obsType}</td></tr></table>
+            <table style="font-size:12px; margin-bottom: 15px; width:100%; border-collapse: collapse;"><thead><tr style="background:#00008B; color:#ffffff;"><th style="padding:8px; text-align:${textAlign}; width:45%; border: 1px solid #000; -webkit-print-color-adjust: exact;">COMPETENCIES</th><th style="border: 1px solid #000; text-align:center;">5</th><th style="border: 1px solid #000; text-align:center;">4</th><th style="border: 1px solid #000; text-align:center;">3</th><th style="border: 1px solid #000; text-align:center;">2</th><th style="border: 1px solid #000; text-align:center;">1</th></tr></thead><tbody>`;
+        
+        cList.forEach(item => {
+            if (item.cat) {
+                html += `<tr><th colspan="6" style="background:#F4F6F9; color:#0B6623; text-align:${textAlign}; padding:6px; border: 1px solid #000; -webkit-print-color-adjust: exact;">${item.cat[currentLang] || item.cat.en}</th></tr>`;
+            } else { 
+                let sel = parseInt(formRecord.rubricData[item.id]); 
+                const check = (val) => sel === val ? '<span style="font-size:16px; font-weight:bold;">X</span>' : ''; 
+                html += `<tr><td style="text-align:${textAlign}; padding:4px; border: 1px solid #000;">${item[currentLang] || item.en}</td><td style="text-align:center; border: 1px solid #000;">${check(5)}</td><td style="text-align:center; border: 1px solid #000;">${check(4)}</td><td style="text-align:center; border: 1px solid #000;">${check(3)}</td><td style="text-align:center; border: 1px solid #000;">${check(2)}</td><td style="text-align:center; border: 1px solid #000;">${check(1)}</td></tr>`; 
+            }
+        });
+        
+        html += `</tbody></table><div class="page-break"></div> <div style="background:#F4F6F9; padding:10px; border-left: 5px solid #00008B; margin-bottom:15px; -webkit-print-color-adjust: exact;"><strong>${t.total}</strong> <span style="font-size:20px; font-weight:bold;">${formRecord.total}</span></div>`;
+        
+        if (obsType !== 'Portfolio Evaluation') {
+            html += `<div style="border:1px solid #000; padding:15px; min-height:80px; margin-bottom:25px;"><strong>Comments & Feedback:</strong><br><div style="font-size:14px; margin-top:10px; line-height:1.6;">${formRecord.suggestions}<br><br>${formRecord.comments ? formRecord.comments.replace(/\n/g, '<br>') : ''}</div></div>`;
+        }
+        
+        html += `</div></div>`;
+        generateSafePDF(html, `FullForm_${st.id}_${obsType.replace(/\s+/g, '_')}`, 'portrait');
     }
 
     function downloadDummyCSV() {
@@ -2047,7 +2163,8 @@
                         tp1_high: Math.max(parseInt(cols[4])||0, parseInt(cols[5])||0, parseInt(cols[6])||0),
                         tp2_high: Math.max(parseInt(cols[7])||0, parseInt(cols[8])||0, parseInt(cols[9])||0),
                         points: 0,
-                        lastUpdated: new Date().toISOString().split('T')[0]
+                        lastUpdated: new Date().toISOString().split('T')[0],
+                        savedForms: []
                     };
                     allStudents.push(studentObj);
                     if(cols[3]) uniqueSchools.add(cols[3]);
@@ -2126,141 +2243,6 @@
             updateAllViews();
             alert(currentLang === 'dv' ? "ސިސްޓަމްގެ ހުރިހާ ޑޭޓާއެއް ފޮހެލެވިއްޖެ. (ހާޑް ރީސެޓް ކާމިޔާބު)" : "Hard Reset Complete. All data wiped."); 
         } 
-    }
-
-    const criteriaList = [
-        { cat: { dv: "ޕްލޭނިންގ (ފިލާވަޅު ރޭވުން)", en: "PLANNING", ar: "التخطيط" } },
-        { id: "p1", dv: "އެކަށީގެންވާ ލަރނިންގ އޮބްޖެކްޓިވްސް ކަނޑައެޅުން", en: "Delineates appropriate learning objectives", ar: "يحدد أهداف التعلم المناسبة" }, { id: "p2", dv: "އެކަށީގެންވާ ކިޔަވައިދިނުމުގެ ސްޓްރެޓަޖީތައް އިޚްތިޔާރުކުރުން", en: "Selects appropriate teaching strategies", ar: "يختار استراتيجيات التدريس" }, { id: "p3", dv: "ރަނގަޅު ހަރަކާތްތަކާއި ވަސީލަތްތައް ބޭނުންކުރުން", en: "Uses effective learning activities and resources", ar: "يستخدم الموارد بشكل فعال" }, { id: "p4", dv: "ދަރިވަރުންގެ ތަފާތު ބޭނުންތަކަށް ރިޢާޔަތްކުރުން", en: "Caters to students diverse needs", ar: "يلبي احتياجات الطلاب" }, { id: "p5", dv: "މަންހަޖުގެ ހުރިހާ ބައިތަކެއް ހިމެނުން", en: "Addresses all elements of the curriculum", ar: "يتناول جميع عناصر المنهج" }, { id: "p6", dv: "އެސެސްމަންޓް ސްޓްރެޓަޖީތަކާއި ޓޫލްސް ބަޔާންކުރުން", en: "Assessment strategies and tools stated", ar: "استراتيجيات التقييم" }, { id: "p7", dv: "ވަގުތު ބެހިފައިވާ ރަނގަޅު ތާވަލެއް އެކުލަވާލުން", en: "Develops a workable time schedule", ar: "يضع جدولا زمنيا" },
-        { cat: { dv: "ލެސަން އިމްޕްލިމެންޓޭޝަން (ފިލާވަޅު ނެގުން)", en: "LESSON IMPLEMENTATION", ar: "تنفيذ الدرس" } },
-        { id: "i1", dv: "ލަރނިންގ އިންޓެންޝަންސް ދަރިވަރުންނާ ހިއްސާކުރުން", en: "Learning intentions shared with students", ar: "مشاركة أهداف التعلم" }, { id: "i2", dv: "ސަކްސެސް ކްރައިޓީރިއާ ދަރިވަރުންނާ މަޝްވަރާކުރުން", en: "Success criteria discussed with students", ar: "مناقشة معايير النجاح" }, { id: "i3", dv: "ސަކްސެސް ކްރައިޓީރިއާ ފެންނަން ބެހެއްޓުން", en: "Success criteria was displayed", ar: "عرض معايير النجاح" }, { id: "i4", dv: "ލަރނިންގ އިންޓެންޝަންސް ފެންނަން ބެހެއްޓުން", en: "Learning intentions were displayed", ar: "عرض أهداف التعلم" }, { id: "i5", dv: "ފިލާވަޅުގައި ސަކްސެސް ކްރައިޓީރިއާ އެސެސްކުރުން", en: "Success criteria was assessed in the lesson", ar: "تقييم معايير النجاح" }, { id: "i6", dv: "މަދުވެގެން ދެ ކީ ކޮމްޕިޓެންސީ ބޭނުންކުރުން", en: "At least two key competencies were used", ar: "استخدام الكفاءات الأساسية" }, { id: "i7", dv: "ކީ ކޮމްޕިޓެންސީސް ދަރިވަރުންނާ ހިއްސާކުރުން", en: "Key competencies shared with students", ar: "مشاركة الكفاءات" }, { id: "i8", dv: "މަދުވެގެން އެއް ވެލިއު ޙާޞިލްކުރުމަށް ފިލާވަޅު ރޭވުން", en: "Lesson prepared to achieve at least one shared value", ar: "تحقيق قيمة مشتركة" }, { id: "i9", dv: "ކްލާސްރޫމް ތަރުތީބުކޮށްފައިވާ ގޮތް", en: "Class Arrangement", ar: "ترتيب الفصل" }, { id: "i10", dv: "ސެޓް އިންޑަކްޝަން: ކުރީގެ މަޢުލޫމާތާއި އައު ފިލާވަޅު ގުޅުވުން", en: "Set induction: linked prior learning to new", ar: "ربط التعلم السابق" }, { id: "i11", dv: "ވަސީލަތްތައް އެކަށީގެންވާ ގޮތަށް ބޭނުންކުރުން", en: "Materials used appropriately", ar: "استخدام المواد" }, { id: "i12", dv: "އެހީތެރި މާޙައުލެއް ޤާއިމުކުރުން", en: "Establishes a supportive learning environment", ar: "بيئة داعمة" }, { id: "i13", dv: "ރަނގަޅު އަޚްލާޤަށް ހިތްވަރުދިނުން", en: "Reinforces good behaviour", ar: "تعزيز السلوك" }, { id: "i14", dv: "ދަރިވަރުންގެ ޝައުޤުވެރިކަން ދެމެހެއްޓުން", en: "Sustains students Interest", ar: "الحفاظ على الاهتمام" }, { id: "i15", dv: "ފައިދާހުރި މަޝްވަރާތަކާއި ފަރިތަކުރުންތައް", en: "Useful classroom discussions and exercises", ar: "مناقشات مفيدة" }, { id: "i16", dv: "ބައިވެރިވުމަށް ހިތްވަރުދިނުން", en: "Encourages Participation", ar: "التشجيع على المشاركة" }, { id: "i17", dv: "ޤަވާޢިދުތަކާއި ރޫޓީންތައް ހިފެހެއްޓުން", en: "Sets and enforces rules and routines", ar: "تطبيق القواعد" }, { id: "i18", dv: "ގުޅުން ބަދަހިކޮށް މުޢާމަލާތްކުރުން", en: "Establishes interaction and rapport", ar: "تأسيس التفاعل" }, { id: "i19", dv: "ދަރިވަރުންނަށް އަޅާލުމާއި އޯގާތެރިކަން ދެއްކުން", en: "Shows care and concern for students", ar: "الاهتمام بالطلاب" }, { id: "i20", dv: "އަޑާއި ބަސްމަގު އެކަށީގެންވާ ގޮތަށް ބޭނުންކުރުން", en: "Uses voice and language appropriately", ar: "استخدام الصوت المناسب" }, { id: "i21", dv: "ދަރިވަރުންނަށް ރަނގަޅު ފީޑްބެކް ދިނުން", en: "Gives proper feedback to students", ar: "تقديم الملاحظات" }, { id: "i22", dv: "ފިލާވަޅު ހުށަހަޅައިދޭ ގޮތް ސާފުކަން", en: "Delivery of the lesson is clear and precise", ar: "تقديم واضح للدرس" }, { id: "i23", dv: "އައި.ސީ.ޓީ / މީޑިއާ / ވަސީލަތްތައް ބޭނުންކުރުން", en: "Uses ICT / media / resource", ar: "استخدام التكنولوجيا" }, { id: "i24", dv: "ކުރިން އެނގިފައިވާ މަޢުލޫމާތާ ގުޅުވުން", en: "Relates information to prior knowledge", ar: "ربط المعلومات" }, { id: "i25", dv: "އައު މަޢުލޫމާތު ފޯރުކޮށްދިނުން", en: "Shared up to date information", ar: "مشاركة معلومات محدثة" }, { id: "i26", dv: "ތަފާތު ލެވެލްތަކުގެ ސުވާލަށް ޖަވާބުދިނުމަށް ހިތްވަރުދިނުން", en: "Encourages students to answer different levels of questions", ar: "مستويات الأسئلة" }, { id: "i27", dv: "ބޭނުންވާ ޙާލަތުގައި ސުވާލާއި ޖަވާބު ތަކުރާރުކުރުން", en: "Restates questions and answer when necessary", ar: "إعادة الأسئلة" }, { id: "i28", dv: "ވަކިވަކި އަދި ގްރޫޕް މަސައްކަތް ބެލެހެއްޓުން", en: "Organizes & monitors individual & group learning", ar: "تنظيم التعلم" }, { id: "i29", dv: "އެކަށީގެންވާ ގޮތަށް ސުވާލުކޮށް ޖަވާބުދިނުން", en: "Questions and responds appropriately", ar: "الأسئلة والإجابات" }, { id: "i30", dv: "ސާފު އިރުޝާދާއި ތަފްސީލު ދިނުން", en: "Gives clear explanations and instructions", ar: "تفسيرات واضحة" }, { id: "i31", dv: "ތަފާތު ފެންވަރުގެ ސުވާލުތައް ކުރިމަތިކުރުވުން", en: "Presents with different levels of questions", ar: "مستويات الأسئلة المختلفة" }, { id: "i32", dv: "ދަރިވަރުންނާ ގުޅިގެން ރަނގަޅަށް މުޢާމަލާތްކުރުން", en: "Interacts and communicates with students appropriately", ar: "التواصل مع الطلاب" }, { id: "i33", dv: "ތަފާތު ފެންވަރަށް ޚާއްޞަ ތަކެއްޗާއި މަސައްކަތް ބޭނުންކުރުން", en: "Differentiated materials and tasks were used", ar: "مواد متمايزة" }, { id: "i34", dv: "ވިސްނުން ތަރައްޤީކުރާ (ޕްރޯބިންގ) ސުވާލު ކުރުން", en: "Uses probing questions when necessary", ar: "أسئلة استقصائية" }, { id: "i35", dv: "ގުޅިގެން މަސައްކަތްކުރާ މާޙައުލެއް ޤާއިމުކުރުން", en: "Establishes a collaborative environment", ar: "بيئة تعاونية" }, { id: "i36", dv: "ދަރިވަރުންނާއެކު ރަނގަޅު ގުޅުމެއް ބޭއްވުން", en: "Maintains a good rapport with the students", ar: "علاقة جيدة مع الطلاب" }, { id: "i37", dv: "ފްލެކްސިބަލް މާޙައުލެއް ޤާއިމުކުރުން", en: "Presents a flexible learning environment", ar: "بيئة مرنة" }, { id: "i38", dv: "ޙަޤީޤީ ދުނިޔޭގެ ކަންކަމާ ފިލާވަޅު ގުޅުވުން", en: "Content applied to real world situations", ar: "تطبيق في العالم الحقيقي" }, { id: "i39", dv: "ގުޅޭ އަދި އެކަށީގެންވާ މަޢުލޫމާތު ފޯރުކޮށްދިނުން", en: "Relevant and appropriate information delivered", ar: "معلومات مناسبة" }, { id: "i40", dv: "މައުޟޫޢާ ގުޅޭ ނަމޫނާތައް ދެއްކުން", en: "Presents relevant Examples relates to the content", ar: "أمثلة ذات صلة" }, { id: "i41", dv: "ކުށް ހީތައް ދެނެގަނެ އެކަންކަން ރަނގަޅުކުރުން", en: "Misconceptions are identified and addressed", ar: "معالجة المفاهيم الخاطئة" }, { id: "i42", dv: "ޗެލެންޖިންގ އަދި އޮތެންޓިކް ހަރަކާތްތައް ދިނުން", en: "Challenging and authentic activities are given", ar: "أنشطة صعبة" }, { id: "i43", dv: "އުފެއްދުންތެރިކަމާއި ހޯދައިބެލުމަށް ބާރުއެޅުން", en: "Emphasizes on exploration and creativity", ar: "تأكيد على الإبداع" },
-        { cat: { dv: "އިވެލުއޭޝަން (ވަޒަންކުރުން)", en: "EVALUATION", ar: "التقييم" } },
-        { id: "e1", dv: "ފިލާވަޅުގެ މައިގަނޑު ނުކުތާތައް ޚުލާޞާކުރުން", en: "Summarizes all the key points of the lesson", ar: "تلخيص النقاط الرئيسية" }, { id: "e2", dv: "ރަނގަޅު ވަގުތުގައި ބިނާކުރަނިވި ފީޑްބެކް ދިނުން", en: "Provide constructive feedback in a timely manner", ar: "تقديم تغذية راجعة بناءة" }, { id: "e3", dv: "މަޤްޞަދު ޙާޞިލްވި މިންވަރު ވަޒަންކުރުން", en: "Achievement of learning objectives assessed", ar: "تقييم أهداف التعلم" }, { id: "e4", dv: "ފިލާވަޅުގެ ކުރިން، ތެރޭގައި، ފަހުން ދަރިވަރުންނަށް އެނގޭ މިންވަރު ބެލުން", en: "Students understanding analyzed before, during, after", ar: "تحليل الفهم" }, { id: "e5", dv: "ވަޒަންކުރުމަށް ބޭނުންކުރި ގޮތް އެކަށީގެންވުން", en: "Tool used to assess is appropriate and accurate", ar: "أداة التقييم مناسبة" }
-    ];
-
-    const maxScore = criteriaList.filter(c => !c.cat).length * 5; 
-
-    function generateSafePDF(htmlContent, filename, orientation) {
-        const printWindow = window.open('', '', 'width=1000,height=800');
-        const basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
-        const fontPath = basePath + '/fonts/faruma.ttf';
-
-        printWindow.document.write(`
-            <html><head><title>${filename}</title>
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-            <style>
-                @font-face { font-family: 'Faruma'; src: local('Faruma'), url('${fontPath}') format('truetype'); font-weight: normal; font-style: normal; }
-                @media print { @page { size: A4 ${orientation}; margin: 15mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin:0; padding:0;} }
-                body { font-family: 'Faruma', Arial, sans-serif; background: #fff; padding: 20px; } table { border-collapse: collapse; width: 100%; margin-bottom: 20px;} 
-                th, td { border: 1px solid #000; padding: 8px; } .score-highest { background-color: #0B6623 !important; color: #fff !important; font-weight: bold; }
-                .score-low { color: #555; } .page-break { page-break-before: always; }
-            </style></head><body>${htmlContent}<script>document.fonts.ready.then(() => { setTimeout(() => { window.print(); window.close(); }, 800); });<\/script></body></html>
-        `);
-        printWindow.document.close();
-    }
-    
-    function downloadObservationSlip(stdId, obsName, marks) {
-        let st = allStudents.find(s => s.id === stdId);
-        if(!st) return;
-        const t = pdfDict[currentLang] || pdfDict.en;
-        const isRTL = (currentLang === 'dv' || currentLang === 'ar'); 
-        const textDir = isRTL ? 'rtl' : 'ltr'; 
-        const textAlign = isRTL ? 'right' : 'left';
-        
-        let html = `
-        <div style="direction: ${textDir}; color:#000; text-align:${textAlign}; font-family: 'Faruma', Arial, sans-serif;">
-            <div style="border: 2px solid #00008B; padding: 25px; border-radius: 8px;">
-                <div style="text-align:center; border-bottom: 2px solid #D4AF37; padding-bottom:15px; margin-bottom:20px;">
-                    <h3 style="margin:0; font-size:28px; padding-bottom:5px;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</h3>
-                    <h2 style="color: #0A1128; margin: 10px 0;">${t.ium}</h2>
-                    <h3 style="color: #0B6623; margin: 5px 0;">${t.koe}</h3>
-                    <div style="margin-top:15px;">
-                        <span style="background: #00008B; color: white; padding: 8px 20px; border-radius: 5px; font-weight:bold; font-size:18px;">OFFICIAL RESULT SLIP</span>
-                    </div>
-                </div>
-                
-                <table style="width: 100%; font-size: 16px; line-height: 2.5; border:none;">
-                    <tr><td style="width: 40%; font-weight: bold; border:none; border-bottom:1px solid #eee;">${t.stdName}</td><td style="border:none; border-bottom:1px solid #eee;">${st.name}</td></tr>
-                    <tr><td style="font-weight: bold; border:none; border-bottom:1px solid #eee;">${t.id}</td><td style="border:none; border-bottom:1px solid #eee;">${st.id}</td></tr>
-                    <tr><td style="font-weight: bold; border:none; border-bottom:1px solid #eee;">School / Institution:</td><td style="border:none; border-bottom:1px solid #eee;">${st.school}</td></tr>
-                    <tr><td style="font-weight: bold; border:none; border-bottom:1px solid #eee;">Supervisor / Master:</td><td style="border:none; border-bottom:1px solid #eee;">${obsName.includes('Master') ? st.master : st.sup}</td></tr>
-                    <tr><td style="font-weight: bold; border:none; border-bottom:1px solid #eee;">${t.obsType}</td><td style="font-weight: bold; color:#1a237e; border:none; border-bottom:1px solid #eee;">${obsName}</td></tr>
-                </table>
-                
-                <div style="margin-top: 30px; background: #F9F1D8; padding: 25px; border-radius: 8px; text-align:center; border: 2px solid #D4AF37;">
-                    <h3 style="margin: 0; color: #0A1128; font-size:20px;">${t.total || 'Total Achieved Score'}</h3>
-                    <h1 style="margin: 10px 0 0 0; color: #0B6623; font-size: 50px;">${marks}</h1>
-                </div>
-                
-                <p style="margin-top: 40px; font-size: 12px; color: #888; text-align:center;">* This is a system-generated result slip from Rasfahi TP Cloud and does not require a physical signature.</p>
-            </div>
-        </div>`;
-        generateSafePDF(html, `Result_Slip_${st.id}_${obsName.replace(/\s+/g, '_')}`, 'portrait');
-    }
-
-    function exportFullMarksTable(type) {
-        if(type === 'csv') {
-            let csvContent = "data:text/csv;charset=utf-8,Student Name,ID,School,Supervisor,TP1_Obs1,TP1_Obs2,TP1_Obs3,TP2_Obs1,TP2_Obs2,TP2_Obs3,Master_Score,Portfolio\n";
-            const rows = document.getElementById('fullMarksBody').getElementsByTagName('tr');
-            for(let i=0; i<rows.length; i++) {
-                if(rows[i].style.display !== 'none') {
-                    let cols = rows[i].getElementsByTagName('td'); let rowData = [];
-                    for(let j=0; j<12; j++) { if(cols[j]) rowData.push(`"${cols[j].innerText.trim()}"`); }
-                    csvContent += rowData.join(",") + "\n";
-                }
-            }
-            const a = document.createElement("a"); a.href = encodeURI(csvContent); a.download = "All_Marks_Report.csv"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        } else {
-            const tableHtml = `<div style="direction:ltr; text-align:left;"><h2 style="color:#00008B; text-align:center; border-bottom:2px solid #D4AF37; padding-bottom:10px;">All Students Marks Report</h2>
-                <table style="font-size:12px; text-align:center;">
-                    <tr style="background:#00008B; color:#fff;">
-                        <th rowspan="2" style="padding:5px;">Student</th><th rowspan="2" style="padding:5px;">ID</th><th rowspan="2" style="padding:5px;">School</th><th rowspan="2" style="padding:5px;">Supervisor</th>
-                        <th colspan="3" style="padding:5px; background:#4B0082;">TP1 (Marks)</th><th colspan="3" style="padding:5px; background:#0B6623;">TP2 (Marks)</th>
-                        <th rowspan="2" style="padding:5px; background:#8b0000;">Master</th><th rowspan="2" style="padding:5px; background:#0A1128;">Portfolio</th>
-                    </tr>
-                    <tr style="background:#00008B; color:#fff;">
-                        <th style="padding:5px; background:#4B0082;">Obs 1</th><th style="padding:5px; background:#4B0082;">Obs 2</th><th style="padding:5px; background:#4B0082;">Obs 3</th>
-                        <th style="padding:5px; background:#0B6623;">Obs 1</th><th style="padding:5px; background:#0B6623;">Obs 2</th><th style="padding:5px; background:#0B6623;">Obs 3</th>
-                    </tr>
-                    ${document.getElementById('fullMarksBody').innerHTML.replace(/text-align:right/g, 'text-align:left')}
-                </table></div>`;
-            generateSafePDF(tableHtml, 'All_Marks_Report', 'landscape');
-        }
-    }
-
-    function exportLecturerInfoPDF() {
-        let assignedHtml = '';
-        allStudents.forEach(st => {
-            if (isMyStudent(st)) {
-                assignedHtml += `<tr><td>${st.name}</td><td>${st.id}</td><td>${st.course}</td><td>${st.school}</td></tr>`;
-            }
-        });
-        
-        if (assignedHtml === '') assignedHtml = '<tr><td colspan="4">No students currently assigned based on CSV data.</td></tr>';
-
-        const tableHtml = `<div style="direction:ltr; text-align:left;"><h2 style="color:#00008B; text-align:center; border-bottom:2px solid #D4AF37; padding-bottom:10px;">Lecturer Information Sheet</h2>
-            <table style="font-size:14px; margin-bottom:20px; width:100%;"><tr><td style="padding:8px; font-weight:bold; background:#F4F6F9; width:30%;">Name / Username:</td><td style="padding:8px;">${currentUser}</td></tr><tr><td style="padding:8px; font-weight:bold; background:#F4F6F9;">Role:</td><td style="padding:8px;">Supervisor / Lecturer</td></tr></table>
-            <h3 style="color:#00008B; margin-top:20px;">Assigned Students</h3><table style="font-size:12px; text-align:center; width:100%;"><tr style="background:#0B6623; color:#fff;"><th>Student</th><th>ID</th><th>Course</th><th>School</th></tr>${assignedHtml}</table></div>`;
-        generateSafePDF(tableHtml, 'Lecturer_Info', 'portrait');
-    }
-
-    function exportExactPDF() {
-        const stdName = document.getElementById('obsStdName').value || '_______________________'; const stdID = document.getElementById('obsStdID').value || '________________'; const course = document.getElementById('obsCourse').value || '________________'; const dateStr = document.getElementById('obsDate').value || new Date().toLocaleDateString('en-GB'); const gradeTopic = (document.getElementById('obsGrade').value || '') + ' ' + (document.getElementById('obsSection') ? document.getElementById('obsSection').value : '') + ' / ' + (document.getElementById('obsTopic').value || ''); const schoolMod = (document.getElementById('obsSchool').value || '') + ' / ' + (document.getElementById('obsModule').value || ''); const obsType = document.getElementById('obsTypeSelect') ? document.getElementById('obsTypeSelect').options[document.getElementById('obsTypeSelect').selectedIndex].text : '';
-        let totalScore = document.getElementById('scoreDisplay').innerText.split('/')[0].trim(); if(document.getElementById('obsMarksStatus').value === 'disabled') totalScore = "DRAFT";
-        
-        const lecCanvas = document.getElementById('lecturerSigPad'); const stdCanvas = document.getElementById('studentSigPad'); const isCanvasBlank = (c) => { const ctx = c.getContext('2d'); const p = new Uint32Array(ctx.getImageData(0,0,c.width,c.height).data.buffer); return !p.some(color => color !== 0); }; const supSigData = (!isCanvasBlank(lecCanvas)) ? lecCanvas.toDataURL('image/png') : ''; const stdSigData = (!isCanvasBlank(stdCanvas)) ? stdCanvas.toDataURL('image/png') : ''; const sigHtml = (img) => img ? `<img src="${img}" style="max-height:50px; display:block; margin:0 auto; margin-bottom:5px;">` : `<div style="height:50px;"></div>`;
-        const isRTL = (currentLang === 'dv' || currentLang === 'ar'); const textDir = isRTL ? 'rtl' : 'ltr'; const textAlign = isRTL ? 'right' : 'left'; const t = pdfDict[currentLang] || pdfDict.en; 
-
-        let html = `<div style="direction: ${textDir}; color:#000; text-align:${textAlign};"><div style="border: 2px solid #00008B; padding: 15px; border-radius: 5px;"><div style="text-align:center; border-bottom: 2px solid #00008B; padding-bottom:10px; margin-bottom:15px;"><h3 style="margin:0; font-size:26px; padding-bottom:5px;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</h3><h4 style="margin:5px 0; font-size:16px;">${t.ium}</h4><h4 style="margin:2px 0; font-size:14px;">${t.koe}</h4><div style="margin-top:10px;"><span style="background: #00008B; color: white; padding: 5px 15px; border-radius: 5px; font-weight:bold;">${t.title}</span></div></div>
-            <table style="margin-bottom:15px; font-size:14px; text-align:${textAlign}; line-height:1.6; border:none; width:100%;"><tr><td style="width:55%; border:none;"><strong>${t.stdName}</strong> ${stdName}</td><td style="width:45%; border:none;"><strong>${t.date}</strong> ${dateStr}</td></tr><tr><td style="border:none;"><strong>${t.id}</strong> ${stdID}</td><td style="border:none;"><strong>${t.course}</strong> ${course}</td></tr><tr><td style="border:none;"><strong>${t.gradeTopic}</strong> ${gradeTopic}</td><td style="border:none;"><strong>${t.schoolMod}</strong> ${schoolMod}</td></tr><tr><td colspan="2" style="border:none;"><strong>${t.obsType}</strong> ${obsType}</td></tr></table>
-            <table style="font-size:12px; margin-bottom: 15px; width:100%; border-collapse: collapse;"><thead><tr style="background:#00008B; color:#ffffff;"><th style="padding:8px; text-align:${textAlign}; width:45%; border: 1px solid #000; -webkit-print-color-adjust: exact;">COMPETENCIES</th><th style="border: 1px solid #000; text-align:center;">5</th><th style="border: 1px solid #000; text-align:center;">4</th><th style="border: 1px solid #000; text-align:center;">3</th><th style="border: 1px solid #000; text-align:center;">2</th><th style="border: 1px solid #000; text-align:center;">1</th></tr></thead><tbody>`;
-        criteriaList.forEach(item => {
-            if (item.cat) html += `<tr><th colspan="6" style="background:#F4F6F9; color:#0B6623; text-align:${textAlign}; padding:6px; border: 1px solid #000; -webkit-print-color-adjust: exact;">${item.cat[currentLang] || item.cat.en}</th></tr>`;
-            else { let sel = null; const r = document.querySelector(`input[name="${item.id}"]:checked`); if(r) sel = parseInt(r.value); const check = (val) => sel === val ? '<span style="font-size:16px; font-weight:bold;">X</span>' : ''; html += `<tr><td style="text-align:${textAlign}; padding:4px; border: 1px solid #000;">${item[currentLang] || item.en}</td><td style="text-align:center; border: 1px solid #000;">${check(5)}</td><td style="text-align:center; border: 1px solid #000;">${check(4)}</td><td style="text-align:center; border: 1px solid #000;">${check(3)}</td><td style="text-align:center; border: 1px solid #000;">${check(2)}</td><td style="text-align:center; border: 1px solid #000;">${check(1)}</td></tr>`; }
-        });
-        html += `</tbody></table><div class="page-break"></div> <div style="background:#F4F6F9; padding:10px; border-left: 5px solid #00008B; margin-bottom:15px; -webkit-print-color-adjust: exact;"><strong>${t.total}</strong> <span style="font-size:20px; font-weight:bold;">${totalScore}</span> / 275</div>
-            <div style="border:1px solid #000; padding:15px; min-height:80px; margin-bottom:25px;"><strong>Comments & Feedback:</strong><br><div style="font-size:14px; margin-top:10px; line-height:1.6;">${document.getElementById('autoSuggestions').innerHTML}<br><br>${document.getElementById('observerComments').value.replace(/\n/g, '<br>')}</div></div>
-            <table style="width:100%; text-align:center; font-size:14px; border:none; margin-top:30px;"><tr><td style="width:50%; padding:0 20px; border:none;">${sigHtml(supSigData)}<div style="border-bottom: 1px solid #000; margin-bottom: 5px;"></div><strong>${t.supSig}</strong></td><td style="width:50%; padding:0 20px; border:none;">${sigHtml(stdSigData)}<div style="border-bottom: 1px solid #000; margin-bottom: 5px;"></div><strong>${t.stdSig}</strong></td></tr></table></div></div>`;
-        generateSafePDF(html, `Observation_${stdName.replace(/\s+/g, '_')}_${obsType}`, 'portrait');
     }
 
     // Init app
