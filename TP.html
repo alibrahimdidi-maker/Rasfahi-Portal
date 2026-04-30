@@ -188,9 +188,8 @@
             <p class="subtitle">Cloud Login Portal</p>
             
             <div class="input-group-en">
-                <label>User Identifier (Email or Exact Name in CSV):</label>
-                <input type="text" id="username" placeholder="e.g. su.hassan.niyaz@rasfahi.com" oninput="autoDetectRole()">
-                <small style="color:#FFF; display:block; margin-top:5px; font-size:11px;">Admin Default: admin@rasfahi.com</small>
+                <label>Email Address (User):</label>
+                <input type="email" id="username" placeholder="Enter your email" oninput="autoDetectRole()">
             </div>
             
             <div class="input-group-en">
@@ -1071,12 +1070,23 @@
     }
 
     async function handleLogin() {
-        if(document.getElementById('username').value && document.getElementById('password').value === "@7791550") {
-            const btn = document.getElementById('loginBtn');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        const email = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        if(!email || !password) {
+            alert("އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!");
+            return;
+        }
+
+        const btn = document.getElementById('loginBtn');
+        const originalBtnText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        
+        try {
+            await firebase.auth().signInWithEmailAndPassword(email, password);
             
             currentRole = document.getElementById('userRole').value;
-            let rawUser = document.getElementById('username').value.trim().toLowerCase();
+            let rawUser = email.toLowerCase();
             
             await loadFromFirebase();
             
@@ -1088,7 +1098,7 @@
                 currentRole = userDirectory[rawUser].role;
                 document.getElementById('userRole').value = currentRole;
             } else {
-                currentUser = document.getElementById('username').value.trim();
+                currentUser = rawUser;
             }
 
             document.getElementById('displayUserName').innerText = currentUser;
@@ -1105,8 +1115,13 @@
             setupRealtimeSync();
             
             if(document.getElementById('obsDate')) document.getElementById('obsDate').valueAsDate = new Date();
-        } else {
-            document.getElementById('login-error').style.display = 'block';
+
+        } catch (error) {
+            console.error("Login Error:", error);
+            const errorMsg = document.getElementById('login-error');
+            errorMsg.style.display = 'block';
+            errorMsg.innerText = "އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި!";
+            btn.innerHTML = originalBtnText;
         }
     }
 
@@ -1519,7 +1534,7 @@
                 }
             }
 
-            // Check if it needs my approval
+            // Check if it needs my approval (ONLY if I created the task)
             if (task.status === 'pending_approval') {
                 if (task.creator.trim().toLowerCase() === cUser) {
                     needsMyApproval = true;
