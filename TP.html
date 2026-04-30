@@ -1234,12 +1234,27 @@
         if(!dropdown.value) { alert("މަސައްކަތެއް ޚިޔާރުކުރައްވާ!"); return; }
         
         studentPoints += 20; 
+        let myStdId = currentUser;
         
         const studentIndex = allStudents.findIndex(s => s.name === currentUser || s.name.toLowerCase().includes(currentUser.toLowerCase()));
         if(studentIndex > -1) {
             allStudents[studentIndex].points = (allStudents[studentIndex].points || 0) + 20;
             studentPoints = allStudents[studentIndex].points;
+            myStdId = allStudents[studentIndex].id; // Get correct Student ID
         }
+
+        // އައު ކޯޑު: ސުޕަވައިޒަރަށް ފެންނާނެހެން ޓާސްކް ކްރިއޭޓްކުރުން
+        const logTask = { 
+            id: 'log_' + Date.now(), 
+            title: 'Daily Log: ' + dropdown.options[dropdown.selectedIndex].text, 
+            creator: currentUser, 
+            targetRole: 'student', 
+            targetUser: myStdId, 
+            subTasks: [], 
+            totalPct: 100,
+            status: 'pending_approval' // އެޕްރޫވަލް އަށް ފޮނުވުން
+        };
+        globalTasks.push(logTask);
 
         document.getElementById('stdPoints').innerText = studentPoints.toFixed(0);
         
@@ -1253,17 +1268,26 @@
         saveToLocal();
         triggerManualSave();
         dropdown.value = ""; document.getElementById('dailyLogDetails').innerHTML = "";
+        
+        // ޓާސްކް ލިސްޓް އަޕްޑޭޓް ކުރުން
+        renderUnifiedTasks();
     }
 
     function updateStudentMyMarks() {
         if(currentRole !== 'student') return;
-        let myStd = allStudents.find(s => s.name.trim().toLowerCase() === currentUser.trim().toLowerCase());
+        
+        let cUserStr = currentUser.trim().toLowerCase();
+        // ނަން ނުވަތަ އައިޑީ މެޗްކުރާގޮތަށް ބަދަލުކުރުން
+        let myStd = allStudents.find(s => 
+            s.name.trim().toLowerCase().includes(cUserStr) || 
+            s.id.trim().toLowerCase() === cUserStr
+        );
         if(!myStd) return;
 
         document.getElementById('myTp1Mark').innerText = myStd.tp1_high > 0 ? myStd.tp1_high : '-';
         document.getElementById('myTp2Mark').innerText = myStd.tp2_high > 0 ? myStd.tp2_high : '-';
-        document.getElementById('myMasterMark').innerText = myStd.masterScore ? myStd.masterScore : '-';
-        document.getElementById('myPortMark').innerText = myStd.portfolioScore ? myStd.portfolioScore : '-';
+        document.getElementById('myMasterMark').innerText = (myStd.masterScore !== null && myStd.masterScore > 0) ? myStd.masterScore : '-';
+        document.getElementById('myPortMark').innerText = (myStd.portfolioScore !== null && myStd.portfolioScore > 0) ? myStd.portfolioScore : '-';
     }
 
     /* === UNIFIED TASK SYSTEM LOGIC === */
@@ -1535,22 +1559,23 @@
         allStudents.forEach(st => {
             let canView = false;
             const cUserRaw = document.getElementById('username').value.trim().toLowerCase();
-            const cUser = currentUser.toLowerCase();
+            const cUser = currentUser.toLowerCase().trim();
             
             if (currentRole === 'admin') canView = true;
-            else if (currentRole === 'lecturer' && st.sup && (st.sup.toLowerCase().includes(cUser) || cUserRaw.includes(st.sup.toLowerCase().replace(/\s/g,'')))) canView = true;
-            else if (currentRole === 'master' && st.master && st.master.toLowerCase().includes(cUser)) canView = true;
-            else if (currentRole === 'student' && st.id === (allStudents.find(s=>s.name===currentUser)||{}).id) canView = true;
+            else if (currentRole === 'lecturer' && st.sup && (st.sup.toLowerCase().includes(cUser) || cUser.includes(st.sup.toLowerCase().trim()) || cUserRaw.includes(st.sup.toLowerCase().replace(/\s/g,'')))) canView = true;
+            else if (currentRole === 'master' && st.master && (st.master.toLowerCase().includes(cUser) || cUser.includes(st.master.toLowerCase().trim()))) canView = true;
+            else if (currentRole === 'student' && st.id === (allStudents.find(s=>s.name===currentUser || s.id===currentUser)||{}).id) canView = true;
 
             if (!canView) return;
 
             let addRow = (obsName, marks, stdId) => {
-                if(marks !== null && marks !== undefined && marks > 0 && !isNaN(marks)) {
+                let numMarks = parseInt(marks);
+                if(!isNaN(numMarks) && numMarks > 0) {
                     hasForms = true;
                     let displayDate = st.lastUpdated || new Date().toISOString().split('T')[0];
                     fbBody.innerHTML += `
                         <tr>
-                            <td>${st.name}</td><td>${displayDate}</td><td>${obsName}</td><td style="font-weight:bold; color:var(--royal-green);">${marks}</td>
+                            <td>${st.name}</td><td>${displayDate}</td><td>${obsName}</td><td style="font-weight:bold; color:var(--royal-green);">${numMarks}</td>
                             <td>
                                 <button class="action-btn small" onclick="openAmendModal('${stdId}', '${st.name}', '${obsName}')" title="Amend"><i class="fas fa-edit"></i></button>
                                 <button class="action-btn small" style="background:#8b0000;" onclick="deleteForm3Step('${stdId}', '${obsName}')" title="Delete"><i class="fas fa-trash"></i></button>
@@ -1795,14 +1820,14 @@
 
     // --- 7. PORTFOLIO LOGIC ---
     const portfolioCriteriaList = [
-        { id: "pf1", dv: "އިދާރީ ގުނަވަން ތައް", en: "Administrative elements", max: 2 },
-        { id: "pf2", dv: "ސްކޫލުން ދިމާވި ދަތިވި ކަންތައްތަކާއި ހައްލުކުރިގޮތް", en: "Challenges faced at school and how solved", max: 5 },
-        { id: "pf3", dv: "ދަރިވަރުން ކުލާހުގަ ރަގަޅަށް ގެންދެވުނުކަންކަން", en: "Things done well in class", max: 5 },
-        { id: "pf4", dv: "ކިލާހުގައި ކިޔަވާދޭއިރު ދަރިވަރު ކިބައިގައިހުރި އެންމެ ރަގަޅު ކަންތައް", en: "Best student trait during teaching", max: 5 },
-        { id: "pf5", dv: "ކުލާހުގައި ގެންދެވުނު ހަރަކާތް ތަކުގެތެރެއިން އެންމެ ރަގަޅު ހަރަކާތް", en: "Best activity conducted", max: 5 },
-        { id: "pf6", dv: "ކުލާހުގައިކިޔަވައި ދިންއިރު ދިމާވި ގޮންޖެހުންތައް", en: "Challenges during teaching", max: 5 },
-        { id: "pf7", dv: "މި ފިލާވަޅުތައް އަލުން ކިޔަވައިދޭނަމަ ގެންނަންހުށައަޅާފައިވާ ބަދަލުތައް", en: "Changes if retaught", max: 5 },
-        { id: "pf8", dv: "ގަވާއިދުން ރިފްލެކްޝަންތައް އަޕްލޯޑްކޮށްފައިވޭ", en: "Regularly uploaded reflections", max: 5 }
+        { id: "pf1", dv: "އިދާރީ ގުނަވަން ތައް", en: "Administrative elements", ar: "العناصر الإدارية", max: 2 },
+        { id: "pf2", dv: "ސްކޫލުން ދިމާވި ދަތިވި ކަންތައްތަކާއި ހައްލުކުރިގޮތް", en: "Challenges faced at school and how solved", ar: "التحديات التي تمت مواجهتها في المدرسة وكيفية حلها", max: 5 },
+        { id: "pf3", dv: "ދަރިވަރުން ކުލާހުގަ ރަގަޅަށް ގެންދެވުނުކަންކަން", en: "Things done well in class", ar: "الأشياء التي تم إنجازها بشكل جيد في الفصل", max: 5 },
+        { id: "pf4", dv: "ކިލާހުގައި ކިޔަވާދޭއިރު ދަރިވަރު ކިބައިގައިހުރި އެންމެ ރަގަޅު ކަންތައް", en: "Best student trait during teaching", ar: "أفضل سمة للطالب أثناء التدريس", max: 5 },
+        { id: "pf5", dv: "ކުލާހުގައި ގެންދެވުނު ހަރަކާތް ތަކުގެތެރެއިން އެންމެ ރަގަޅު ހަރަކާތް", en: "Best activity conducted", ar: "أفضل نشاط تم إجراؤه", max: 5 },
+        { id: "pf6", dv: "ކުލާހުގައިކިޔަވައި ދިންއިރު ދިމާވި ގޮންޖެހުންތައް", en: "Challenges during teaching", ar: "التحديات أثناء التدريس", max: 5 },
+        { id: "pf7", dv: "މި ފިލާވަޅުތައް އަލުން ކިޔަވައިދޭނަމަ ގެންނަންހުށައަޅާފައިވާ ބަދަލުތައް", en: "Changes if retaught", ar: "التغييرات المقترحة إذا تم إعادة التدريس", max: 5 },
+        { id: "pf8", dv: "ގަވާއިދުން ރިފްލެކްޝަންތައް އަޕްލޯޑްކޮށްފައިވޭ", en: "Regularly uploaded reflections", ar: "الرفع المنتظم للتأملات", max: 5 }
     ];
 
     function initPortfolioRubric() {
