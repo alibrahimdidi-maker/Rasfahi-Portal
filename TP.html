@@ -1240,10 +1240,9 @@
         if(studentIndex > -1) {
             allStudents[studentIndex].points = (allStudents[studentIndex].points || 0) + 20;
             studentPoints = allStudents[studentIndex].points;
-            myStdId = allStudents[studentIndex].id; // Get correct Student ID
+            myStdId = allStudents[studentIndex].id;
         }
 
-        // އައު ކޯޑު: ސުޕަވައިޒަރަށް ފެންނާނެހެން ޓާސްކް ކްރިއޭޓްކުރުން
         const logTask = { 
             id: 'log_' + Date.now(), 
             title: 'Daily Log: ' + dropdown.options[dropdown.selectedIndex].text, 
@@ -1252,7 +1251,7 @@
             targetUser: myStdId, 
             subTasks: [], 
             totalPct: 100,
-            status: 'pending_approval' // އެޕްރޫވަލް އަށް ފޮނުވުން
+            status: 'pending_approval' 
         };
         globalTasks.push(logTask);
 
@@ -1269,7 +1268,6 @@
         triggerManualSave();
         dropdown.value = ""; document.getElementById('dailyLogDetails').innerHTML = "";
         
-        // ޓާސްކް ލިސްޓް އަޕްޑޭޓް ކުރުން
         renderUnifiedTasks();
     }
 
@@ -1277,7 +1275,6 @@
         if(currentRole !== 'student') return;
         
         let cUserStr = currentUser.trim().toLowerCase();
-        // ނަން ނުވަތަ އައިޑީ މެޗްކުރާގޮތަށް ބަދަލުކުރުން
         let myStd = allStudents.find(s => 
             s.name.trim().toLowerCase().includes(cUserStr) || 
             s.id.trim().toLowerCase() === cUserStr
@@ -1464,8 +1461,9 @@
                 else {
                     let std = allStudents.find(s => s.id.toLowerCase() === tUser);
                     if (std) {
-                        if (currentRole === 'lecturer' && std.sup.toLowerCase().includes(cUser)) needsMyApproval = true;
-                        if (currentRole === 'master' && std.master.toLowerCase().includes(cUser)) needsMyApproval = true;
+                        if (isMyStudent(std) && (currentRole === 'lecturer' || currentRole === 'master')) {
+                            needsMyApproval = true;
+                        }
                     }
                 }
             }
@@ -1557,18 +1555,17 @@
         let hasForms = false;
 
         allStudents.forEach(st => {
-            let canView = false;
-            const cUserRaw = document.getElementById('username').value.trim().toLowerCase();
-            const cUser = currentUser.toLowerCase().trim();
-            
-            if (currentRole === 'admin') canView = true;
-            else if (currentRole === 'lecturer' && st.sup && (st.sup.toLowerCase().includes(cUser) || cUser.includes(st.sup.toLowerCase().trim()) || cUserRaw.includes(st.sup.toLowerCase().replace(/\s/g,'')))) canView = true;
-            else if (currentRole === 'master' && st.master && (st.master.toLowerCase().includes(cUser) || cUser.includes(st.master.toLowerCase().trim()))) canView = true;
-            else if (currentRole === 'student' && st.id === (allStudents.find(s=>s.name===currentUser || s.id===currentUser)||{}).id) canView = true;
+            if (!isMyStudent(st)) return; 
 
-            if (!canView) return;
+            let addRow = (obsName, marks, stdId, ownerRole) => {
+                let roleCanView = false;
+                if (currentRole === 'admin') roleCanView = true;
+                else if (currentRole === 'lecturer' && ownerRole === 'lecturer') roleCanView = true;
+                else if (currentRole === 'master' && ownerRole === 'master') roleCanView = true;
+                else if (currentRole === 'student') roleCanView = true;
 
-            let addRow = (obsName, marks, stdId) => {
+                if (!roleCanView) return;
+
                 let numMarks = parseInt(marks);
                 if(!isNaN(numMarks) && numMarks > 0) {
                     hasForms = true;
@@ -1584,14 +1581,14 @@
                 }
             };
 
-            addRow("TP1 - Obs 1", st.tp1 ? st.tp1[0] : null, st.id); 
-            addRow("TP1 - Obs 2", st.tp1 ? st.tp1[1] : null, st.id); 
-            addRow("TP1 - Obs 3", st.tp1 ? st.tp1[2] : null, st.id);
-            addRow("TP2 - Obs 1", st.tp2 ? st.tp2[0] : null, st.id); 
-            addRow("TP2 - Obs 2", st.tp2 ? st.tp2[1] : null, st.id); 
-            addRow("TP2 - Obs 3", st.tp2 ? st.tp2[2] : null, st.id);
-            addRow("Portfolio Evaluation", st.portfolioScore, st.id);
-            addRow("Master Teacher Final", st.masterScore, st.id);
+            addRow("TP1 - Obs 1", st.tp1 ? st.tp1[0] : null, st.id, 'lecturer'); 
+            addRow("TP1 - Obs 2", st.tp1 ? st.tp1[1] : null, st.id, 'lecturer'); 
+            addRow("TP1 - Obs 3", st.tp1 ? st.tp1[2] : null, st.id, 'lecturer');
+            addRow("TP2 - Obs 1", st.tp2 ? st.tp2[0] : null, st.id, 'lecturer'); 
+            addRow("TP2 - Obs 2", st.tp2 ? st.tp2[1] : null, st.id, 'lecturer'); 
+            addRow("TP2 - Obs 3", st.tp2 ? st.tp2[2] : null, st.id, 'lecturer');
+            addRow("Portfolio Evaluation", st.portfolioScore, st.id, 'lecturer');
+            addRow("Master Teacher Final", st.masterScore, st.id, 'master');
         });
         
         if(!hasForms) {
