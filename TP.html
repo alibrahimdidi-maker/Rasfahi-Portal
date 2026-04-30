@@ -7,6 +7,10 @@
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 
     <style>
         /* =========================================================
@@ -203,7 +207,7 @@
                 <input type="password" id="password" placeholder="@7791550" value="@7791550">
             </div>
             
-            <button class="btn-login" onclick="handleLogin()"><i class="fas fa-sign-in-alt"></i> Login Securely</button>
+            <button class="btn-login" id="loginBtn" onclick="handleLogin()"><i class="fas fa-sign-in-alt"></i> Login Securely</button>
             <p id="login-error" style="color:#FF6B6B; margin-top:15px; display:none; font-weight:bold; font-family:Arial; text-align:center;">Invalid Credentials or Email not found!</p>
             
             <div class="copyright-footer-en">
@@ -229,8 +233,7 @@
                 <button onclick="switchLanguage('ar')">عربي</button>
             </div>
             <div class="status-indicators">
-                <button class="action-btn small" style="background:#0B6623; border:1px solid #fff;" onclick="manualLocalSave()"><i class="fas fa-save"></i> <span lang-key="btnLocalSave">ލޯކަލް ސޭވް</span></button>
-                <button class="action-btn small" style="background:#D4AF37; color:#0A1128; font-weight:bold; border:1px solid #fff;" onclick="manualCloudSync()"><i class="fas fa-cloud-upload-alt"></i> <span lang-key="btnCloudSync">ކްލައުޑް ސިންކް</span></button>
+                <button class="action-btn small" style="background:#0B6623; border:1px solid #fff;" onclick="manualCloudSync()"><i class="fas fa-cloud-upload-alt"></i> <span lang-key="btnCloudSync">ކްލައުޑް ސިންކް</span></button>
                 <span id="sync-status" style="color:var(--royal-gold); margin-left:10px; font-size:12px; font-weight:normal;"></span>
                 <button class="action-btn small" style="background:#8b0000; border:1px solid var(--royal-gold); margin-left:10px;" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
             </div>
@@ -723,17 +726,40 @@
     }
     verifyLicense();
 
-    // --- REALTIME SYNC (Cross-Tab Broadcast) ---
-    const syncChannel = new BroadcastChannel('rasfahi_sync_channel');
-    syncChannel.onmessage = function(event) {
-        if(event.data === 'data_updated') {
-            loadFromLocal();
-            updateAllViews();
-            const statusEl = document.getElementById('sync-status');
-            statusEl.innerHTML = currentLang==='dv'?'<i class="fas fa-check-circle"></i> އަޕްޑޭޓްވެއްޖެ':'<i class="fas fa-check-circle"></i> Synced';
-            setTimeout(() => { statusEl.innerHTML = ''; }, 2000);
-        }
+    // --- REALTIME SYNC (Firebase Setup) ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyAIBe_V6ZGrbtHChe1VagOXNowcYnwayR0",
+      authDomain: "tp-evaluation-software.firebaseapp.com",
+      projectId: "tp-evaluation-software",
+      storageBucket: "tp-evaluation-software.firebasestorage.app",
+      messagingSenderId: "379498110766",
+      appId: "1:379498110766:web:6b7dc3995dadbca97624bf",
+      measurementId: "G-CVMZGWH7PB"
     };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    function setupRealtimeSync() {
+        db.collection('rasfahi_db').doc('main_state').onSnapshot((doc) => {
+            if (doc.exists && currentUser !== '') {
+                let data = doc.data();
+                allStudents = data.students || [];
+                globalTasks = data.tasks || [];
+                uniqueSchools = new Set(data.schools || []);
+                uniqueSupervisors = new Set(data.sups || []);
+                uniqueMasters = new Set(data.masters || []);
+                userDirectory = data.directory || {};
+                
+                updateAllViews();
+                
+                const statusEl = document.getElementById('sync-status');
+                if(statusEl) {
+                    statusEl.innerHTML = currentLang==='dv'?'<i class="fas fa-check-circle"></i> ކްލައުޑުން އަޕްޑޭޓްވެއްޖެ':'<i class="fas fa-check-circle"></i> Cloud Synced';
+                    setTimeout(() => { statusEl.innerHTML = ''; }, 2000);
+                }
+            }
+        });
+    }
 
     function updateAllViews() {
         populateDatalists();
@@ -745,7 +771,7 @@
         updateStudentMyMarks();
     }
 
-    // --- 1. LOCAL STORAGE & DATA PREP ---
+    // --- 1. LOCAL STORAGE & DATA PREP (Now Cloud) ---
     let allStudents = [];
     let globalTasks = []; 
     let uniqueSchools = new Set();
@@ -753,29 +779,55 @@
     let uniqueMasters = new Set();
     let userDirectory = {};
     
-    function saveToLocal() {
+    async function saveToLocal() {
         localStorage.setItem('rasfahi_students', JSON.stringify(allStudents));
         localStorage.setItem('rasfahi_tasks', JSON.stringify(globalTasks));
         localStorage.setItem('rasfahi_schools', JSON.stringify(Array.from(uniqueSchools)));
         localStorage.setItem('rasfahi_sups', JSON.stringify(Array.from(uniqueSupervisors)));
         localStorage.setItem('rasfahi_masters', JSON.stringify(Array.from(uniqueMasters)));
         localStorage.setItem('rasfahi_directory', JSON.stringify(userDirectory));
-        syncChannel.postMessage('data_updated');
+        
+        try {
+            await db.collection('rasfahi_db').doc('main_state').set({
+                students: allStudents,
+                tasks: globalTasks,
+                schools: Array.from(uniqueSchools),
+                sups: Array.from(uniqueSupervisors),
+                masters: Array.from(uniqueMasters),
+                directory: userDirectory
+            });
+        } catch(e) {
+            console.error("Firebase Save Error:", e);
+        }
     }
 
-    function loadFromLocal() {
-        const st = localStorage.getItem('rasfahi_students');
-        const ts = localStorage.getItem('rasfahi_tasks');
-        const sc = localStorage.getItem('rasfahi_schools');
-        const su = localStorage.getItem('rasfahi_sups');
-        const ma = localStorage.getItem('rasfahi_masters');
-        const ud = localStorage.getItem('rasfahi_directory');
-        if(st) allStudents = JSON.parse(st);
-        if(ts) globalTasks = JSON.parse(ts);
-        if(sc) uniqueSchools = new Set(JSON.parse(sc));
-        if(su) uniqueSupervisors = new Set(JSON.parse(su));
-        if(ma) uniqueMasters = new Set(JSON.parse(ma));
-        if(ud) userDirectory = JSON.parse(ud);
+    async function loadFromFirebase() {
+        try {
+            const doc = await db.collection('rasfahi_db').doc('main_state').get();
+            if (doc.exists) {
+                let data = doc.data();
+                if(data.students) allStudents = data.students;
+                if(data.tasks) globalTasks = data.tasks;
+                if(data.schools) uniqueSchools = new Set(data.schools);
+                if(data.sups) uniqueSupervisors = new Set(data.sups);
+                if(data.masters) uniqueMasters = new Set(data.masters);
+                if(data.directory) userDirectory = data.directory;
+            }
+        } catch (error) {
+            console.log("Firebase Load Error:", error);
+            const st = localStorage.getItem('rasfahi_students');
+            const ts = localStorage.getItem('rasfahi_tasks');
+            const sc = localStorage.getItem('rasfahi_schools');
+            const su = localStorage.getItem('rasfahi_sups');
+            const ma = localStorage.getItem('rasfahi_masters');
+            const ud = localStorage.getItem('rasfahi_directory');
+            if(st) allStudents = JSON.parse(st);
+            if(ts) globalTasks = JSON.parse(ts);
+            if(sc) uniqueSchools = new Set(JSON.parse(sc));
+            if(su) uniqueSupervisors = new Set(JSON.parse(su));
+            if(ma) uniqueMasters = new Set(JSON.parse(ma));
+            if(ud) userDirectory = JSON.parse(ud);
+        }
     }
 
     // --- CORE ROBUST MATCHING LOGIC ---
@@ -1014,12 +1066,15 @@
         }
     }
 
-    function handleLogin() {
+    async function handleLogin() {
         if(document.getElementById('username').value && document.getElementById('password').value === "@7791550") {
+            const btn = document.getElementById('loginBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            
             currentRole = document.getElementById('userRole').value;
             let rawUser = document.getElementById('username').value.trim().toLowerCase();
             
-            loadFromLocal();
+            await loadFromFirebase();
             
             if (rawUser === 'admin@rasfahi.com' || rawUser === 'admin') {
                 currentUser = 'Administrator';
@@ -1043,15 +1098,12 @@
             initSignaturePads(); 
             switchLanguage('dv'); 
             
+            setupRealtimeSync();
+            
             if(document.getElementById('obsDate')) document.getElementById('obsDate').valueAsDate = new Date();
         } else {
             document.getElementById('login-error').style.display = 'block';
         }
-    }
-
-    function manualLocalSave() {
-        saveToLocal();
-        alert(currentLang==='dv' ? "ލޯކަލް ބްރައުޒަރަށް ސޭވްކުރެވިއްޖެ!" : "Data saved locally successfully!");
     }
 
     function manualCloudSync() {
@@ -1464,8 +1516,13 @@
             }
 
             // Check if it needs my approval (ONLY if I created the task)
-            if (task.status === 'pending_approval' && task.creator.trim().toLowerCase() === cUser) {
-                needsMyApproval = true;
+            if (task.status === 'pending_approval') {
+                if (task.creator.trim().toLowerCase() === cUser) {
+                    needsMyApproval = true;
+                }
+                if (currentRole === 'admin') {
+                    needsMyApproval = true;
+                }
             }
 
             let statusText = "";
