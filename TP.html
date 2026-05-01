@@ -965,16 +965,13 @@
             return;
         }
         
-        // Use a temporary container appended to body to avoid CSS inherited issues like overflow hidden on body
         let tempContainer = document.createElement('div');
         tempContainer.style.position = 'absolute';
-        tempContainer.style.left = '0';
+        tempContainer.style.left = '-9999px';
         tempContainer.style.top = '0';
-        tempContainer.style.zIndex = '-9999';
-        tempContainer.style.opacity = '0.01'; // Invisible to user, but explicitly renders on html2canvas!
-        
-        // Force width based on orientation to prevent clipping
-        tempContainer.style.width = orientation === 'landscape' ? '1100px' : '850px'; 
+        tempContainer.style.width = orientation === 'landscape' ? '1100px' : '850px';
+        tempContainer.style.background = '#ffffff';
+        tempContainer.style.color = '#000000';
         tempContainer.innerHTML = htmlContent;
         document.body.appendChild(tempContainer);
 
@@ -1049,6 +1046,9 @@
     function exportExactPDF() {
         const formEl = document.getElementById('observation-form');
         const clone = formEl.cloneNode(true);
+        clone.style.display = 'block';
+        clone.style.opacity = '1';
+        clone.style.visibility = 'visible';
 
         const originalInputs = formEl.querySelectorAll('input, select, textarea');
         const clonedInputs = clone.querySelectorAll('input, select, textarea');
@@ -1075,7 +1075,7 @@
         document.querySelectorAll('style').forEach(s => stylesHTML += s.outerHTML);
 
         let html = `
-        <div style="width: 800px; padding:20px; background:#fff; font-family:'Faruma', Arial, sans-serif; direction:${document.body.dir};">
+        <div style="width: 800px; padding:20px; background:#fff; font-family:'Faruma', Arial, sans-serif; direction:${document.body.dir}; color:#000;">
             ${stylesHTML}
             <style>
                 /* Neutralize specific app layout constraints for perfect PDF printing */
@@ -1174,12 +1174,12 @@
         let namePart = last ? `${first}.${last}` : first;
         
         if (role === 'student') {
-            let idNum = id ? id.toString().slice(-4) : '0000';
-            return `su${idNum}.${namePart}@rasfahi.com`;
+            let idDetails = id ? id.toString().replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '0000';
+            return `stu.${idDetails}@rasfahi.com`;
         } else if (role === 'lecturer') {
-            return `su.${namePart}@rasfahi.com`;
+            return `sup.${namePart}@rasfahi.com`;
         } else if (role === 'master') {
-            return `ma.${namePart}@rasfahi.com`;
+            return `mst.${namePart}@rasfahi.com`;
         }
         return '';
     }
@@ -1247,10 +1247,10 @@
         if(email.includes('admin') || email.includes('coordinator') || email.includes('agisa') || email.includes('visama')) {
             roleSelect.value = 'admin';
         }
-        else if(email.startsWith('su.') || email.includes('lecturer') || email.includes('supervisor')) {
+        else if(email.startsWith('sup.') || email.includes('lecturer') || email.includes('supervisor')) {
             roleSelect.value = 'lecturer';
         }
-        else if(email.startsWith('ma.') || email.includes('master')) {
+        else if(email.startsWith('mst.') || email.includes('master')) {
             roleSelect.value = 'master';
         }
         else {
@@ -1474,14 +1474,21 @@
         }
 
         let completedTasks = 0, pendingTasks = 0;
-        let myTasks = globalTasks.filter(t => t.targetUser === currentUser || t.targetUser === 'all');
-        if(currentRole !== 'student') {
-            myTasks = globalTasks.filter(t => t.creator === currentUser);
-        }
-        
-        myTasks.forEach(t => {
-            if(t.status === 'approved') completedTasks++;
-            else pendingTasks++;
+        let myEmailForTask = document.getElementById('username').value.trim().toLowerCase();
+        let myStdIdTask = allStudents.find(s => s.name === currentUser || s.id.toLowerCase() === myEmailForTask)?.id || '';
+
+        globalTasks.forEach(t => {
+            let isAssignedToMe = false;
+            if (t.targetUser === 'all' && t.targetRole === currentRole) isAssignedToMe = true;
+            else if (t.targetRole === currentRole) {
+                if (currentRole === 'student' && (t.targetUser === myStdIdTask || t.targetUser === currentUser)) isAssignedToMe = true;
+                if ((currentRole === 'lecturer' || currentRole === 'master' || currentRole === 'admin') && (t.targetUser === currentUser || t.targetUser === myEmailForTask)) isAssignedToMe = true;
+            }
+
+            if(isAssignedToMe) {
+                if(t.status === 'approved') completedTasks++;
+                else pendingTasks++;
+            }
         });
 
         if (studentPieInstance) {
@@ -1735,9 +1742,9 @@
             // 1. Check Assignment
             if (task.targetUser === 'all' && task.targetRole === myRole) {
                 isAssignedToMe = true;
-            } else {
-                if (myRole === 'student' && task.targetRole === 'student' && (task.targetUser === myStdId || task.targetUser === myName)) isAssignedToMe = true;
-                if ((myRole === 'lecturer' || myRole === 'master' || myRole === 'admin') && task.targetRole === myRole && (task.targetUser === myName || task.targetUser === myEmail)) isAssignedToMe = true;
+            } else if (task.targetRole === myRole) {
+                if (myRole === 'student' && (task.targetUser === myStdId || task.targetUser === myName)) isAssignedToMe = true;
+                if ((myRole === 'lecturer' || myRole === 'master' || myRole === 'admin') && (task.targetUser === myName || task.targetUser === myEmail)) isAssignedToMe = true;
             }
 
             // 2. Check Approval
@@ -1785,7 +1792,9 @@
                         <button class="action-btn small" style="background:#FFA500; width:100%;" onclick="completeFullTask('${task.id}')"><i class="fas fa-paper-plane"></i> ${currentLang==='dv'?'ފޮނުވާ':'Submit Work'}</button>
                     </div>`;
             } else if (isAssignedToMe && (task.status === 'pending_approval' || task.status === 'approved')) {
-                subHtml += `<button class="action-btn small" style="background:#8b0000; width:100%; margin-top:10px;" onclick="editStudentTask('${task.id}')"><i class="fas fa-edit"></i> Edit Submission (Requires Reason)</button>`;
+                if(currentRole === 'student') {
+                     subHtml += `<button class="action-btn small" style="background:#8b0000; width:100%; margin-top:10px;" onclick="editStudentTask('${task.id}')"><i class="fas fa-edit"></i> Edit Submission (Requires Reason)</button>`;
+                }
             }
 
             let cardHtml = `
