@@ -337,7 +337,7 @@
                     </div>
 
                     <div id="tasksNeedingApprovalSection" style="display:none;">
-                        <h3 style="color:#8b0000; margin-bottom:15px; margin-top:30px;"><i class="fas fa-check-circle"></i> ދަރިވަރުން ފޮނުވާފައިވާ ޓާސްކްތައް (Approve ކުރުމަށް)</h3>
+                        <h3 style="color:#8b0000; margin-bottom:15px; margin-top:30px;"><i class="fas fa-check-circle"></i> ފޮނުވާފައިވާ ޓާސްކްތައް (Approve ކުރުމަށް)</h3>
                         <div class="card-grid" id="tasksApprovalArea">
                             <p style="color:#666;">No tasks awaiting your approval.</p>
                         </div>
@@ -620,9 +620,10 @@
                             <div class="form-group"><label lang-key="lblModule">މޮޑިއުލް (މެނުއަލް)</label><input type="text" id="obsModule" placeholder="މެނުއަލްކޮށް ޓައިޕްކުރައްވާ"></div>
                             <div class="form-group"><label lang-key="lblObsType">އޮބްޒަވޭޝަން ވައްތަރު (ޓީޕީ 1 / 2)</label>
                                 <select id="obsTypeSelect" style="border:2px solid #1a237e; font-weight:bold;">
-                                    <option value="TP1-Obs1">TP1 - Obs 1</option><option value="TP1-Obs2">TP1 - Obs 2</option><option value="TP1-Obs3">TP1 - Obs 3</option>
-                                    <option value="TP2-Obs1">TP2 - Obs 1</option><option value="TP2-Obs2">TP2 - Obs 2</option><option value="TP2-Obs3">TP2 - Obs 3</option>
-                                    <option value="MasterFinal">Master Teacher Final</option>
+                                    <!-- Options updated to match standard string formatting exactly! -->
+                                    <option value="TP1 - Obs 1">TP1 - Obs 1</option><option value="TP1 - Obs 2">TP1 - Obs 2</option><option value="TP1 - Obs 3">TP1 - Obs 3</option>
+                                    <option value="TP2 - Obs 1">TP2 - Obs 1</option><option value="TP2 - Obs 2">TP2 - Obs 2</option><option value="TP2 - Obs 3">TP2 - Obs 3</option>
+                                    <option value="Master Teacher Final">Master Teacher Final</option>
                                 </select>
                             </div>
                             <div class="form-group"><label lang-key="lblMarksStatus">މާކުސް ދެވޭ / ނުދެވޭ</label>
@@ -1602,7 +1603,12 @@
             task.submissionText = content.value.trim();
         }
         
-        if (currentRole === 'student') {
+        let cUserStr = currentUser.trim().toLowerCase();
+        let creatorStr = task.creator.trim().toLowerCase();
+        let rawU = document.getElementById('username').value.trim().toLowerCase();
+
+        // If the current user completing the task is NOT the creator, it goes to creator for approval.
+        if (creatorStr !== cUserStr && creatorStr !== rawU) {
             task.status = 'pending_approval';
         } else {
             task.status = 'approved';
@@ -1665,35 +1671,25 @@
 
         globalTasks.forEach(task => {
             let isAssignedToMe = false;
-            let isCreatedByMe = (task.creator.trim().toLowerCase() === cUserStr);
+            let isCreatedByMe = (task.creator.trim().toLowerCase() === cUserStr || task.creator.trim().toLowerCase() === rawU);
             let needsMyApproval = false;
 
             const tRole = task.targetRole;
             const tUser = task.targetUser.trim().toLowerCase();
 
             // 1. Check if assigned to ME based on role
-            if (currentRole === 'student' && tRole === 'student') {
-                if (tUser === 'all' || tUser === myStdId || tUser === cUserStr) isAssignedToMe = true;
-            } else if (currentRole === 'lecturer' && tRole === 'lecturer') {
-                if (tUser === 'all' || tUser === cUserStr) isAssignedToMe = true;
-            } else if (currentRole === 'master' && tRole === 'master') {
-                if (tUser === 'all' || tUser === cUserStr) isAssignedToMe = true;
+            if (tUser === 'all') {
+                if (currentRole === tRole) isAssignedToMe = true;
+            } else {
+                if (currentRole === 'student' && tRole === 'student' && (tUser === myStdId || tUser === cUserStr)) isAssignedToMe = true;
+                else if (currentRole === 'lecturer' && tRole === 'lecturer' && tUser === cUserStr) isAssignedToMe = true;
+                else if (currentRole === 'master' && tRole === 'master' && tUser === cUserStr) isAssignedToMe = true;
+                else if (currentRole === 'admin' && tRole === 'admin' && tUser === cUserStr) isAssignedToMe = true;
             }
 
-            // 2. Check if I need to approve it (submitted by my students)
-            if (task.status === 'pending_approval' && tRole === 'student') {
-                let taskStd = allStudents.find(s => s.id.toLowerCase() === tUser || s.name.toLowerCase() === tUser);
-                if (!taskStd && task.creator.toLowerCase() === tUser) {
-                    taskStd = allStudents.find(s => s.id.toLowerCase() === task.targetUser.toLowerCase());
-                }
-
-                if (currentRole === 'admin') {
-                    needsMyApproval = true;
-                } else if (currentRole === 'lecturer') {
-                    if (taskStd && taskStd.sup && taskStd.sup.toLowerCase().includes(cUserStr)) needsMyApproval = true;
-                } else if (currentRole === 'master') {
-                    if (taskStd && taskStd.master && taskStd.master.toLowerCase().includes(cUserStr)) needsMyApproval = true;
-                }
+            // 2. Check if I need to approve it (submitted to me, usually by someone I assigned it to)
+            if (task.status === 'pending_approval' && isCreatedByMe) {
+                needsMyApproval = true;
             }
 
             let statusText = "";
@@ -1721,15 +1717,16 @@
                 });
             }
             
-            if (isAssignedToMe && task.status === 'pending' && currentRole === 'student') {
+            // Editable only if I am the assignee
+            if (isAssignedToMe && task.status === 'pending') {
                 subHtml += `
                     <div style="margin-top:10px;">
                         <textarea id="task_content_${task.id}" placeholder="Write submission notes / links here..." style="width:100%; height:60px; padding:10px; border:1px solid #ccc; border-radius:4px; font-family:inherit; margin-bottom:5px; box-sizing:border-box;"></textarea>
                         <input type="file" style="width:100%; font-size:11px; margin-bottom:5px;" accept=".pdf,.doc,.docx">
                         <button class="action-btn small" style="background:#FFA500; width:100%;" onclick="completeFullTask('${task.id}')"><i class="fas fa-paper-plane"></i> ${currentLang==='dv'?'ފޮނުވާ':'Submit Work'}</button>
                     </div>`;
-            } else if (isAssignedToMe && (task.status === 'pending_approval' || task.status === 'approved') && currentRole === 'student') {
-                subHtml += `<button class="action-btn small" style="background:#8b0000; width:100%; margin-top:10px;" onclick="editStudentTask('${task.id}')"><i class="fas fa-edit"></i> Edit Submission</button>`;
+            } else if (isAssignedToMe && (task.status === 'pending_approval' || task.status === 'approved')) {
+                subHtml += `<button class="action-btn small" style="background:#8b0000; width:100%; margin-top:10px;" onclick="editStudentTask('${task.id}')"><i class="fas fa-edit"></i> Edit Submission (Requires Reason)</button>`;
             }
 
             let cardHtml = `
@@ -1765,10 +1762,10 @@
                     <span class="task-badge" style="background:#f0f7ff; color:#3b82f6;">Pending Approval</span>
                     <div style="width:100%; margin-top:20px;">
                         <h4 style="margin:0; color:#1a237e;">${task.title}</h4>
-                        <p style="font-size:12px; color:#666; margin:5px 0;">Student ID: ${task.targetUser}</p>
+                        <p style="font-size:12px; color:#666; margin:5px 0;">Assignee: ${task.targetUser}</p>
                         ${submissionDetails}
                         ${logsHtml}
-                        <button class="action-btn small" style="background:var(--royal-green); width:100%; margin-top:10px;" onclick="approveTaskBySupervisor('${task.id}')"><i class="fas fa-check"></i> Approve (No Edit/Delete)</button>
+                        <button class="action-btn small" style="background:var(--royal-green); width:100%; margin-top:10px;" onclick="approveTaskBySupervisor('${task.id}')"><i class="fas fa-check"></i> Approve (Read-Only)</button>
                     </div>
                 </div>`;
                 tasksApprovalArea.innerHTML += approvalCard;
@@ -1802,7 +1799,7 @@
                 if (st.id.toLowerCase() === rawU || st.name.toLowerCase() === cUserStr) roleCanView = true;
             }
 
-            if (!roleCanView) return; // Skip showing anything for this student if no permission
+            if (!roleCanView) return;
 
             let addRow = (obsName, marks, stdId, ownerRole) => {
                 let numMarks = parseFloat(marks);
@@ -1830,6 +1827,7 @@
                 }
             };
 
+            // Exactly matched strings for Form rendering correlation!
             addRow("TP1 - Obs 1", st.tp1 ? st.tp1[0] : null, st.id, 'lecturer'); 
             addRow("TP1 - Obs 2", st.tp1 ? st.tp1[1] : null, st.id, 'lecturer'); 
             addRow("TP1 - Obs 3", st.tp1 ? st.tp1[2] : null, st.id, 'lecturer');
@@ -1962,7 +1960,6 @@
         if(stIndex === -1) return;
         let st = allStudents[stIndex];
 
-        // މާކުސް ބަދަލުކުރާނަމަ އެކަނި މާކުސް އަޕްޑޭޓްކުރުން
         if(newScore !== null) {
             if (currentAmendTarget.obsName === "TP1 - Obs 1") st.tp1[0] = newScore;
             else if (currentAmendTarget.obsName === "TP1 - Obs 2") st.tp1[1] = newScore;
@@ -1982,7 +1979,6 @@
             }
         }
 
-        // އެމެންޑް ކުރިކަމުގެ ލޮގް ސޭވްކުރުން
         if(!st.amendLogs) st.amendLogs = [];
         st.amendLogs.push({
             date: new Date().toISOString().split('T')[0],
@@ -2190,9 +2186,10 @@
         const dateInput = document.getElementById('obsDate').value;
         st.lastUpdated = dateInput ? dateInput : new Date().toISOString().split('T')[0];
 
-        if (obsType === "TP1-Obs1") st.tp1[0] = total; else if (obsType === "TP1-Obs2") st.tp1[1] = total; else if (obsType === "TP1-Obs3") st.tp1[2] = total;
-        else if (obsType === "TP2-Obs1") st.tp2[0] = total; else if (obsType === "TP2-Obs2") st.tp2[1] = total; else if (obsType === "TP2-Obs3") st.tp2[2] = total;
-        else if (obsType === "MasterFinal") st.masterScore = total;
+        // Updated mapping strings to match EXACTLY with select options
+        if (obsType === "TP1 - Obs 1") st.tp1[0] = total; else if (obsType === "TP1 - Obs 2") st.tp1[1] = total; else if (obsType === "TP1 - Obs 3") st.tp1[2] = total;
+        else if (obsType === "TP2 - Obs 1") st.tp2[0] = total; else if (obsType === "TP2 - Obs 2") st.tp2[1] = total; else if (obsType === "TP2 - Obs 3") st.tp2[2] = total;
+        else if (obsType === "Master Teacher Final") st.masterScore = total;
 
         st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
         st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
