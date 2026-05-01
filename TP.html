@@ -443,20 +443,31 @@
                     </div>
                 </div>
 
+                <!-- AMEND MODAL WITH DROPDOWN -->
                 <div id="amendModal" class="modal-overlay">
                     <div class="modal-box" style="direction:inherit;">
-                        <h3 style="color:#8b0000; margin-top:0;"><i class="fas fa-edit"></i> މާކުސް ބަދަލުކުރުން (Amend)</h3>
+                        <h3 style="color:#8b0000; margin-top:0;"><i class="fas fa-edit"></i> ފޯމު އެމެންޑް ކުރުން (Amend)</h3>
                         <p id="amendStudentName" style="font-weight:bold; color:#1a237e; margin-bottom:5px;"></p>
                         <p id="amendObsName" style="font-size:14px; color:#666; margin-top:0;"></p>
+                        
                         <div class="form-group" style="margin-top:15px;">
-                            <label>އައު މާކުސް (New Score):</label>
-                            <input type="number" id="amendNewScore" min="1" max="275" placeholder="Enter new validated score">
+                            <label>އައު މާކުސް (New Score - Optional):</label>
+                            <input type="number" id="amendNewScore" min="1" max="275" placeholder="މާކުސް ބަދަލުކުރާނަމަ ޖައްސަވާ">
                         </div>
+                        
                         <div class="form-group" style="margin-top:10px;">
                             <label>ބަދަލުކުރަން ބޭނުންވާ ސަބަބު (Reason):</label>
-                            <textarea id="amendReason" style="height:80px;"></textarea>
+                            <select id="amendReasonSelect" onchange="toggleAmendReasonText()" style="padding:10px; border-radius:4px; border:1px solid #ccc; font-family:inherit;">
+                                <option value="">-- ސަބަބެއް ޚިޔާރުކުރައްވާ --</option>
+                                <option value="މާކުސް އެމެންޑް ކުރުން / ކުށެއް ރަނގަޅުކުރުން">މާކުސް އެމެންޑް ކުރުން / ކުށެއް ރަނގަޅުކުރުން</option>
+                                <option value="ތާރީޚް ބަދަލުކުރުން">ތާރީޚް ބަދަލުކުރުން</option>
+                                <option value="ކޮމެންޓް ނުވަތަ ފީޑްބެކް ބަދަލުކުރުން">ކޮމެންޓް ނުވަތަ ފީޑްބެކް ބަދަލުކުރުން</option>
+                                <option value="އެހެނިހެން">އެހެނިހެން ފަދަ...</option>
+                            </select>
+                            <textarea id="amendReasonText" style="height:60px; margin-top:10px; display:none;" placeholder="ތަފްސީލް ލިޔުއްވާ..."></textarea>
                         </div>
-                        <div class="form-group">
+                        
+                        <div class="form-group" style="margin-top:10px;">
                             <label>ވެރިފިކޭޝަން ކޯޑު:</label>
                             <input type="text" id="amendCode" placeholder="Enter Code (AMEND2026)">
                         </div>
@@ -796,7 +807,7 @@
             lblObserverComment: "ملاحظات إضافية:", phComment: "اكتب الملاحظات يدويًا...", btnSaveMarks: "حفظ الدرجات سحابياً",
             adminDataUpload: "رفع وتصدير البيانات", adminStudentCsv: "رفع / تحميل ملف الطلاب", adminDummy: "تحميل بيانات 300 طالب", adminBtnUpload: "رفع", adminHardReset: "إعادة ضبط النظام", adminResetDesc: "يتطلب تحقق من 3 خطوات لمسح البيانات.", adminBtnReset: "بدء إعادة الضبط", lblLecInfo: "معلومات المحاضرين",
             lblTopic: "موضوع (يدوي)", lblModule: "وحدة (يدوي)", lblGrade: "صف", lblSchool: "مدرسة (قائمة)", lblObsType: "نوع الملاحظة", lblMarksStatus: "حالة الدرجات", optMarksEnable: "مفعل (نهائي)", optMarksDisable: "مسودة (لا يوجد درجات)", phSearchStd: "البحث عن طالب (تعبئة تلقائية)...", lblDate: "تاريخ",
-            lblGlobalTasks: "التقدم العالمي في المهام", lblMyTasks: "الالمهام المعينة لي", lblCreatedTasks: "المهام التي قمت بتعيينها"
+            lblGlobalTasks: "التقدم العالمي في المهام", lblMyTasks: "المهام المعينة لي", lblCreatedTasks: "المهام التي قمت بتعيينها"
         }
     };
 
@@ -1540,17 +1551,14 @@
         const myActionableArea = document.getElementById('myActionableTasksArea');
         const tasksCreatedByMeArea = document.getElementById('tasksCreatedByMeArea');
         const tasksApprovalArea = document.getElementById('tasksApprovalArea');
-        const globalAdminTable = document.getElementById('adminGlobalTaskListBody');
         
         if (myActionableArea) myActionableArea.innerHTML = '';
         if (tasksCreatedByMeArea) tasksCreatedByMeArea.innerHTML = '';
         if (tasksApprovalArea) tasksApprovalArea.innerHTML = '';
-        if (globalAdminTable) globalAdminTable.innerHTML = '';
         
         let hasMyTasks = false;
         let hasCreatedTasks = false;
         let hasApprovalTasks = false;
-        let hasGlobalTasks = false;
 
         const cUser = (currentUser || '').trim().toLowerCase();
         const rawU = document.getElementById('username').value.trim().toLowerCase();
@@ -1568,14 +1576,14 @@
                     isAssignedToMe = true;
                 }
             } else if (currentRole === 'lecturer') {
-                if (task.targetRole === 'lecturer' && (tUser === 'all' || tUser === cUser)) isAssignedToMe = true;
+                if (task.targetRole === 'lecturer' && (tUser === 'all' || tUser.includes(cUser) || cUser.includes(tUser))) isAssignedToMe = true;
                 if (task.status === 'pending_approval' && isCreatedByMe) needsMyApproval = true;
                 if (task.status === 'pending_approval' && task.title.includes('Daily Log')) {
                     let std = allStudents.find(s => s.id === task.targetUser);
                     if (std && std.sup && std.sup.toLowerCase().includes(cUser)) needsMyApproval = true;
                 }
             } else if (currentRole === 'master') {
-                if (task.targetRole === 'master' && (tUser === 'all' || tUser === cUser)) isAssignedToMe = true;
+                if (task.targetRole === 'master' && (tUser === 'all' || tUser.includes(cUser) || cUser.includes(tUser))) isAssignedToMe = true;
                 if (task.status === 'pending_approval' && isCreatedByMe) needsMyApproval = true;
                 if (task.status === 'pending_approval' && task.title.includes('Daily Log')) {
                     let std = allStudents.find(s => s.id === task.targetUser);
@@ -1599,12 +1607,6 @@
             } else {
                 statusText = currentLang==='dv'?'ޕެންޑިންގ':'Pending';
                 badgeClass = 'pending'; bBg = '#FFE4B5'; bColor = '#8B6508';
-            }
-            
-            if (globalAdminTable) {
-                hasGlobalTasks = true;
-                let color = task.status === 'approved' ? 'green' : (task.status === 'pending_approval' ? 'blue' : 'orange');
-                globalAdminTable.innerHTML += `<tr><td>${task.title}</td><td>${task.targetUser} (${task.targetRole})</td><td style="color:${color}; font-weight:bold;">${task.totalPct}% - ${statusText}</td></tr>`;
             }
 
             let subHtml = '';
@@ -1673,9 +1675,6 @@
         if (!hasMyTasks && myActionableArea) myActionableArea.innerHTML = `<p style="color:#666;">${currentLang==='dv'?'އަދި އެއްވެސް ޓާސްކެއް ޙަވާލުކުރެވިފައެއް ނުވޭ.':'No tasks assigned to you yet.'}</p>`;
         if (!hasCreatedTasks && tasksCreatedByMeArea) tasksCreatedByMeArea.innerHTML = `<p style="color:#666;">${currentLang==='dv'?'އަދި އެއްވެސް ޓާސްކެއް އެސައިންކޮށްފައެއް ނުވޭ.':'You haven\'t assigned any tasks.'}</p>`;
         if (!hasApprovalTasks && tasksApprovalArea) tasksApprovalArea.innerHTML = `<p style="color:#666;">No tasks awaiting your approval.</p>`;
-        if (!hasGlobalTasks && globalAdminTable) globalAdminTable.innerHTML = `<tr><td colspan="3" style="color:#888;">No tasks generated yet.</td></tr>`;
-        
-        updateCharts();
     }
 
     function renderFormBank() {
@@ -1823,40 +1822,74 @@
         document.getElementById('amendStudentName').innerText = stdName;
         document.getElementById('amendObsName').innerText = obsName;
         document.getElementById('amendNewScore').value = '';
-        document.getElementById('amendReason').value = '';
+        document.getElementById('amendReasonSelect').value = '';
+        document.getElementById('amendReasonText').value = '';
+        document.getElementById('amendReasonText').style.display = 'none';
         document.getElementById('amendCode').value = '';
         document.getElementById('amendModal').style.display = 'flex';
     }
 
+    function toggleAmendReasonText() {
+        const val = document.getElementById('amendReasonSelect').value;
+        document.getElementById('amendReasonText').style.display = val === 'އެހެނިހެން' ? 'block' : 'none';
+    }
+
     function saveAmendment() {
-        const newScore = parseFloat(document.getElementById('amendNewScore').value);
-        const reason = document.getElementById('amendReason').value;
+        const newScoreStr = document.getElementById('amendNewScore').value;
+        const selectReason = document.getElementById('amendReasonSelect').value;
+        const textReason = document.getElementById('amendReasonText').value;
         const code = document.getElementById('amendCode').value;
         
-        if(isNaN(newScore) || newScore <= 0 || newScore > 275) { alert(currentLang==='dv'?'މާކުސް ރަނގަޅެއް ނޫން!':'Invalid Score!'); return; }
-        if(reason.trim().length < 5) { alert(currentLang==='dv'?'ސަބަބު ތަފްސީލުކޮށް ލިޔުއްވާ!':'Please provide a detailed reason.'); return; }
+        let finalReason = selectReason;
+        if(selectReason === 'އެހެނިހެން') finalReason = "އެހެނިހެން: " + textReason;
+        
+        if(!selectReason) { alert(currentLang==='dv'?'ސަބަބު ޚިޔާރުކުރައްވާ!':'Please select a reason.'); return; }
+        if(selectReason === 'އެހެނިހެން' && textReason.trim().length < 5) { alert(currentLang==='dv'?'ސަބަބު ތަފްސީލުކޮށް ލިޔުއްވާ!':'Please provide a detailed reason.'); return; }
         if(code !== "AMEND2026") { alert(currentLang==='dv'?'ވެރިފިކޭޝަން ކޯޑު ނުބައި! (ކޯޑަކީ: AMEND2026)':'Invalid verification code!'); return; }
         
+        let newScore = null;
+        if(newScoreStr.trim() !== '') {
+            newScore = parseFloat(newScoreStr);
+            if(isNaN(newScore) || newScore < 0 || newScore > 275) { alert(currentLang==='dv'?'މާކުސް ރަނގަޅެއް ނޫން!':'Invalid Score!'); return; }
+        }
+
         let stIndex = allStudents.findIndex(s => s.id === currentAmendTarget.id);
         if(stIndex === -1) return;
         let st = allStudents[stIndex];
 
-        if (currentAmendTarget.obsName === "TP1 - Obs 1") st.tp1[0] = newScore;
-        else if (currentAmendTarget.obsName === "TP1 - Obs 2") st.tp1[1] = newScore;
-        else if (currentAmendTarget.obsName === "TP1 - Obs 3") st.tp1[2] = newScore;
-        else if (currentAmendTarget.obsName === "TP2 - Obs 1") st.tp2[0] = newScore;
-        else if (currentAmendTarget.obsName === "TP2 - Obs 2") st.tp2[1] = newScore;
-        else if (currentAmendTarget.obsName === "TP2 - Obs 3") st.tp2[2] = newScore;
-        else if (currentAmendTarget.obsName === "Master Teacher Final") st.masterScore = newScore;
-        else if (currentAmendTarget.obsName === "Portfolio Evaluation") st.portfolioScore = newScore;
+        // މާކުސް ބަދަލުކުރާނަމަ އެކަނި މާކުސް އަޕްޑޭޓްކުރުން
+        if(newScore !== null) {
+            if (currentAmendTarget.obsName === "TP1 - Obs 1") st.tp1[0] = newScore;
+            else if (currentAmendTarget.obsName === "TP1 - Obs 2") st.tp1[1] = newScore;
+            else if (currentAmendTarget.obsName === "TP1 - Obs 3") st.tp1[2] = newScore;
+            else if (currentAmendTarget.obsName === "TP2 - Obs 1") st.tp2[0] = newScore;
+            else if (currentAmendTarget.obsName === "TP2 - Obs 2") st.tp2[1] = newScore;
+            else if (currentAmendTarget.obsName === "TP2 - Obs 3") st.tp2[2] = newScore;
+            else if (currentAmendTarget.obsName === "Master Teacher Final") st.masterScore = newScore;
+            else if (currentAmendTarget.obsName === "Portfolio Evaluation") st.portfolioScore = newScore;
 
-        st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
-        st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
+            st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
+            st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
+
+            if(st.savedForms) {
+                let formRec = st.savedForms.find(f => f.obsType === currentAmendTarget.obsName);
+                if(formRec) formRec.total = newScore;
+            }
+        }
+
+        // އެމެންޑް ކުރިކަމުގެ ލޮގް ސޭވްކުރުން
+        if(!st.amendLogs) st.amendLogs = [];
+        st.amendLogs.push({
+            date: new Date().toISOString().split('T')[0],
+            obs: currentAmendTarget.obsName,
+            reason: finalReason,
+            amendedBy: currentUser
+        });
 
         saveToLocal();
         updateAllViews();
         
-        alert(currentLang==='dv'?'މާކުސް ކާމިޔާބުކަމާއެކު ބަދަލުކުރެވިއްޖެ!':'Marks amended successfully!');
+        alert(currentLang==='dv'?'ފޯމު ކާމިޔާބުކަމާއެކު އެމެންޑް ކުރެވިއްޖެ!':'Form amended successfully!');
         document.getElementById('amendModal').style.display = 'none';
     }
 
@@ -1943,7 +1976,6 @@
             return `<td class="score-low">${val}</td>`;
         };
 
-        // މާކުސް ޝީޓްގައި އެންމެ މަތިން މާކުސް ލިބޭ ކުދިން ތަރުތީބުން އެތުރުން
         let sortedStudents = [...allStudents].sort((a, b) => {
             let totalA = (a.tp1_high||0) + (a.tp2_high||0) + (a.masterScore||0) + (a.portfolioScore||0);
             let totalB = (b.tp1_high||0) + (b.tp2_high||0) + (b.masterScore||0) + (b.portfolioScore||0);
@@ -2009,7 +2041,6 @@
         st.portfolioScore = parseFloat(pct.toFixed(1));
         st.lastUpdated = new Date().toISOString().split('T')[0];
         
-        // ފުލް ފޯމު ޑޭޓާ ސޭވްކުރުން
         let formRecord = {
             obsType: "Portfolio Evaluation",
             date: st.lastUpdated,
@@ -2061,7 +2092,6 @@
         st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
         st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
         
-        // ފުލް ފޯމު ޑޭޓާ ސޭވްކުރުން
         let formRecord = {
             obsType: obsType,
             date: st.lastUpdated,
@@ -2230,7 +2260,8 @@
             else {
                 globalTasks.forEach(task => {
                     let color = task.status === 'approved' ? 'green' : (task.status === 'pending_approval' ? 'blue' : 'orange');
-                    gTable.innerHTML += `<tr><td>${task.title}</td><td>${task.targetUser}</td><td style="color:${color}; font-weight:bold;">${task.totalPct}%</td></tr>`;
+                    let statusText = task.status === 'approved' ? 'Completed' : (task.status === 'pending_approval' ? 'Pending Approval' : 'Pending');
+                    gTable.innerHTML += `<tr><td>${task.title}</td><td>${task.targetUser} (${task.targetRole})</td><td style="color:${color}; font-weight:bold;">${task.totalPct}% - ${statusText}</td></tr>`;
                 });
             }
         }
