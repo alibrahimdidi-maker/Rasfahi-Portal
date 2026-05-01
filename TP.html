@@ -285,7 +285,6 @@
                         </div>
                     </div>
 
-                    <!-- Royal Card for Lecturer Filter -->
                     <div class="royal-card gold-border" style="margin-top: 20px; border-radius:12px;">
                         <h3 style="color:var(--royal-gold);"><i class="fas fa-chalkboard-teacher"></i> ލެކްޗަރަރ / ސުޕަވައިޒަރ ފިލްޓަރ (ޝާހީ ކާޑު)</h3>
                         <div style="margin-top:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
@@ -295,7 +294,6 @@
                             </select>
                         </div>
                         <div id="lecturerRoyalCardArea" style="margin-top:20px; transition:all 0.3s ease;">
-                            <!-- Content injected by JS -->
                         </div>
                     </div>
 
@@ -620,7 +618,6 @@
                             <div class="form-group"><label lang-key="lblModule">މޮޑިއުލް (މެނުއަލް)</label><input type="text" id="obsModule" placeholder="މެނުއަލްކޮށް ޓައިޕްކުރައްވާ"></div>
                             <div class="form-group"><label lang-key="lblObsType">އޮބްޒަވޭޝަން ވައްތަރު (ޓީޕީ 1 / 2)</label>
                                 <select id="obsTypeSelect" style="border:2px solid #1a237e; font-weight:bold;">
-                                    <!-- Options updated to match standard string formatting exactly! -->
                                     <option value="TP1 - Obs 1">TP1 - Obs 1</option><option value="TP1 - Obs 2">TP1 - Obs 2</option><option value="TP1 - Obs 3">TP1 - Obs 3</option>
                                     <option value="TP2 - Obs 1">TP2 - Obs 1</option><option value="TP2 - Obs 2">TP2 - Obs 2</option><option value="TP2 - Obs 3">TP2 - Obs 3</option>
                                     <option value="Master Teacher Final">Master Teacher Final</option>
@@ -1451,7 +1448,7 @@
         const logTask = { 
             id: 'log_' + Date.now(), 
             title: 'Daily Log: ' + dropdown.options[dropdown.selectedIndex].text, 
-            creator: currentUser, 
+            creator: myStdId, 
             targetRole: 'student', 
             targetUser: myStdId, 
             subTasks: [], 
@@ -1603,17 +1600,8 @@
             task.submissionText = content.value.trim();
         }
         
-        let cUserStr = currentUser.trim().toLowerCase();
-        let creatorStr = task.creator.trim().toLowerCase();
-        let rawU = document.getElementById('username').value.trim().toLowerCase();
-
-        // If the current user completing the task is NOT the creator, it goes to creator for approval.
-        if (creatorStr !== cUserStr && creatorStr !== rawU) {
-            task.status = 'pending_approval';
-        } else {
-            task.status = 'approved';
-            task.totalPct = 100;
-        }
+        // Always set to pending approval so the creator can verify it
+        task.status = 'pending_approval';
         
         if(task.subTasks) task.subTasks.forEach(st => st.done = true);
         saveToLocal();
@@ -1627,14 +1615,17 @@
         task.status = 'approved';
         task.totalPct = 100;
         
-        const studentIndex = allStudents.findIndex(s => s.id === task.targetUser);
-        if(studentIndex > -1) {
-            allStudents[studentIndex].points = (allStudents[studentIndex].points || 0) + 50;
+        // Add points only if a student is the one getting approved
+        if (task.targetRole === 'student') {
+            const studentIndex = allStudents.findIndex(s => s.id.toLowerCase() === task.targetUser.toLowerCase());
+            if(studentIndex > -1) {
+                allStudents[studentIndex].points = (allStudents[studentIndex].points || 0) + 50;
+            }
         }
 
         saveToLocal();
         renderUnifiedTasks();
-        alert("ޓާސްކް އެޕްރޫވް ކުރެވިއްޖެ! ދަރިވަރަށް ޕޮއިންޓް ދެވިއްޖެ.");
+        alert("ޓާސްކް އެޕްރޫވް ކުރެވިއްޖެ!");
     }
     
     function editStudentTask(taskId) {
@@ -1671,25 +1662,50 @@
 
         globalTasks.forEach(task => {
             let isAssignedToMe = false;
-            let isCreatedByMe = (task.creator.trim().toLowerCase() === cUserStr || task.creator.trim().toLowerCase() === rawU);
+            let isCreatedByMe = false;
             let needsMyApproval = false;
 
             const tRole = task.targetRole;
             const tUser = task.targetUser.trim().toLowerCase();
+            const creatorStr = task.creator.trim().toLowerCase();
 
-            // 1. Check if assigned to ME based on role
+            // Did I create this task?
+            if (creatorStr === cUserStr || creatorStr === rawU || (task.creator === myStdId && currentRole === 'student')) {
+                isCreatedByMe = true;
+            }
+
+            // 1. Is it assigned to me?
             if (tUser === 'all') {
                 if (currentRole === tRole) isAssignedToMe = true;
             } else {
-                if (currentRole === 'student' && tRole === 'student' && (tUser === myStdId || tUser === cUserStr)) isAssignedToMe = true;
-                else if (currentRole === 'lecturer' && tRole === 'lecturer' && tUser === cUserStr) isAssignedToMe = true;
-                else if (currentRole === 'master' && tRole === 'master' && tUser === cUserStr) isAssignedToMe = true;
-                else if (currentRole === 'admin' && tRole === 'admin' && tUser === cUserStr) isAssignedToMe = true;
+                if (currentRole === 'student' && tRole === 'student' && (tUser === myStdId || tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
+                else if (currentRole === 'lecturer' && tRole === 'lecturer' && (tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
+                else if (currentRole === 'master' && tRole === 'master' && (tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
+                else if (currentRole === 'admin' && tRole === 'admin' && (tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
             }
 
-            // 2. Check if I need to approve it (submitted to me, usually by someone I assigned it to)
-            if (task.status === 'pending_approval' && isCreatedByMe) {
-                needsMyApproval = true;
+            // 2. Do I need to approve it?
+            if (task.status === 'pending_approval') {
+                if (isCreatedByMe && !isAssignedToMe) {
+                    needsMyApproval = true;
+                }
+                else if (tRole === 'student' && task.creator === task.targetUser) {
+                    // It's a student's daily log (creator == targetUser)
+                    let taskStd = allStudents.find(s => s.id.toLowerCase() === tUser || s.name.toLowerCase() === tUser);
+                    if (!taskStd) taskStd = allStudents.find(s => s.id.toLowerCase() === creatorStr);
+
+                    if (currentRole === 'admin') {
+                        needsMyApproval = true;
+                    } else if (currentRole === 'lecturer' && taskStd && taskStd.sup && taskStd.sup.toLowerCase().includes(cUserStr)) {
+                        needsMyApproval = true;
+                    } else if (currentRole === 'master' && taskStd && taskStd.master && taskStd.master.toLowerCase().includes(cUserStr)) {
+                        needsMyApproval = true;
+                    }
+                }
+                else if (currentRole === 'admin') {
+                    // Admin oversees all pending approvals
+                    needsMyApproval = true;
+                }
             }
 
             let statusText = "";
@@ -1717,7 +1733,7 @@
                 });
             }
             
-            // Editable only if I am the assignee
+            // Submitting box available to whoever it is assigned to (Student, Lecturer, Master etc)
             if (isAssignedToMe && task.status === 'pending') {
                 subHtml += `
                     <div style="margin-top:10px;">
