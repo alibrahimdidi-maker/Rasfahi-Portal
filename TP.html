@@ -8,10 +8,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDKs -->
+    <!-- Firebase & PDF SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
         /* =========================================================
@@ -283,6 +284,21 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- NEW: Royal Card for Lecturer Filter -->
+                    <div class="royal-card gold-border" style="margin-top: 20px; border-radius:12px;">
+                        <h3 style="color:var(--royal-gold);"><i class="fas fa-chalkboard-teacher"></i> ލެކްޗަރަރ / ސުޕަވައިޒަރ ފިލްޓަރ (ޝާހީ ކާޑު)</h3>
+                        <div style="margin-top:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <label style="font-weight:bold; color:var(--dark-blue);">ލެކްޗަރަރ ޚިޔާރުކުރައްވާ:</label>
+                            <select id="adminLecturerFilter" onchange="renderLecturerRoyalCard()" style="padding:10px; flex:1; min-width:200px; border:2px solid var(--royal-blue); border-radius:6px; font-family:inherit; font-size:15px;">
+                                <option value="">-- ސުޕަވައިޒަރ / ލެކްޗަރަރ ޚިޔާރުކުރައްވާ --</option>
+                            </select>
+                        </div>
+                        <div id="lecturerRoyalCardArea" style="margin-top:20px; transition:all 0.3s ease;">
+                            <!-- Content injected by JS -->
+                        </div>
+                    </div>
+
                 </div>
 
                 <div id="unified-task-center" class="section">
@@ -944,30 +960,110 @@
         }
     }
 
-    // --- CORE ROBUST MATCHING LOGIC ---
-    function isMyStudent(student) {
-        if (!student) return false;
-        if (currentRole === 'admin') return true;
-        
-        const cUser = (currentUser || '').trim().toLowerCase();
-        const rawU = document.getElementById('username').value.trim().toLowerCase();
-        
-        if (currentRole === 'lecturer') {
-            const stSup = (student.sup || '').trim().toLowerCase();
-            return stSup === cUser || stSup.includes(cUser) || cUser.includes(stSup) || stSup.replace(/\s/g,'').includes(rawU);
+    // --- CORE PDF & EXPORT LOGIC ---
+    function generateSafePDF(htmlContent, filename, orientation) {
+        if(typeof html2pdf === 'undefined') {
+            alert("PDF ލައިބްރަރީ ލޯޑުނުވޭ! އިންޓަނެޓް ކަނެކްޝަން ޗެކްކުރައްވާ.");
+            return;
         }
-        if (currentRole === 'master') {
-            const stMaster = (student.master || '').trim().toLowerCase();
-            return stMaster === cUser || stMaster.includes(cUser) || cUser.includes(stMaster);
-        }
-        if (currentRole === 'student') {
-            const stName = (student.name || '').trim().toLowerCase();
-            const stId = (student.id || '').trim().toLowerCase();
-            return stName === cUser || stId === rawU || stName.includes(cUser);
-        }
-        return false;
+        const opt = {
+            margin:       0.5,
+            filename:     filename + '.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: orientation }
+        };
+        let tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlContent;
+        html2pdf().set(opt).from(tempDiv).save();
     }
-    
+
+    function exportLecturerInfoPDF() {
+        let html = `<div style="padding:20px; font-family:Arial, sans-serif; direction:ltr;">
+            <h2 style="text-align:center; color:#0A1128;">Lecturer Information Sheet</h2>
+            <table style="width:100%; border-collapse: collapse; margin-top:20px;" border="1">
+                <tr style="background:#0A1128; color:#fff;">
+                    <th style="padding:10px;">Lecturer Name</th>
+                    <th style="padding:10px;">Assigned Students</th>
+                </tr>`;
+        
+        uniqueSupervisors.forEach(sup => {
+            let stds = allStudents.filter(s => s.sup === sup).map(s => `${s.name} (${s.id}) - ${s.school}`).join('<br>');
+            html += `<tr><td style="padding:10px; vertical-align:top;"><strong>${sup}</strong></td><td style="padding:10px; line-height:1.6;">${stds || 'None'}</td></tr>`;
+        });
+        html += `</table></div>`;
+        generateSafePDF(html, `Lecturer_Info_Sheet`, 'portrait');
+    }
+
+    function downloadObservationSlip(stdId, obsName, marks) {
+        let st = allStudents.find(s => s.id === stdId);
+        if(!st) return;
+        
+        const isRTL = (currentLang === 'dv' || currentLang === 'ar');
+        const dir = isRTL ? 'rtl' : 'ltr';
+        const align = isRTL ? 'right' : 'left';
+        const title = isRTL ? "އޮބްޒަވޭޝަން ރިޒަލްޓް ސްލިޕް" : "Observation Result Slip";
+        const nLbl = isRTL ? "ދަރިވަރުގެ ނަން:" : "Student Name:";
+        const iLbl = isRTL ? "އައި.ޑީ:" : "Student ID:";
+        const oLbl = isRTL ? "އޮބްޒަވޭޝަން:" : "Observation:";
+        const mLbl = isRTL ? "ލިބުނު މާކުސް:" : "Marks Obtained:";
+        
+        let html = `
+        <div style="direction:${dir}; text-align:${align}; font-family:'Faruma', Arial, sans-serif; padding:40px; border:4px double #0A1128; max-width:800px; margin:0 auto; border-radius:10px;">
+            <div style="text-align:center; margin-bottom:30px;">
+                <h2 style="color:#0A1128; font-size:28px; margin-bottom:5px;">${title}</h2>
+                <p style="color:#666; font-size:14px; margin-top:0;">Teaching Practice Evaluation System</p>
+            </div>
+            <hr style="border:1px solid #ccc; margin-bottom:20px;">
+            <table style="width:100%; font-size:18px; line-height:2;">
+                <tr><td style="width:40%; font-weight:bold;">${nLbl}</td><td>${st.name}</td></tr>
+                <tr><td style="font-weight:bold;">${iLbl}</td><td>${st.id}</td></tr>
+                <tr><td style="font-weight:bold;">${oLbl}</td><td>${obsName}</td></tr>
+                <tr><td style="font-weight:bold;">${mLbl}</td><td style="color:#0B6623; font-weight:bold; font-size:22px;">${marks}</td></tr>
+            </table>
+            <br><br><br><br>
+            <div style="display:flex; justify-content:space-between; margin-top:50px; font-size:16px;">
+                <div style="text-align:center; border-top:1px solid #000; width:200px; padding-top:10px;">Supervisor Signature</div>
+                <div style="text-align:center; border-top:1px solid #000; width:200px; padding-top:10px;">Official Stamp</div>
+            </div>
+            <p style="text-align:center; color:#888; font-size:12px; margin-top:40px;">System Generated Form - Rasfahi TP</p>
+        </div>
+        `;
+        generateSafePDF(html, `Slip_${st.id}_${obsName}`, 'landscape');
+    }
+
+    function exportExactPDF() {
+        let formContent = document.getElementById('observation-form').outerHTML;
+        let html = `<div style="padding:20px; font-family:Arial, 'Faruma', sans-serif;">${formContent}</div>`;
+        generateSafePDF(html, `Observation_Form_CurrentView`, 'portrait');
+    }
+
+    function exportFullMarksTable(type) {
+        if(type === 'csv') {
+            let csv = [];
+            let rows = document.querySelectorAll("#fullMarksTable tr");
+            for (let i = 0; i < rows.length; i++) {
+                let row = [], cols = rows[i].querySelectorAll("td, th");
+                for (let j = 0; j < cols.length; j++) row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+                csv.push(row.join(","));
+            }
+            let csvFile = new Blob([csv.join("\n")], {type: "text/csv;charset=utf-8;"});
+            let downloadLink = document.createElement("a");
+            downloadLink.download = "Rasfahi_Marks_Report.csv";
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink); downloadLink.click();
+        } else {
+            let table = document.getElementById('fullMarksTable').outerHTML;
+            let html = `<div style="direction:ltr; font-family:Arial, sans-serif; padding:20px;">
+                <h2 style="color:#0A1128;">Comprehensive Marks Report</h2>
+                <div style="font-size:11px;">${table}</div>
+            </div>`;
+            generateSafePDF(html, 'Marks_Comprehensive_Report', 'landscape');
+        }
+    }
+
+    // --- CORE ROBUST MATCHING LOGIC ---
     function populateDatalists() {
         const stdDatalist = document.getElementById('allStudentsDatalist');
         const assignStdSelect = document.getElementById('taskAssignee');
@@ -2116,7 +2212,23 @@
         let st = allStudents.find(s => s.id === stdId);
         if(!st || !st.savedForms) return;
         let formRecord = st.savedForms.find(f => f.obsType === obsType);
-        if(!formRecord) { alert("މި ފޯމުގެ ފުލް ޑޭޓާ ރެކޯޑްކުރެވިފައެއް ނެތް. (ކުރީގެ ވާޝަންއެއްގައި ސޭވްކޮށްފައިވާ ފޯމެއް)"); return; }
+        
+        // ފޯލްބެކް (ކުރީގެ ވާޝަންގެ ފޯމުތަކަށް)
+        if(!formRecord) { 
+            let html = `
+            <div style="padding:40px; font-family:'Faruma', Arial, sans-serif; direction:rtl; text-align:right; border:4px double #8b0000; border-radius:10px; max-width:800px; margin:0 auto;">
+                <h2 style="color:#8b0000; text-align:center; border-bottom:2px solid #8b0000; padding-bottom:10px;">ކުރީގެ ވަރޝަންގެ ފޯމެއް (Fallback Form)</h2>
+                <p style="font-size:16px; line-height:1.6; color:#555; text-align:center;">މި ފޯމުގެ ތަފްސީލީ ރޫބްރިކް ޑޭޓާ ސިސްޓަމްގައި ރެކޯޑްކުރެވިފައެއް ނުވޭ. އެހެންނަމަވެސް ލިބިފައިވާ މާކުސް ތިރީގައި އެވަނީއެވެ.</p>
+                <table style="width:100%; font-size:18px; margin-top:30px; line-height:2.5;">
+                    <tr><td style="width:40%; font-weight:bold;">ދަރިވަރު:</td><td>${st.name}</td></tr>
+                    <tr><td style="font-weight:bold;">އައި.ޑީ:</td><td>${st.id}</td></tr>
+                    <tr><td style="font-weight:bold;">އޮބްޒަވޭޝަން:</td><td>${obsType}</td></tr>
+                    <tr><td style="font-weight:bold;">ސުޕަވައިޒަރ:</td><td>${st.sup}</td></tr>
+                </table>
+            </div>`;
+            generateSafePDF(html, `FallbackForm_${st.id}_${obsType.replace(/\s+/g, '_')}`, 'portrait');
+            return; 
+        }
 
         const isRTL = (currentLang === 'dv' || currentLang === 'ar'); 
         const textDir = isRTL ? 'rtl' : 'ltr'; 
@@ -2265,6 +2377,48 @@
                 });
             }
         }
+
+        // Populate lecturer dropdown for Royal Card
+        const lecFilter = document.getElementById('adminLecturerFilter');
+        if(lecFilter) {
+            let currentVal = lecFilter.value;
+            lecFilter.innerHTML = '<option value="">-- ސުޕަވައިޒަރ / ލެކްޗަރަރ ޚިޔާރުކުރައްވާ --</option>';
+            uniqueSupervisors.forEach(sup => {
+                lecFilter.innerHTML += `<option value="${sup}">${sup}</option>`;
+            });
+            lecFilter.value = currentVal;
+            renderLecturerRoyalCard();
+        }
+    }
+
+    function renderLecturerRoyalCard() {
+        const val = document.getElementById('adminLecturerFilter').value;
+        const area = document.getElementById('lecturerRoyalCardArea');
+        if(!val) { area.innerHTML = ''; return; }
+        
+        let assignedStds = allStudents.filter(s => s.sup === val);
+        
+        let html = `
+        <div style="background: linear-gradient(135deg, #0A1128 0%, #1a237e 100%); border-radius: 12px; padding: 25px; color: #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.3); border: 2px solid var(--royal-gold); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -20px; right: -20px; opacity: 0.1; font-size: 150px;"><i class="fas fa-crown"></i></div>
+            <h3 style="color: var(--royal-gold); border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 10px; margin-top:0;"><i class="fas fa-user-tie"></i> ${val}</h3>
+            <div style="margin-top: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        `;
+        
+        if(assignedStds.length === 0) {
+            html += `<p style="color:#aaa;">އެއްވެސް ދަރިވަރަކު ޙަވާލުކުރެވިފައެއް ނެތް.</p>`;
+        } else {
+            assignedStds.forEach(st => {
+                html += `
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; border-right: 4px solid var(--royal-gold);">
+                    <p style="margin: 0 0 5px 0; font-weight: bold; font-size: 16px;">${st.name}</p>
+                    <p style="margin: 0; font-size: 13px; color: #ccc;"><i class="fas fa-id-card"></i> ${st.id}</p>
+                    <p style="margin: 5px 0 0 0; font-size: 13px; color: #FFD700;"><i class="fas fa-school"></i> ${st.school}</p>
+                </div>`;
+            });
+        }
+        html += `</div></div>`;
+        area.innerHTML = html;
     }
 
     function threeStepHardReset() { 
