@@ -968,8 +968,13 @@
         // Use a temporary container appended to body to avoid CSS inherited issues like overflow hidden on body
         let tempContainer = document.createElement('div');
         tempContainer.style.position = 'absolute';
-        tempContainer.style.left = '-9999px';
+        tempContainer.style.left = '0';
         tempContainer.style.top = '0';
+        tempContainer.style.zIndex = '-9999';
+        tempContainer.style.opacity = '0.01'; // Invisible to user, but explicitly renders on html2canvas!
+        
+        // Force width based on orientation to prevent clipping
+        tempContainer.style.width = orientation === 'landscape' ? '1100px' : '850px'; 
         tempContainer.innerHTML = htmlContent;
         document.body.appendChild(tempContainer);
 
@@ -977,7 +982,7 @@
             margin:       0.3,
             filename:     filename + '.pdf',
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, scrollY: 0, windowWidth: 1000 },
+            html2canvas:  { scale: 2, useCORS: true, windowWidth: orientation === 'landscape' ? 1100 : 850 },
             jsPDF:        { unit: 'in', format: 'a4', orientation: orientation }
         };
         
@@ -988,7 +993,7 @@
 
     function exportLecturerInfoPDF() {
         let html = `
-        <div style="width: 800px; padding:20px; font-family:Arial, sans-serif; direction:ltr; background:#fff;">
+        <div style="width: 100%; padding:20px; font-family:Arial, sans-serif; direction:ltr; background:#fff;">
             <h2 style="text-align:center; color:#0A1128;">Lecturer Information Sheet</h2>
             <table style="width:100%; border-collapse: collapse; margin-top:20px;" border="1">
                 <tr style="background:#0A1128; color:#fff;">
@@ -1070,7 +1075,7 @@
         document.querySelectorAll('style').forEach(s => stylesHTML += s.outerHTML);
 
         let html = `
-        <div style="width: 800px; padding:20px; background:#fff; font-family:'Faruma', Arial, sans-serif; direction:${document.body.dir};">
+        <div style="width: 100%; padding:20px; background:#fff; font-family:'Faruma', Arial, sans-serif; direction:${document.body.dir};">
             ${stylesHTML}
             <style>
                 /* Neutralize specific app layout constraints for perfect PDF printing */
@@ -1104,7 +1109,7 @@
         } else {
             let table = document.getElementById('fullMarksTable').outerHTML;
             let html = `
-            <div style="width: 1100px; background:#fff; direction:ltr; font-family:Arial, sans-serif; padding:20px;">
+            <div style="width: 100%; background:#fff; direction:ltr; font-family:Arial, sans-serif; padding:20px;">
                 <h2 style="color:#0A1128;">Comprehensive Marks Report</h2>
                 <div style="font-size:11px;">${table}</div>
             </div>`;
@@ -1113,14 +1118,6 @@
     }
 
     // --- CORE ROBUST MATCHING LOGIC ---
-    function isMe(tUser) {
-        if (!tUser) return false;
-        let t = tUser.trim().toLowerCase();
-        let c = currentUser.trim().toLowerCase();
-        let r = document.getElementById('username').value.trim().toLowerCase();
-        return t === c || t === r || c.includes(t) || t.includes(c);
-    }
-
     function populateDatalists() {
         const stdDatalist = document.getElementById('allStudentsDatalist');
         const assignStdSelect = document.getElementById('taskAssignee');
@@ -1507,7 +1504,8 @@
         const logTask = { 
             id: 'log_' + Date.now(), 
             title: 'Daily Log: ' + dropdown.options[dropdown.selectedIndex].text, 
-            creator: myStdId, 
+            creator: currentUser, 
+            creatorId: myStdId, 
             targetRole: 'student', 
             targetUser: myStdId, 
             subTasks: [], 
@@ -1573,10 +1571,10 @@
                     select.innerHTML += `<option value="${st.id}">${st.name} (${st.id})</option>`;
                 }
             });
-        } else if (role === 'lecturer' && currentRole === 'admin') {
+        } else if (role === 'lecturer') {
             select.innerHTML += '<option value="all">All Lecturers/Supervisors</option>';
             uniqueSupervisors.forEach(sup => select.innerHTML += `<option value="${sup}">${sup}</option>`);
-        } else if (role === 'master' && currentRole === 'admin') {
+        } else if (role === 'master') {
             select.innerHTML += '<option value="all">All Master Teachers</option>';
             uniqueMasters.forEach(m => select.innerHTML += `<option value="${m}">${m}</option>`);
         }
@@ -1594,6 +1592,7 @@
         const title = document.getElementById('newTaskTitle').value.trim();
         const targetRole = document.getElementById('taskTargetRole').value;
         const targetUser = document.getElementById('taskAssignee').value;
+        const myEmail = document.getElementById('username').value.trim().toLowerCase();
         
         if(!title) { alert(currentLang==='dv' ? "މައި ޓާސްކްގެ ނަން ލިޔުއްވާ!" : "Enter task title!"); return; }
         if(!targetUser) { alert("Assignee target is empty!"); return; }
@@ -1614,6 +1613,7 @@
             id: 'task_' + Date.now(), 
             title: title, 
             creator: currentUser, 
+            creatorEmail: myEmail,
             targetRole: targetRole, 
             targetUser: targetUser, 
             subTasks: subTasks, 
@@ -1659,7 +1659,6 @@
             task.submissionText = content.value.trim();
         }
         
-        // Ensure submission flags the task for approval
         task.status = 'pending_approval';
         
         if(task.subTasks) task.subTasks.forEach(st => st.done = true);
@@ -1674,12 +1673,9 @@
         task.status = 'approved';
         task.totalPct = 100;
         
-        // Add points only if a student is the one getting approved
         if (task.targetRole === 'student') {
-            let logStdId = task.targetUser;
-            if (task.id.startsWith('log_')) logStdId = task.creator; // For logs, creator is the student ID
-            
-            const studentIndex = allStudents.findIndex(s => s.id.toLowerCase() === logStdId.toLowerCase() || s.name.toLowerCase() === logStdId.toLowerCase());
+            let logStdId = task.id.startsWith('log_') ? task.creatorId : task.targetUser;
+            const studentIndex = allStudents.findIndex(s => s.id === logStdId || s.name === logStdId);
             if(studentIndex > -1) {
                 allStudents[studentIndex].points = (allStudents[studentIndex].points || 0) + 50;
             }
@@ -1716,46 +1712,35 @@
         let hasCreatedTasks = false;
         let hasApprovalTasks = false;
 
-        const myName = currentUser.trim();
+        const myName = currentUser;
+        const myRole = currentRole;
         const myEmail = document.getElementById('username').value.trim().toLowerCase();
         
-        let myStdId = myEmail; // default fallback
-        let myStdObj = allStudents.find(s => s.name === myName || s.id.toLowerCase() === myEmail);
-        if(myStdObj) myStdId = myStdObj.id.toLowerCase();
+        let myStd = allStudents.find(s => s.name === myName || s.id.toLowerCase() === myEmail);
+        let myStdId = myStd ? myStd.id : '';
 
         globalTasks.forEach(task => {
             let isAssignedToMe = false;
-            let isCreatedByMe = (task.creator === myName || task.creator.toLowerCase() === myEmail);
+            let isCreatedByMe = (task.creator === myName || task.creatorEmail === myEmail);
             let needsMyApproval = false;
 
-            const tRole = task.targetRole;
-            const tUser = task.targetUser.toLowerCase();
-
-            // 1. Is it assigned to me?
-            if (tUser === 'all') {
-                if (currentRole === tRole) isAssignedToMe = true;
+            // 1. Check Assignment
+            if (task.targetUser === 'all' && task.targetRole === myRole) {
+                isAssignedToMe = true;
             } else {
-                if (currentRole === 'student' && tRole === 'student' && (tUser === myStdId || tUser === myName.toLowerCase())) isAssignedToMe = true;
-                if (currentRole === 'lecturer' && tRole === 'lecturer' && (tUser === myName.toLowerCase() || tUser === myEmail)) isAssignedToMe = true;
-                if (currentRole === 'master' && tRole === 'master' && (tUser === myName.toLowerCase() || tUser === myEmail)) isAssignedToMe = true;
-                if (currentRole === 'admin' && tRole === 'admin' && tUser === myName.toLowerCase()) isAssignedToMe = true;
+                if (myRole === 'student' && task.targetRole === 'student' && (task.targetUser === myStdId || task.targetUser === myName)) isAssignedToMe = true;
+                if ((myRole === 'lecturer' || myRole === 'master' || myRole === 'admin') && task.targetRole === myRole && task.targetUser === myName) isAssignedToMe = true;
             }
 
-            // 2. Do I need to approve it?
+            // 2. Check Approval
             if (task.status === 'pending_approval') {
                 if (isCreatedByMe && !isAssignedToMe) {
-                    needsMyApproval = true; // Regular assigned tasks where I am the creator
-                } 
-                else if (task.id.startsWith('log_')) {
-                    // Daily logs: task.creator holds the student ID.
-                    let logStd = allStudents.find(s => s.id.toLowerCase() === task.creator.toLowerCase());
-                    if (currentRole === 'admin') {
-                        needsMyApproval = true;
-                    } else if (currentRole === 'lecturer' && logStd && logStd.sup === myName) {
-                        needsMyApproval = true;
-                    } else if (currentRole === 'master' && logStd && logStd.master === myName) {
-                        needsMyApproval = true;
-                    }
+                    needsMyApproval = true;
+                } else if (task.id.startsWith('log_')) {
+                    let logStd = allStudents.find(s => s.id === task.creatorId);
+                    if (myRole === 'admin') needsMyApproval = true;
+                    if (myRole === 'lecturer' && logStd && logStd.sup === myName) needsMyApproval = true;
+                    if (myRole === 'master' && logStd && logStd.master === myName) needsMyApproval = true;
                 }
             }
 
@@ -1784,7 +1769,6 @@
                 });
             }
             
-            // Submitting box available to whoever it is assigned to (Student, Lecturer, Master etc)
             if (isAssignedToMe && task.status === 'pending') {
                 subHtml += `
                     <div style="margin-top:10px;">
@@ -1829,10 +1813,10 @@
                     <span class="task-badge" style="background:#f0f7ff; color:#3b82f6;">Pending Approval</span>
                     <div style="width:100%; margin-top:20px;">
                         <h4 style="margin:0; color:#1a237e;">${task.title}</h4>
-                        <p style="font-size:12px; color:#666; margin:5px 0;">Submitter ID: ${task.id.startsWith('log_') ? task.creator : task.targetUser}</p>
+                        <p style="font-size:12px; color:#666; margin:5px 0;">Assignee: ${task.targetUser}</p>
                         ${submissionDetails}
                         ${logsHtml}
-                        <button class="action-btn small" style="background:var(--royal-green); width:100%; margin-top:10px;" onclick="approveTaskBySupervisor('${task.id}')"><i class="fas fa-check"></i> Approve</button>
+                        <button class="action-btn small" style="background:var(--royal-green); width:100%; margin-top:10px;" onclick="approveTaskBySupervisor('${task.id}')"><i class="fas fa-check"></i> Approve (Read-Only)</button>
                     </div>
                 </div>`;
                 tasksApprovalArea.innerHTML += approvalCard;
