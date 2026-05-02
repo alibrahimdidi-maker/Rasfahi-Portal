@@ -242,7 +242,7 @@
 
         <div class="workspace">
             <div class="sidebar" id="mainSidebar">
-                </div>
+            </div>
 
             <div class="content-area">
                 
@@ -508,16 +508,26 @@
 
                     <div id="studentMyMarksSection" style="display:none; margin-top:20px;">
                         <h3 style="color:var(--royal-purple); margin-bottom:15px;"><i class="fas fa-award"></i> މަގޭ މާކުސް (My Assessment Scores)</h3>
-                        <div class="royal-card gold-border">
+                        <div class="table-responsive" style="border: 2px solid var(--royal-gold); border-radius: 8px;">
                             <table class="data-table" style="font-size:14px; text-align:center;">
                                 <thead>
                                     <tr>
-                                        <th>TP1 (Total)</th><th>TP2 (Total)</th><th>Master Final</th><th>Portfolio</th>
+                                        <th colspan="3" class="tp1-header">TP1 (Supervisor)</th>
+                                        <th colspan="3" class="tp2-header">TP2 (Supervisor)</th>
+                                        <th rowspan="2" class="master-header" style="vertical-align:middle;">Master Final</th>
+                                        <th rowspan="2" class="portfolio-header" style="vertical-align:middle; color:var(--royal-gold);">Portfolio</th>
+                                    </tr>
+                                    <tr>
+                                        <th class="tp1-header">Obs 1</th><th class="tp1-header">Obs 2</th><th class="tp1-header">Obs 3</th>
+                                        <th class="tp2-header">Obs 1</th><th class="tp2-header">Obs 2</th><th class="tp2-header">Obs 3</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td id="myTp1Mark">-</td><td id="myTp2Mark">-</td><td id="myMasterMark">-</td><td id="myPortMark">-</td>
+                                        <td id="myTp1O1" style="font-weight:bold;">-</td><td id="myTp1O2" style="font-weight:bold;">-</td><td id="myTp1O3" style="font-weight:bold;">-</td>
+                                        <td id="myTp2O1" style="font-weight:bold;">-</td><td id="myTp2O2" style="font-weight:bold;">-</td><td id="myTp2O3" style="font-weight:bold;">-</td>
+                                        <td id="myMasterMark" style="font-weight:bold; color:var(--royal-purple);">-</td>
+                                        <td id="myPortMark" style="font-weight:bold; color:var(--royal-green);">-</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1290,24 +1300,19 @@
             menuHtml += `<div class="sidebar-item" onclick="showSection('unified-task-center', this)"><i class="fas fa-tasks"></i> <span lang-key="menuTasks">ޓާސްކް ސެންޓަރ</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('observation-form', this)"><i class="fas fa-clipboard-check"></i> <span lang-key="menuObservation">އޮބްޒަރވޭޝަން ފޯމު</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('portfolio-section', this)"><i class="fas fa-folder-open"></i> <span lang-key="menuPortfolio">ޕޯޓްފޯލިއޯ</span></div>`;
-            menuHtml += `<div class="sidebar-item" onclick="showSection('form-bank-section', this)"><i class="fas fa-university"></i> <span lang-key="menuFormBank">ފޯމު ބޭންކް</span></div>`;
+            menuHtml += `<div class="sidebar-item" onclick="showSection('all-marks-section', this)"><i class="fas fa-table"></i> <span lang-key="marksTableTitle">މާކުސް ރިޕޯރޓް</span></div>`;
             defaultSection = 'student-eval';
             
             if (currentRole === 'lecturer') {
                 const supFilter = document.getElementById('filterSupervisorMarks');
                 if(supFilter) { supFilter.value = currentUser; supFilter.parentElement.style.display = 'none'; }
-                if(document.getElementById('adminSchoolFilterDiv')) document.getElementById('adminSchoolFilterDiv').style.display = 'none';
-                document.querySelectorAll('.master-header, .master-col').forEach(el => el.style.display = 'none'); 
-            } else {
-                if(document.getElementById('adminSchoolFilterDiv')) document.getElementById('adminSchoolFilterDiv').style.display = 'none';
-                if(document.getElementById('adminSupFilterDiv')) document.getElementById('adminSupFilterDiv').style.display = 'none';
-                document.querySelectorAll('.tp1-header, .tp2-header, .sup-col').forEach(el => el.style.display = 'none'); 
             }
+            if(document.getElementById('adminSchoolFilterDiv')) document.getElementById('adminSchoolFilterDiv').style.display = 'none';
+            if(document.getElementById('adminSupFilterDiv') && currentRole === 'master') document.getElementById('adminSupFilterDiv').style.display = 'none';
         } 
         else {
             menuHtml += `<div class="sidebar-item active" onclick="showSection('student-eval', this)"><i class="fas fa-user-graduate"></i> <span lang-key="menuStudent">މައި ޑޭޝްބޯޑް</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('unified-task-center', this)"><i class="fas fa-tasks"></i> <span lang-key="menuTasks">ޓާސްކް ސެންޓަރ</span></div>`;
-            menuHtml += `<div class="sidebar-item" onclick="showSection('form-bank-section', this)"><i class="fas fa-university"></i> <span lang-key="menuFormBank">ފޯމު ބޭންކް</span></div>`;
             defaultSection = 'student-eval';
         }
         
@@ -1487,8 +1492,17 @@
         );
         if(!myStd) return;
 
-        document.getElementById('myTp1Mark').innerText = myStd.tp1_high > 0 ? myStd.tp1_high : '-';
-        document.getElementById('myTp2Mark').innerText = myStd.tp2_high > 0 ? myStd.tp2_high : '-';
+        // TP1 Marks
+        document.getElementById('myTp1O1').innerText = (myStd.tp1 && myStd.tp1[0]) ? myStd.tp1[0] : '-';
+        document.getElementById('myTp1O2').innerText = (myStd.tp1 && myStd.tp1[1]) ? myStd.tp1[1] : '-';
+        document.getElementById('myTp1O3').innerText = (myStd.tp1 && myStd.tp1[2]) ? myStd.tp1[2] : '-';
+        
+        // TP2 Marks
+        document.getElementById('myTp2O1').innerText = (myStd.tp2 && myStd.tp2[0]) ? myStd.tp2[0] : '-';
+        document.getElementById('myTp2O2').innerText = (myStd.tp2 && myStd.tp2[1]) ? myStd.tp2[1] : '-';
+        document.getElementById('myTp2O3').innerText = (myStd.tp2 && myStd.tp2[2]) ? myStd.tp2[2] : '-';
+
+        // Master & Portfolio
         document.getElementById('myMasterMark').innerText = (myStd.masterScore !== null && myStd.masterScore > 0) ? myStd.masterScore : '-';
         document.getElementById('myPortMark').innerText = (myStd.portfolioScore !== null && myStd.portfolioScore > 0) ? myStd.portfolioScore : '-';
     }
@@ -1600,7 +1614,6 @@
             task.submissionText = content.value.trim();
         }
         
-        // Always set to pending approval so the creator can verify it
         task.status = 'pending_approval';
         
         if(task.subTasks) task.subTasks.forEach(st => st.done = true);
@@ -1615,7 +1628,6 @@
         task.status = 'approved';
         task.totalPct = 100;
         
-        // Add points only if a student is the one getting approved
         if (task.targetRole === 'student') {
             const studentIndex = allStudents.findIndex(s => s.id.toLowerCase() === task.targetUser.toLowerCase());
             if(studentIndex > -1) {
@@ -1669,12 +1681,10 @@
             const tUser = task.targetUser.trim().toLowerCase();
             const creatorStr = task.creator.trim().toLowerCase();
 
-            // Did I create this task?
             if (creatorStr === cUserStr || creatorStr === rawU || (task.creator === myStdId && currentRole === 'student')) {
                 isCreatedByMe = true;
             }
 
-            // 1. Is it assigned to me?
             if (tUser === 'all') {
                 if (currentRole === tRole) isAssignedToMe = true;
             } else {
@@ -1684,13 +1694,11 @@
                 else if (currentRole === 'admin' && tRole === 'admin' && (tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
             }
 
-            // 2. Do I need to approve it?
             if (task.status === 'pending_approval') {
                 if (isCreatedByMe && !isAssignedToMe) {
                     needsMyApproval = true;
                 }
                 else if (tRole === 'student' && task.creator === task.targetUser) {
-                    // It's a student's daily log (creator == targetUser)
                     let taskStd = allStudents.find(s => s.id.toLowerCase() === tUser || s.name.toLowerCase() === tUser);
                     if (!taskStd) taskStd = allStudents.find(s => s.id.toLowerCase() === creatorStr);
 
@@ -1703,7 +1711,6 @@
                     }
                 }
                 else if (currentRole === 'admin') {
-                    // Admin oversees all pending approvals
                     needsMyApproval = true;
                 }
             }
@@ -1733,7 +1740,6 @@
                 });
             }
             
-            // Submitting box available to whoever it is assigned to (Student, Lecturer, Master etc)
             if (isAssignedToMe && task.status === 'pending') {
                 subHtml += `
                     <div style="margin-top:10px;">
@@ -1823,7 +1829,6 @@
                     hasForms = true;
                     let displayDate = st.lastUpdated || new Date().toISOString().split('T')[0];
                     
-                    // Students only get download buttons. No amend/delete.
                     let actionHtml = `<button class="action-btn small" style="background:var(--royal-purple);" onclick="exportSavedExactPDF('${stdId}', '${obsName}')" title="Download Full Form PDF"><i class="fas fa-file-pdf"></i> Full Form PDF</button>`;
                     actionHtml += ` <button class="action-btn small" style="background:#0B6623;" onclick="downloadObservationSlip('${stdId}', '${obsName}', ${numMarks})" title="Download Result Slip"><i class="fas fa-download"></i> Slip</button>`;
                     
@@ -1843,7 +1848,6 @@
                 }
             };
 
-            // Exactly matched strings for Form rendering correlation!
             addRow("TP1 - Obs 1", st.tp1 ? st.tp1[0] : null, st.id, 'lecturer'); 
             addRow("TP1 - Obs 2", st.tp1 ? st.tp1[1] : null, st.id, 'lecturer'); 
             addRow("TP1 - Obs 3", st.tp1 ? st.tp1[2] : null, st.id, 'lecturer');
