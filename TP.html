@@ -1133,12 +1133,9 @@
     function switchLanguage(lang) {
         currentLang = lang;
         document.querySelectorAll('.nav-controls button').forEach(btn => btn.classList.remove('active'));
-        if(event && event.target && event.target.tagName === 'BUTTON') {
-             event.target.classList.add('active');
-        } else {
-             const btn = document.querySelector(`button[onclick="switchLanguage('${lang}')"]`);
-             if(btn) btn.classList.add('active');
-        }
+        
+        const btn = document.querySelector(`button[onclick="switchLanguage('${lang}')"]`);
+        if(btn) btn.classList.add('active');
         
         const isRTL = (lang === 'dv' || lang === 'ar');
         document.body.dir = isRTL ? 'rtl' : 'ltr';
@@ -1172,8 +1169,12 @@
             }
         });
         
-        initRubric(); 
-        initPortfolioRubric();
+        try {
+            initRubric(); 
+            initPortfolioRubric();
+        } catch(e) {
+            console.error("Rubric rendering error:", e);
+        }
     }
 
     // --- 3. APP INITIALIZATION & SECURITY ---
@@ -1794,7 +1795,7 @@
                         <p style="font-size:12px; color:#666; margin:5px 0;">Assignee: ${task.targetUser}</p>
                         ${submissionDetails}
                         ${logsHtml}
-                        <button class="action-btn small" style="background:var(--royal-green); width:100%; margin-top:10px;" onclick="approveTaskBySupervisor('${task.id}')"><i class="fas fa-check"></i> Approve Task</button>
+                        <button class="action-btn small" style="background:var(--royal-green); width:100%; margin-top:10px;" onclick="approveTaskBySupervisor('${task.id}')"><i class="fas fa-check"></i> Approve Task (Read-Only)</button>
                     </div>
                 </div>`;
                 tasksApprovalArea.innerHTML += approvalCard;
@@ -1874,6 +1875,187 @@
             `;
         });
         filterMarksTable(); 
+    }
+
+    function initRubric() {
+        const tbody = document.getElementById('rubricBody'); 
+        if(!tbody) return;
+        tbody.innerHTML = ''; 
+        
+        criteriaList.forEach(item => {
+            const tr = document.createElement('tr');
+            if (item.cat) {
+                const title = item.cat[currentLang] || item.cat.en;
+                tr.innerHTML = `<th colspan="6" class="category-header" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${title}</th>`;
+            } else {
+                const text = item[currentLang] || item.en;
+                let rowHTML = `<td class="criteria-text" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${text}</td>`;
+                for (let i = 1; i <= 5; i++) {
+                    rowHTML += `<td><input type="radio" name="${item.id}" value="${i}" onchange="calculateRubricTotal()"></td>`;
+                }
+                tr.innerHTML = rowHTML;
+            }
+            tbody.appendChild(tr);
+        });
+    }
+
+    function calculateRubricTotal() {
+        let total = 0;
+        const statusElem = document.getElementById('obsMarksStatus');
+        const isDraft = statusElem ? statusElem.value === 'disabled' : false;
+
+        const ad = autoDict[currentLang] || autoDict.en;
+        let excellentItems = [];
+        let vGoodItems = [];
+        let goodItems = [];
+        let satItems = [];
+        let improveItems = [];
+
+        document.querySelectorAll('#rubricForm input[type="radio"]:checked').forEach(r => {
+            let val = parseInt(r.value);
+            total += val;
+            
+            const cObj = criteriaList.find(c => c.id === r.name);
+            if (cObj) {
+                let text = cObj[currentLang] || cObj.en;
+                if (val === 5) excellentItems.push(text);
+                else if (val === 4) vGoodItems.push(text);
+                else if (val === 3) goodItems.push(text);
+                else if (val === 2) satItems.push(text);
+                else if (val === 1) improveItems.push(text);
+            }
+        });
+
+        const display = document.getElementById('scoreDisplay');
+        if (display) {
+            if (isDraft) {
+                display.innerText = "DRAFT";
+                display.style.color = "#888";
+            } else {
+                display.innerText = `${total} / 275`;
+                display.style.color = "inherit";
+            }
+        }
+
+        const suggestBox = document.getElementById('autoSuggestions');
+        if (suggestBox) {
+            let fb = "";
+            if (total > 0) {
+                if (excellentItems.length > 0) fb += `<div style="color:#D4AF37; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★★★★</span> ${ad.excellentTitle}</strong><br><span style="color:#333; font-style:italic;">${ad.excellentDesc}</span><br>• ${excellentItems.join('<br>• ')}</div>`;
+                if (vGoodItems.length > 0) fb += `<div style="color:#0B6623; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★★★☆</span> ${ad.vgoodTitle}</strong><br><span style="color:#333; font-style:italic;">${ad.vgoodDesc}</span><br>• ${vGoodItems.join('<br>• ')}</div>`;
+                if (goodItems.length > 0) fb += `<div style="color:#1a237e; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★★☆☆</span> ${ad.goodTitle}</strong><br><span style="color:#333; font-style:italic;">${ad.goodDesc}</span><br>• ${goodItems.join('<br>• ')}</div>`;
+                if (satItems.length > 0) fb += `<div style="color:#b8860b; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★☆☆☆</span> ${ad.satisfactoryTitle}</strong><br><span style="color:#333; font-style:italic;">${ad.satisfactoryDesc}</span><br>• ${satItems.join('<br>• ')}</div>`;
+                if (improveItems.length > 0) fb += `<div style="color:#dc143c; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★☆☆☆☆</span> ${ad.improveTitle}</strong><br><span style="color:#333; font-style:italic;">${ad.improveDesc}</span><br>• ${improveItems.join('<br>• ')}<br><br><em style="color:#000;">${ad.improveAction}</em></div>`;
+            }
+            suggestBox.innerHTML = fb || `<span style="color:#888;">${translations[currentLang].phAutoSuggest}</span>`;
+        }
+    }
+
+    let currentAmendTarget = { id: '', obsName: '' };
+    function openAmendModal(stdId, stdName, obsName) {
+        currentAmendTarget = { id: stdId, obsName: obsName };
+        document.getElementById('amendStudentName').innerText = stdName;
+        document.getElementById('amendObsName').innerText = obsName;
+        document.getElementById('amendNewScore').value = '';
+        document.getElementById('amendReasonSelect').value = '';
+        document.getElementById('amendReasonText').value = '';
+        document.getElementById('amendReasonText').style.display = 'none';
+        document.getElementById('amendCode').value = '';
+        document.getElementById('amendModal').style.display = 'flex';
+    }
+
+    function toggleAmendReasonText() {
+        const val = document.getElementById('amendReasonSelect').value;
+        document.getElementById('amendReasonText').style.display = val === 'އެހެނިހެން' ? 'block' : 'none';
+    }
+
+    function saveAmendment() {
+        const newScoreStr = document.getElementById('amendNewScore').value;
+        const selectReason = document.getElementById('amendReasonSelect').value;
+        const textReason = document.getElementById('amendReasonText').value;
+        const code = document.getElementById('amendCode').value;
+        
+        let finalReason = selectReason;
+        if(selectReason === 'އެހެނިހެން') finalReason = "އެހެނިހެން: " + textReason;
+        
+        if(!selectReason) { alert(currentLang==='dv'?'ސަބަބު ޚިޔާރުކުރައްވާ!':'Please select a reason.'); return; }
+        if(selectReason === 'އެހެނިހެން' && textReason.trim().length < 5) { alert(currentLang==='dv'?'ސަބަބު ތަފްސީލުކޮށް ލިޔުއްވާ!':'Please provide a detailed reason.'); return; }
+        if(code !== "AMEND2026") { alert(currentLang==='dv'?'ވެރިފިކޭޝަން ކޯޑު ނުބައި! (ކޯޑަކީ: AMEND2026)':'Invalid verification code!'); return; }
+        
+        let newScore = null;
+        if(newScoreStr.trim() !== '') {
+            newScore = parseFloat(newScoreStr);
+            if(isNaN(newScore) || newScore < 0 || newScore > 275) { alert(currentLang==='dv'?'މާކުސް ރަނގަޅެއް ނޫން!':'Invalid Score!'); return; }
+        }
+
+        let stIndex = allStudents.findIndex(s => s.id === currentAmendTarget.id);
+        if(stIndex === -1) return;
+        let st = allStudents[stIndex];
+
+        if(newScore !== null) {
+            if (currentAmendTarget.obsName === "TP1 - Obs 1") st.tp1[0] = newScore;
+            else if (currentAmendTarget.obsName === "TP1 - Obs 2") st.tp1[1] = newScore;
+            else if (currentAmendTarget.obsName === "TP1 - Obs 3") st.tp1[2] = newScore;
+            else if (currentAmendTarget.obsName === "TP2 - Obs 1") st.tp2[0] = newScore;
+            else if (currentAmendTarget.obsName === "TP2 - Obs 2") st.tp2[1] = newScore;
+            else if (currentAmendTarget.obsName === "TP2 - Obs 3") st.tp2[2] = newScore;
+            else if (currentAmendTarget.obsName === "Master Teacher Final") st.masterScore = newScore;
+            else if (currentAmendTarget.obsName === "Portfolio Evaluation") st.portfolioScore = newScore;
+
+            st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
+            st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
+
+            if(st.savedForms) {
+                let formRec = st.savedForms.find(f => f.obsType === currentAmendTarget.obsName);
+                if(formRec) formRec.total = newScore;
+            }
+        }
+
+        if(!st.amendLogs) st.amendLogs = [];
+        st.amendLogs.push({
+            date: new Date().toISOString().split('T')[0],
+            obs: currentAmendTarget.obsName,
+            reason: finalReason,
+            amendedBy: currentUser
+        });
+
+        saveToLocal();
+        updateAllViews();
+        
+        alert(currentLang==='dv'?'ފޯމު ކާމިޔާބުކަމާއެކު އެމެންޑް ކުރެވިއްޖެ!':'Form amended successfully!');
+        document.getElementById('amendModal').style.display = 'none';
+    }
+
+    function deleteForm3Step(stdId, obsName) {
+        if(prompt(currentLang==='dv'?"ސްޓެޕް 1: ފޮހެލުމަށްޓަކައި 'DELETE' ޓައިޕްކުރައްވާ:":"Step 1: Type 'DELETE' to proceed:") !== 'DELETE') {
+            alert('Cancelled.'); return;
+        }
+        if(prompt(currentLang==='dv'?"ސްޓެޕް 2: އޮތޮރައިޒޭޝަން ކޯޑު ޖައްސަވާ (DEL2026):":"Step 2: Enter Authorization Code:") !== 'DEL2026') {
+            alert('Invalid Code. Cancelled.'); return;
+        }
+        if(!confirm(currentLang==='dv'?"ސްޓެޕް 3: މި ފޯމުގެ ޑޭޓާ އެއްކޮށް ފޮހެލަން ބޭނުންކަން ޔަޤީންތޯ؟":"Step 3: Are you sure you want to permanently delete this record?")) {
+            return;
+        }
+
+        let stIndex = allStudents.findIndex(s => s.id === stdId);
+        if(stIndex === -1) return;
+        let st = allStudents[stIndex];
+
+        if (obsName === "TP1 - Obs 1") st.tp1[0] = null;
+        else if (obsName === "TP1 - Obs 2") st.tp1[1] = null;
+        else if (obsName === "TP1 - Obs 3") st.tp1[2] = null;
+        else if (obsName === "TP2 - Obs 1") st.tp2[0] = null;
+        else if (obsName === "TP2 - Obs 2") st.tp2[1] = null;
+        else if (obsName === "TP2 - Obs 3") st.tp2[2] = null;
+        else if (obsName === "Master Teacher Final") st.masterScore = null;
+        else if (obsName === "Portfolio Evaluation") st.portfolioScore = null;
+
+        st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
+        st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
+
+        saveToLocal();
+        updateAllViews();
+        alert(currentLang==='dv'?'ފޯމު ކާމިޔާބުކަމާއެކު ފޮހެލެވިއްޖެ!':'Form deleted successfully!');
     }
 
     function initPortfolioRubric() {
