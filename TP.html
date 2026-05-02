@@ -1326,9 +1326,9 @@
             document.getElementById('tasksNeedingApprovalSection').style.display = 'block';
             document.querySelectorAll('.admin-only-opt').forEach(opt => opt.style.display = 'block');
         } else {
-            document.getElementById('taskCreatorUI').style.display = 'none';
-            document.getElementById('tasksAssignedByMeSection').style.display = 'none';
-            document.getElementById('tasksNeedingApprovalSection').style.display = 'none';
+            if(document.getElementById('taskCreatorUI')) document.getElementById('taskCreatorUI').style.display = 'none';
+            if(document.getElementById('tasksAssignedByMeSection')) document.getElementById('tasksAssignedByMeSection').style.display = 'none';
+            if(document.getElementById('tasksNeedingApprovalSection')) document.getElementById('tasksNeedingApprovalSection').style.display = 'none';
             document.querySelectorAll('.admin-only-opt').forEach(opt => opt.style.display = 'none');
         }
 
@@ -1494,12 +1494,13 @@
         
         let cUserStr = currentUser.trim().toLowerCase();
         let rawU = document.getElementById('username').value.trim().toLowerCase();
-        
-        let myStd = allStudents.find(s => 
-            s.name.trim().toLowerCase() === cUserStr || 
-            s.name.trim().toLowerCase().includes(cUserStr) || 
-            s.id.trim().toLowerCase() === rawU
-        );
+
+        let myStd = allStudents.find(s => {
+            let sName = s.name.trim().toLowerCase();
+            let sId = s.id.trim().toLowerCase();
+            return sName === cUserStr || cUserStr.includes(sName) || sId === rawU || rawU.includes(sId.toLowerCase()) || rawU.includes(sName.replace(/\s+/g,''));
+        });
+
         if(!myStd) return;
 
         // TP1 Marks
@@ -1700,10 +1701,17 @@
             if (tUser === 'all') {
                 if (currentRole === tRole) isAssignedToMe = true;
             } else {
-                if (currentRole === 'student' && tRole === 'student' && (tUser === myStdId || tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
-                else if (currentRole === 'lecturer' && tRole === 'lecturer' && (tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
-                else if (currentRole === 'master' && tRole === 'master' && (tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
-                else if (currentRole === 'admin' && tRole === 'admin' && (tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
+                let cleanTUser = tUser.replace(/dr\.|mr\.|ms\.|mrs\.|\s+/g, '');
+                
+                if (currentRole === 'student' && tRole === 'student') {
+                    if (tUser === myStdId || tUser === cUserStr || tUser === rawU || rawU.includes(cleanTUser)) isAssignedToMe = true;
+                } else if (currentRole === 'lecturer' && tRole === 'lecturer') {
+                    if (tUser === cUserStr || tUser === rawU || rawU.includes(cleanTUser)) isAssignedToMe = true;
+                } else if (currentRole === 'master' && tRole === 'master') {
+                    if (tUser === cUserStr || tUser === rawU || rawU.includes(cleanTUser)) isAssignedToMe = true;
+                } else if (currentRole === 'admin' && tRole === 'admin') {
+                    if (tUser === cUserStr || tUser === rawU || rawU.includes(cleanTUser)) isAssignedToMe = true;
+                }
             }
 
             // 2. Do I need to approve it? (ހަމައެކަނި އެޑްމިން އަށް)
@@ -1804,6 +1812,9 @@
         const school = document.getElementById('filterSchoolMarks') ? document.getElementById('filterSchoolMarks').value.toLowerCase() : '';
         const rows = document.getElementById('fullMarksBody') ? document.getElementById('fullMarksBody').getElementsByTagName('tr') : [];
         
+        let cUserName = currentUser.trim().toLowerCase();
+        let cUserEmail = document.getElementById('username').value.trim().toLowerCase();
+
         for(let i=0; i<rows.length; i++) {
             const text = rows[i].innerText.toLowerCase();
             const trSup = rows[i].getAttribute('data-sup') ? rows[i].getAttribute('data-sup').toLowerCase() : '';
@@ -1813,8 +1824,16 @@
             let showRow = true;
             
             // ރޯލް އާއި ގުޅޭގޮތުން ފިލްޓަރ ކުރުން
-            if(currentRole === 'lecturer' && !trSup.includes(currentUser.trim().toLowerCase())) { showRow = false; }
-            if(currentRole === 'master' && !trMaster.includes(currentUser.trim().toLowerCase())) { showRow = false; } 
+            if(currentRole === 'lecturer') {
+                if (!trSup.includes(cUserName) && !cUserEmail.includes(trSup.replace(/\s+/g, ''))) {
+                    showRow = false;
+                }
+            }
+            if(currentRole === 'master') {
+                if (!trMaster.includes(cUserName) && !cUserEmail.includes(trMaster.replace(/\s+/g, ''))) {
+                    showRow = false;
+                }
+            }
             
             // ސަރޗް ބޮކްސްތަކުގެ ފިލްޓަރ
             if(!text.includes(search) || !trSup.includes(sup) || !trSchool.includes(school)) { showRow = false; }
@@ -2214,8 +2233,10 @@
         } 
     }
 
-    // Init app
-    switchLanguage('dv');
+    // Init app safely after DOM loads to prevent visual bugs
+    document.addEventListener('DOMContentLoaded', () => {
+        switchLanguage('dv');
+    });
 </script>
 </body>
 </html>
