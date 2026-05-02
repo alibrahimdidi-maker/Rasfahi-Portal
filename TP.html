@@ -959,22 +959,35 @@
     }
 
     // --- CORE PDF & EXPORT LOGIC ---
+
+    // [UPDATED]: NEW ROCK-SOLID PDF GENERATOR
     function generateSafePDF(htmlContent, filename, orientation) {
         if(typeof html2pdf === 'undefined') {
             alert("PDF ލައިބްރަރީ ލޯޑުނުވޭ! އިންޓަނެޓް ކަނެކްޝަން ޗެކްކުރައްވާ.");
             return;
         }
         
+        // 1. މައި ބޮޑީގެ ސްޓައިލްތައް ފޮރުވާލުން (Overflow: hidden އިންނަމަ ކަނޑާލާނެތީ)
+        const origOverflow = document.body.style.overflow;
+        const origHeight = document.body.style.height;
+        document.body.style.overflow = 'visible';
+        document.body.style.height = 'auto';
+
+        // 2. ޓެމްޕަރަރީ ކޮންޓެއިނަރއެއް ހަދައި އެންމެ ކުރިއަށް އެރުވުން
         let tempContainer = document.createElement('div');
-        tempContainer.style.position = 'fixed'; 
-        tempContainer.style.left = '0';
+        tempContainer.style.position = 'absolute';
         tempContainer.style.top = '0';
-        tempContainer.style.zIndex = '-9999'; 
+        tempContainer.style.left = '0';
         tempContainer.style.width = orientation === 'landscape' ? '1100px' : '800px';
         tempContainer.style.background = '#ffffff';
-        tempContainer.style.color = '#000000';
+        tempContainer.style.zIndex = '999999'; // އެންމެ ކުރީގައި ބެހެއްޓުމަށް
         tempContainer.innerHTML = htmlContent;
         document.body.appendChild(tempContainer);
+
+        // 3. އެޕްލިކޭޝަންގެ މައި ކޮންޓެއިނަރ ފޮރުވާލުން
+        const appContainer = document.getElementById('app-container');
+        const origDisplay = appContainer ? appContainer.style.display : '';
+        if(appContainer) appContainer.style.display = 'none';
 
         const opt = {
             margin:       0.3,
@@ -989,8 +1002,12 @@
             jsPDF:        { unit: 'in', format: 'a4', orientation: orientation }
         };
         
+        // 4. ޕީޑީއެފް ޖެނެރޭޓްކޮށް ނިމުމުން ހުރިހާ އެއްޗެއް ކުރިން ހުރިގޮތަށް ބަދަލުކުރުން
         html2pdf().set(opt).from(tempContainer).save().then(() => {
             document.body.removeChild(tempContainer);
+            document.body.style.overflow = origOverflow;
+            document.body.style.height = origHeight;
+            if(appContainer) appContainer.style.display = origDisplay;
         });
     }
 
@@ -1049,6 +1066,7 @@
         generateSafePDF(html, `Slip_${st.id}_${obsName}`, 'landscape');
     }
 
+    // [UPDATED]: EXPORT EXACT PDF
     function exportExactPDF() {
         const formEl = document.getElementById('observation-form');
         const clone = formEl.cloneNode(true);
