@@ -726,6 +726,31 @@
     </div>
 
 <script>
+    // --- 0. ROBUST IDENTIFICATION HELPERS (BUG FIX) ---
+    function isMyStudent(st) {
+        if (!st) return false;
+        const rawU = document.getElementById('username').value.trim().toLowerCase();
+        const cUserStr = currentUser.trim().toLowerCase();
+        let genStdEmail = generateEmail(st.name, 'student', st.id).toLowerCase();
+
+        return (st.id.toLowerCase() === cUserStr || 
+                (st.name && st.name.toLowerCase() === cUserStr) || 
+                rawU === genStdEmail || 
+                st.id.toLowerCase() === rawU);
+    }
+
+    function isMySupervisor(supName) {
+        if (!supName) return false;
+        const rawU = document.getElementById('username').value.trim().toLowerCase();
+        const cUserStr = currentUser.trim().toLowerCase();
+        let genSupEmail = generateEmail(supName, 'lecturer').toLowerCase();
+
+        return (supName.toLowerCase() === cUserStr || 
+                supName.toLowerCase().includes(cUserStr) || 
+                cUserStr.includes(supName.toLowerCase()) || 
+                rawU === genSupEmail);
+    }
+
     // --- 0. CONSTANTS & DATA LISTS ---
     const criteriaList = [
         { cat: { dv: "ޕްލޭނިންގ (ފިލާވަޅު ރޭވުން)", en: "PLANNING", ar: "التخطيط" } },
@@ -1409,10 +1434,9 @@
         if(!dropdown.value) { alert("މަސައްކަތެއް ޚިޔާރުކުރައްވާ!"); return; }
         
         studentPoints += 20; 
-        let myStdId = currentUser;
         
-        const rawU = document.getElementById('username').value.trim().toLowerCase();
-        const studentIndex = allStudents.findIndex(s => s.name.toLowerCase() === currentUser.toLowerCase() || s.id.toLowerCase() === rawU);
+        const studentIndex = allStudents.findIndex(s => isMyStudent(s));
+        let myStdId = currentUser;
         
         if(studentIndex > -1) {
             allStudents[studentIndex].points = (allStudents[studentIndex].points || 0) + 20;
@@ -1452,14 +1476,7 @@
     function updateStudentMyMarks() {
         if(currentRole !== 'student') return;
         
-        let cUserStr = currentUser.trim().toLowerCase();
-        let rawU = document.getElementById('username').value.trim().toLowerCase();
-        
-        let myStd = allStudents.find(s => 
-            s.name.trim().toLowerCase() === cUserStr || 
-            s.name.trim().toLowerCase().includes(cUserStr) || 
-            s.id.trim().toLowerCase() === rawU
-        );
+        let myStd = allStudents.find(s => isMyStudent(s));
         if(!myStd) return;
 
         // TP1 Marks
@@ -1486,11 +1503,9 @@
             select.innerHTML += '<option value="all">All Students</option>';
             allStudents.forEach(st => {
                 let canAssign = false;
-                const rawU = document.getElementById('username').value.trim().toLowerCase();
-                const cUserStr = currentUser.trim().toLowerCase();
                 
                 if (currentRole === 'admin') canAssign = true;
-                else if (currentRole === 'lecturer' && st.sup && (st.sup.toLowerCase().includes(cUserStr) || st.sup.replace(/\s/g,'').toLowerCase().includes(rawU))) canAssign = true;
+                else if (currentRole === 'lecturer') canAssign = isMySupervisor(st.sup);
                 
                 if (canAssign) {
                     select.innerHTML += `<option value="${st.id}">${st.name} (${st.id})</option>`;
@@ -1634,7 +1649,7 @@
         const cUserStr = (currentUser || '').trim().toLowerCase();
         const rawU = document.getElementById('username').value.trim().toLowerCase();
 
-        let myStudentObj = allStudents.find(s => s.name.toLowerCase() === cUserStr || s.id.toLowerCase() === rawU);
+        let myStudentObj = allStudents.find(s => isMyStudent(s));
         let myStdId = myStudentObj ? myStudentObj.id.toLowerCase() : rawU;
 
         globalTasks.forEach(task => {
@@ -1653,8 +1668,8 @@
             if (tUser === 'all') {
                 if (currentRole === tRole) isAssignedToMe = true;
             } else {
-                if (currentRole === 'student' && tRole === 'student' && (tUser === myStdId || tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
-                else if (currentRole === 'lecturer' && tRole === 'lecturer' && (tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
+                if (currentRole === 'student' && tRole === 'student' && (tUser === myStdId || isMyStudent({id: tUser, name: tUser}))) isAssignedToMe = true;
+                else if (currentRole === 'lecturer' && tRole === 'lecturer' && isMySupervisor(tUser)) isAssignedToMe = true;
                 else if (currentRole === 'admin' && tRole === 'admin' && (tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
             }
 
@@ -1668,7 +1683,7 @@
 
                     if (currentRole === 'admin') {
                         needsMyApproval = true;
-                    } else if (currentRole === 'lecturer' && taskStd && taskStd.sup && taskStd.sup.toLowerCase().includes(cUserStr)) {
+                    } else if (currentRole === 'lecturer' && taskStd && isMySupervisor(taskStd.sup)) {
                         needsMyApproval = true;
                     }
                 }
@@ -1767,18 +1782,15 @@
         fbBody.innerHTML = '';
         let hasForms = false;
 
-        const cUserStr = currentUser.trim().toLowerCase();
-        const rawU = document.getElementById('username').value.trim().toLowerCase();
-
         allStudents.forEach(st => {
             let roleCanView = false;
             
             if (currentRole === 'admin') {
                 roleCanView = true;
             } else if (currentRole === 'lecturer') {
-                if (st.sup && st.sup.toLowerCase().includes(cUserStr)) roleCanView = true;
+                roleCanView = isMySupervisor(st.sup);
             } else if (currentRole === 'student') {
-                if (st.id.toLowerCase() === rawU || st.name.toLowerCase() === cUserStr) roleCanView = true;
+                roleCanView = isMyStudent(st);
             }
 
             if (!roleCanView) return;
@@ -2034,8 +2046,8 @@
             const trSchool = rows[i].getAttribute('data-school') ? rows[i].getAttribute('data-school').toLowerCase() : '';
             
             let showRow = false;
-            if(currentRole === 'lecturer' && !trSup.includes(currentUser.trim().toLowerCase())) { showRow = false; }
-            else if(text.includes(search) && trSup.includes(sup) && trSchool.includes(school)) { showRow = true; }
+            if (currentRole === 'lecturer' && !isMySupervisor(trSup)) { showRow = false; }
+            else if (text.includes(search) && trSup.includes(sup) && trSchool.includes(school)) { showRow = true; }
             
             if(showRow) rows[i].style.display = ""; else rows[i].style.display = "none";
         }
