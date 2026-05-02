@@ -1319,14 +1319,24 @@
         sidebar.innerHTML = menuHtml;
         showSection(defaultSection, sidebar.firstElementChild);
         
-        if (currentRole !== 'student') {
-            document.getElementById('studentLogSection').style.display = 'none';
-            document.querySelectorAll('.admin-only-opt').forEach(opt => opt.style.display = currentRole==='admin'?'block':'none');
-            if(document.getElementById('tasksNeedingApprovalSection')) document.getElementById('tasksNeedingApprovalSection').style.display = 'block';
+        // ޓާސްކް ޕެނަލްތައް ކޮންޓްރޯލް ކުރުން (ހަމައެކަނި އެޑްމިން އަށް ކްރިއޭޓް / އެޕްރޫވް ކުރެވޭގޮތަށް)
+        if (currentRole === 'admin') {
+            document.getElementById('taskCreatorUI').style.display = 'block';
+            document.getElementById('tasksAssignedByMeSection').style.display = 'block';
+            document.getElementById('tasksNeedingApprovalSection').style.display = 'block';
+            document.querySelectorAll('.admin-only-opt').forEach(opt => opt.style.display = 'block');
         } else {
             document.getElementById('taskCreatorUI').style.display = 'none';
             document.getElementById('tasksAssignedByMeSection').style.display = 'none';
+            document.getElementById('tasksNeedingApprovalSection').style.display = 'none';
+            document.querySelectorAll('.admin-only-opt').forEach(opt => opt.style.display = 'none');
+        }
+
+        if (currentRole !== 'student') {
+            document.getElementById('studentLogSection').style.display = 'none';
+        } else {
             document.getElementById('studentMyMarksSection').style.display = 'block';
+            document.getElementById('studentLogSection').style.display = 'block';
         }
     }
 
@@ -1681,10 +1691,12 @@
             const tUser = task.targetUser.trim().toLowerCase();
             const creatorStr = task.creator.trim().toLowerCase();
 
+            // Did I create this task?
             if (creatorStr === cUserStr || creatorStr === rawU || (task.creator === myStdId && currentRole === 'student')) {
                 isCreatedByMe = true;
             }
 
+            // 1. Is it assigned to me?
             if (tUser === 'all') {
                 if (currentRole === tRole) isAssignedToMe = true;
             } else {
@@ -1694,23 +1706,9 @@
                 else if (currentRole === 'admin' && tRole === 'admin' && (tUser === cUserStr || tUser === rawU)) isAssignedToMe = true;
             }
 
+            // 2. Do I need to approve it? (ހަމައެކަނި އެޑްމިން އަށް)
             if (task.status === 'pending_approval') {
-                if (isCreatedByMe && !isAssignedToMe) {
-                    needsMyApproval = true;
-                }
-                else if (tRole === 'student' && task.creator === task.targetUser) {
-                    let taskStd = allStudents.find(s => s.id.toLowerCase() === tUser || s.name.toLowerCase() === tUser);
-                    if (!taskStd) taskStd = allStudents.find(s => s.id.toLowerCase() === creatorStr);
-
-                    if (currentRole === 'admin') {
-                        needsMyApproval = true;
-                    } else if (currentRole === 'lecturer' && taskStd && taskStd.sup && taskStd.sup.toLowerCase().includes(cUserStr)) {
-                        needsMyApproval = true;
-                    } else if (currentRole === 'master' && taskStd && taskStd.master && taskStd.master.toLowerCase().includes(cUserStr)) {
-                        needsMyApproval = true;
-                    }
-                }
-                else if (currentRole === 'admin') {
+                if (currentRole === 'admin') {
                     needsMyApproval = true;
                 }
             }
@@ -1767,11 +1765,12 @@
                 hasMyTasks = true;
                 myActionableArea.innerHTML += cardHtml;
             }
-            if (isCreatedByMe && tasksCreatedByMeArea) {
+            // "Created By Me" section is only shown to Admins now
+            if (isCreatedByMe && tasksCreatedByMeArea && currentRole === 'admin') {
                 hasCreatedTasks = true;
                 tasksCreatedByMeArea.innerHTML += cardHtml;
             }
-            if (needsMyApproval && tasksApprovalArea) {
+            if (needsMyApproval && tasksApprovalArea && currentRole === 'admin') {
                 hasApprovalTasks = true;
                 let submissionDetails = task.submissionText ? `<div style="background:#FFFDF0; border:1px solid #D4AF37; padding:10px; margin-top:10px; border-radius:4px; font-size:14px; font-family:inherit;"><strong>Submission Notes:</strong><br>${task.submissionText}</div>` : '';
                 let logsHtml = '';
@@ -1787,7 +1786,7 @@
                         <p style="font-size:12px; color:#666; margin:5px 0;">Assignee: ${task.targetUser}</p>
                         ${submissionDetails}
                         ${logsHtml}
-                        <button class="action-btn small" style="background:var(--royal-green); width:100%; margin-top:10px;" onclick="approveTaskBySupervisor('${task.id}')"><i class="fas fa-check"></i> Approve (Read-Only)</button>
+                        <button class="action-btn small" style="background:var(--royal-green); width:100%; margin-top:10px;" onclick="approveTaskBySupervisor('${task.id}')"><i class="fas fa-check"></i> Approve Task</button>
                     </div>
                 </div>`;
                 tasksApprovalArea.innerHTML += approvalCard;
@@ -1797,272 +1796,6 @@
         if (!hasMyTasks && myActionableArea) myActionableArea.innerHTML = `<p style="color:#666;">${currentLang==='dv'?'އަދި އެއްވެސް ޓާސްކެއް ޙަވާލުކުރެވިފައެއް ނުވޭ.':'No tasks assigned to you yet.'}</p>`;
         if (!hasCreatedTasks && tasksCreatedByMeArea) tasksCreatedByMeArea.innerHTML = `<p style="color:#666;">${currentLang==='dv'?'އަދި އެއްވެސް ޓާސްކެއް އެސައިންކޮށްފައެއް ނުވޭ.':'You haven\'t assigned any tasks.'}</p>`;
         if (!hasApprovalTasks && tasksApprovalArea) tasksApprovalArea.innerHTML = `<p style="color:#666;">No tasks awaiting your approval.</p>`;
-    }
-
-    function renderFormBank() {
-        const fbBody = document.getElementById('formBankBody');
-        if(!fbBody) return;
-        fbBody.innerHTML = '';
-        let hasForms = false;
-
-        const cUserStr = currentUser.trim().toLowerCase();
-        const rawU = document.getElementById('username').value.trim().toLowerCase();
-
-        allStudents.forEach(st => {
-            let roleCanView = false;
-            
-            if (currentRole === 'admin') {
-                roleCanView = true;
-            } else if (currentRole === 'lecturer') {
-                if (st.sup && st.sup.toLowerCase().includes(cUserStr)) roleCanView = true;
-            } else if (currentRole === 'master') {
-                if (st.master && st.master.toLowerCase().includes(cUserStr)) roleCanView = true;
-            } else if (currentRole === 'student') {
-                if (st.id.toLowerCase() === rawU || st.name.toLowerCase() === cUserStr) roleCanView = true;
-            }
-
-            if (!roleCanView) return;
-
-            let addRow = (obsName, marks, stdId, ownerRole) => {
-                let numMarks = parseFloat(marks);
-                if(!isNaN(numMarks) && numMarks > 0) {
-                    hasForms = true;
-                    let displayDate = st.lastUpdated || new Date().toISOString().split('T')[0];
-                    
-                    let actionHtml = `<button class="action-btn small" style="background:var(--royal-purple);" onclick="exportSavedExactPDF('${stdId}', '${obsName}')" title="Download Full Form PDF"><i class="fas fa-file-pdf"></i> Full Form PDF</button>`;
-                    actionHtml += ` <button class="action-btn small" style="background:#0B6623;" onclick="downloadObservationSlip('${stdId}', '${obsName}', ${numMarks})" title="Download Result Slip"><i class="fas fa-download"></i> Slip</button>`;
-                    
-                    if (currentRole === 'admin' || currentRole === 'lecturer' || currentRole === 'master') {
-                        actionHtml += `
-                            <button class="action-btn small" style="background:#d4af37; color:#000;" onclick="openAmendModal('${stdId}', '${st.name}', '${obsName}')" title="Amend"><i class="fas fa-edit"></i></button>`;
-                    }
-                    if (currentRole === 'admin') {
-                        actionHtml += `<button class="action-btn small" style="background:#8b0000;" onclick="deleteForm3Step('${stdId}', '${obsName}')" title="Delete"><i class="fas fa-trash"></i></button>`;
-                    }
-                    
-                    fbBody.innerHTML += `
-                        <tr>
-                            <td>${st.name}</td><td>${displayDate}</td><td>${obsName}</td><td style="font-weight:bold; color:var(--royal-green);">${numMarks}</td>
-                            <td>${actionHtml}</td>
-                        </tr>`;
-                }
-            };
-
-            addRow("TP1 - Obs 1", st.tp1 ? st.tp1[0] : null, st.id, 'lecturer'); 
-            addRow("TP1 - Obs 2", st.tp1 ? st.tp1[1] : null, st.id, 'lecturer'); 
-            addRow("TP1 - Obs 3", st.tp1 ? st.tp1[2] : null, st.id, 'lecturer');
-            addRow("TP2 - Obs 1", st.tp2 ? st.tp2[0] : null, st.id, 'lecturer'); 
-            addRow("TP2 - Obs 2", st.tp2 ? st.tp2[1] : null, st.id, 'lecturer'); 
-            addRow("TP2 - Obs 3", st.tp2 ? st.tp2[2] : null, st.id, 'lecturer');
-            addRow("Portfolio Evaluation", st.portfolioScore, st.id, 'portfolio');
-            addRow("Master Teacher Final", st.masterScore, st.id, 'master');
-        });
-        
-        if(!hasForms) {
-            fbBody.innerHTML = `<tr><td colspan="5" style="color:#888;">${currentLang==='dv'?'އަދި އެއްވެސް ފޯމެއް ސަބްމިޓްކޮށްފައެއް ނެތް.':'No graded forms submitted yet.'}</td></tr>`;
-        }
-    }
-
-    // --- AUTO-FEEDBACK / COLORED STARS LOGIC ---
-    
-    function initRubric() {
-        const tbody = document.getElementById('rubricBody');
-        if(!tbody) return;
-        tbody.innerHTML = '';
-        
-        criteriaList.forEach(item => {
-            const tr = document.createElement('tr');
-            if (item.cat) {
-                const title = item.cat[currentLang] || item.cat.en;
-                tr.innerHTML = `<th colspan="6" class="category-header" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${title}</th>`;
-            } else {
-                const text = item[currentLang] || item.en;
-                let rowHTML = `<td class="criteria-text" style="text-align: ${currentLang==='en'?'left':'right'} !important;">${text}</td>`;
-                for (let i = 1; i <= 5; i++) {
-                    rowHTML += `<td><input type="radio" name="${item.id}" value="${i}" onchange="calculateRubricTotal()"></td>`;
-                }
-                tr.innerHTML = rowHTML;
-            }
-            tbody.appendChild(tr);
-        });
-    }
-
-    function calculateRubricTotal() {
-        let total = 0;
-        const statusElem = document.getElementById('obsMarksStatus');
-        const isDraft = statusElem ? statusElem.value === 'disabled' : false;
-
-        const ad = autoDict[currentLang] || autoDict.en;
-        let excellentItems = [];
-        let vGoodItems = [];
-        let goodItems = [];
-        let satItems = [];
-        let improveItems = [];
-
-        document.querySelectorAll('#rubricForm input[type="radio"]:checked').forEach(r => {
-            let val = parseInt(r.value);
-            total += val;
-            
-            const cObj = criteriaList.find(c => c.id === r.name);
-            if (cObj) {
-                let text = cObj[currentLang] || cObj.en;
-                if (val === 5) excellentItems.push(text);
-                else if (val === 4) vGoodItems.push(text);
-                else if (val === 3) goodItems.push(text);
-                else if (val === 2) satItems.push(text);
-                else if (val === 1) improveItems.push(text);
-            }
-        });
-
-        const display = document.getElementById('scoreDisplay');
-        if (display) {
-            if (isDraft) {
-                display.innerText = "DRAFT";
-                display.style.color = "#888";
-            } else {
-                display.innerText = `${total} / 275`;
-                display.style.color = "inherit";
-            }
-        }
-
-        const suggestBox = document.getElementById('autoSuggestions');
-        if (suggestBox) {
-            let fb = "";
-            if (total > 0) {
-                if (excellentItems.length > 0) fb += `<div style="color:#D4AF37; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★★★★</span> ${ad.excellentTitle}</strong><br><span style="color:#333; font-style:italic;">${ad.excellentDesc}</span><br>• ${excellentItems.join('<br>• ')}</div>`;
-                if (vGoodItems.length > 0) fb += `<div style="color:#0B6623; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★★★☆</span> ${ad.vgoodTitle}</strong><br><span style="color:#333; font-style:italic;">${ad.vgoodDesc}</span><br>• ${vGoodItems.join('<br>• ')}</div>`;
-                if (goodItems.length > 0) fb += `<div style="color:#1a237e; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★★☆☆</span> ${ad.goodTitle}</strong><br><span style="color:#333; font-style:italic;">${ad.goodDesc}</span><br>• ${goodItems.join('<br>• ')}</div>`;
-                if (satItems.length > 0) fb += `<div style="color:#b8860b; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★★☆☆☆</span> ${ad.satisfactoryTitle}</strong><br><span style="color:#333; font-style:italic;">${ad.satisfactoryDesc}</span><br>• ${satItems.join('<br>• ')}</div>`;
-                if (improveItems.length > 0) fb += `<div style="color:#dc143c; margin-bottom:12px;"><strong><span style="font-family:Arial, sans-serif; font-size:18px;">★☆☆☆☆</span> ${ad.improveTitle}</strong><br><span style="color:#333; font-style:italic;">${ad.improveDesc}</span><br>• ${improveItems.join('<br>• ')}<br><br><em style="color:#000;">${ad.improveAction}</em></div>`;
-            }
-            suggestBox.innerHTML = fb || `<span style="color:#888;">${translations[currentLang].phAutoSuggest}</span>`;
-        }
-    }
-
-    let currentAmendTarget = { id: '', obsName: '' };
-    function openAmendModal(stdId, stdName, obsName) {
-        currentAmendTarget = { id: stdId, obsName: obsName };
-        document.getElementById('amendStudentName').innerText = stdName;
-        document.getElementById('amendObsName').innerText = obsName;
-        document.getElementById('amendNewScore').value = '';
-        document.getElementById('amendReasonSelect').value = '';
-        document.getElementById('amendReasonText').value = '';
-        document.getElementById('amendReasonText').style.display = 'none';
-        document.getElementById('amendCode').value = '';
-        document.getElementById('amendModal').style.display = 'flex';
-    }
-
-    function toggleAmendReasonText() {
-        const val = document.getElementById('amendReasonSelect').value;
-        document.getElementById('amendReasonText').style.display = val === 'އެހެނިހެން' ? 'block' : 'none';
-    }
-
-    function saveAmendment() {
-        const newScoreStr = document.getElementById('amendNewScore').value;
-        const selectReason = document.getElementById('amendReasonSelect').value;
-        const textReason = document.getElementById('amendReasonText').value;
-        const code = document.getElementById('amendCode').value;
-        
-        let finalReason = selectReason;
-        if(selectReason === 'އެހެނިހެން') finalReason = "އެހެނިހެން: " + textReason;
-        
-        if(!selectReason) { alert(currentLang==='dv'?'ސަބަބު ޚިޔާރުކުރައްވާ!':'Please select a reason.'); return; }
-        if(selectReason === 'އެހެނިހެން' && textReason.trim().length < 5) { alert(currentLang==='dv'?'ސަބަބު ތަފްސީލުކޮށް ލިޔުއްވާ!':'Please provide a detailed reason.'); return; }
-        if(code !== "AMEND2026") { alert(currentLang==='dv'?'ވެރިފިކޭޝަން ކޯޑު ނުބައި! (ކޯޑަކީ: AMEND2026)':'Invalid verification code!'); return; }
-        
-        let newScore = null;
-        if(newScoreStr.trim() !== '') {
-            newScore = parseFloat(newScoreStr);
-            if(isNaN(newScore) || newScore < 0 || newScore > 275) { alert(currentLang==='dv'?'މާކުސް ރަނގަޅެއް ނޫން!':'Invalid Score!'); return; }
-        }
-
-        let stIndex = allStudents.findIndex(s => s.id === currentAmendTarget.id);
-        if(stIndex === -1) return;
-        let st = allStudents[stIndex];
-
-        if(newScore !== null) {
-            if (currentAmendTarget.obsName === "TP1 - Obs 1") st.tp1[0] = newScore;
-            else if (currentAmendTarget.obsName === "TP1 - Obs 2") st.tp1[1] = newScore;
-            else if (currentAmendTarget.obsName === "TP1 - Obs 3") st.tp1[2] = newScore;
-            else if (currentAmendTarget.obsName === "TP2 - Obs 1") st.tp2[0] = newScore;
-            else if (currentAmendTarget.obsName === "TP2 - Obs 2") st.tp2[1] = newScore;
-            else if (currentAmendTarget.obsName === "TP2 - Obs 3") st.tp2[2] = newScore;
-            else if (currentAmendTarget.obsName === "Master Teacher Final") st.masterScore = newScore;
-            else if (currentAmendTarget.obsName === "Portfolio Evaluation") st.portfolioScore = newScore;
-
-            st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
-            st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
-
-            if(st.savedForms) {
-                let formRec = st.savedForms.find(f => f.obsType === currentAmendTarget.obsName);
-                if(formRec) formRec.total = newScore;
-            }
-        }
-
-        if(!st.amendLogs) st.amendLogs = [];
-        st.amendLogs.push({
-            date: new Date().toISOString().split('T')[0],
-            obs: currentAmendTarget.obsName,
-            reason: finalReason,
-            amendedBy: currentUser
-        });
-
-        saveToLocal();
-        updateAllViews();
-        
-        alert(currentLang==='dv'?'ފޯމު ކާމިޔާބުކަމާއެކު އެމެންޑް ކުރެވިއްޖެ!':'Form amended successfully!');
-        document.getElementById('amendModal').style.display = 'none';
-    }
-
-    function deleteForm3Step(stdId, obsName) {
-        if(prompt(currentLang==='dv'?"ސްޓެޕް 1: ފޮހެލުމަށްޓަކައި 'DELETE' ޓައިޕްކުރައްވާ:":"Step 1: Type 'DELETE' to proceed:") !== 'DELETE') {
-            alert('Cancelled.'); return;
-        }
-        if(prompt(currentLang==='dv'?"ސްޓެޕް 2: އޮތޮރައިޒޭޝަން ކޯޑު ޖައްސަވާ (DEL2026):":"Step 2: Enter Authorization Code:") !== 'DEL2026') {
-            alert('Invalid Code. Cancelled.'); return;
-        }
-        if(!confirm(currentLang==='dv'?"ސްޓެޕް 3: މި ފޯމުގެ ޑޭޓާ އެއްކޮށް ފޮހެލަން ބޭނުންކަން ޔަޤީންތޯ؟":"Step 3: Are you sure you want to permanently delete this record?")) {
-            return;
-        }
-
-        let stIndex = allStudents.findIndex(s => s.id === stdId);
-        if(stIndex === -1) return;
-        let st = allStudents[stIndex];
-
-        if (obsName === "TP1 - Obs 1") st.tp1[0] = null;
-        else if (obsName === "TP1 - Obs 2") st.tp1[1] = null;
-        else if (obsName === "TP1 - Obs 3") st.tp1[2] = null;
-        else if (obsName === "TP2 - Obs 1") st.tp2[0] = null;
-        else if (obsName === "TP2 - Obs 2") st.tp2[1] = null;
-        else if (obsName === "TP2 - Obs 3") st.tp2[2] = null;
-        else if (obsName === "Master Teacher Final") st.masterScore = null;
-        else if (obsName === "Portfolio Evaluation") st.portfolioScore = null;
-
-        st.tp1_high = Math.max(st.tp1[0]||0, st.tp1[1]||0, st.tp1[2]||0);
-        st.tp2_high = Math.max(st.tp2[0]||0, st.tp2[1]||0, st.tp2[2]||0);
-
-        saveToLocal();
-        updateAllViews();
-        alert(currentLang==='dv'?'ފޯމު ކާމިޔާބުކަމާއެކު ފޮހެލެވިއްޖެ!':'Form deleted successfully!');
-    }
-
-    // --- 6. AUTOFILL & FILTERS ---
-    function autoFillStudentObs() {
-        const val = document.getElementById('searchStudentObs').value;
-        if(val && val.includes(" - ")) {
-            const parts = val.split(" - ");
-            document.getElementById('obsStdID').value = parts[0].trim(); document.getElementById('obsStdName').value = parts[1].trim(); document.getElementById('obsCourse').value = "B.Ed Primary / Batch 5";
-            const student = allStudents.find(s => s.id.toLowerCase() === parts[0].trim().toLowerCase());
-            if(student) document.getElementById('obsSchool').value = student.school;
-        }
-    }
-
-    function autoFillPortfolio() {
-        const val = document.getElementById('searchStudentPort').value;
-        if(val && val.includes(" - ")) {
-            const parts = val.split(" - ");
-            document.getElementById('portStdID').value = parts[0].trim(); document.getElementById('portStdName').value = parts[1].trim();
-        }
     }
 
     function filterMarksTable() {
@@ -2077,10 +1810,14 @@
             const trMaster = rows[i].getAttribute('data-master') ? rows[i].getAttribute('data-master').toLowerCase() : '';
             const trSchool = rows[i].getAttribute('data-school') ? rows[i].getAttribute('data-school').toLowerCase() : '';
             
-            let showRow = false;
+            let showRow = true;
+            
+            // ރޯލް އާއި ގުޅޭގޮތުން ފިލްޓަރ ކުރުން
             if(currentRole === 'lecturer' && !trSup.includes(currentUser.trim().toLowerCase())) { showRow = false; }
-            else if (currentRole === 'master' && !trMaster.includes(currentUser.trim().toLowerCase())) { showRow = false; } 
-            else if(text.includes(search) && trSup.includes(sup) && trSchool.includes(school)) { showRow = true; }
+            if(currentRole === 'master' && !trMaster.includes(currentUser.trim().toLowerCase())) { showRow = false; } 
+            
+            // ސަރޗް ބޮކްސްތަކުގެ ފިލްޓަރ
+            if(!text.includes(search) || !trSup.includes(sup) || !trSchool.includes(school)) { showRow = false; }
             
             if(showRow) rows[i].style.display = ""; else rows[i].style.display = "none";
         }
