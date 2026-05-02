@@ -661,7 +661,6 @@
 
                             <div style="margin-top: 20px;">
                                 <label style="font-weight: bold; color:#1a237e; font-size:16px;" lang-key="lblObserverComment"><i class="fas fa-pen"></i> އިތުރު ނޯޓް އަދި ކޮމެންޓް:</label><br>
-                                <!-- އަމިއްލައަށް ކޮމެންޓަށް ބަދަލު ގެނެސްފިނަމަ އޮޓޯއިން ލިޔުން ހުއްޓޭނެ ލޮޖިކް -->
                                 <textarea id="observerComments" oninput="isCommentManuallyEdited=true" style="width: 100%; height: 180px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; font-family: 'Faruma', Arial, sans-serif; font-size:16px; box-shadow:inset 0 1px 3px rgba(0,0,0,0.1); line-height: 1.8;" lang-key="phComment" placeholder="ފާހަގަކުރުންތައް މެނުއަލްކޮށް ލިޔުއްވާ..."></textarea>
                             </div>
 
@@ -730,13 +729,12 @@
     // --- 0. LOCAL STATE HELPER VARIABLES ---
     let currentLinkedId = '';
     let currentSupName = '';
-    let isCommentManuallyEdited = false; // އޮޓޯ ކޮމެންޓް ލޮޖިކް
+    let isCommentManuallyEdited = false;
 
-    // --- 0. ROBUST IDENTIFICATION HELPERS (BUG FIX) ---
+    // --- 0. ROBUST IDENTIFICATION HELPERS ---
     function isMyStudent(st) {
         if (!st) return false;
         
-        // 1. Direct matched ID from login (Perfect match)
         if (currentLinkedId && st.id.toLowerCase() === currentLinkedId.toLowerCase()) {
             return true;
         }
@@ -744,12 +742,10 @@
         const rawU = document.getElementById('username').value.trim().toLowerCase();
         const cUserStr = currentUser.trim().toLowerCase();
         
-        // 2. Fallbacks
         if (st.id && st.id.toLowerCase() === cUserStr) return true;
         if (st.id && st.id.toLowerCase() === rawU) return true;
         if (st.name && st.name.toLowerCase() === cUserStr) return true;
         
-        // 3. Fallback extraction logic for sut.xxxx@rasfahi.com
         const emailPrefix = rawU.split('@')[0]; 
         if (st.id) {
             const numMatch = emailPrefix.match(/sut\.([0-9]+)/);
@@ -766,19 +762,16 @@
         if (!supName) return false;
         if (currentRole === 'admin') return true;
         
-        // 1. Direct matched name from login (Perfect match)
         if (currentSupName && supName.toLowerCase().trim() === currentSupName.toLowerCase().trim()) return true;
         
         const rawU = document.getElementById('username').value.trim().toLowerCase();
         const cUserStr = currentUser.trim().toLowerCase();
         const sNameLower = supName.toLowerCase().trim();
         
-        // 2. Fallbacks
         if (sNameLower === cUserStr) return true;
         if (sNameLower.includes(cUserStr) && cUserStr.length > 3) return true;
         if (cUserStr.includes(sNameLower) && sNameLower.length > 3) return true;
         
-        // 3. Fallback check with generated email
         let genSupEmail = generateEmail(supName, 'lecturer').toLowerCase();
         if (rawU === genSupEmail) return true;
 
@@ -1093,18 +1086,28 @@
         let totalMarks = document.getElementById('scoreDisplay').innerText.split('/')[0].trim() || '0';
         let comments = document.getElementById('observerComments').value || '';
         let suggestions = document.getElementById('autoSuggestions').innerText || '';
-        let supervisor = currentRole === 'lecturer' ? (currentSupName || currentUser) : '-';
+        
+        // Resolve supervisor
+        let supervisor = '-';
+        if (currentRole === 'lecturer') {
+            supervisor = currentSupName || currentUser;
+        } else {
+            let st = allStudents.find(s => s.id.toLowerCase() === stdId.toLowerCase());
+            if (st && st.sup) supervisor = st.sup;
+        }
 
         const isRTL = (currentLang === 'dv' || currentLang === 'ar'); 
         const textDir = isRTL ? 'rtl' : 'ltr'; 
         const textAlign = isRTL ? 'right' : 'left'; 
         const t = pdfDict[currentLang] || pdfDict.en; 
         
+        let cList = obsType === 'Portfolio Evaluation' ? portfolioCriteriaList : criteriaList;
+
         let html = `<div style="direction: ${textDir}; color:#000; text-align:${textAlign};"><div style="border: 2px solid #00008B; padding: 15px; border-radius: 5px;"><div style="text-align:center; border-bottom: 2px solid #00008B; padding-bottom:10px; margin-bottom:15px;"><h3 style="margin:0; font-size:26px; padding-bottom:5px;">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</h3><h4 style="margin:5px 0; font-size:16px;">${t.ium}</h4><h4 style="margin:2px 0; font-size:14px;">${t.koe}</h4><div style="margin-top:10px;"><span style="background: #00008B; color: white; padding: 5px 15px; border-radius: 5px; font-weight:bold;">${t.title}</span></div></div>
             <table style="margin-bottom:15px; font-size:14px; text-align:${textAlign}; line-height:1.6; border:none; width:100%;"><tr><td style="width:55%; border:none;"><strong>${t.stdName}</strong> ${stdName}</td><td style="width:45%; border:none;"><strong>${t.date}</strong> ${date}</td></tr><tr><td style="border:none;"><strong>${t.id}</strong> ${stdId}</td><td style="border:none;"><strong>Course:</strong> B.Ed Primary</td></tr><tr><td style="border:none;"><strong>School:</strong> ${school}</td><td style="border:none;"><strong>Supervisor:</strong> ${supervisor}</td></tr><tr><td colspan="2" style="border:none;"><strong>${t.obsType}</strong> ${obsType}</td></tr></table>
             <table style="font-size:12px; margin-bottom: 15px; width:100%; border-collapse: collapse;"><thead><tr style="background:#00008B; color:#ffffff;"><th style="padding:8px; text-align:${textAlign}; width:45%; border: 1px solid #000; -webkit-print-color-adjust: exact;">COMPETENCIES</th><th style="border: 1px solid #000; text-align:center;">5</th><th style="border: 1px solid #000; text-align:center;">4</th><th style="border: 1px solid #000; text-align:center;">3</th><th style="border: 1px solid #000; text-align:center;">2</th><th style="border: 1px solid #000; text-align:center;">1</th></tr></thead><tbody>`;
         
-        criteriaList.forEach(item => {
+        cList.forEach(item => {
             if (item.cat) {
                 html += `<tr><th colspan="6" style="background:#F4F6F9; color:#0B6623; text-align:${textAlign}; padding:6px; border: 1px solid #000; -webkit-print-color-adjust: exact;">${item.cat[currentLang] || item.cat.en}</th></tr>`;
             } else { 
@@ -1118,7 +1121,9 @@
         
         html += `</tbody></table><div class="page-break"></div> <div style="background:#F4F6F9; padding:10px; border-left: 5px solid #00008B; margin-bottom:15px; -webkit-print-color-adjust: exact;"><strong>${t.total}</strong> <span style="font-size:20px; font-weight:bold;">${totalMarks}</span></div>`;
         
-        html += `<div style="border:1px solid #000; padding:15px; min-height:80px; margin-bottom:25px;"><strong>Comments & Feedback:</strong><br><div style="font-size:14px; margin-top:10px; line-height:1.6;">${suggestions}<br><br>${comments ? comments.replace(/\n/g, '<br>') : ''}</div></div>`;
+        if (obsType !== 'Portfolio Evaluation') {
+            html += `<div style="border:1px solid #000; padding:15px; min-height:80px; margin-bottom:25px;"><strong>Comments & Feedback:</strong><br><div style="font-size:14px; margin-top:10px; line-height:1.6;">${suggestions}<br><br>${comments ? comments.replace(/\n/g, '<br>') : ''}</div></div>`;
+        }
         
         html += `</div></div>`;
         generateSafePDF(html, `LiveForm_${stdId}_${obsType.replace(/\s+/g, '_')}`, 'portrait');
@@ -1369,7 +1374,7 @@
         } 
         else if (currentRole === 'lecturer') {
             menuHtml += `<div class="sidebar-item active" onclick="showSection('student-eval', this)"><i class="fas fa-user-graduate"></i> <span lang-key="menuStudent">މައި ޑޭޝްބޯޑް</span></div>`;
-            // Task center removed as requested for Supervisor
+            // Task center removed for Supervisor role
             menuHtml += `<div class="sidebar-item" onclick="showSection('observation-form', this)"><i class="fas fa-clipboard-check"></i> <span lang-key="menuObservation">އޮބްޒަރވޭޝަން ފޯމު</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('portfolio-section', this)"><i class="fas fa-folder-open"></i> <span lang-key="menuPortfolio">ޕޯޓްފޯލިއޯ</span></div>`;
             menuHtml += `<div class="sidebar-item" onclick="showSection('all-marks-section', this)"><i class="fas fa-table"></i> <span lang-key="marksTableTitle">މާކުސް ރިޕޯރޓް</span></div>`;
@@ -1747,9 +1752,8 @@
             if (tUser === 'all') {
                 if (currentRole === tRole) {
                     if (tRole === 'student' && task.creatorRole === 'lecturer') {
-                        // Supervisor assigned to "All My Students"
                         let myStd = allStudents.find(s => isMyStudent(s));
-                        if (myStd && isMySupervisor(task.creator)) { // My supervisor created it
+                        if (myStd && isMySupervisor(task.creator)) { 
                             isAssignedToMe = true;
                         }
                     } else {
@@ -2157,6 +2161,7 @@
             const trSchool = rows[i].getAttribute('data-school') ? rows[i].getAttribute('data-school').toLowerCase() : '';
             
             let showRow = true;
+            
             if (currentRole === 'lecturer' && !isMySupervisor(rows[i].getAttribute('data-sup'))) {
                 showRow = false;
             }
@@ -2186,7 +2191,6 @@
             return totalB - totalA;
         });
 
-        // ލެކްޗަރަރަކު ނަމަ ހަމައެކަނި އެ ލެކްޗަރަރެއްގެ ދަރިވަރުން ފިލްޓަރކުރުން
         if (currentRole === 'lecturer') {
             sortedStudents = sortedStudents.filter(s => isMySupervisor(s.sup));
         }
@@ -2313,7 +2317,7 @@
         else st.savedForms.push(formRecord);
 
         allStudents[studentIndex] = st;
-        isCommentManuallyEdited = false; // ފޯމު ސަބްމިޓްކުރުމަށްފަހު އޮޓޯ ކޮމެންޓް އަނެއްކާވެސް އެކްޓިވް ކުރުން
+        isCommentManuallyEdited = false; 
 
         saveToLocal();
         updateAllViews();
