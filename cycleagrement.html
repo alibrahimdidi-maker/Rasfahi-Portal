@@ -8,6 +8,11 @@
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase Compat Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <style>
         @font-face {
@@ -38,31 +43,50 @@
             line-height: 1.8;
         }
 
+        /* Login Screen Styles */
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-color); z-index: 9999;
+            display: flex; justify-content: center; align-items: center; padding: 20px;
+        }
+        .login-box {
+            background: #fff; padding: 40px; border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px;
+            border-top: 6px solid var(--primary-dark-green); text-align: center;
+        }
+        .login-box h2 { color: var(--primary-royal-blue); margin-bottom: 20px; }
+        .login-box input {
+            width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc;
+            border-radius: 5px; font-family: 'Arial', sans-serif; text-align: left; direction: ltr;
+        }
+        .login-box button {
+            width: 100%; padding: 12px; background: var(--primary-royal-blue); color: white;
+            border: none; border-radius: 5px; cursor: pointer; font-family: 'Faruma', sans-serif; font-size: 16px; transition: 0.3s;
+        }
+        .login-box button:hover { background: var(--primary-dark-green); }
+        .error-msg { color: var(--danger-red); font-size: 12px; margin-bottom: 15px; display: none; }
+
+        /* Main App Layout */
+        #app-content { display: none; flex-direction: column; width: 100%; height: 100vh; }
         @media (min-width: 992px) {
-            body { flex-direction: row; overflow: hidden; }
+            #app-content { flex-direction: row; overflow: hidden; }
             .main-content { overflow-y: auto; }
             .sidebar { overflow-y: auto; height: 100vh; }
         }
 
-        /* Layout */
         .sidebar {
             width: 100%; background: #fff; display: flex; flex-direction: column;
             padding: 20px 15px; box-shadow: -2px 0 10px rgba(0,0,0,0.05); border-bottom: 2px solid #ddd;
         }
-        
         @media (min-width: 992px) {
             .sidebar { width: 380px; border-bottom: none; border-left: 2px solid #ddd; }
         }
 
-        .main-content { flex: 1; padding: 15px; width: 100%; }
+        .main-content { flex: 1; padding: 15px; width: 100%; position: relative; }
 
         /* Dashboard Cards */
-        .dashboard-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;
-        }
-        .stat-card {
-            background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; border-bottom: 4px solid var(--primary-royal-blue);
-        }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; border-bottom: 4px solid var(--primary-royal-blue); }
         .stat-card h3 { margin: 0; font-size: 14px; color: #555; }
         .stat-card .value { font-size: 24px; font-weight: bold; color: var(--primary-dark-green); margin-top: 10px; }
 
@@ -71,18 +95,16 @@
 
         /* Sidebar List */
         .sidebar h2 { text-align: center; color: var(--primary-royal-blue); margin-top: 0; font-size: 18px; }
-        .renter-item {
-            background: #fafafa; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-right: 5px solid; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size: 14px;
-        }
+        .renter-item { background: #fafafa; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-right: 5px solid; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size: 14px; }
         .status-new { border-color: var(--primary-dark-green); }
-        .status-expiring { border-color: var(--primary-royal-blue); } /* Changed from yellow to royal blue */
+        .status-expiring { border-color: var(--primary-royal-blue); }
         .status-expired { border-color: var(--danger-red); }
         
         .action-buttons-group { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px; }
         .btn-small { color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-family: 'Faruma', Arial, sans-serif; font-size: 12px; }
-        .btn-wa { background: #25D366; }
-        .btn-rcpt { background: var(--primary-dark-green); }
-        .btn-load { background: var(--primary-royal-blue); }
+        .btn-wa { background: var(--primary-dark-green); }
+        .btn-rcpt { background: var(--primary-royal-blue); }
+        .btn-load { background: #555; }
         .btn-del { background: var(--danger-red); }
 
         /* Agreement Document */
@@ -100,42 +122,35 @@
         .editable:focus { border-bottom: 2px solid var(--primary-dark-green); background: #f0f8f5; }
         .editable[data-placeholder]:empty:before { content: attr(data-placeholder); color: #999; }
 
-        p { text-align: justify; }
-
-        /* Fixes for Clauses - Using DIVs instead of OL to prevent cutting in HTML2PDF */
         .clauses-container { padding-right: 5px; text-align: justify; }
         .clause-item { margin-bottom: 15px; page-break-inside: avoid; break-inside: avoid; }
         .sub-clause { margin-right: 20px; margin-top: 5px; }
 
-        /* Signatures Grid */
         .signatures-grid { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 20px; }
         @media (min-width: 768px) { .signatures-grid { grid-template-columns: 1fr 1fr; } }
         .signature-box { border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #fafafa; page-break-inside: avoid; break-inside: avoid; }
         .sig-canvas { border: 1px solid var(--primary-royal-blue); background: #fff; width: 100%; height: 120px; cursor: crosshair; touch-action: none; }
 
-        /* Upload Grid */
         .upload-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 20px; }
         @media (min-width: 768px) { .upload-grid { grid-template-columns: 1fr 1fr; } }
         .upload-box { border: 2px dashed var(--primary-royal-blue); padding: 10px; text-align: center; border-radius: 5px; page-break-inside: avoid; break-inside: avoid; }
         .upload-box img { width: 100%; max-height: 200px; object-fit: contain; margin-top: 10px; display: none; }
 
-        /* Receipt Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; padding: 15px; }
         .receipt-slip { background: #fff; width: 100%; max-width: 600px; padding: 25px; border-radius: 10px; border-top: 10px solid var(--primary-royal-blue); position: relative; max-height: 90vh; overflow-y: auto; }
 
-        /* Top Action Buttons */
         .top-actions {
             display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 20px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
         .top-actions button {
             padding: 10px 15px; border: none; border-radius: 5px; font-family: 'Faruma'; cursor: pointer; color: white; font-size: 14px; flex: 1; min-width: 120px; max-width: 200px;
         }
-        
-        .backup-actions {
-            display: flex; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 1px dashed #ccc; justify-content: space-between;
+
+        .logout-btn {
+            background: #ccc; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;
+            font-family: 'Faruma'; color: #333; margin-top: 15px; width: 100%;
         }
 
-        /* Print Specifics */
         .page-footer { display: none; }
 
         @media print {
@@ -151,193 +166,212 @@
             .page-number::after { content: "ޞަފްޙާ " counter(page); }
             .clause-item { page-break-inside: avoid; break-inside: avoid; }
         }
+        
+        .loading-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.8);
+            display: none; justify-content: center; align-items: center; z-index: 99999;
+            color: var(--primary-royal-blue); font-size: 20px; font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
-    <div class="main-content">
-        
-        <div class="dashboard-grid no-print">
-            <div class="stat-card">
-                <h3>ޖުމްލަ ދެވިފައި</h3>
-                <div class="value" id="stat-total">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>ހަމަވާން ކައިރިވެފައި</h3>
-                <div class="value" style="color: var(--primary-royal-blue);" id="stat-expiring">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>މުއްދަތު ހަމަވެފައި</h3>
-                <div class="value" style="color: var(--danger-red);" id="stat-expired">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>ޖުމްލަ އާމްދަނީ</h3>
-                <div class="value" id="stat-income" style="font-size: 20px;">0 ރ.</div>
-            </div>
-        </div>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">މަޑުކޮށްލައްވާ...</div>
 
-        <div class="chart-container no-print">
-            <canvas id="dashboardChart"></canvas>
-        </div>
-
-        <div class="top-actions no-print">
-            <button onclick="clearForm()" style="background: #888;">ފޯމު ހުސްކުރައްވާ (އައު)</button>
-            <button onclick="saveAgreementToBank()" style="background: var(--primary-dark-green);">އެގްރިމެންޓް ސޭވްކުރައްވާ</button>
-            <button onclick="prepareAndPrint()" style="background: var(--primary-royal-blue);">ޕްރިންޓް ކުރައްވާ</button>
-        </div>
-
-        <div class="document-container" id="agreement-content">
-            <div style="text-align: center; margin-bottom: 10px; font-size: 12px; color: #777;" class="no-print">Reg: MED.03.IP.CR.26.EW5889</div>
-            
-            <h1>މޮޓޯސައިކަލް ކުއްޔަށް ދިނުމުގެ އެއްބަސްވުން</h1>
-
-            <p>މިއީ <span class="editable" id="agr-date" contenteditable="true" data-placeholder="ދުވަސް-މަސް-އަހަރު"></span> ވަނަ ދުވަހު، މޮޓޯސައިކަލުގެ ވެރިފަރާތް ކަމަށްވާ <span class="editable" id="owner-name" contenteditable="true">ޢަލީ އިބްރާހީމް ދީދީ</span> (އައިޑީ: <span class="editable" id="owner-id" contenteditable="true">A000000</span>، އެޑްރެސް: <span class="editable" id="owner-address" contenteditable="true">މ. މާލެ</span>) (މީގެ ފަހުން "ވެރިފަރާތް" މިހެން ކިޔާނީ) އާއި، ސައިކަލް ކުއްޔަށް ހިފާ ފަރާތް ކަމަށްވާ <span class="editable" id="renter-name" contenteditable="true" data-placeholder="ކުއްޔަށް ހިފާ ފަރާތުގެ ނަން"></span> (އައިޑީ: <span class="editable" id="renter-id" contenteditable="true" data-placeholder="އައިޑީ ނަންބަރު"></span>، އެޑްރެސް: <span class="editable" id="renter-address" contenteditable="true" data-placeholder="އެޑްރެސް"></span>، މޯބައިލް ނަންބަރު: <span class="editable" id="renter-mobile" contenteditable="true" data-placeholder="މޯބައިލް ނަންބަރު"></span>) (މީގެ ފަހުން "ކުއްޔަށް ހިފާ ފަރާތް" މިހެން ކިޔާނީ) އާ ދެމެދު ވެވިފައިވާ އެއްބަސްވުމެކެވެ.</p>
-
-            <h3>1. ސައިކަލުގެ މަޢުލޫމާތު:</h3>
-            <div style="padding-right: 20px;">
-                ރަޖިސްޓްރީ ނަންބަރު: <span class="editable" id="cycle-reg" contenteditable="true">AB1A-1234</span><br>
-                ބްރޭންޑް އަދި މޮޑެލް: <span class="editable" id="cycle-model" contenteditable="true">Honda PCX</span><br>
-                ކުލަ: <span class="editable" id="cycle-color" contenteditable="true">ކަޅު</span>
-            </div>
-
-            <h3>2. ކުއްޔާއި މުއްދަތު:</h3>
-            <div style="padding-right: 20px; margin-bottom: 20px;">
-                ކުއްޔަށް ނަގާ މުއްދަތު: <span class="editable" id="start-date" contenteditable="true" data-placeholder="DD-MM-YYYY"></span> ގެ <span class="editable" id="start-time" contenteditable="true" data-placeholder="ގަޑި"></span> އިން ފެށިގެން <span class="editable" id="end-date" contenteditable="true" data-placeholder="DD-MM-YYYY"></span> ގެ <span class="editable" id="end-time" contenteditable="true" data-placeholder="ގަޑި"></span> އަށް.<br>
-                ކުލީގެ އަގު: <span class="editable" id="rental-price" contenteditable="true" data-placeholder="އަގު"></span> ރުފިޔާ.
-            </div>
-
-            <h3>3. އެއްބަސްވުމުގެ ޝަރުޠުތައް:</h3>
-            <div class="clauses-container">
-                <div class="clause-item"><strong>1. ޤާނޫނާ އެއްގޮތަށް ބޭނުންކުރުން:</strong> ދިވެހިރާއްޖޭގެ ޤާނޫނާއި ޤަވާޢިދާ ޚިލާފު އެއްވެސް ކަމެއްގައި މި ސައިކަލް ބޭނުން ނުކުރުން.</div>
-                
-                <div class="clause-item"><strong>2. ދުއްވާ ސްޕީޑް:</strong> ހައިވޭތަކުގައި ދުއްވާއިރު ގަޑިއަކު 50 ކިލޯމީޓަރަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން. އެތެރޭގެ މަގުތަކުގައި ދުއްވާއިރު، ޓްރެފިކް ޤަވާޢިދުގައި ކަނޑައެޅިފައިވާ ސްޕީޑް ލިމިޓަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން.</div>
-                
-                <div class="clause-item"><strong>3. ލައިސަންސް އަދި ލިޔެކިޔުން:</strong> ކުއްޔަށް ހިފާ ފަރާތުގެ އަތުގައި މުއްދަތު ހަމަނުވާ ސައްޙަ ޑްރައިވިންގ ލައިސަންސެއް އޮތުން. އަދި މިއެއްބަސްވުމުގައި ސޮއިކުރުމާއެކު، ކުއްޔަށް ހިފާ ފަރާތުގެ އައިޑީ ކާޑު ކޮޕީއާއި ލައިސަންސް ކޮޕީ ވެރިފަރާތަށް ފޮނުވުން ނުވަތަ ޙަވާލުކުރުން.</div>
-                
-                <div class="clause-item"><strong>4. އެހެން ފަރާތަކަށް ނުދިނުން:</strong> ކުއްޔަށް ހިފާ ފަރާތް ފިޔަވައި، އެހެން ފަރާތެއްގެ އަތަށް އެއްވެސް ގޮތަކަށް ސައިކަލް ނުދިނުން.</div>
-                
-                <div class="clause-item"><strong>5. ޕެޓްރޯލް އެޅުން:</strong> ދުއްވާ ވަގުތުގައި ސައިކަލަށް ބޭނުންވާ ޕެޓްރޯލް އެޅުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ އަމިއްލަ ޒިންމާއެކެވެ.</div>
-                
-                <div class="clause-item"><strong>6. ސައިކަލް ހުއްޓުން:</strong> ޕެޓްރޯލް ހުސްވެގެން ނުވަތަ އެނޫންވެސް ސަބަބަކާހުރެ އެއްވެސް ތަނެއްގައި ސައިކަލް ހުއްޓިއްޖެނަމަ، ސައިކަލް ރައްކާތެރިކަމާއެކު ވެރިފަރާތާ ހަމައަށް ގެންގޮސްދިނުމުގެ ފުރިހަމަ ޒިންމާ ކުއްޔަށް ހިފާ ފަރާތުން ނެގުން.</div>
-                
-                <div class="clause-item"><strong>7. ގެއްލުމުގެ ބަދަލުދިނުން:</strong> ކުއްޔަށް ހިފާ ފަރާތުގެ ބެލުމުގެ ދަށުގައި ސައިކަލް ހުއްޓާ އިހުމާލުން ނުވަތަ އެހެން ގޮތަކުން ނަމަވެސް ސައިކަލަށް ލިބޭ ކޮންމެ ގެއްލުމެއްގެ ފުރިހަމަ ބަދަލު ކުއްޔަށް ހިފާ ފަރާތުން ހޯދައިދިނުން.</div>
-                
-                <div class="clause-item"><strong>8. ޖޫރިމަނާތައް:</strong> ކުއްޔަށް ހިފާފައިވާ ވަގުތުގެ ތެރޭގައި ޓްރެފިކް ޤަވާޢިދާ ޚިލާފުވެގެން ނުވަތަ ޕާކިންގ ގޯސްވެގެން އަންނަ ހުރިހާ ޖޫރިމަނާއެއް ދެއްކުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ ޒިންމާއެކެވެ.</div>
-                
-                <div class="clause-item"><strong>9. މުއްދަތު އިތުރުކުރުމާއި ލަސްވުމުން ނަގާ ޖޫރިމަނާ:</strong> ކުއްޔަށް ހިފި މުއްދަތު ހަމަވުމަށްފަހު ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، ވަގުތު ހަމަވާ ހިސާބުން ފެށިގެން އިތުރުވާ ކޮންމެ ގަޑިއިރަކަށް 100 (ސަތޭކަ) ރުފިޔާގެ މަގުން ކުއްޔަށް ހިފާ ފަރާތް ޖޫރިމަނާ ކުރެވޭނެއެވެ. އަދި ކުއްޔަށް ހިފާފައިވާ މުއްދަތު އިތުރުކުރަން ބޭނުންވާނަމަ، އެއްބަސްވެފައިވާ ވަގުތު ހަމަވުމުގެ މަދުވެގެން 30 (ތިރީސް) މިނެޓު ކުރިން ވެރިފަރާތަށް އެކަން އަންގައި، އިތުރުކުރަން ބޭނުންވާ ވަގުތަށްވާ ފައިސާ ވެރިފަރާތަށް ޓްރާންސްފަރ ކުރަންވާނެއެވެ. ފައިސާ ޓްރާންސްފަރ ކުރުމަށްފަހު މެނުވީ މުއްދަތު އިތުރުކުރެވުނު ކަމަކަށް ނުބެލެވޭނެއެވެ.</div>
-                
-                <div class="clause-item"><strong>10. ސައިކަލް ޙަވާލުނުކުރުން އަދި ސައިކަލް ހޯދައި ނެގުން:</strong> ސައިކަލް ޙަވާލުކުރަން އޮންނަ މުއްދަތު ފާއިތުވެގެން ދާއިރުވެސް ވެރިފަރާތަށް ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، ކުއްޔަށް ހިފާ ފަރާތުގެ ހުއްދައަކާ ނުލައި ސައިކަލް ހުރިތަނަކުން ހޯދައި، ވެރިފަރާތުގެ ބެލުމުގެ ދަށަށް ސައިކަލް ގެނައުމުގެ ފުރިހަމަ އިޚްތިޔާރު ވެރިފަރާތަށް ލިބިގެންވެއެވެ. އަދި މިގޮތަށް ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، މޯލްޑިވްސް ޕޮލިސް ސަރވިސް ނުވަތަ ކަމާބެހޭ އެހެނިހެން ފަރާތްތަކުގެ އެހީތެރިކަން ހޯދައިގެން ސައިކަލް ހޯދުމަށާއި، ކުއްޔަށް ހިފާ ފަރާތާމެދު ޤާނޫނީ ގޮތުން އަޅަންޖެހޭ އެންމެހާ ފިޔަވަޅުތައް އެޅުމުގެ ޙައްޤު ވެރިފަރާތަށް ލިބިގެންވެއެވެ.</div>
-                
-                <div class="clause-item"><strong>11. ރިފަންޑް ދިނުމުގެ އުޞޫލު:</strong> އެއްބަސްވުމުގައި ސޮއިކޮށް، ކުލީގެ ފައިސާ ވެރިފަރާތުން ދީފައިވާ އެކައުންޓަށް ޓްރާންސްފަރ ކުރުމަށްފަހު ކެންސަލްކުރާނަމަ ޢަމަލުކުރެވޭނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ.
-                    <div class="sub-clause">ހ. ސައިކަލާ ޙަވާލުވެ ނުގެންގޮސް، ކިތަންމެ ކުޑަ ވަގުތުކޮޅެއްގެ ތެރޭގައި ނަމަވެސް ކުއްޔަށް ހިފާ ފަރާތުން މި އެއްބަސްވުން ކެންސަލްކުރަން ބޭނުންވެއްޖެނަމަ، ރިފަންޑުގެ ގޮތުގައި ފައިސާ އަނބުރާ ލިބޭނީ ދައްކާފައިވާ ޖުމްލަ ފައިސާގެ %50 (ފަންސާސް އިންސައްތަ) އުނިކުރުމަށްފަހުގައެވެ.</div>
-                    <div class="sub-clause">ށ. ކުއްޔަށް ހިފާ ފަރާތުން ސައިކަލާ ޙަވާލުވެ، ހިނދުކޮޅަކަށް ނަމަވެސް ސައިކަލް ގެންގޮސްފައިވާނަމަ، ދައްކާފައިވާ ފައިސާއިން އެއްވެސް މިންވަރެއް ރިފަންޑުގެ ގޮތުގައި އަނބުރާ ނުލިބޭނެއެވެ.</div>
-                </div>
-                
-                <div class="clause-item"><strong>12. ހެލްމެޓް ކުއްޔަށް ނެގުމާއި ގެއްލުމުގެ ބަދަލު ދިނުން:</strong> ސައިކަލާއެކު ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ތިރީގައިވާ ގޮތަށް ޢަމަލުކުރެވޭނެއެވެ.
-                    <div class="sub-clause">ހ. އެއް ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 30 (ތިރީސް) ރުފިޔާ ދައްކަންވާނެއެވެ.</div>
-                    <div class="sub-clause">ށ. ދެ ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 60 (ފަސްދޮޅަސް) ރުފިޔާ ދައްކަންވާނެއެވެ.</div>
-                    <div class="sub-clause">ނ. ކުއްޔަށް ހިފާފައިވާ މުއްދަތުގެ ތެރޭގައި ހެލްމެޓެއް ގެއްލިއްޖެނަމަ ނުވަތަ ހަލާކުވެއްޖެނަމަ، އެ ހެލްމެޓެއްގެ ބާޒާރު މަތީ އަގު ކުއްޔަށް ހިފާ ފަރާތުން ވެރިފަރާތަށް ދައްކަންވާނެއެވެ.</div>
-                </div>
-                
-                <div class="clause-item"><strong>13. މަރާމާތުކުރުމާއި ސަރވިސްކުރުން:</strong> ސައިކަލަށް ލިބޭ ގެއްލުމެއް ނުވަތަ މަރާމާތެއް ކުރުމުގައި ޢަމަލުކުރާނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ.
-                    <div class="sub-clause">ހ. ސައިކަލަށް ލިބޭ ގެއްލުމެއް ރަނގަޅުކުރުމަށް ނުވަތަ އަޑީތެޔޮ ބަދަލުކުރުން ފަދަ ކަމަކަށް އެއްވެސް ގަރާޖަކަށް ނުވަތަ ވޯކްޝޮޕަކަށް ސައިކަލް ގެންދަންވާނީ ވެރިފަރާތަށް އެންގުމަށްފަހު، ވެރިފަރާތުގެ ހާޒިރުގައި ނުވަތަ ވެރިފަރާތުން ފޮނުވާ ފަރާތެއްގެ ހާޒިރުގައެވެ.</div>
-                    <div class="sub-clause">ށ. ސައިކަލް މަރާމާތުކުރަން ނުވަތަ ސަރވިސްކުރަން ގެންދާ ގަރާޖު ނުވަތަ ވޯކްޝޮޕަކީ ސައިކަލުގެ ވެރިފަރާތް ޤަބޫލުކުރާ ނުވަތަ ވެރިފަރާތުން އެއްބަސްވާ ތަނަކަށް ވާންވާނެއެވެ.</div>
-                    <div class="sub-clause">ނ. ފުރޮޅުން ވައި މަދުވެގެން ވައިޖެހުމާއި، ޕެޓްރޯލް އެޅުން ފަދަ އާންމުކޮށް ކުރަންޖެހޭ ކުދި ކަންކަން، ވެރިފަރާތަށް އެންގުމަކާ ނުލައި ކުއްޔަށް ހިފާ ފަރާތަށް އަމިއްލައަށް ކުރެވިދާނެއެވެ.</div>
-                </div>
-                
-                <div class="clause-item"><strong>14. ޕާކް ކުރުން:</strong> މަގުމަތީގައި ނުވަތަ އެނޫންވެސް ތަނެއްގައި ސައިކަލް ޕާކްކުރާއިރު، ސައިކަލަށް ގެއްލުމެއް ލިބިދާނެ ފަދަ ގޮތަކަށް ނުވަތަ ނުރައްކާތެރި ގޮތަކަށް ޕާކްކޮށްގެން ނުވާނެއެވެ.</div>
-                
-                <div class="clause-item"><strong>15. އަމާނާތަށް ރައްކާތެރިވުން:</strong> ކުއްޔަށް ހިފާފައިވާ ސައިކަލަކީ ކުއްޔަށް ހިފި ފަރާތުގެ ބެލުމުގެ ދަށުގައިވާ ބޮޑު އަމާނާތެކެވެ. އެހެންކަމުން، އެ އަމާނާތަށް ޚިޔާނާތްތެރިވުން ކަމަށް ބެލެވޭ ފަދަ އެއްވެސް ޢަމަލެއް ކުއްޔަށް ހިފާ ފަރާތުން ހިންގައިގެން ނުވާނެއެވެ.</div>
-                
-                <div class="clause-item"><strong>16. ތެޔޮ ބަދަލުކުރުމާއި ސައިކަލް ސާފުކުރުން:</strong> އެއް ފަރާތަކުން ސައިކަލް ކުއްޔަށް ހިފައިގެން 1000 (އެއްހާސް) ކިލޯމީޓަރަށް ދުއްވިފައިވާނަމަ، ސައިކަލުގެ އަޑީތެލާއި ގިއަރު ތެޔޮ ބަދަލުކުރުމާއި، ސައިކަލް ދޮވެ ޕޮލިޝްކުރުމުގެ ކަންކަން ކުއްޔަށް ހިފާ ފަރާތުން ބަލަހައްޓަންވާނެއެވެ. (ނޯޓް: ތެޔޮ ބަދަލުކުރުމުގައި ޢަމަލުކުރާނީ މި އެއްބަސްވުމުގެ 13 ވަނަ މާއްދާގައި ބަޔާންކޮށްފައިވާ އުޞޫލުން ވެރިފަރާތަށް އެނގިގެން ވެރިފަރާތުގެ ހާޒިރުގައެވެ.)</div>
-            </div>
-            
-            <div style="page-break-inside: avoid; break-inside: avoid;">
-                <p style="font-weight: bold; margin-top: 30px;">މި އެއްބަސްވުމުގައިވާ ހުރިހާ މާއްދާތަކެއް ކިޔައި، އެކަންކަމަށް ފުރިހަމައަށް އެއްބަސްވެ ތިރީގައި ސޮއިކުރީމެވެ.</p>
-
-                <div class="signatures-grid">
-                    <div class="signature-box">
-                        <h3 style="margin-bottom: 5px;">ވެރިފަރާތް</h3>
-                        <div style="font-size: 14px; text-align: center; color: var(--primary-dark-green); margin-bottom: 5px;" id="sig-owner-name-display">ޢަލީ އިބްރާހީމް ދީދީ</div>
-                        <canvas id="sig-owner" class="sig-canvas"></canvas>
-                        <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-owner')">ސޮއި ފުހެލައްވާ</button>
-                    </div>
-                    
-                    <div class="signature-box">
-                        <h3 style="margin-bottom: 5px;">ކުއްޔަށް ހިފާ ފަރާތް</h3>
-                        <div style="font-size: 14px; text-align: center; color: var(--primary-dark-green); margin-bottom: 5px;" id="sig-renter-name-display">-</div>
-                        <canvas id="sig-renter" class="sig-canvas"></canvas>
-                        <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-renter')">ސޮއި ފުހެލައްވާ</button>
-                    </div>
-
-                    <div class="signature-box">
-                        <h3>ހެކި 1: މަރިޔަމް ޢާލިމާ</h3>
-                        <canvas id="sig-wit1" class="sig-canvas"></canvas>
-                        <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-wit1')">ސޮއި ފުހެލައްވާ</button>
-                    </div>
-
-                    <div class="signature-box">
-                        <h3>ހެކި 2: <span class="editable" id="wit2-name" contenteditable="true" data-placeholder="ނަން"></span></h3>
-                        <canvas id="sig-wit2" class="sig-canvas"></canvas>
-                        <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-wit2')">ސޮއި ފުހެލައްވާ</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Attachments -->
-            <div style="page-break-before: always;">
-                <h3 style="border-top: 2px dashed #ddd; padding-top: 30px; margin-top: 40px;">ލިޔެކިޔުންތައް (އައިޑީ ކާޑު އަދި ލައިސަންސް)</h3>
-                <div class="upload-grid">
-                    <div class="upload-box">
-                        <label>އައިޑީ ކާޑު (ކުރިމަތި)</label><br>
-                        <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'id-front-img')">
-                        <img id="id-front-img" alt="ID Front">
-                    </div>
-                    <div class="upload-box">
-                        <label>އައިޑީ ކާޑު (ފަހަތް)</label><br>
-                        <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'id-back-img')">
-                        <img id="id-back-img" alt="ID Back">
-                    </div>
-                    <div class="upload-box">
-                        <label>ލައިސަންސް (ކުރިމަތި)</label><br>
-                        <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'lic-front-img')">
-                        <img id="lic-front-img" alt="License Front">
-                    </div>
-                    <div class="upload-box">
-                        <label>ލައިސަންސް (ފަހަތް)</label><br>
-                        <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'lic-back-img')">
-                        <img id="lic-back-img" alt="License Back">
-                    </div>
-                </div>
-            </div>
-
-            <!-- ޕްރިންޓް ކުރާއިރު ކޮންމެ ޕޭޖެއްގެ ތިރީގައި ފެންނާނެ ބައި -->
-            <div class="page-footer" id="print-footer">
-                <div style="text-align: center; width: 33%;">
-                    <span style="display:block; font-size:10pt;">ކުއްޔަށް ހިފާ ފަރާތުގެ ސޮއި:</span>
-                    <img id="footer-img-renter" style="height: 35px; object-fit: contain;">
-                </div>
-                <div style="text-align: center; width: 33%;">
-                    <span class="page-number" style="font-weight:bold;"></span>
-                </div>
-                <div style="text-align: center; width: 33%;">
-                    <span style="display:block; font-size:10pt;">ވެރިފަރާތުގެ ސޮއި:</span>
-                    <img id="footer-img-owner" style="height: 35px; object-fit: contain;">
-                </div>
-            </div>
-
+    <!-- Login Screen -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>ރަސްފަހި ޕޯޓަލް</h2>
+            <div id="login-error" class="error-msg">އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި!</div>
+            <input type="email" id="auth-email" placeholder="އީމެއިލް">
+            <input type="password" id="auth-password" placeholder="ޕާސްވޯޑް">
+            <button onclick="loginUser()">ލޮގިން</button>
         </div>
     </div>
 
-    <!-- Sidebar / Renters Bank -->
-    <div class="sidebar no-print">
-        <h2>އެގްރިމެންޓް ބޭންކް</h2>
-        <div id="renters-list"></div>
-        
-        <div class="backup-actions">
-            <button onclick="exportData()" style="padding: 8px 10px; background: var(--primary-royal-blue); color: white; border: none; border-radius: 4px; font-family: 'Faruma'; cursor: pointer; font-size:12px; width:48%;">ބެކަޕް ޑައުންލޯޑް</button>
-            <button onclick="document.getElementById('importFile').click()" style="padding: 8px 10px; background: var(--primary-dark-green); color: white; border: none; border-radius: 4px; font-family: 'Faruma'; cursor: pointer; font-size:12px; width:48%;">ބެކަޕް އަޕްލޯޑް</button>
-            <input type="file" id="importFile" style="display:none;" accept=".json" onchange="importData(event)">
+    <!-- Main App Content -->
+    <div id="app-content">
+        <div class="main-content">
+            
+            <div class="dashboard-grid no-print">
+                <div class="stat-card">
+                    <h3>ޖުމްލަ ދެވިފައި</h3>
+                    <div class="value" id="stat-total">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>ހަމަވާން ކައިރިވެފައި</h3>
+                    <div class="value" style="color: var(--primary-royal-blue);" id="stat-expiring">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>މުއްދަތު ހަމަވެފައި</h3>
+                    <div class="value" style="color: var(--danger-red);" id="stat-expired">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>ޖުމްލަ އާމްދަނީ</h3>
+                    <div class="value" id="stat-income" style="font-size: 20px;">0 ރ.</div>
+                </div>
+            </div>
+
+            <div class="chart-container no-print">
+                <canvas id="dashboardChart"></canvas>
+            </div>
+
+            <div class="top-actions no-print">
+                <button onclick="clearForm()" style="background: #888;">ފޯމު ހުސްކުރައްވާ (އައު)</button>
+                <button onclick="saveAgreementToBank()" style="background: var(--primary-dark-green);">އެގްރިމެންޓް ސޭވްކުރައްވާ</button>
+                <button onclick="prepareAndPrint()" style="background: var(--primary-royal-blue);">ޕްރިންޓް ކުރައްވާ</button>
+            </div>
+
+            <div class="document-container" id="agreement-content">
+                <div style="text-align: center; margin-bottom: 10px; font-size: 12px; color: #777;" class="no-print">Reg: MED.03.IP.CR.26.EW5889</div>
+                
+                <h1>މޮޓޯސައިކަލް ކުއްޔަށް ދިނުމުގެ އެއްބަސްވުން</h1>
+
+                <p>މިއީ <span class="editable" id="agr-date" contenteditable="true" data-placeholder="ދުވަސް-މަސް-އަހަރު"></span> ވަނަ ދުވަހު، މޮޓޯސައިކަލުގެ ވެރިފަރާތް ކަމަށްވާ <span class="editable" id="owner-name" contenteditable="true">ޢަލީ އިބްރާހީމް ދީދީ</span> (އައިޑީ: <span class="editable" id="owner-id" contenteditable="true">A000000</span>، އެޑްރެސް: <span class="editable" id="owner-address" contenteditable="true">މ. މާލެ</span>) (މީގެ ފަހުން "ވެރިފަރާތް" މިހެން ކިޔާނީ) އާއި، ސައިކަލް ކުއްޔަށް ހިފާ ފަރާތް ކަމަށްވާ <span class="editable" id="renter-name" contenteditable="true" data-placeholder="ކުއްޔަށް ހިފާ ފަރާތުގެ ނަން"></span> (އައިޑީ: <span class="editable" id="renter-id" contenteditable="true" data-placeholder="އައިޑީ ނަންބަރު"></span>، އެޑްރެސް: <span class="editable" id="renter-address" contenteditable="true" data-placeholder="އެޑްރެސް"></span>، މޯބައިލް ނަންބަރު: <span class="editable" id="renter-mobile" contenteditable="true" data-placeholder="މޯބައިލް ނަންބަރު"></span>) (މީގެ ފަހުން "ކުއްޔަށް ހިފާ ފަރާތް" މިހެން ކިޔާނީ) އާ ދެމެދު ވެވިފައިވާ އެއްބަސްވުމެކެވެ.</p>
+
+                <h3>1. ސައިކަލުގެ މަޢުލޫމާތު:</h3>
+                <div style="padding-right: 20px;">
+                    ރަޖިސްޓްރީ ނަންބަރު: <span class="editable" id="cycle-reg" contenteditable="true">AB1A-1234</span><br>
+                    ބްރޭންޑް އަދި މޮޑެލް: <span class="editable" id="cycle-model" contenteditable="true">Honda PCX</span><br>
+                    ކުލަ: <span class="editable" id="cycle-color" contenteditable="true">ކަޅު</span>
+                </div>
+
+                <h3>2. ކުއްޔާއި މުއްދަތު:</h3>
+                <div style="padding-right: 20px; margin-bottom: 20px;">
+                    ކުއްޔަށް ނަގާ މުއްދަތު: <span class="editable" id="start-date" contenteditable="true" data-placeholder="DD-MM-YYYY"></span> ގެ <span class="editable" id="start-time" contenteditable="true" data-placeholder="ގަޑި"></span> އިން ފެށިގެން <span class="editable" id="end-date" contenteditable="true" data-placeholder="DD-MM-YYYY"></span> ގެ <span class="editable" id="end-time" contenteditable="true" data-placeholder="ގަޑި"></span> އަށް.<br>
+                    ކުލީގެ އަގު: <span class="editable" id="rental-price" contenteditable="true" data-placeholder="އަގު"></span> ރުފިޔާ.
+                </div>
+
+                <h3>3. އެއްބަސްވުމުގެ ޝަރުޠުތައް:</h3>
+                <div class="clauses-container">
+                    <div class="clause-item"><strong>1. ޤާނޫނާ އެއްގޮތަށް ބޭނުންކުރުން:</strong> ދިވެހިރާއްޖޭގެ ޤާނޫނާއި ޤަވާޢިދާ ޚިލާފު އެއްވެސް ކަމެއްގައި މި ސައިކަލް ބޭނުން ނުކުރުން.</div>
+                    
+                    <div class="clause-item"><strong>2. ދުއްވާ ސްޕީޑް:</strong> ހައިވޭތަކުގައި ދުއްވާއިރު ގަޑިއަކު 50 ކިލޯމީޓަރަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން. އެތެރޭގެ މަގުތަކުގައި ދުއްވާއިރު، ޓްރެފިކް ޤަވާޢިދުގައި ކަނޑައެޅިފައިވާ ސްޕީޑް ލިމިޓަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން.</div>
+                    
+                    <div class="clause-item"><strong>3. ލައިސަންސް އަދި ލިޔެކިޔުން:</strong> ކުއްޔަށް ހިފާ ފަރާތުގެ އަތުގައި މުއްދަތު ހަމަނުވާ ސައްޙަ ޑްރައިވިންގ ލައިސަންސެއް އޮތުން. އަދި މިއެއްބަސްވުމުގައި ސޮއިކުރުމާއެކު، ކުއްޔަށް ހިފާ ފަރާތުގެ އައިޑީ ކާޑު ކޮޕީއާއި ލައިސަންސް ކޮޕީ ވެރިފަރާތަށް ފޮނުވުން ނުވަތަ ޙަވާލުކުރުން.</div>
+                    
+                    <div class="clause-item"><strong>4. އެހެން ފަރާތަކަށް ނުދިނުން:</strong> ކުއްޔަށް ހިފާ ފަރާތް ފިޔަވައި، އެހެން ފަރާތެއްގެ އަތަށް އެއްވެސް ގޮތަކަށް ސައިކަލް ނުދިނުން.</div>
+                    
+                    <div class="clause-item"><strong>5. ޕެޓްރޯލް އެޅުން:</strong> ދުއްވާ ވަގުތުގައި ސައިކަލަށް ބޭނުންވާ ޕެޓްރޯލް އެޅުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ އަމިއްލަ ޒިންމާއެކެވެ.</div>
+                    
+                    <div class="clause-item"><strong>6. ސައިކަލް ހުއްޓުން:</strong> ޕެޓްރޯލް ހުސްވެގެން ނުވަތަ އެނޫންވެސް ސަބަބަކާހުރެ އެއްވެސް ތަނެއްގައި ސައިކަލް ހުއްޓިއްޖެނަމަ، ސައިކަލް ރައްކާތެރިކަމާއެކު ވެރިފަރާތާ ހަމައަށް ގެންގޮސްދިނުމުގެ ފުރިހަމަ ޒިންމާ ކުއްޔަށް ހިފާ ފަރާތުން ނެގުން.</div>
+                    
+                    <div class="clause-item"><strong>7. ގެއްލުމުގެ ބަދަލުދިނުން:</strong> ކުއްޔަށް ހިފާ ފަރާތުގެ ބެލުމުގެ ދަށުގައި ސައިކަލް ހުއްޓާ އިހުމާލުން ނުވަތަ އެހެން ގޮތަކުން ނަމަވެސް ސައިކަލަށް ލިބޭ ކޮންމެ ގެއްލުމެއްގެ ފުރިހަމަ ބަދަލު ކުއްޔަށް ހިފާ ފަރާތުން ހޯދައިދިނުން.</div>
+                    
+                    <div class="clause-item"><strong>8. ޖޫރިމަނާތައް:</strong> ކުއްޔަށް ހިފާފައިވާ ވަގުތުގެ ތެރޭގައި ޓްރެފިކް ޤަވާޢިދާ ޚިލާފުވެގެން ނުވަތަ ޕާކިންގ ގޯސްވެގެން އަންނަ ހުރިހާ ޖޫރިމަނާއެއް ދެއްކުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ ޒިންމާއެކެވެ.</div>
+                    
+                    <div class="clause-item"><strong>9. މުއްދަތު އިތުރުކުރުމާއި ލަސްވުމުން ނަގާ ޖޫރިމަނާ:</strong> ކުއްޔަށް ހިފި މުއްދަތު ހަމަވުމަށްފަހު ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، ވަގުތު ހަމަވާ ހިސާބުން ފެށިގެން އިތުރުވާ ކޮންމެ ގަޑިއިރަކަށް 100 (ސަތޭކަ) ރުފިޔާގެ މަގުން ކުއްޔަށް ހިފާ ފަރާތް ޖޫރިމަނާ ކުރެވޭނެއެވެ. އަދި ކުއްޔަށް ހިފާފައިވާ މުއްދަތު އިތުރުކުރަން ބޭނުންވާނަމަ، އެއްބަސްވެފައިވާ ވަގުތު ހަމަވުމުގެ މަދުވެގެން 30 (ތިރީސް) މިނެޓު ކުރިން ވެރިފަރާތަށް އެކަން އަންގައި، އިތުރުކުރަން ބޭނުންވާ ވަގުތަށްވާ ފައިސާ ވެރިފަރާތަށް ޓްރާންސްފަރ ކުރަންވާނެއެވެ. ފައިސާ ޓްރާންސްފަރ ކުރުމަށްފަހު މެނުވީ މުއްދަތު އިތުރުކުރެވުނު ކަމަކަށް ނުބެލެވޭނެއެވެ.</div>
+                    
+                    <div class="clause-item"><strong>10. ސައިކަލް ޙަވާލުނުކުރުން އަދި ސައިކަލް ހޯދައި ނެގުން:</strong> ސައިކަލް ޙަވާލުކުރަން އޮންނަ މުއްދަތު ފާއިތުވެގެން ދާއިރުވެސް ވެރިފަރާތަށް ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، ކުއްޔަށް ހިފާ ފަރާތުގެ ހުއްދައަކާ ނުލައި ސައިކަލް ހުރިތަނަކުން ހޯދައި، ވެރިފަރާތުގެ ބެލުމުގެ ދަށަށް ސައިކަލް ގެނައުމުގެ ފުރިހަމަ އިޚްތިޔާރު ވެރިފަރާތަށް ލިބިގެންވެއެވެ. އަދި މިގޮތަށް ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، މޯލްޑިވްސް ޕޮލިސް ސަރވިސް ނުވަތަ ކަމާބެހޭ އެހެނިހެން ފަރާތްތަކުގެ އެހީތެރިކަން ހޯދައިގެން ސައިކަލް ހޯދުމަށާއި، ކުއްޔަށް ހިފާ ފަރާތާމެދު ޤާނޫނީ ގޮތުން އަޅަންޖެހޭ އެންމެހާ ފިޔަވަޅުތައް އެޅުމުގެ ޙައްޤު ވެރިފަރާތަށް ލިބިގެންވެއެވެ.</div>
+                    
+                    <div class="clause-item"><strong>11. ރިފަންޑް ދިނުމުގެ އުޞޫލު:</strong> އެއްބަސްވުމުގައި ސޮއިކޮށް، ކުލީގެ ފައިސާ ވެރިފަރާތުން ދީފައިވާ އެކައުންޓަށް ޓްރާންސްފަރ ކުރުމަށްފަހު ކެންސަލްކުރާނަމަ ޢަމަލުކުރެވޭނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ.
+                        <div class="sub-clause">ހ. ސައިކަލާ ޙަވާލުވެ ނުގެންގޮސް، ކިތަންމެ ކުޑަ ވަގުތުކޮޅެއްގެ ތެރޭގައި ނަމަވެސް ކުއްޔަށް ހިފާ ފަރާތުން މި އެއްބަސްވުން ކެންސަލްކުރަން ބޭނުންވެއްޖެނަމަ، ރިފަންޑުގެ ގޮތުގައި ފައިސާ އަނބުރާ ލިބޭނީ ދައްކާފައިވާ ޖުމްލަ ފައިސާގެ %50 (ފަންސާސް އިންސައްތަ) އުނިކުރުމަށްފަހުގައެވެ.</div>
+                        <div class="sub-clause">ށ. ކުއްޔަށް ހިފާ ފަރާތުން ސައިކަލާ ޙަވާލުވެ، ހިނދުކޮޅަކަށް ނަމަވެސް ސައިކަލް ގެންގޮސްފައިވާނަމަ، ދައްކާފައިވާ ފައިސާއިން އެއްވެސް މިންވަރެއް ރިފަންޑުގެ ގޮތުގައި އަނބުރާ ނުލިބޭނެއެވެ.</div>
+                    </div>
+                    
+                    <div class="clause-item"><strong>12. ހެލްމެޓް ކުއްޔަށް ނެގުމާއި ގެއްލުމުގެ ބަދަލު ދިނުން:</strong> ސައިކަލާއެކު ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ތިރީގައިވާ ގޮތަށް ޢަމަލުކުރެވޭނެއެވެ.
+                        <div class="sub-clause">ހ. އެއް ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 30 (ތިރީސް) ރުފިޔާ ދައްކަންވާނެއެވެ.</div>
+                        <div class="sub-clause">ށ. ދެ ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 60 (ފަސްދޮޅަސް) ރުފިޔާ ދައްކަންވާނެއެވެ.</div>
+                        <div class="sub-clause">ނ. ކުއްޔަށް ހިފާފައިވާ މުއްދަތުގެ ތެރޭގައި ހެލްމެޓެއް ގެއްލިއްޖެނަމަ ނުވަތަ ހަލާކުވެއްޖެނަމަ، އެ ހެލްމެޓެއްގެ ބާޒާރު މަތީ އަގު ކުއްޔަށް ހިފާ ފަރާތުން ވެރިފަރާތަށް ދައްކަންވާނެއެވެ.</div>
+                    </div>
+                    
+                    <div class="clause-item"><strong>13. މަރާމާތުކުރުމާއި ސަރވިސްކުރުން:</strong> ސައިކަލަށް ލިބޭ ގެއްލުމެއް ނުވަތަ މަރާމާތެއް ކުރުމުގައި ޢަމަލުކުރާނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ.
+                        <div class="sub-clause">ހ. ސައިކަލަށް ލިބޭ ގެއްލުމެއް ރަނގަޅުކުރުމަށް ނުވަތަ އަޑީތެޔޮ ބަދަލުކުރުން ފަދަ ކަމަކަށް އެއްވެސް ގަރާޖަކަށް ނުވަތަ ވޯކްޝޮޕަކަށް ސައިކަލް ގެންދަންވާނީ ވެރިފަރާތަށް އެންގުމަށްފަހު، ވެރިފަރާތުގެ ހާޒިރުގައި ނުވަތަ ވެރިފަރާތުން ފޮނުވާ ފަރާތެއްގެ ހާޒިރުގައެވެ.</div>
+                        <div class="sub-clause">ށ. ސައިކަލް މަރާމާތުކުރަން ނުވަތަ ސަރވިސްކުރަން ގެންދާ ގަރާޖު ނުވަތަ ވޯކްޝޮޕަކީ ސައިކަލުގެ ވެރިފަރާތް ޤަބޫލުކުރާ ނުވަތަ ވެރިފަރާތުން އެއްބަސްވާ ތަނަކަށް ވާންވާނެއެވެ.</div>
+                        <div class="sub-clause">ނ. ފުރޮޅުން ވައި މަދުވެގެން ވައިޖެހުމާއި، ޕެޓްރޯލް އެޅުން ފަދަ އާންމުކޮށް ކުރަންޖެހޭ ކުދި ކަންކަން، ވެރިފަރާތަށް އެންގުމަކާ ނުލައި ކުއްޔަށް ހިފާ ފަރާތަށް އަމިއްލައަށް ކުރެވިދާނެއެވެ.</div>
+                    </div>
+                    
+                    <div class="clause-item"><strong>14. ޕާކް ކުރުން:</strong> މަގުމަތީގައި ނުވަތަ އެނޫންވެސް ތަނެއްގައި ސައިކަލް ޕާކްކުރާއިރު، ސައިކަލަށް ގެއްލުމެއް ލިބިދާނެ ފަދަ ގޮތަކަށް ނުވަތަ ނުރައްކާތެރި ގޮތަކަށް ޕާކްކޮށްގެން ނުވާނެއެވެ.</div>
+                    
+                    <div class="clause-item"><strong>15. އަމާނާތަށް ރައްކާތެރިވުން:</strong> ކުއްޔަށް ހިފާފައިވާ ސައިކަލަކީ ކުއްޔަށް ހިފި ފަރާތުގެ ބެލުމުގެ ދަށުގައިވާ ބޮޑު އަމާނާތެކެވެ. އެހެންކަމުން، އެ އަމާނާތަށް ޚިޔާނާތްތެރިވުން ކަމަށް ބެލެވޭ ފަދަ އެއްވެސް ޢަމަލެއް ކުއްޔަށް ހިފާ ފަރާތުން ހިންގައިގެން ނުވާނެއެވެ.</div>
+                    
+                    <div class="clause-item"><strong>16. ތެޔޮ ބަދަލުކުރުމާއި ސައިކަލް ސާފުކުރުން:</strong> އެއް ފަރާތަކުން ސައިކަލް ކުއްޔަށް ހިފައިގެން 1000 (އެއްހާސް) ކިލޯމީޓަރަށް ދުއްވިފައިވާނަމަ، ސައިކަލުގެ އަޑީތެލާއި ގިއަރު ތެޔޮ ބަދަލުކުރުމާއި، ސައިކަލް ދޮވެ ޕޮލިޝްކުރުމުގެ ކަންކަން ކުއްޔަށް ހިފާ ފަރާތުން ބަލަހައްޓަންވާނެއެވެ. (ނޯޓް: ތެޔޮ ބަދަލުކުރުމުގައި ޢަމަލުކުރާނީ މި އެއްބަސްވުމުގެ 13 ވަނަ މާއްދާގައި ބަޔާންކޮށްފައިވާ އުޞޫލުން ވެރިފަރާތަށް އެނގިގެން ވެރިފަރާތުގެ ހާޒިރުގައެވެ.)</div>
+                </div>
+                
+                <div style="page-break-inside: avoid; break-inside: avoid;">
+                    <p style="font-weight: bold; margin-top: 30px;">މި އެއްބަސްވުމުގައިވާ ހުރިހާ މާއްދާތަކެއް ކިޔައި، އެކަންކަމަށް ފުރިހަމައަށް އެއްބަސްވެ ތިރީގައި ސޮއިކުރީމެވެ.</p>
+
+                    <div class="signatures-grid">
+                        <div class="signature-box">
+                            <h3 style="margin-bottom: 5px;">ވެރިފަރާތް</h3>
+                            <div style="font-size: 14px; text-align: center; color: var(--primary-dark-green); margin-bottom: 5px;" id="sig-owner-name-display">ޢަލީ އިބްރާހީމް ދީދީ</div>
+                            <canvas id="sig-owner" class="sig-canvas"></canvas>
+                            <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-owner')">ސޮއި ފުހެލައްވާ</button>
+                        </div>
+                        
+                        <div class="signature-box">
+                            <h3 style="margin-bottom: 5px;">ކުއްޔަށް ހިފާ ފަރާތް</h3>
+                            <div style="font-size: 14px; text-align: center; color: var(--primary-dark-green); margin-bottom: 5px;" id="sig-renter-name-display">-</div>
+                            <canvas id="sig-renter" class="sig-canvas"></canvas>
+                            <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-renter')">ސޮއި ފުހެލައްވާ</button>
+                        </div>
+
+                        <div class="signature-box">
+                            <h3>ހެކި 1: މަރިޔަމް ޢާލިމާ</h3>
+                            <canvas id="sig-wit1" class="sig-canvas"></canvas>
+                            <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-wit1')">ސޮއި ފުހެލައްވާ</button>
+                        </div>
+
+                        <div class="signature-box">
+                            <h3>ހެކި 2: <span class="editable" id="wit2-name" contenteditable="true" data-placeholder="ނަން"></span></h3>
+                            <canvas id="sig-wit2" class="sig-canvas"></canvas>
+                            <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-wit2')">ސޮއި ފުހެލައްވާ</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attachments -->
+                <div style="page-break-before: always;">
+                    <h3 style="border-top: 2px dashed #ddd; padding-top: 30px; margin-top: 40px;">ލިޔެކިޔުންތައް (އައިޑީ ކާޑު އަދި ލައިސަންސް)</h3>
+                    <div class="upload-grid">
+                        <div class="upload-box">
+                            <label>އައިޑީ ކާޑު (ކުރިމަތި)</label><br>
+                            <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'id-front-img')">
+                            <img id="id-front-img" alt="ID Front">
+                        </div>
+                        <div class="upload-box">
+                            <label>އައިޑީ ކާޑު (ފަހަތް)</label><br>
+                            <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'id-back-img')">
+                            <img id="id-back-img" alt="ID Back">
+                        </div>
+                        <div class="upload-box">
+                            <label>ލައިސަންސް (ކުރިމަތި)</label><br>
+                            <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'lic-front-img')">
+                            <img id="lic-front-img" alt="License Front">
+                        </div>
+                        <div class="upload-box">
+                            <label>ލައިސަންސް (ފަހަތް)</label><br>
+                            <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'lic-back-img')">
+                            <img id="lic-back-img" alt="License Back">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ޕްރިންޓް ކުރާއިރު ކޮންމެ ޕޭޖެއްގެ ތިރީގައި ފެންނާނެ ބައި -->
+                <div class="page-footer" id="print-footer">
+                    <div style="text-align: center; width: 33%;">
+                        <span style="display:block; font-size:10pt;">ކުއްޔަށް ހިފާ ފަރާތުގެ ސޮއި:</span>
+                        <img id="footer-img-renter" style="height: 35px; object-fit: contain;">
+                    </div>
+                    <div style="text-align: center; width: 33%;">
+                        <span class="page-number" style="font-weight:bold;"></span>
+                    </div>
+                    <div style="text-align: center; width: 33%;">
+                        <span style="display:block; font-size:10pt;">ވެރިފަރާތުގެ ސޮއި:</span>
+                        <img id="footer-img-owner" style="height: 35px; object-fit: contain;">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Sidebar / Renters Bank -->
+        <div class="sidebar no-print">
+            <h2>އެގްރިމެންޓް ބޭންކް</h2>
+            <div id="renters-list" style="flex:1; overflow-y:auto; margin-bottom:15px;"></div>
+            
+            <button class="logout-btn" onclick="logoutUser()">ލޮގްއައުޓް</button>
         </div>
     </div>
 
@@ -377,82 +411,84 @@
     </div>
 
     <script>
-        // Data Store
-        let rentersBank = JSON.parse(localStorage.getItem('rasfahiAgreementBank')) || [];
-        let currentEditIndex = -1; // އައު އެގްރިމެންޓެއް ނަމަ -1، ކުރިން އޮތް އެއްޗެއްނަމަ އޭގެ އިންޑެކްސް
+        // 1. Firebase Initialization
+        const firebaseConfig = {
+            apiKey: "AIzaSyDvTAGmahiEHuKhnFihij3OAL7O961120U",
+            authDomain: "agrimentportal.firebaseapp.com",
+            projectId: "agrimentportal",
+            storageBucket: "agrimentportal.firebasestorage.app",
+            messagingSenderId: "944427746679",
+            appId: "1:944427746679:web:583c736db436fa24c9cd72",
+            measurementId: "G-M54J6V3D6W"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-        // Auto-fill names in signature area
-        document.getElementById('owner-name').addEventListener('input', function() {
-            document.getElementById('sig-owner-name-display').innerText = this.innerText || '-';
+        // App State
+        let rentersBank = [];
+        let currentEditDocId = null;
+
+        // 2. Authentication Logic
+        auth.onAuthStateChanged((user) => {
+            const loading = document.getElementById('loading');
+            loading.style.display = 'flex';
+
+            if (user) {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app-content').style.display = 'flex';
+                loadDataFromFirebase();
+            } else {
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('app-content').style.display = 'none';
+                loading.style.display = 'none';
+            }
         });
-        document.getElementById('renter-name').addEventListener('input', function() {
-            document.getElementById('sig-renter-name-display').innerText = this.innerText || '-';
-        });
 
-        // Date Helper
-        function parseDateString(dateString, timeString) {
-            if(!dateString) return new Date(9999, 11, 31);
-            let parts = dateString.split('-');
-            if(parts.length !== 3) return new Date();
-            let d = parseInt(parts[0]), m = parseInt(parts[1]) - 1, y = parseInt(parts[2]);
-            let timeParts = timeString ? timeString.split(':') : ['00','00'];
-            let hr = parseInt(timeParts[0]||0), min = parseInt(timeParts[1]||0);
-            return new Date(y, m, d, hr, min);
-        }
-
-        // Dashboard & Sidebar
-        function updateDashboard() {
-            const listContainer = document.getElementById('renters-list');
-            listContainer.innerHTML = '';
+        function loginUser() {
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-password').value;
+            const errDiv = document.getElementById('login-error');
             
-            let total = rentersBank.length;
-            let expiring = 0;
-            let expired = 0;
-            let income = 0;
-            let now = new Date();
+            if(!email || !pass) {
+                errDiv.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!";
+                errDiv.style.display = 'block';
+                return;
+            }
 
-            rentersBank.forEach((r, index) => {
-                income += parseInt(r.price) || 0;
-                let endDate = parseDateString(r.endDate, r.endTime);
-                let diffHours = (endDate - now) / (1000 * 60 * 60);
-                
-                let statusClass = "status-new"; 
-                if (diffHours < 0) {
-                    statusClass = "status-expired"; 
-                    expired++;
-                } else if (diffHours <= 24) { 
-                    statusClass = "status-expiring"; 
-                    expiring++;
-                }
-
-                const item = document.createElement('div');
-                item.className = `renter-item ${statusClass}`;
-                item.innerHTML = `
-                    <div>
-                        <strong>${r.renterName || 'ނަން ނެތް'}</strong><br>
-                        <small>${r.mobile || 'ނަންބަރު ނެތް'}</small><br>
-                        <small style="color: #666;">ހަމަވާ: ${r.endDate || '-'} ${r.endTime || '-'}</small>
-                    </div>
-                    <div class="action-buttons-group">
-                        <button class="btn-small btn-wa" onclick="sendWhatsApp('${r.mobile}', '${statusClass}')">WA</button>
-                        <button class="btn-small btn-rcpt" onclick="openReceipt(${index})">ރިސީޓް</button>
-                        <button class="btn-small btn-load" onclick="loadAgreementFromBank(${index})">އެޑިޓް/ހުޅުވާ</button>
-                        <button class="btn-small btn-del" onclick="deleteAgreement(${index})">ޑިލީޓް</button>
-                    </div>
-                `;
-                listContainer.appendChild(item);
+            document.getElementById('loading').style.display = 'flex';
+            auth.signInWithEmailAndPassword(email, pass).catch((error) => {
+                document.getElementById('loading').style.display = 'none';
+                errDiv.innerText = "އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި!";
+                errDiv.style.display = 'block';
             });
-
-            document.getElementById('stat-total').innerText = total;
-            document.getElementById('stat-expiring').innerText = expiring;
-            document.getElementById('stat-expired').innerText = expired;
-            document.getElementById('stat-income').innerText = income.toLocaleString() + ' ރ.';
-
-            updateChart(total, expiring, expired);
         }
 
-        // Save Agreement
+        function logoutUser() {
+            auth.signOut();
+        }
+
+        // 3. Database Logic (Firestore)
+        function loadDataFromFirebase() {
+            db.collection("agreements").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+                rentersBank = [];
+                snapshot.forEach((doc) => {
+                    let data = doc.data();
+                    data.docId = doc.id;
+                    rentersBank.push(data);
+                });
+                updateDashboard();
+                document.getElementById('loading').style.display = 'none';
+            }, (error) => {
+                console.log("Error getting documents: ", error);
+                document.getElementById('loading').style.display = 'none';
+            });
+        }
+
         function saveAgreementToBank() {
+            document.getElementById('loading').style.display = 'flex';
+            
             const agreementData = {
                 renterName: document.getElementById('renter-name').innerText,
                 id: document.getElementById('renter-id').innerText,
@@ -474,46 +510,111 @@
                 sigOwner: document.getElementById('sig-owner').toDataURL(),
                 sigRenter: document.getElementById('sig-renter').toDataURL(),
                 sigWit1: document.getElementById('sig-wit1').toDataURL(),
-                sigWit2: document.getElementById('sig-wit2').toDataURL()
+                sigWit2: document.getElementById('sig-wit2').toDataURL(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             if(!agreementData.renterName) {
+                document.getElementById('loading').style.display = 'none';
                 alert('ކުއްޔަށް ހިފާ ފަރާތުގެ ނަން ލިޔުއްވާ!');
                 return;
             }
 
-            if(currentEditIndex >= 0) {
-                // ކުރިން އޮތް އެއްޗެއްނަމަ އަޕްޑޭޓް ކުރާނީ (ޑުޕްލިކޭޓް ނުވާގޮތަށް)
-                rentersBank[currentEditIndex] = agreementData;
+            let docRef;
+            if(currentEditDocId) {
+                // Update existing
+                docRef = db.collection("agreements").doc(currentEditDocId);
             } else {
-                // އައު އެއްޗެއްނަމަ ލިސްޓަށް އިތުރުކުރާނީ
-                rentersBank.unshift(agreementData); 
-                currentEditIndex = 0;
+                // Create new
+                docRef = db.collection("agreements").doc();
+                agreementData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             }
-            
-            localStorage.setItem('rasfahiAgreementBank', JSON.stringify(rentersBank));
-            updateDashboard();
-            alert('އެގްރިމެންޓް ކާމިޔާބުކަމާއެކު ސޭވްކުރެވިއްޖެއެވެ.');
+
+            docRef.set(agreementData, { merge: true }).then(() => {
+                currentEditDocId = docRef.id;
+                document.getElementById('loading').style.display = 'none';
+                alert('އެގްރިމެންޓް ކާމިޔާބުކަމާއެކު ޑޭޓާބޭސްއަށް ސޭވްކުރެވިއްޖެއެވެ.');
+            }).catch((error) => {
+                document.getElementById('loading').style.display = 'none';
+                alert('ސޭވްކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެ!');
+                console.error(error);
+            });
         }
 
-        // Delete Agreement
-        function deleteAgreement(index) {
+        function deleteAgreement(docId) {
             if(confirm("ޔަޤީންތޯ މި އެގްރިމެންޓް ޑިލީޓްކުރަން ބޭނުންފުޅުވާކަން؟ (މިކަން އަނބުރާ އިއާދައެއް ނުކުރެވޭނެ)")) {
-                rentersBank.splice(index, 1);
-                localStorage.setItem('rasfahiAgreementBank', JSON.stringify(rentersBank));
-                if(currentEditIndex === index) {
-                    clearForm(); // ފޯމުގައި އިން އެއްޗެއް ޑިލީޓްކޮށްފިނަމަ ފޯމު ހުސްކުރުން
-                } else if (currentEditIndex > index) {
-                    currentEditIndex--; // އިންޑެކްސް ރަނގަޅުކުރުން
-                }
-                updateDashboard();
+                document.getElementById('loading').style.display = 'flex';
+                db.collection("agreements").doc(docId).delete().then(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    if(currentEditDocId === docId) clearForm();
+                });
             }
         }
 
-        // Load Agreement
+        // 4. UI & Dashboard Logic
+        document.getElementById('owner-name').addEventListener('input', function() {
+            document.getElementById('sig-owner-name-display').innerText = this.innerText || '-';
+        });
+        document.getElementById('renter-name').addEventListener('input', function() {
+            document.getElementById('sig-renter-name-display').innerText = this.innerText || '-';
+        });
+
+        function parseDateString(dateString, timeString) {
+            if(!dateString) return new Date(9999, 11, 31);
+            let parts = dateString.split('-');
+            if(parts.length !== 3) return new Date();
+            let d = parseInt(parts[0]), m = parseInt(parts[1]) - 1, y = parseInt(parts[2]);
+            let timeParts = timeString ? timeString.split(':') : ['00','00'];
+            let hr = parseInt(timeParts[0]||0), min = parseInt(timeParts[1]||0);
+            return new Date(y, m, d, hr, min);
+        }
+
+        function updateDashboard() {
+            const listContainer = document.getElementById('renters-list');
+            listContainer.innerHTML = '';
+            
+            let total = rentersBank.length;
+            let expiring = 0; let expired = 0; let income = 0;
+            let now = new Date();
+
+            rentersBank.forEach((r, index) => {
+                income += parseInt(r.price) || 0;
+                let endDate = parseDateString(r.endDate, r.endTime);
+                let diffHours = (endDate - now) / (1000 * 60 * 60);
+                
+                let statusClass = "status-new"; 
+                if (diffHours < 0) { statusClass = "status-expired"; expired++; } 
+                else if (diffHours <= 24) { statusClass = "status-expiring"; expiring++; }
+
+                const item = document.createElement('div');
+                item.className = `renter-item ${statusClass}`;
+                item.innerHTML = `
+                    <div>
+                        <strong>${r.renterName || 'ނަން ނެތް'}</strong><br>
+                        <small>${r.mobile || 'ނަންބަރު ނެތް'}</small><br>
+                        <small style="color: #666;">ހަމަވާ: ${r.endDate || '-'} ${r.endTime || '-'}</small>
+                    </div>
+                    <div class="action-buttons-group">
+                        <button class="btn-small btn-wa" onclick="sendWhatsApp('${r.mobile}', '${statusClass}')">WA</button>
+                        <button class="btn-small btn-rcpt" onclick="openReceipt(${index})">ރިސީޓް</button>
+                        <button class="btn-small btn-load" onclick="loadAgreementFromBank(${index})">އެޑިޓް/ހުޅުވާ</button>
+                        <button class="btn-small btn-del" onclick="deleteAgreement('${r.docId}')">ޑިލީޓް</button>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-expiring').innerText = expiring;
+            document.getElementById('stat-expired').innerText = expired;
+            document.getElementById('stat-income').innerText = income.toLocaleString() + ' ރ.';
+
+            updateChart(total, expiring, expired);
+        }
+
         function loadAgreementFromBank(index) {
-            currentEditIndex = index; 
             const r = rentersBank[index];
+            currentEditDocId = r.docId;
             
             document.getElementById('renter-name').innerText = r.renterName || '';
             document.getElementById('renter-id').innerText = r.id || '';
@@ -545,7 +646,7 @@
                 let canvas = document.getElementById(canvasId);
                 let ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if(srcStr) {
+                if(srcStr && srcStr.length > 100) {
                     let img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0); img.src = srcStr;
                 }
             }
@@ -555,9 +656,8 @@
             if(window.innerWidth < 992) window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
-        // Clear Form (New Entry)
         function clearForm() {
-            currentEditIndex = -1; // އައު އެގްރިމެންޓަކަށް ބަދަލުކުރުން
+            currentEditDocId = null;
             document.querySelectorAll('.editable:not(#owner-name):not(#owner-id):not(#owner-address)').forEach(el => el.innerText = '');
             document.querySelectorAll('.upload-box img').forEach(img => {
                 img.src = ''; img.style.display = 'none'; img.parentElement.style.border = '2px dashed var(--primary-royal-blue)';
@@ -568,38 +668,39 @@
             if(window.innerWidth < 992) window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
-        // Backup Export (Download)
-        function exportData() {
-            const dataStr = JSON.stringify(rentersBank);
-            const blob = new Blob([dataStr], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = "rasfahi_backup_data.json"; a.click();
-        }
-
-        // Backup Import (Upload)
-        function importData(event) {
+        // Image Compression (To save space in Firestore)
+        function handleImageUpload(event, imgId) {
             const file = event.target.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    if(Array.isArray(importedData)) {
-                        rentersBank = importedData;
-                        localStorage.setItem('rasfahiAgreementBank', JSON.stringify(rentersBank));
-                        updateDashboard();
-                        alert("ޑޭޓާ ކާމިޔާބުކަމާއެކު އަޕްލޯޑް ކުރެވިއްޖެއެވެ!");
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800; const MAX_HEIGHT = 800;
+                        let width = img.width; let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                        } else {
+                            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                        }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); // Compress to 60% JPEG
+                        const displayImg = document.getElementById(imgId);
+                        displayImg.src = compressedBase64;
+                        displayImg.style.display = 'block';
+                        displayImg.parentElement.style.border = 'none';
                     }
-                } catch(err) {
-                    alert("ފައިލް ފޯމެޓް ގޯސް!");
+                    img.src = e.target.result;
                 }
+                reader.readAsDataURL(file);
             }
-            reader.readAsText(file);
-            event.target.value = ''; // Reset input
         }
 
-        // WhatsApp Auto
         function sendWhatsApp(mobile, status) {
             if(!mobile) { alert('މޯބައިލް ނަންބަރެއް ނެތް!'); return; }
             let cleanNumber = mobile.replace(/[^0-9]/g, '');
@@ -616,7 +717,6 @@
             window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-        // Print Integration
         function prepareAndPrint() {
             const ownerData = document.getElementById('sig-owner').toDataURL();
             const renterData = document.getElementById('sig-renter').toDataURL();
@@ -631,7 +731,7 @@
             window.print();
         }
 
-        // Receipt Module
+        // Receipt
         function openReceipt(index) {
             const r = rentersBank[index];
             document.getElementById('rec-renter-name').innerText = r.renterName;
@@ -642,20 +742,14 @@
             document.getElementById('rec-start').innerText = r.startDate + ' ' + r.startTime;
             document.getElementById('rec-end').innerText = r.endDate + ' ' + r.endTime;
             document.getElementById('rec-price').innerText = r.price;
-            
             document.getElementById('receiptModal').style.display = 'flex';
         }
 
         function printReceipt() {
             const content = document.getElementById('receiptContent');
-            const opt = {
-                margin: 10, filename: 'Receipt.pdf', image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a5', orientation: 'landscape' }
-            };
+            const opt = { margin: 10, filename: 'Receipt.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a5', orientation: 'landscape' } };
             document.querySelector('#receiptContent span').style.display = 'none';
-            html2pdf().set(opt).from(content).save().then(() => {
-                document.querySelector('#receiptContent span').style.display = 'block';
-            });
+            html2pdf().set(opt).from(content).save().then(() => { document.querySelector('#receiptContent span').style.display = 'block'; });
         }
 
         function uploadSeal(event) {
@@ -672,20 +766,7 @@
             }
         }
 
-        // Upload Helper
-        function handleImageUpload(event, imgId) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = document.getElementById(imgId);
-                    img.src = e.target.result; img.style.display = 'block'; img.parentElement.style.border = 'none';
-                }
-                reader.readAsDataURL(file);
-            }
-        }
-
-        // Signature Canvas setup
+        // Canvas setup
         function setupCanvas(canvasId) {
             const canvas = document.getElementById(canvasId);
             const ctx = canvas.getContext('2d');
@@ -730,7 +811,6 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Chart Setup
         let dashChart;
         function updateChart(total, expiring, expired) {
             const ctx = document.getElementById('dashboardChart').getContext('2d');
@@ -749,15 +829,10 @@
             });
         }
 
-        // Init App
         window.onload = function() {
             let savedSeal = localStorage.getItem('zaagSeal');
-            if(savedSeal) {
-                document.getElementById('zaag-seal').src = savedSeal;
-                document.getElementById('seal-text').style.display = 'none';
-            }
+            if(savedSeal) { document.getElementById('zaag-seal').src = savedSeal; document.getElementById('seal-text').style.display = 'none'; }
             document.getElementById('owner-name').dispatchEvent(new Event('input')); 
-            updateDashboard();
         };
     </script>
 </body>
