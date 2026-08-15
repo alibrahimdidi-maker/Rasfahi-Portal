@@ -114,7 +114,8 @@
         @media (min-width: 768px) { .document-container { padding: 40px 50px; } }
 
         h1, h2, h3 { color: var(--primary-royal-blue); text-align: center; }
-        h1 { font-size: 24px; border-bottom: 2px solid var(--primary-dark-green); padding-bottom: 10px; }
+        h1 { font-size: 20px; border-bottom: 2px solid var(--primary-dark-green); padding-bottom: 10px; }
+        @media (min-width: 768px) { h1 { font-size: 24px; } }
         
         .editable {
             border-bottom: 1px dashed var(--primary-royal-blue); color: var(--primary-royal-blue); min-width: 50px; display: inline-block; padding: 0 5px; outline: none; text-align: center; max-width: 100%; word-wrap: break-word;
@@ -143,8 +144,9 @@
             display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 20px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
         .top-actions button {
-            padding: 10px 15px; border: none; border-radius: 5px; font-family: 'Faruma'; cursor: pointer; color: white; font-size: 14px; flex: 1; min-width: 120px; max-width: 200px;
+            padding: 10px; border: none; border-radius: 5px; font-family: 'Faruma'; cursor: pointer; color: white; font-size: 14px; flex: 1 1 45%; min-width: 100px;
         }
+        @media (min-width: 768px) { .top-actions button { flex: unset; min-width: 120px; } }
 
         .logout-btn {
             background: #ccc; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;
@@ -218,9 +220,10 @@
             </div>
 
             <div class="top-actions no-print">
-                <button onclick="clearForm()" style="background: #888;">ފޯމު ހުސްކުރައްވާ (އައު)</button>
-                <button onclick="saveAgreementToBank()" style="background: var(--primary-dark-green);">އެގްރިމެންޓް ސޭވްކުރައްވާ</button>
-                <button onclick="prepareAndPrint()" style="background: var(--primary-royal-blue);">ޕްރިންޓް ކުރައްވާ</button>
+                <button onclick="clearForm()" style="background: #888;">ފޯމު ހުސްކުރޭ (އައު)</button>
+                <button onclick="saveAgreementToBank()" style="background: var(--primary-dark-green);">ސޭވްކުރޭ</button>
+                <button onclick="prepareAndPrint()" style="background: var(--primary-royal-blue);">ޕްރިންޓް</button>
+                <button onclick="exportToPDF()" style="background: var(--primary-royal-blue);">PDF ޑައުންލޯޑް</button>
             </div>
 
             <div class="document-container" id="agreement-content">
@@ -348,7 +351,7 @@
                     </div>
                 </div>
 
-                <!-- ޕްރިންޓް ކުރާއިރު ކޮންމެ ޕޭޖެއްގެ ތިރީގައި ފެންނާނެ ބައި -->
+                <!-- ޕްރިންޓް/PDF ފުޓަރ -->
                 <div class="page-footer" id="print-footer">
                     <div style="text-align: center; width: 33%;">
                         <span style="display:block; font-size:10pt;">ކުއްޔަށް ހިފާ ފަރާތުގެ ސޮއި:</span>
@@ -490,6 +493,12 @@
             document.getElementById('loading').style.display = 'flex';
             
             const agreementData = {
+                agrDate: document.getElementById('agr-date').innerText,
+                ownerName: document.getElementById('owner-name').innerText,
+                ownerId: document.getElementById('owner-id').innerText,
+                ownerAddress: document.getElementById('owner-address').innerText,
+                wit2Name: document.getElementById('wit2-name').innerText,
+                
                 renterName: document.getElementById('renter-name').innerText,
                 id: document.getElementById('renter-id').innerText,
                 address: document.getElementById('renter-address').innerText,
@@ -522,10 +531,8 @@
 
             let docRef;
             if(currentEditDocId) {
-                // Update existing
                 docRef = db.collection("agreements").doc(currentEditDocId);
             } else {
-                // Create new
                 docRef = db.collection("agreements").doc();
                 agreementData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             }
@@ -616,6 +623,12 @@
             const r = rentersBank[index];
             currentEditDocId = r.docId;
             
+            document.getElementById('agr-date').innerText = r.agrDate || '';
+            document.getElementById('owner-name').innerText = r.ownerName || 'ޢަލީ އިބްރާހީމް ދީދީ';
+            document.getElementById('owner-id').innerText = r.ownerId || 'A000000';
+            document.getElementById('owner-address').innerText = r.ownerAddress || 'މ. މާލެ';
+            document.getElementById('wit2-name').innerText = r.wit2Name || '';
+            
             document.getElementById('renter-name').innerText = r.renterName || '';
             document.getElementById('renter-id').innerText = r.id || '';
             document.getElementById('renter-address').innerText = r.address || '';
@@ -629,6 +642,7 @@
             document.getElementById('end-time').innerText = r.endTime || '';
             document.getElementById('rental-price').innerText = r.price || '';
 
+            document.getElementById('owner-name').dispatchEvent(new Event('input'));
             document.getElementById('renter-name').dispatchEvent(new Event('input'));
 
             function loadImage(imgId, srcStr) {
@@ -659,16 +673,23 @@
         function clearForm() {
             currentEditDocId = null;
             document.querySelectorAll('.editable:not(#owner-name):not(#owner-id):not(#owner-address)').forEach(el => el.innerText = '');
+            
+            document.getElementById('owner-name').innerText = 'ޢަލީ އިބްރާހީމް ދީދީ';
+            document.getElementById('owner-id').innerText = 'A000000';
+            document.getElementById('owner-address').innerText = 'މ. މާލެ';
+
             document.querySelectorAll('.upload-box img').forEach(img => {
                 img.src = ''; img.style.display = 'none'; img.parentElement.style.border = '2px dashed var(--primary-royal-blue)';
             });
             ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2'].forEach(clearSignature);
+            
+            document.getElementById('owner-name').dispatchEvent(new Event('input'));
             document.getElementById('renter-name').dispatchEvent(new Event('input'));
             
             if(window.innerWidth < 992) window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
-        // Image Compression (To save space in Firestore)
+        // Image Compression
         function handleImageUpload(event, imgId) {
             const file = event.target.files[0];
             if (file) {
@@ -689,7 +710,7 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
                         
-                        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); // Compress to 60% JPEG
+                        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
                         const displayImg = document.getElementById(imgId);
                         displayImg.src = compressedBase64;
                         displayImg.style.display = 'block';
@@ -717,6 +738,7 @@
             window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
+        // Print Integration
         function prepareAndPrint() {
             const ownerData = document.getElementById('sig-owner').toDataURL();
             const renterData = document.getElementById('sig-renter').toDataURL();
@@ -729,6 +751,35 @@
             if(!isBlank(renterData)) fRenter.src = renterData; else fRenter.src = '';
 
             window.print();
+        }
+
+        // Export to PDF directly (Good for Mobile)
+        function exportToPDF() {
+            const element = document.getElementById('agreement-content');
+            
+            const ownerData = document.getElementById('sig-owner').toDataURL();
+            const renterData = document.getElementById('sig-renter').toDataURL();
+            const isBlank = (data) => data.length < 5000; 
+
+            if(!isBlank(ownerData)) document.getElementById('footer-img-owner').src = ownerData;
+            if(!isBlank(renterData)) document.getElementById('footer-img-renter').src = renterData;
+
+            document.getElementById('print-footer').style.display = 'flex';
+
+            const renterName = document.getElementById('renter-name').innerText.trim() || 'Agreement';
+            
+            const opt = {
+                margin: [15, 15, 25, 15],
+                filename: `Agreement_${renterName}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 900 },
+                pagebreak: { mode: 'css', avoid: ['.clause-item', '.signature-box', '.upload-box', 'h3'] },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                document.getElementById('print-footer').style.display = 'none';
+            });
         }
 
         // Receipt
@@ -833,6 +884,9 @@
             let savedSeal = localStorage.getItem('zaagSeal');
             if(savedSeal) { document.getElementById('zaag-seal').src = savedSeal; document.getElementById('seal-text').style.display = 'none'; }
             document.getElementById('owner-name').dispatchEvent(new Event('input')); 
+            
+            // Set Default value for Owner on initial load
+            document.getElementById('owner-name').innerText = 'ޢަލީ އިބްރާހީމް ދީދީ';
         };
     </script>
 </body>
