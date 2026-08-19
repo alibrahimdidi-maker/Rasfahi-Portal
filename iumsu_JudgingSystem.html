@@ -1,0 +1,2125 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rasfahi Quran Judging System (Cloud Master Secure Edition)</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        /* =========================================
+           1. FONTS & ROOT VARIABLES
+        ========================================= */
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+        
+        @font-face { 
+            font-family: 'Faruma'; 
+            src: url('./fonts/faruma.ttf') format('truetype'), 
+                 url('https://dhivehi.me/fonts/faruma.woff2') format('woff2'),
+                 url('https://dhivehi.me/fonts/faruma.woff') format('woff'); 
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+        
+        :root {
+            --royal-blue: #0A192F;
+            --royal-blue-light: #172A45;
+            --royal-gold: #C5A059;
+            --royal-gold-light: #E6C875;
+            --royal-gold-dark: #8C6D31;
+            --royal-green: #0F4026;
+            --royal-green-light: #1B5E20;
+            --bg-light: #F4F6F9;
+            --ruby: #8B0000;
+            --dark: #212121;
+            --text-main: #333333;
+            --khafi: #f39c12; 
+            --jali: #e74c3c;
+        }
+        
+        body, html { 
+            font-family: 'Faruma', sans-serif; 
+            background: var(--bg-light); 
+            color: var(--text-main);
+            margin: 0; padding: 0; 
+            width: 100%;
+            user-select: none; -webkit-user-select: none; 
+            overflow-x: hidden; 
+        }
+        
+        input, select, textarea { 
+            user-select: auto; -webkit-user-select: auto; 
+            font-family: 'Faruma', sans-serif; 
+        }
+        * { box-sizing: border-box; transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .hidden { display: none !important; }
+
+        /* =========================================
+           2. LOCK SCREEN (SECURE LOGIN)
+        ========================================= */
+        .overlay-screen { 
+            position: fixed; inset: 0; 
+            background: radial-gradient(circle at center, var(--royal-blue-light), var(--royal-blue)); 
+            display: flex; justify-content: center; align-items: center; 
+            z-index: 99999; padding: 20px; overflow-y:auto;
+        }
+        .center-card { 
+            background: linear-gradient(145deg, #ffffff, #f0f0f0); 
+            padding: 50px 40px; border-radius: 20px; 
+            border: 4px solid var(--royal-gold); 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6), inset 0 0 0 4px rgba(197,160,89,0.2); 
+            text-align: center; width: 100%; max-width: 500px; margin:auto; 
+            font-family: sans-serif; direction: ltr;
+        }
+        .center-card h1 { 
+            color: var(--royal-blue); margin-top: 5px; margin-bottom: 25px; 
+            font-weight: bold; font-size: 28px; text-transform: uppercase; letter-spacing: 1px;
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.1); font-family: 'Faruma';
+        }
+        .center-card input { 
+            width: 100%; padding: 15px; margin: 0 0 15px 0; text-align: center; 
+            border-radius: 8px; font-size: 16px; border: 2px solid #ccc; 
+            font-family: sans-serif; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .center-card input:focus, .center-card select:focus { 
+            border-color: var(--royal-gold); outline: none; box-shadow: 0 0 8px rgba(197,160,89,0.5); 
+        }
+        
+        /* =========================================
+           3. ROLE SELECTOR
+        ========================================= */
+        .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; direction: rtl;}
+        .role-btn { 
+            background: linear-gradient(135deg, #ffffff, #f8f9fa); 
+            border: 2px solid var(--royal-blue); color: var(--royal-blue); 
+            padding: 20px; border-radius: 12px; font-size: 18px; font-weight: bold; 
+            cursor: pointer; display: flex; flex-direction: column; align-items: center; 
+            gap: 10px; font-family: 'Faruma'; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .role-btn:hover { 
+            background: linear-gradient(135deg, var(--royal-blue), var(--royal-blue-light)); 
+            color: var(--royal-gold); border-color: var(--royal-gold); 
+            transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
+        }
+
+        .judge-window-panel { 
+            grid-column: 1 / -1; background: rgba(197,160,89,0.1); padding: 20px; 
+            border-radius: 12px; border: 2px dashed var(--royal-gold); margin-top: 10px;
+        }
+        .judge-window-panel h3 { margin: 0 0 15px 0; color: var(--royal-blue); font-family: 'Faruma';}
+        .judge-btn-grid { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+        /* =========================================
+           4. BUTTON STYLES
+        ========================================= */
+        .btn-main, .btn-blue, .btn-judge-pop { 
+            background: linear-gradient(135deg, var(--royal-blue), var(--royal-blue-light)); color: white; 
+            border: 1px solid var(--royal-gold); border-radius: 8px; font-weight: bold; 
+            cursor: pointer; font-family: 'Faruma'; box-shadow: 0 4px 6px rgba(0,0,0,0.2); 
+        }
+        .btn-main { width: 100%; padding: 18px; font-size: 18px; margin-bottom:10px; letter-spacing: 2px; font-family: 'Faruma';}
+        .btn-judge-pop { padding: 10px 20px; }
+        .btn-blue { padding: 10px 15px; display: flex; align-items: center; gap: 8px; justify-content: center;}
+        
+        .btn-main:hover, .btn-blue:hover, .btn-judge-pop:hover { 
+            background: linear-gradient(135deg, var(--royal-blue-light), var(--royal-blue)); 
+            transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.3); border-color: var(--royal-gold-light);
+        }
+        
+        .btn-gold { background: linear-gradient(135deg, var(--royal-gold), var(--royal-gold-dark)); color: var(--royal-blue); border: 1px solid var(--royal-blue); font-weight: bold; text-shadow: none;}
+        .btn-gold:hover { background: linear-gradient(135deg, var(--royal-gold-light), var(--royal-gold)); color: var(--royal-blue); box-shadow: 0 6px 12px rgba(197,160,89,0.4); }
+        
+        .btn-green { background: linear-gradient(135deg, var(--royal-green), var(--royal-green-light)); color: white; border: 1px solid var(--royal-gold); font-weight: bold;}
+        .btn-green:hover { background: linear-gradient(135deg, var(--royal-green-light), var(--royal-green)); box-shadow: 0 6px 12px rgba(15,64,38,0.4); }
+        
+        .btn-dark { background: linear-gradient(135deg, #333, #111); color: white; border: 1px solid #555; }
+        .btn-dark:hover { background: linear-gradient(135deg, #444, #222); box-shadow: 0 6px 12px rgba(0,0,0,0.4); }
+        
+        .btn-red { background: linear-gradient(135deg, var(--ruby), #5c0000); color: white; border: 1px solid #ff9999; }
+        .btn-purple { background: linear-gradient(135deg, var(--purple), #4a235a); color: white; border: 1px solid #d7bde2; }
+        
+        .btn { padding: 10px 15px; border-radius: 8px; font-family: 'Faruma'; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; transition: 0.2s; }
+        .btn:hover { transform: translateY(-2px); }
+
+        /* =========================================
+           5. MAIN DATABASE UI & ADMIN PANEL
+        ========================================= */
+        .header { 
+            background: linear-gradient(to right, var(--royal-blue), var(--royal-blue-light)); 
+            color: var(--royal-gold); padding: 20px 30px; display: flex; justify-content: space-between; 
+            align-items: center; border-bottom: 4px solid var(--royal-gold); flex-wrap: wrap; 
+            gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+        }
+        .header h1 { margin: 0; font-size: 26px; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
+        .container { padding: 20px; max-width: 1800px; margin: auto; }
+        
+        .controls { display: flex; gap: 10px; margin-bottom: 25px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); align-items: center; flex-wrap: wrap; border: 1px solid #e0e0e0; }
+        
+        .filter-dashboard { background: linear-gradient(135deg, #ffffff, #fcfaf5); border: 2px solid var(--royal-gold); padding: 20px; border-radius: 10px; margin-bottom: 25px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end; box-shadow: 0 5px 15px rgba(197,160,89,0.1); }
+        .filter-dashboard h3 { margin: 0 0 15px 0; color: var(--royal-blue); grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; font-size: 20px; }
+        
+        .form-panel { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-bottom: 30px; border-top: 5px solid var(--royal-blue); display: none; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; color: var(--royal-blue); font-size: 14px; }
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 6px; outline: none; background: #fff;}
+        input:focus, select:focus { border-color: var(--royal-gold); box-shadow: 0 0 5px rgba(197,160,89,0.5); }
+        
+        .detailed-marks-wrapper { grid-column: 1 / -1; margin-top: 20px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; overflow-x: auto; }
+        .detailed-marks-table { width: 100%; min-width: 800px; border-collapse: collapse; text-align: center; }
+        .detailed-marks-table th { background: var(--royal-blue); color: var(--royal-gold); padding: 12px; font-size: 13px; white-space: nowrap; border: 1px solid var(--royal-blue-light);}
+        .detailed-marks-table td { padding: 10px; border: 1px solid #eee; }
+        .detailed-marks-table input { width: 100%; min-width: 60px; text-align: center; padding: 8px; border: 1px solid #ccc; font-weight: bold; border-radius: 5px; }
+        
+        .table-container { background: white; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); overflow-x: auto; max-height: 60vh; border: 1px solid #eee; }
+        .screen-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+        .screen-table th, .screen-table td { padding: 14px; text-align: right; border-bottom: 1px solid #eee; font-size: 15px; }
+        .screen-table th { background: var(--royal-blue); color: var(--royal-gold); font-weight: bold; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--royal-gold);}
+        .screen-table tr:hover { background-color: #f4f6f9; }
+        .rank-badge { padding: 5px 12px; border-radius: 15px; font-weight: bold; color: white; display: inline-block; min-width: 40px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
+        .rank-1 { background: linear-gradient(135deg, #FFD700, #DAA520); color: #000; } 
+        .rank-2 { background: linear-gradient(135deg, #E0E0E0, #A9A9A9); color: #000; } 
+        .rank-3 { background: linear-gradient(135deg, #CD7F32, #8B4513); } 
+        .rank-other { background: var(--royal-blue); }
+        .btn-delete { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; cursor: pointer; font-weight: bold; border-radius:6px;}
+        .btn-edit-row { background: #e0f2fe; color: #0284c7; border: 1px solid #7dd3fc; cursor: pointer; font-weight: bold; border-radius:6px; margin-bottom:5px;}
+
+        /* Modal & Print UI */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; direction: rtl;}
+        .modal-box { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 550px; border: 4px solid var(--royal-gold); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .modal-box h2 { margin-top: 0; color: var(--royal-blue); border-bottom: 2px solid #eee; padding-bottom: 10px; }
+
+        input[type="date"], input[type="time"] { font-family: sans-serif; text-align: left; direction: ltr; }
+
+        /* =========================================
+           4. LIVE CONTROL PANEL (ADMIN)
+        ========================================= */
+        .live-ctrl-box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 5px solid var(--royal-blue); border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;}
+        .live-ctrl-box h2 { margin-top:0; color:var(--royal-blue); border-bottom:2px dashed var(--royal-gold); padding-bottom:12px; font-size: 22px;}
+
+        /* =========================================
+           5. STUDENT SCREEN (FULL SCREEN ROYAL)
+        ========================================= */
+        .student-wrapper { height: 100vh; width: 100%; background: #ffffff; overflow:hidden; position: fixed; top: 0; left: 0; z-index: 1000;}
+        
+        .stu-grid-overlay { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: radial-gradient(circle, #ffffff, var(--bg-light)); padding: 20px; }
+        .royal-green-card { background: #ffffff; border: 10px solid var(--royal-green); border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.2), inset 0 0 0 5px var(--royal-gold); max-width: 1400px; width: 100%; text-align: center; max-height: 95vh; display: flex; flex-direction: column; }
+        .grid-scroll-wrapper { flex: 1; overflow-y: auto; padding: 10px; margin-top: 20px; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px; }
+        .grid-btn { background: linear-gradient(135deg, var(--royal-blue), var(--royal-blue-light)); color: var(--royal-gold); border-radius: 15px; padding: 30px 10px; text-align: center; cursor: pointer; border: 4px solid var(--royal-gold); box-shadow: 0 10px 20px rgba(0,0,0,0.3); font-size: 50px; font-weight: bold; display: flex; flex-direction: column; justify-content: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); min-height: 140px; }
+        .grid-btn:hover { background: linear-gradient(135deg, var(--royal-gold), var(--royal-gold-dark)); color: var(--royal-blue); border-color: var(--royal-blue); transform: scale(1.05); text-shadow: none;}
+        .grid-btn.selected { background: linear-gradient(135deg, var(--royal-green), var(--royal-green-light)); color: white; border-color: var(--royal-gold); transform: scale(1.05); box-shadow: 0 0 25px rgba(27, 94, 32, 0.6);}
+        .grid-btn.used { background: #e0e0e0; color: #999; border-color: #ccc; cursor: not-allowed; transform: none; box-shadow: none; text-shadow:none;}
+        
+        .stu-reading-layout { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100%; background: #ffffff; display: none; position: relative;}
+        .stu-sidebar { display: none !important; }
+        .quran-display-area { padding: 40px; overflow-y: auto; text-align: center; direction: rtl; display: flex; flex-direction: column; align-items: center; justify-content:center; width: 100%; height: 100%;}
+        
+        .royal-reading-box { background: #ffffff; border: 12px solid var(--royal-gold); outline: 4px solid var(--royal-blue); outline-offset: 6px; padding: 60px 80px; border-radius: 5px; box-shadow: inset 0 0 50px rgba(197,160,89,0.15), 0 20px 50px rgba(0,0,0,0.2); width: 92%; max-width: 1800px; }
+        .quran-text { font-family: 'Amiri', serif; font-size: 70px; line-height: 2.2; color: #000000; text-align: center; }
+        
+        .stu-nubalaa-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; width: 100%; background: #ffffff; text-align:center; display: none;}
+        .fs-btn { position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, var(--royal-gold), var(--royal-gold-dark)); color: var(--royal-blue); border: 3px solid #fff; width: 70px; height: 70px; border-radius: 50%; font-size: 30px; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.4); z-index: 99999; transition: 0.3s; }
+        .fs-btn:hover { transform: scale(1.1) rotate(10deg); box-shadow: 0 15px 25px rgba(0,0,0,0.6); }
+
+        /* =========================================
+           6. JUDGE LIVE SCREEN
+        ========================================= */
+        .judge-layout { display: grid; grid-template-columns: 1fr 480px; height: 100vh; overflow: hidden; background:var(--bg-light); position: fixed; inset: 0; z-index: 1000;}
+        .judge-main { padding: 30px; background: white; overflow-y: auto; display: flex; flex-direction: column; align-items: center; border-left: 3px solid var(--royal-gold);}
+        
+        .judge-quran-box { background: #ffffff; border: 6px solid var(--royal-gold); outline: 2px solid var(--royal-blue); outline-offset: 3px; padding: 40px; border-radius: 5px; width: 100%; max-width: 1200px; font-family: 'Amiri', serif; font-size: 45px; line-height: 2.2; text-align: center; color: #000000; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-top: 20px; direction: rtl; transition: 0.3s; }
+        .q-word { cursor: pointer; padding: 0 5px; border-radius: 5px; display: inline-block;}
+        .q-word:hover { background: rgba(197, 160, 89, 0.3); }
+        .q-word.khafi { color: var(--khafi); font-weight: bold; background: rgba(243, 156, 18, 0.15); }
+        .q-word.jali { color: var(--jali); font-weight: bold; background: rgba(231, 76, 60, 0.15); }
+
+        .judge-sidebar { background: var(--bg-light); padding: 25px; overflow-y: auto; }
+        .rubric-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-right: 4px solid var(--royal-blue);}
+        .rubric-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-weight: bold; font-size: 18px; color: var(--royal-blue); }
+        .score-val { font-size: 26px; font-weight: 900; color: var(--royal-blue); }
+        
+        .deduct-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
+        .btn-deduct { background: #fffde7; border: 1px solid #fbc02d; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Faruma'; color: #f57f17; font-size:15px;}
+        .btn-deduct:hover { background: #fbc02d; color: white; }
+        .btn-deduct.severe { background: #ffebee; border-color: #e53935; color: #c62828; }
+        .btn-deduct.severe:hover { background: #e53935; color: white; }
+
+        .error-log-box { background: white; border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-top: 10px; font-size: 16px; max-height: 250px; overflow-y: auto; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);}
+        .log-item { border-bottom: 1px solid #eee; padding: 8px 0; font-family: 'Faruma'; }
+        .log-item span.arabic { font-family: 'Amiri', serif; font-size: 24px; margin-right: 10px; font-weight:bold;}
+
+        /* =========================================
+           7. WAITING ROOM TV MODULE
+        ========================================= */
+        .tv-wrapper { height: 100vh; width: 100%; background: linear-gradient(135deg, var(--royal-blue), #020b14); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; position: fixed; inset: 0; z-index: 1000; box-sizing: border-box; overflow: hidden; padding: 2vh 2vw;}
+        .tv-title { font-size: clamp(35px, 5vh, 60px); color: var(--royal-gold); margin: 0 0 1vh 0; text-shadow: 0 4px 10px rgba(0,0,0,0.8); }
+        .tv-subtitle { font-size: clamp(20px, 3vh, 30px); margin: 0 0 3vh 0; color: #e0e0e0; letter-spacing: 2px; }
+        
+        .royal-tv-card { background: rgba(0, 0, 0, 0.25); border: 4px solid var(--royal-gold); padding: 4vh 4vw; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6), inset 0 0 40px rgba(197, 160, 89, 0.15); backdrop-filter: blur(15px); width: 95%; max-width: 1400px; max-height: 85vh; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box; }
+        .tv-now-reading { color: var(--royal-gold-light); font-size: clamp(22px, 3vh, 35px); margin: 0 0 1vh 0; font-weight: normal; }
+        .tv-stu-name { font-size: clamp(45px, 8vh, 90px); margin: 0; color: white; text-shadow: 0 5px 15px rgba(0,0,0,0.8); line-height: 1.2; font-weight: bold;}
+        .tv-stu-branch { color: var(--royal-gold); margin-top: 1.5vh; font-size: clamp(25px, 4vh, 40px); }
+        
+        .star-container { display: flex; justify-content: center; align-items: center; gap: 1vw; margin-top: 2vh; min-height: clamp(60px, 8vh, 100px); padding-bottom: 10px; }
+        
+        /* ROYAL STAR ANIMATION */
+        .gold-star { font-size: clamp(50px, 6vh, 80px); color: transparent; text-shadow: 0 0 15px rgba(212, 175, 55, 0.9), 0 0 30px rgba(212, 175, 55, 0.5); background: linear-gradient(to bottom, #FFDF00, #C5A059, #8C6D31); -webkit-background-clip: text; animation: royalStarPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, shineStar 2s infinite alternate 0.8s; opacity: 0; transform: scale(0) rotate(-45deg); line-height: 1.2;}
+        @keyframes royalStarPop { 0% { opacity: 0; transform: scale(0) rotate(-45deg); } 70% { opacity: 1; transform: scale(1.2) rotate(10deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
+        @keyframes shineStar { 0% { filter: drop-shadow(0 0 5px rgba(197,160,89,0.6)); transform: scale(1); } 100% { filter: drop-shadow(0 0 25px rgba(255,223,0,1)); transform: scale(1.1); } }
+
+        .tv-next-section { margin-top: 4vh; padding-top: 3vh; border-top: 4px solid var(--royal-green); width: 80%; text-align: center; }
+        .tv-next-label { color: #ccc; font-size: clamp(20px, 3vw, 30px); margin-bottom: 1vh; }
+        .tv-next-name { color: var(--royal-gold-light); font-size: clamp(35px, 5vh, 55px); font-weight: bold; margin: 0; text-shadow: 0 2px 6px rgba(0,0,0,0.6);}
+        .tv-next-meta { color: #a5d6a7; font-size: clamp(20px, 2.5vh, 28px); margin-top: 1.5vh; font-weight: bold;}
+
+        /* =========================================
+           8. PRINT STYLES (MULTI-REPORTS)
+        ========================================= */
+        #printArea_results, #printArea_schedule, #printArea_marksheet, #printArea_judgenote, #printArea_judgeLive { display: none; }
+        
+        @media print {
+            body * { visibility: hidden; } 
+            body.print-results #printArea_results, body.print-results #printArea_results * { visibility: visible; }
+            body.print-schedule #printArea_schedule, body.print-schedule #printArea_schedule * { visibility: visible; }
+            body.print-marksheet #printArea_marksheet, body.print-marksheet #printArea_marksheet * { visibility: visible; }
+            body.print-judgenote #printArea_judgenote, body.print-judgenote #printArea_judgenote * { visibility: visible; }
+            body.print-judge-live #printArea_judgeLive, body.print-judge-live #printArea_judgeLive * { visibility: visible; }
+
+            #printArea_results, #printArea_schedule, #printArea_marksheet, #printArea_judgenote, #printArea_judgeLive { display: block; position: absolute; left: 0; top: 0; width: 100%; direction: rtl; font-family: 'Faruma', serif; padding: 20px; }
+            body { background: white; color: black; }
+            .print-header { text-align: center; border-bottom: 4px double #000; margin-bottom: 25px; padding-bottom: 15px; }
+            .print-header h1 { font-size: 36px; margin: 0 0 5px 0; } .print-header h2 { font-size: 24px; margin: 0; font-weight: normal; }
+            .print-meta-table { width: 100%; margin-bottom: 25px; font-size: 16px; border: none; } .print-meta-table td { padding: 5px; border: none; }
+            .print-data-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+            .print-data-table th, .print-data-table td { border: 1px solid #000; padding: 10px; text-align: center; font-size: 15px; }
+            .print-data-table th { background-color: #e0e0e0 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
+            .col-sn { width: 50px; } .col-reg { width: 120px; } .col-name { text-align: right; }
+            .jn-card { border: 2px solid #000; border-radius: 10px; padding: 25px; margin-bottom: 40px; page-break-inside: avoid; break-inside: avoid;}
+            .jn-notes { border: 1px solid #000; height: 120px; margin-top: 20px; padding: 10px; font-size:16px;}
+            .j-print-log { border:1px solid #000; padding:20px; border-radius:10px; margin-top:25px;}
+            .j-print-log .log-item { border-bottom: 1px dashed #ccc; padding: 12px 0; font-size:18px;}
+            .j-print-log span.arabic { font-family: 'Amiri', serif; font-size: 26px; font-weight:bold; margin-right:15px;}
+            .judge-legend-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .print-signatures { display: flex; justify-content: space-between; margin-top: 60px; page-break-inside: avoid; }
+            .sig-box { text-align: center; width: 25%; font-size: 16px; } .sig-line { border-top: 1px solid #000; margin-top: 60px; padding-top: 8px; font-weight: bold; }
+        }
+
+        /* =========================================
+           9. RESPONSIVE DESIGN (MOBILE, IPAD & TABLET)
+        ========================================= */
+        @media screen and (max-width: 1024px) {
+            .judge-layout { display: block; overflow-y: auto; position: relative; height: auto; }
+            .judge-main, .judge-sidebar { border: none; padding: 15px; width: 100%; height: auto; overflow: visible; }
+            .detailed-marks-table input { min-width: 50px; }
+            .tv-stu-name { font-size: clamp(35px, 6vh, 60px); }
+            .quran-text { font-size: 50px; }
+        }
+
+        @media screen and (max-width: 768px) {
+            body, html { width: 100%; overflow-x: hidden; }
+            .header { padding: 15px; flex-direction: column; text-align: center; gap: 10px; }
+            .header > div { flex-wrap: wrap; justify-content: center; width: 100%; }
+            .header .btn { flex: 1; min-width: 120px; }
+            
+            .controls { flex-direction: column; align-items: stretch; padding: 10px; }
+            .controls .btn { width: 100%; margin-bottom: 5px; justify-content: center; }
+            
+            .role-grid { grid-template-columns: 1fr; gap: 10px; }
+            .center-card { width: 90%; padding: 30px 20px; margin: 20px auto; border-width: 2px; }
+            
+            .filter-dashboard { grid-template-columns: 1fr; padding: 15px; gap: 10px; }
+            .form-grid { grid-template-columns: 1fr; }
+            
+            .table-container { max-height: 50vh; }
+            
+            .live-ctrl-box { padding: 15px; margin-bottom: 15px; }
+            .live-ctrl-box > div { flex-direction: column; align-items: stretch !important; gap: 10px; }
+            .live-ctrl-box .btn { width: 100%; margin-top: 5px; }
+            
+            .royal-green-card { padding: 15px; border-width: 5px; margin: 10px; width: auto; }
+            .grid-container { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; }
+            .grid-btn { font-size: 30px; padding: 15px 5px; min-height: 80px; }
+            
+            .royal-reading-box { padding: 20px 15px; border-width: 4px; outline-offset: 2px; width: 95%; }
+            .quran-text { font-size: 35px; line-height: 1.8; }
+            .judge-quran-box { font-size: 28px; padding: 15px; border-width: 3px; }
+            
+            .rubric-card { padding: 10px; }
+            .rubric-header { font-size: 16px; flex-direction: column; align-items: flex-start; gap: 5px; }
+            .score-val { font-size: 20px; align-self: flex-end; }
+            .deduct-grid { grid-template-columns: 1fr 1fr; gap: 5px; }
+            .btn-deduct { padding: 10px; font-size: 14px; }
+            
+            .modal-box { padding: 20px 15px; width: 95%; margin: 10px; }
+            
+            /* މޯބައިލްގައި އޮޓޯ-ޒޫމް ވުން ހުއްޓުވުމަށް */
+            input, select, textarea { font-size: 16px !important; }
+        }
+
+        @media screen and (max-width: 480px) {
+            .stu-nubalaa-screen h1 { font-size: 35px; }
+            .stu-nubalaa-screen p { font-size: 20px; }
+            .fs-btn { width: 50px; height: 50px; font-size: 20px; bottom: 15px; right: 15px; }
+            .tv-title { font-size: 24px; }
+            .royal-tv-card { padding: 20px 10px; }
+            .tv-now-reading { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loginScreen" class="overlay-screen">
+        <div class="center-card">
+            <div style="font-size: 50px; margin-bottom: 10px; color: var(--royal-gold);">🔒</div>
+            <p style="font-size: 20px; font-weight: bold; color: #555; margin: 0;">Rasfahi Quran Judging System</p>
+            <h1>ސިސްޓަމް ލޮގިން</h1>
+            
+            <select id="loginRole" style="width: 100%; padding: 15px; margin: 0 0 15px 0; border-radius: 8px; font-size: 16px; border: 2px solid #ccc; font-family: 'Faruma', sans-serif; appearance: none; -webkit-appearance: none; font-weight: bold; color: var(--royal-blue); text-align: center; direction: rtl; cursor: pointer; background-color: #f9f9f9;">
+                <option value="admin">👨‍💻 މެއިން އެޑްމިން (admin)</option>
+                <option value="jdg1">👨‍⚖️ ޖަޖު 1 (jdg1)</option>
+                <option value="jdg2">👨‍⚖️ ޖަޖު 2 (jdg2)</option>
+                <option value="jdg3">👨‍⚖️ ޖަޖު 3 (jdg3)</option>
+                <option value="jdg4">👨‍⚖️ ޖަޖު 4 (jdg4)</option>
+                <option value="jdg5">👨‍⚖️ ޖަޖު 5 (jdg5)</option>
+                <option value="live">⚙️ ލައިވް ކޮންޓްރޯލް (live)</option>
+                <option value="stu">📖 ދަރިވަރު ސްކްރީން (stu)</option>
+                <option value="tv">📺 ވެއިޓިންގ ރޫމް ޓީވީ (tv)</option>
+            </select>
+
+            <input type="email" id="emailInput" placeholder="އީމެއިލް އެޑްރެސް ޖައްސަވާ..." style="direction:ltr;">
+            <input type="password" id="passwordInput" placeholder="ޕާސްވޯޑް ޖައްސަވާ..." style="direction:ltr;" onkeypress="if(event.key === 'Enter') loginSystem()">
+            
+            <button class="btn-main" id="loginBtn" onclick="loginSystem()">ސެކިއުއަރ ލޮގިން</button>
+            <div id="loginError" style="color:var(--ruby); margin-top:10px; font-weight:bold; font-size:15px; line-height: 1.5;"></div>
+            
+            <div style="margin-top: 30px; font-size: 14px; color: #666; line-height: 1.8;">
+                <p style="margin: 0; color: var(--royal-green); font-weight: bold;">Cloud Synchronized & Secured.</p>
+                <p style="margin: 0;">Support: 7791550 / 9901550.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="roleScreen" class="overlay-screen hidden">
+        <div class="center-card" style="max-width:750px; direction: rtl;">
+            <h1 style="font-family: 'Faruma'; letter-spacing: 0;">އެޑްމިން ކޮންޓްރޯލް ޕެނަލް</h1>
+            <div class="role-grid">
+                <button class="role-btn" onclick="window.open('?role=db', '_blank')"><span style="font-size:35px;">📊</span> މެއިން ޑޭޓާބޭސް</button>
+                <button class="role-btn" onclick="window.open('?role=liveCtrl', '_blank')"><span style="font-size:35px;">⚙️</span> ލައިވް ކޮންޓްރޯލް</button>
+                <button class="role-btn" onclick="window.open('?role=student', '_blank')"><span style="font-size:35px;">📖</span> ދަރިވަރު ފުލް ސްކްރީން</button>
+                <button class="role-btn" onclick="window.open('?role=tv', '_blank')"><span style="font-size:35px;">📺</span> ވެއިޓިންގ ރޫމް ޓީވީ</button>
+                
+                <div class="judge-window-panel">
+                    <h3>👨‍⚖️ ޖަޖުންގެ ސްކްރީން (ނިއު ވިންޑޯ)</h3>
+                    <div class="judge-btn-grid">
+                        <button class="btn-judge-pop" onclick="openJudgeWindow(1)">ޖަޖު 1</button>
+                        <button class="btn-judge-pop" onclick="openJudgeWindow(2)">ޖަޖު 2</button>
+                        <button class="btn-judge-pop" onclick="openJudgeWindow(3)">ޖަޖު 3</button>
+                        <button class="btn-judge-pop" onclick="openJudgeWindow(4)">ޖަޖު 4</button>
+                        <button class="btn-judge-pop" onclick="openJudgeWindow(5)">ޖަޖު 5</button>
+                    </div>
+                </div>
+            </div>
+            <button class="btn-red" style="margin-top:20px; width:100%; justify-content:center; padding:15px; font-size:18px;" onclick="logoutSystem()">🚪 ސިސްޓަމުން ލޮގްއައުޓް ވުން</button>
+        </div>
+    </div>
+
+    <div class="header" id="globalHeader" style="display:none;">
+        <h1 id="headerTitle">ރަސްފަހި ޤުރްއާން ސިސްޓަމް</h1>
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-gold" onclick="window.location.href = window.location.pathname + '?role=admin';">🔄 އެޑްމިން މެނޫއަށް</button>
+            <div style="background:rgba(255,255,255,0.15); padding:10px 20px; border-radius:8px; font-weight:bold; border: 1px solid var(--royal-gold);">
+                ޖުމްލަ ކުދިން: <span id="total-count" style="color:white; font-size:18px;">0</span>
+            </div>
+            <button class="btn btn-red" onclick="logoutSystem()">🚪 ލޮގްއައުޓް</button>
+        </div>
+    </div>
+
+    <div id="app_db" class="hidden container">
+        <div class="controls">
+            <button class="btn btn-blue" onclick="toggleForm()">➕ އައު ދަރިވަރެއް</button>
+            <button class="btn btn-green" onclick="exportToCSV()">⬇️ އެކްސްޕޯރޓް</button>
+            <button class="btn btn-gold" onclick="document.getElementById('csvFileInput').click()">⬆️ އިމްޕޯރޓް</button>
+            <input type="file" id="csvFileInput" accept=".csv" onchange="importFromCSV(event)">
+            <button class="btn btn-purple" id="dummyBtn" onclick="generateDummyCSV()">📥 ޑަމީ ޑޭޓާ</button>
+            <button class="btn btn-dark" onclick="openPrintModal()">🖨️ ތާވަލު & ރިޕޯރޓް</button>
+            <button class="btn btn-red" onclick="clearData()">🗑️ ފުލް ރިސެޓް / ފޮހެލާ</button>
+        </div>
+
+        <div class="filter-dashboard">
+            <h3>🏆 ފިލްޓަރ / ވަނަ ހޮވުން <input type="text" id="search_box" class="search-box" placeholder="🔍 ނަން، އައިޑީ ނުވަތަ ރެޖިސްޓްރޭޝަން..." onkeyup="generateLeaderboard()"></h3>
+            <div class="form-group"><label>ގޮފި</label><select id="filter_branch" onchange="generateLeaderboard()"><option value="all">ހުރިހާ ގޮތްޕެއް</option><option value="ބަލައިގެން ކިޔެވުމުގެ ގޮފި">ބަލައިގެން ކިޔެވުމުގެ ގޮފި</option><option value="ނުބަލާ ކިޔެވުމުގެ ގޮފި">ނުބަލާ ކިޔެވުމުގެ ގޮފި</option><option value="މުޅި ޤުރްއާން ޙިފްޘް">މުޅި ޤުރްއާން ޙިފްޘް</option></select></div>
+            <div class="form-group"><label>ޢުމުރުފުރާ</label><select id="filter_age" onchange="generateLeaderboard()"><option value="all">ހުރިހާ ޢުމުރުފުރާއެއް</option></select></div>
+            <div class="form-group"><label>ހައިސިއްޔަތު</label><select id="filter_capacity" onchange="generateLeaderboard()"><option value="all">ހުރިހާ ބައިވެރިން</option><option value="ސްކޫލް">ސްކޫލް</option><option value="ކޮލެޖް / ޔުނިވަރސިޓީ">ކޮލެޖް / ޔުނިވަރސިޓީ</option><option value="ޖަމްޢިއްޔާ / ޖަމާޢަތް">ޖަމްޢިއްޔާ / ޖަމާޢަތް</option><option value="އަމިއްލަ ގޮތުން">އަމިއްލަ ގޮތުން</option></select></div>
+            <div class="form-group"><label>ވަނަ ދައްކާނީ</label><select id="filter_top" onchange="generateLeaderboard()"><option value="0">ހުރިހާ ކުދިން</option><option value="3">ޓޮޕް 3</option><option value="5">ޓޮޕް 5</option><option value="10">ޓޮޕް 10</option></select></div>
+        </div>
+
+        <div class="form-panel" id="addForm" oninput="saveFormDraft()">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+                <h2 style="margin:0; color:var(--royal-blue); font-size:20px;" id="formTitle">ދަރިވަރުގެ މަޢުލޫމާތު އަދި ތަފްޞީލީ މާކްސް (Add / Edit)</h2>
+                <span id="autoSaveIndicator" style="font-size:14px; color:var(--royal-green); font-weight:bold; display:none;">✓ ޑްރާފްޓް ސޭވްވެއްޖެ</span>
+            </div>
+            <div class="form-grid">
+                <div class="form-group"><label>ސުމާރު</label><input type="number" id="f_serial"></div>
+                <div class="form-group"><label>ރެޖިސްޓްރޭޝަން ނަންބަރ</label><input type="text" id="f_regNo"></div>
+                <div class="form-group"><label>ދަރިވަރުގެ ނަން</label><input type="text" id="f_name"></div>
+                <div class="form-group"><label>އައިޑީ ކާޑު ނަންބަރ</label><input type="text" id="f_idCard"></div>
+                <div class="form-group"><label>ދާއިމީ އެޑްރެސް</label><input type="text" id="f_permAddr"></div>
+                <div class="form-group"><label>މިހާރު ދިރިއުޅޭ އެޑްރެސް</label><input type="text" id="f_currAddr"></div>
+                <div class="form-group"><label>ގުޅޭނެ ނަންބަރ</label><input type="text" id="f_contact"></div>
+                <div class="form-group"><label>ބެލެނިވެރިޔާގެ ފުރިހަމަ ނަން</label><input type="text" id="f_guardian"></div>
+                <div class="form-group"><label>ބެލެނިވެރިޔާގެ ދާއިމީ އެޑްރެސް</label><input type="text" id="f_gPermAddr"></div>
+                <div class="form-group"><label>ގުޅޭނެ ނަންބަރ</label><input type="text" id="f_gContact"></div>
+                <div class="form-group"><label>ގޮފި</label><select id="f_branch"><option value="ބަލައިގެން ކިޔެވުމުގެ ގޮފި">ބަލައިގެން ކިޔެވުމުގެ ގޮފި</option><option value="ނުބަލާ ކިޔެވުމުގެ ގޮފި">ނުބަލާ ކިޔެވުމުގެ ގޮފި</option><option value="މުޅި ޤުރްއާން ޙިފްޘް">މުޅި ޤުރްއާން ޙިފްޘް</option></select></div>
+                <div class="form-group"><label>ޢުމުރުފުރާ</label><select id="f_ageGroup"></select></div>
+                <div class="form-group"><label>ހައިސިއްޔަތު</label><select id="f_capacity"><option value="ސްކޫލް">ސްކޫލް</option><option value="ކޮލެޖް / ޔުނިވަރސިޓީ">ކޮލެޖް / ޔުނިވަރސިޓީ</option><option value="ޖަމްޢިއްޔާ / ޖަމާޢަތް">ޖަމްޢިއްޔާ / ޖަމާޢަތް</option><option value="އަމިއްލަ ގޮތުން">އަމިއްލަ ގޮތުން</option></select></div>
+                
+                <div class="detailed-marks-wrapper">
+                    <table class="detailed-marks-table">
+                        <thead><tr><th>ޖަޖު</th><th>ކިޔެވުން (40)</th><th>ތަޖުވީދު (20)</th><th>މަޚްރަޖު (10)</th><th>ޞިފަ (10)</th><th>ފަޞާޙާ (10)</th><th>އަޑާއި ރާގު (10)</th></tr></thead>
+                        <tbody>
+                            <tr><td><b>ޖަޖު 1</b></td><td><input type="number" id="j1_c1" step="0.01"></td><td><input type="number" id="j1_c2" step="0.01"></td><td><input type="number" id="j1_c3" step="0.01"></td><td><input type="number" id="j1_c4" step="0.01"></td><td><input type="number" id="j1_c5" step="0.01"></td><td><input type="number" id="j1_c6" step="0.01"></td></tr>
+                            <tr><td><b>ޖަޖު 2</b></td><td><input type="number" id="j2_c1" step="0.01"></td><td><input type="number" id="j2_c2" step="0.01"></td><td><input type="number" id="j2_c3" step="0.01"></td><td><input type="number" id="j2_c4" step="0.01"></td><td><input type="number" id="j2_c5" step="0.01"></td><td><input type="number" id="j2_c6" step="0.01"></td></tr>
+                            <tr><td><b>ޖަޖު 3</b></td><td><input type="number" id="j3_c1" step="0.01"></td><td><input type="number" id="j3_c2" step="0.01"></td><td><input type="number" id="j3_c3" step="0.01"></td><td><input type="number" id="j3_c4" step="0.01"></td><td><input type="number" id="j3_c5" step="0.01"></td><td><input type="number" id="j3_c6" step="0.01"></td></tr>
+                            <tr><td><b>ޖަޖު 4</b></td><td><input type="number" id="j4_c1" step="0.01"></td><td><input type="number" id="j4_c2" step="0.01"></td><td><input type="number" id="j4_c3" step="0.01"></td><td><input type="number" id="j4_c4" step="0.01"></td><td><input type="number" id="j4_c5" step="0.01"></td><td><input type="number" id="j4_c6" step="0.01"></td></tr>
+                            <tr><td><b>ޖަޖު 5</b></td><td><input type="number" id="j5_c1" step="0.01"></td><td><input type="number" id="j5_c2" step="0.01"></td><td><input type="number" id="j5_c3" step="0.01"></td><td><input type="number" id="j5_c4" step="0.01"></td><td><input type="number" id="j5_c5" step="0.01"></td><td><input type="number" id="j5_c6" step="0.01"></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div style="margin-top: 20px; display:flex; gap:10px;">
+                <button class="btn btn-blue" onclick="saveStudent()">💾 ސޭވް / އޯވަރރައިޓް ކުރައްވާ</button>
+                <button class="btn btn-dark" onclick="clearFormDraft()">ފޯމު ކެންސަލް / ހުސްކުރައްވާ</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="screen-table">
+                <thead>
+                    <tr><th>އެކްޝަން</th><th>ސުމާރު</th><th>ރެޖިސްޓްރޭޝަން</th><th>ދަރިވަރުގެ ނަން</th><th>އައިޑީ ކާޑު</th><th>ގޮފި</th><th>ޢުމުރުފުރާ</th><th>ހައިސިއްޔަތު</th><th>ޖަޖު 1</th><th>ޖަޖު 2</th><th>ޖަޖު 3</th><th>ޖަޖު 4</th><th>ޖަޖު 5</th><th>ޖުމްލަ</th><th>އެވްރެޖް</th><th>ވަނަ</th></tr>
+                </thead>
+                <tbody id="studentTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="app_liveCtrl" class="hidden container">
+        
+        <div class="live-ctrl-box" style="border-top-color:var(--royal-blue-light);">
+            <h2>⏭️ ސުވާލު ކޮންޓްރޯލް</h2>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-dark" onclick="prevQuestion()">⬅️ ކުރީގެ ސުވާލަށް</button>
+                <button class="btn btn-gold" onclick="nextQuestion()">ދެވަނަ / ނެކްސްޓް ސުވާލަށް ⏭️</button>
+                <button class="btn btn-dark" onclick="forceGridScreen()">⬅️ އަނބުރާ ގްރިޑަށް ދިއުން</button>
+            </div>
+        </div>
+
+        <div class="live-ctrl-box" style="border-top-color:var(--royal-gold);">
+            <h2>🔴 ލައިވް ކުރައްވާ ދަރިވަރު އަދި ގޮފި</h2>
+            <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
+                <div class="form-group" style="flex:1;">
+                    <label>ދަރިވަރު ސެލެކްޓްކުރައްވާ (DB އިން)</label>
+                    <select id="ctrl_stuSelect" onchange="loadStudentToCtrl()"><option value="">-- ދަރިވަރަކު ނަންގަވާ --</option></select>
+                </div>
+                <div class="form-group" style="flex:1;"><label>ގޮފި</label><input type="text" id="ctrl_branch" readonly></div>
+                
+                <div class="form-group" style="flex:1;">
+                    <label>ނަގަންޖެހޭ ސުވާލު ޢަދަދު</label>
+                    <select id="ctrl_qToPick" style="width:100%; font-weight:bold;">
+                        <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-red" style="height:42px; padding: 0 30px;" onclick="pushStudentLive()">ލައިވް ކުރައްވާ 🔴</button>
+            </div>
+            
+            <div style="display:flex; gap:10px; align-items:center; margin-top:20px; border-top: 1px dashed #ccc; padding-top: 15px;">
+                <label style="font-weight:bold; color:var(--royal-blue);">ކިޔަވާ ގޮފި (ލައިވްކޮށް ބަދަލުކުރުމަށް):</label>
+                <button class="btn btn-green" id="btn_balai" onclick="setLiveBranch('ބަލައިގެން ކިޔެވުމުގެ ގޮފި')">👁️ ބަލައިގެން</button>
+                <button class="btn btn-dark" id="btn_nubalaa" onclick="setLiveBranch('ނުބަލާ ކިޔެވުމުގެ ގޮފި')">🧠 ނުބަލައި</button>
+            </div>
+        </div>
+
+        <div class="live-ctrl-box" style="border-top-color:var(--royal-green);">
+            <h2>⏭️ ދެން ކިޔަވާނެ ދަރިވަރު (Up Next ޓީވީއަށް)</h2>
+            <div style="display:flex; gap:15px; align-items:flex-end;">
+                <div class="form-group" style="flex:1;">
+                    <label>ދަރިވަރު ޚިޔާރުކުރައްވާ</label>
+                    <select id="ctrl_nextStuSelect"><option value="">-- ދަރިވަރަކު ނަންގަވާ --</option></select>
+                </div>
+                <button class="btn btn-green" style="height:42px; padding: 0 30px;" onclick="setNextStudent()">ޓީވީއަށް ސެޓްކުރައްވާ ✓</button>
+            </div>
+        </div>
+
+        <div class="live-ctrl-box">
+            <h2>📖 އެޑްވާންސް ސިލަބަސް ސެޓްކުރުން</h2>
+            <p style="color:#666; font-size:14px; margin-top:0;">(މި ބައިން ގްރިޑް ޖެނެރޭޓްކުރަން ޖެހޭނީ ކޮންމެ ސެޝަނަކަށް ނުވަތަ ޢުމުރުފުރާއަކަށް އެއްފަހަރުއެވެ. ކޮންމެ ކުއްޖަކަށް ލޯޑްކުރާކަށް ނުޖެހޭނެއެވެ.)</p>
+            
+            <div style="display:flex; gap:20px; align-items:center; margin-bottom:15px; font-weight:bold; color:var(--royal-blue);">
+                <label><input type="radio" name="sylType" value="surah" checked onchange="toggleSyllabusType()"> ސޫރަތް ވައިސްކޮށް</label>
+                <label><input type="radio" name="sylType" value="juz" onchange="toggleSyllabusType()"> ފޮތް (ޖުޒު) ވައިސްކޮށް</label>
+            </div>
+            
+            <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;" id="div_syl_surah">
+                <div class="form-group" style="flex:1;"><label>ފެށޭ ސޫރަތް</label><select id="ctrl_surahStart"></select></div>
+                <div class="form-group" style="flex:1;"><label>ނިމޭ ސޫރަތް</label><select id="ctrl_surahEnd"></select></div>
+            </div>
+            
+            <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;" id="div_syl_juz" class="hidden">
+                <div class="form-group" style="flex:1;"><label>ފެށޭ ފޮތް (ޖުޒު)</label><select id="ctrl_juzStart"></select></div>
+                <div class="form-group" style="flex:1;"><label>ނިމޭ ފޮތް (ޖުޒު)</label><select id="ctrl_juzEnd"></select></div>
+            </div>
+
+            <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end; margin-top:15px;">
+                <div class="form-group">
+                    <label>ސުވާލެއްގެ ދިގުމިން (ފޮޅުވަތް)</label>
+                    <select id="ctrl_qLines">
+                        <option value="5">5 ފޮޅުވަތް</option><option value="6">6 ފޮޅުވަތް</option><option value="7">7 ފޮޅުވަތް</option>
+                        <option value="8">8 ފޮޅުވަތް</option><option value="9">9 ފޮޅުވަތް</option><option value="10">10 ފޮޅުވަތް</option>
+                        <option value="12">12 ފޮޅުވަތް</option><option value="15">15 ފޮޅުވަތް</option>
+                    </select>
+                </div>
+                <button class="btn btn-blue" style="height:42px; padding: 0 30px;" id="btnLoadSyllabus" onclick="loadGridSyllabus()">20 ސުވާލުގެ ގްރިޑް ތައްޔާރުކުރޭ 🚀</button>
+            </div>
+            <p style="color:var(--royal-green); font-weight:bold; margin-top:15px;" id="ctrl_apiStatus"></p>
+        </div>
+        
+        <div class="live-ctrl-box" style="border-top-color:var(--purple);">
+            <h2>🛠️ ސްކްރީން ފިޓްކުރުން / އެޖަސްޓްމަންޓް</h2>
+            <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:center;">
+                <div class="form-group">
+                    <label>ފޮންޓް ސައިޒު</label>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn btn-dark" onclick="adjustDisplay('fontSize', -2)">-</button>
+                        <input type="text" id="ctrl_fontSize" value="70" readonly style="width:60px; text-align:center; font-weight:bold;">
+                        <button class="btn btn-dark" onclick="adjustDisplay('fontSize', 2)">+</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>ލައިން ހައިޓް</label>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn btn-dark" onclick="adjustDisplay('lineHeight', -0.1)">-</button>
+                        <input type="text" id="ctrl_lineHeight" value="2.2" readonly style="width:60px; text-align:center; font-weight:bold;">
+                        <button class="btn btn-dark" onclick="adjustDisplay('lineHeight', 0.1)">+</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>އެލައިންމަންޓް</label>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn btn-blue" onclick="adjustDisplay('align', 'right')">ކަނާތަށް</button>
+                        <button class="btn btn-blue" onclick="adjustDisplay('align', 'center')">މެދަށް</button>
+                        <button class="btn btn-blue" onclick="adjustDisplay('align', 'justify')">ހަމަކޮށް</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app_student" class="hidden student-wrapper">
+        <div id="stu_gridScreen" class="stu-grid-overlay">
+            <div class="royal-green-card">
+                <h1 style="color:var(--royal-blue); margin-bottom:10px; font-size:45px;">ސުވާލު ނަންބަރެއް އިޚްތިޔާރު ކުރައްވާ</h1>
+                <p id="stu_pick_instruction" style="color:var(--ruby); font-weight:bold; font-size:22px; margin-bottom:10px;">(1 ސުވާލު ނަގަންޖެހޭނެ)</p>
+                <div class="grid-scroll-wrapper">
+                    <div class="grid-container" id="stuGridBox"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="stu_quranScreen" class="stu-reading-layout">
+            <div class="quran-display-area">
+                <div class="royal-reading-box">
+                    <div id="stu_quranText" class="quran-text">ކިޔަވަން ފެށުމަށް އިންތިޒާރު ކުރައްވާ...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="stu_nubalaaScreen" class="stu-nubalaa-screen">
+            <h1 style="font-size:70px; color:var(--royal-blue); margin-bottom:10px; text-shadow: 2px 2px 5px rgba(0,0,0,0.1);">ތިޔަ ދަރިވަރު ކިޔަވަނީ ނުބަލައި ކިޔެވުމުގެ ގޮފިން</h1>
+            <p style="font-size:40px; color:var(--royal-gold); font-weight:bold;">ޖަޖުންގެ އިރުޝާދާއެކު ކިޔަވަން ފައްޓަވާ!</p>
+        </div>
+
+        <button class="fs-btn" onclick="toggleFullScreen()" title="ފުލް ސްކްރީން ކުރައްވާ">⛶</button>
+    </div>
+
+    <div id="app_judge" class="hidden judge-layout">
+        <div class="judge-main">
+            <div style="display:flex; justify-content:space-between; width:100%; align-items:center; border-bottom:3px solid var(--royal-gold); padding-bottom:15px; margin-bottom:20px;">
+                <div>
+                    <h2 id="jdg_stuName" style="color:var(--royal-blue); margin:0; font-size: 30px;">ދަރިވަރު: ---</h2>
+                    <p id="jdg_stuMeta" style="color:var(--royal-green); margin:5px 0 0 0; font-weight:bold; font-size: 18px;">---</p>
+                </div>
+                <div style="background: linear-gradient(135deg, var(--royal-blue), var(--royal-blue-light)); color:var(--royal-gold); padding:10px 25px; border-radius:10px; font-size:26px; font-weight:bold; border: 2px solid var(--royal-gold);" id="jdg_headerTitle">
+                    ޖަޖު 1
+                </div>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; width:100%; max-width:1200px; background: rgba(197,160,89,0.1); padding: 15px 20px; border-radius: 10px; border: 1px solid var(--royal-gold); margin-bottom: 15px;">
+                <div style="font-size: 18px; font-weight:bold; color:var(--royal-blue);"><span id="jdg_meta_qNum" style="color:var(--ruby);">---</span></div>
+                <div style="font-size: 18px; font-weight:bold; color:var(--royal-blue);">ސޫރަތް: <span id="jdg_meta_surah" style="color:var(--royal-green);">---</span></div>
+                <div style="font-size: 18px; font-weight:bold; color:var(--royal-blue);">އާޔަތް: <span id="jdg_meta_ayah" style="color:var(--royal-green);">---</span></div>
+                <div style="font-size: 18px; font-weight:bold; color:var(--royal-blue);">ފޮތް: <span id="jdg_meta_juz" style="color:var(--royal-green);">---</span></div>
+                <div style="font-size: 18px; font-weight:bold; color:var(--royal-blue);">ޞަފުޙާ: <span id="jdg_meta_page" style="color:var(--royal-green);">---</span></div>
+            </div>
+
+            <div class="judge-quran-box" id="jdg_quranText">ކިޔަވަން ފެށުމަށް އިންތިޒާރު ކުރައްވާ...</div>
+        </div>
+        
+        <div class="judge-sidebar">
+            <h2 style="color:var(--royal-blue); border-bottom:3px solid var(--royal-gold); padding-bottom:10px; margin-top:0;">މާކްސް ރުބްރިކް</h2>
+            
+            <div class="rubric-card"><div class="rubric-header"><span>ކިޔެވުން (40)</span> <span class="score-val" id="jdg_score_c1">40.00</span></div><div class="deduct-grid"><button class="btn-deduct" onclick="deductJudgeMark('c1', 0.25)">-0.25</button><button class="btn-deduct" onclick="deductJudgeMark('c1', 0.50)">-0.50</button><button class="btn-deduct severe" onclick="deductJudgeMark('c1', 1.00)">-1.00</button></div></div>
+            <div class="rubric-card"><div class="rubric-header"><span>ތަޖުވީދު (20)</span> <span class="score-val" id="jdg_score_c2">20.00</span></div><div class="deduct-grid"><button class="btn-deduct" onclick="deductJudgeMark('c2', 0.25)">-0.25</button><button class="btn-deduct" onclick="deductJudgeMark('c2', 0.50)">-0.50</button><button class="btn-deduct severe" onclick="deductJudgeMark('c2', 1.00)">-1.00</button></div></div>
+            <div class="rubric-card"><div class="rubric-header"><span>މަޚްރަޖު (10)</span> <span class="score-val" id="jdg_score_c3">10.00</span></div><div class="deduct-grid"><button class="btn-deduct" onclick="deductJudgeMark('c3', 0.25)">-0.25</button><button class="btn-deduct" onclick="deductJudgeMark('c3', 0.50)">-0.50</button><button class="btn-deduct severe" onclick="deductJudgeMark('c3', 1.00)">-1.00</button></div></div>
+            <div class="rubric-card"><div class="rubric-header"><span>ޞިފަ (10)</span> <span class="score-val" id="jdg_score_c4">10.00</span></div><div class="deduct-grid"><button class="btn-deduct" onclick="deductJudgeMark('c4', 0.25)">-0.25</button><button class="btn-deduct" onclick="deductJudgeMark('c4', 0.50)">-0.50</button><button class="btn-deduct severe" onclick="deductJudgeMark('c4', 1.00)">-1.00</button></div></div>
+            <div class="rubric-card"><div class="rubric-header"><span>ފަޞާޙާ (10)</span> <span class="score-val" id="jdg_score_c5">10.00</span></div><div class="deduct-grid"><button class="btn-deduct" onclick="deductJudgeMark('c5', 0.25)">-0.25</button><button class="btn-deduct" onclick="deductJudgeMark('c5', 0.50)">-0.50</button><button class="btn-deduct severe" onclick="deductJudgeMark('c5', 1.00)">-1.00</button></div></div>
+            <div class="rubric-card"><div class="rubric-header"><span>އަޑާއި ރާގު (10)</span> <span class="score-val" id="jdg_score_c6">10.00</span></div><div class="deduct-grid"><button class="btn-deduct" onclick="deductJudgeMark('c6', 0.25)">-0.25</button><button class="btn-deduct" onclick="deductJudgeMark('c6', 0.50)">-0.50</button><button class="btn-deduct severe" onclick="deductJudgeMark('c6', 1.00)">-1.00</button></div></div>
+
+            <div class="rubric-card" style="background: linear-gradient(135deg, var(--royal-blue), var(--royal-blue-light)); color: white; border-color: var(--royal-gold); margin-top: 15px;">
+                <div class="rubric-header" style="color: var(--royal-gold); border-bottom: none; margin-bottom: 0;">
+                    <span>ޖުމްލަ މާކްސް (100)</span> 
+                    <span class="score-val" id="jdg_score_total" style="color: white; font-size: 32px;">100.00</span>
+                </div>
+            </div>
+
+            <button class="btn-main" id="btnSubmitJudge" style="margin-top:15px;" onclick="submitJudgeMarks()">💾 މެއިން ޑޭޓާބޭސްއަށް ފޮނުވާ</button>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-blue" style="flex:1;" onclick="printJudgeReport()">📄 ރިޕޯޓް (PDF)</button>
+                <button class="btn-dark" id="btnResetJudge" style="flex:1;" onclick="resetJudgeMarks()">🔄 ރީސެޓް</button>
+            </div>
+
+            <h3 style="margin-top:20px; color:var(--royal-blue); border-top:2px dashed #ccc; padding-top:15px;">އިތުރު ކޮމެންޓް / ނޯޓް</h3>
+            <textarea id="jdg_comment" rows="3" style="width: 100%; border: 2px solid #ccc; border-radius: 8px; padding: 10px; font-family: 'Faruma'; font-size: 16px; resize: vertical; max-height: 120px; overflow-y: auto;" placeholder="މިތާ ލިޔުއްވާ..."></textarea>
+
+            <h3 style="margin-top:25px; color:var(--ruby); border-top:2px dashed #ccc; padding-top:15px;">ކުށްތަކުގެ ރިޕޯޓް (Auto)</h3>
+            <div class="error-log-box" id="jdg_errorLog"></div>
+        </div>
+    </div>
+
+    <div id="app_tv" class="hidden tv-wrapper">
+        <h1 class="tv-title">ރަސްފަހި ޤުރްއާން މުބާރާތް</h1>
+        <p class="tv-subtitle">ލައިވް ސްކްރީން</p>
+        
+        <div class="royal-tv-card">
+            <h3 class="tv-now-reading">މިހާރު ކިޔަވަނީ:</h3>
+            <h1 id="tv_stuName" class="tv-stu-name">---</h1>
+            <h2 id="tv_branch" class="tv-stu-branch">---</h2>
+            
+            <div id="tv_stars" class="star-container"></div>
+            
+            <div class="tv-next-section">
+                <div class="tv-next-label">ދެން ކިޔަވާނީ:</div>
+                <h2 id="tv_nextName" class="tv-next-name">---</h2>
+                <div id="tv_nextMeta" class="tv-next-meta">---</div>
+            </div>
+        </div>
+
+        <button class="fs-btn" onclick="toggleFullScreen()" title="ފުލް ސްކްރީން ކުރައްވާ">⛶</button>
+    </div>
+
+    <div class="modal-overlay" id="printModal">
+        <div class="modal-box">
+            <h2>🖨️ ތާވަލު އަދި ރިޕޯރޓް ޕްރިންޓް</h2>
+            
+            <div class="form-group" style="margin-bottom:15px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                <label>ޕްރިންޓް ކުރައްވާ ރިޕޯރޓްގެ ބާވަތް:</label>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+                    <label><input type="radio" name="printType" value="results" checked onchange="togglePrintInputs()"> ފައިނަލް ނަތީޖާ</label>
+                    <label><input type="radio" name="printType" value="schedule" onchange="togglePrintInputs()"> ސެޝަން ތާވަލު</label>
+                    <label><input type="radio" name="printType" value="marksheet" onchange="togglePrintInputs()"> މާކްސް ޝީޓް</label>
+                    <label><input type="radio" name="printType" value="judgenote" onchange="togglePrintInputs()"> އަތްމަތީ ނޯޓް</label>
+                </div>
+            </div>
+
+            <div id="grp_schedule_filters" style="display:none; background:#eef2f3; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #ccc;">
+                <p style="margin-top:0; font-weight:bold; color:var(--royal-blue); margin-bottom:10px;">ތާވަލަށް ކުދިން ނަގާނެ ރޭންޖް (ޑޭޓާބޭސް ތަރުތީބުން):</p>
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>ފެށޭ ކުއްޖާގެ ނަންބަރު</label>
+                        <input type="number" id="sch_start" value="1">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>ނިމޭ ކުއްޖާގެ ނަންބަރު</label>
+                        <input type="number" id="sch_end" value="20">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:15px;"><label>މުބާރާތުގެ މައިގަނޑު ނަން</label><input type="text" id="p_main_title" value="ރަސްފަހި ޤުރްއާން މުބާރާތް"></div>
+            <div class="form-group" style="margin-bottom:15px;"><label>އަހަރު</label><input type="text" id="p_year" value="1447"></div>
+            <div class="form-group" id="grp_occasion" style="margin-bottom:20px;"><label>މުނާސަބާ (ސަބްޓައިޓަލް)</label><input type="text" id="p_occasion" value="ރަމަޟާން މަހުގެ ޤުރްއާން މުބާރާތުގެ ނަތީޖާ ރިޕޯރޓް"></div>
+            
+            <div id="grp_datetime" style="display:none; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+                <div class="form-group" style="flex:1;"><label>ތާރީޚް</label><input type="date" id="p_date"></div>
+                <div class="form-group" style="flex:1;"><label>ގަޑި / ސެޝަން</label><input type="time" id="p_time"></div>
+                <div class="form-group" style="flex:1;"><label>ހޯލް</label><input type="text" id="p_hall" placeholder="މިސާލު: މައި ހޯލް"></div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-dark" style="flex:1;" onclick="closePrintModal()">ކެންސަލް</button>
+                <button class="btn btn-blue" style="flex:1;" onclick="executePrint()">ޕްރިންޓް / PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="printArea_results">
+        <div class="print-header"><h1 id="print_title_main">ރަސްފަހި ޤުރްއާން މުބާރާތް</h1><h2 id="print_title_sub">ނަތީޖާ ރިޕޯރޓް</h2></div>
+        <table class="print-meta-table"><tr><td><b>އަހަރު:</b> <span id="lbl_year"></span></td><td><b>ގޮފި:</b> <span id="lbl_branch"></span></td><td><b>ޢުމުރުފުރާ:</b> <span id="lbl_age"></span></td></tr><tr><td><b>ހައިސިއްޔަތު:</b> <span id="lbl_capacity"></span></td><td><b>ކެޓަގަރީ (ވަނަ):</b> <span id="lbl_top"></span></td><td></td></tr></table>
+        <table class="print-data-table"><thead><tr><th style="width:40px;">ވަނަ</th><th style="width:100px;">ރެޖިސްޓްރޭޝަން</th><th>ދަރިވަރުގެ ފުރިހަމަ ނަން</th><th style="width:80px;">އައިޑީ ކާޑު</th><th>ދާއިމީ އެޑްރެސް</th><th style="width:70px;">ޖުމްލަ</th><th style="width:70px;">އެވްރެޖް</th></tr></thead><tbody id="printTableBody"></tbody></table>
+        <div class="print-signatures"><div class="sig-box"><div class="sig-line">ޖަޖު 1 ގެ ސޮއި</div></div><div class="sig-box"><div class="sig-line">ޖަޖު 2 ގެ ސޮއި</div></div><div class="sig-box"><div class="sig-line">ޖަޖު 3 ގެ ސޮއި</div></div><div class="sig-box"><div class="sig-line">ޗީފް ޖަޖުގެ ސޮއި</div></div></div>
+    </div>
+
+    <div id="printArea_schedule">
+        <div class="print-header"><h1 id="sch_title_main">ރަސްފަހި ޤުރްއާން މުބާރާތް</h1><h2>ހާޒިރުވާންޖެހޭ ގޮތުގެ ތާވަލު</h2></div>
+        <table class="print-meta-table">
+            <tr><td><b>ތާރީޚް:</b> <span id="sch_date"></span></td><td><b>ގަޑި:</b> <span id="sch_time"></span></td><td><b>ހޯލް:</b> <span id="sch_hall"></span></td></tr>
+            <tr><td><b>ގޮފި:</b> <span id="sch_branch"></span></td><td><b>ޢުމުރުފުރާ:</b> <span id="sch_age"></span></td><td><b>ޖުމްލަ ދަރިވަރުން:</b> <span id="sch_total"></span></td></tr>
+        </table>
+        <table class="print-data-table"><thead><tr><th class="col-sn">#</th><th class="col-reg">ރެޖިސްޓްރޭޝަން</th><th class="col-name">ދަރިވަރުގެ ފުރިހަމަ ނަން</th><th style="width:80px;">އައިޑީ ކާޑު</th><th>ދާއިމީ އެޑްރެސް</th><th style="width:100px;">ގޮފި</th><th style="width:80px;">ޢުމުރުފުރާ</th></tr></thead><tbody id="schTableBody"></tbody></table>
+    </div>
+
+    <div id="printArea_marksheet">
+        <div class="print-header"><h1 id="ms_title_main">ރަސްފަހި ޤުރްއާން މުބާރާތް</h1><h2>ޖަޖުން މާކްސްދޭ ޝީޓް</h2></div>
+        <table class="print-meta-table">
+            <tr><td><b>ތާރީޚް:</b> <span id="ms_date"></span></td><td><b>ގަޑި:</b> <span id="ms_time"></span></td><td><b>ހޯލް:</b> <span id="ms_hall"></span></td></tr>
+            <tr><td><b>ގޮފި:</b> <span id="ms_branch"></span></td><td><b>ޢުމުރުފުރާ:</b> <span id="ms_age"></span></td><td><b>ޖަޖުގެ ނަން:</b> ___________________</td></tr>
+        </table>
+        <table class="print-data-table">
+            <thead>
+                <tr><th class="col-sn">#</th><th class="col-reg">ރެޖިސްޓްރޭޝަން</th><th class="col-name">ދަރިވަރުގެ ފުރިހަމަ ނަން</th><th style="width:60px;">ކިޔެވުން (40)</th><th style="width:60px;">ތަޖުވީދު (20)</th><th style="width:60px;">މަޚްރަޖު (10)</th><th style="width:60px;">ޞިފަ (10)</th><th style="width:60px;">ފަޞާޙާ (10)</th><th style="width:60px;">އަޑާއި ރާގު (10)</th><th style="width:80px;">ޖުމްލަ</th></tr>
+            </thead>
+            <tbody id="msTableBody"></tbody>
+        </table>
+        <div class="print-signatures" style="margin-top:40px; justify-content:flex-end;"><div class="sig-box" style="width:30%;"><div class="sig-line">ޖަޖުގެ ސޮއި</div></div></div>
+    </div>
+
+    <div id="printArea_judgenote">
+        <div id="jnContainer"></div>
+    </div>
+
+    <div id="printArea_judgeLive">
+        <div class="print-header"><h1>ދަރިވަރުގެ ކުށުގެ ރިޕޯރޓް</h1><h2 id="jp_stuName">ދަރިވަރު: ---</h2><h3 id="jp_idCard" style="margin-top:5px; font-weight:normal;">އައިޑީ: ---</h3></div>
+        
+        <div style="font-size:18px; font-weight:bold; margin-bottom:10px;" id="jp_judgeIdDisplay">ޖަޖު: ---</div>
+        
+        <table class="print-data-table" style="width:100%; margin-bottom:20px;">
+            <tr><th>ކިޔެވުން (40)</th><th>ތަޖުވީދު (20)</th><th>މަޚްރަޖު (10)</th><th>ޞިފަ (10)</th><th>ފަޞާޙާ (10)</th><th>އަޑާއި ރާގު (10)</th></tr>
+            <tr>
+                <td id="jp_c1" style="font-size:18px; font-weight:bold;"></td>
+                <td id="jp_c2" style="font-size:18px; font-weight:bold;"></td>
+                <td id="jp_c3" style="font-size:18px; font-weight:bold;"></td>
+                <td id="jp_c4" style="font-size:18px; font-weight:bold;"></td>
+                <td id="jp_c5" style="font-size:18px; font-weight:bold;"></td>
+                <td id="jp_c6" style="font-size:18px; font-weight:bold;"></td>
+            </tr>
+        </table>
+        
+        <h3 style="margin-top:30px; border-bottom:2px solid #000; padding-bottom:5px;">ފާހަގަކުރެވުނު ކުށްތައް</h3>
+        <div class="j-print-log" id="jp_errorLog"></div>
+        
+        <h3 style="margin-top:20px; border-bottom:2px solid #000; padding-bottom:5px;">އިތުރު ކޮމެންޓް</h3>
+        <div class="j-print-log" style="min-height: 80px; border-style: dashed;" id="jp_comment"></div>
+        
+        <div class="judge-legend-box" style="margin-top: 40px; border: 2px solid var(--royal-gold); border-radius: 10px; padding: 20px; background: #fffcf5; page-break-inside: avoid;">
+            <h3 style="color: var(--royal-blue); margin-top: 0; border-bottom: 1px dashed var(--royal-gold); padding-bottom: 10px;">މާކްސް ކަނޑާފައިވާ ގޮތުގެ ތަފްޞީލް (Legend)</h3>
+            <table style="width: 100%; font-size: 14px; line-height: 1.8; border: none; text-align: right;">
+                <tr>
+                    <td style="vertical-align: top; width: 50%; border:none;">
+                        <b style="color: var(--ruby);">ލަޙްނު ޖަލީ:</b> ކަލިމައަށް ޑަބަލް ކްލިކް ކުރުމުން (-1.00 މާކްސް)<br><br>
+                        <b style="color: var(--khafi);">ލަޙްނު ޚަފީ (މަޚްރަޖު، ޞިފަ، ތަޖުވީދު):</b><br>
+                        • 1 ކްލިކް (ކުޑަ އުނިކަމެއް): -0.25 މާކްސް<br>
+                        • 2 ކްލިކް (މެދުމިންވަރެއް): -0.50 މާކްސް<br>
+                        • 3 ކްލިކް (ބޮޑު އުނިކަމެއް): -0.75 މާކްސް<br>
+                        • 4 ކްލިކް (ވަރަށް ބޮޑު އުނިކަމެއް): -1.00 މާކްސް
+                    </td>
+                    <td style="vertical-align: top; width: 50%; border-right: 1px solid #ccc; padding-right: 15px; border-left:none; border-top:none; border-bottom:none;">
+                        <b style="color: var(--royal-green);">އަޑާއި ރާގު (Voice & Melody):</b><br>
+                        މި ބައިން މާކްސް ކަނޑާނީ ޖަޖުންގެ މެނުއަލް ރުބްރިކް ބަޓަންތައް މެދުވެރިކޮށެވެ. މާކްސް ކަނޑާނެ މިންގަނޑަކީ އެހެން ބައިތަކެކޭވެސް އެއްފަދައިން (0.25، 0.50، 0.75، 1.00) މިއިން ރޭންޖަކުންނެވެ.
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="print-signatures" style="margin-top:80px; justify-content:flex-end;"><div class="sig-box" style="width:30%;"><div class="sig-line">ޖަޖުގެ ސޮއި</div></div></div>
+    </div>
+
+<script>
+    // --- 1. SECURITY & INIT ---
+    document.addEventListener('contextmenu', event => event.preventDefault()); 
+    document.addEventListener('keydown', function(e) {
+        const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
+        if(e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'x')) { if (!isInput) e.preventDefault(); }
+        if(e.ctrlKey && (e.key === 'u' || e.key === 's' || e.key === 'p')) e.preventDefault(); 
+        if(e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) e.preventDefault(); 
+    });
+
+    let isJudgePopup = false; let currentJudgeId = 1; 
+    let myJudgeMarks = { c1: 40, c2: 20, c3: 10, c4: 10, c5: 10, c6: 10 }; let myJudgeLogs = [];
+    let editingUid = null; // NEW: Track currently editing student
+    
+    // Firebase Setup Variables
+    let db;
+    let syncRef = null;
+    let studentsRef = null;
+    
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBMj9AceUKGq6fGoCfgGCK-lDyw_bMebq8",
+      authDomain: "rasfahiquran.firebaseapp.com",
+      projectId: "rasfahiquran",
+      storageBucket: "rasfahiquran.firebasestorage.app",
+      messagingSenderId: "372574281923",
+      appId: "1:372574281923:web:4fced148b245b32f18c276",
+      measurementId: "G-DNRGWH07CW",
+      databaseURL: "https://rasfahiquran-default-rtdb.firebaseio.com"
+    };
+
+    function addFloatingLogout() {
+        if(!document.getElementById('floatingLogout')) {
+            let btn = document.createElement('button');
+            btn.id = 'floatingLogout';
+            btn.innerHTML = '🚪 ލޮގްއައުޓް';
+            btn.className = 'btn-red';
+            btn.style.cssText = 'position:fixed; top:15px; left:15px; z-index:99999; padding:8px 15px; border-radius:8px; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.3); font-family:"Faruma"; border:1px solid #ff9999; cursor:pointer;';
+            btn.onclick = logoutSystem;
+            document.body.appendChild(btn);
+        }
+    }
+
+    // --- SECURE LOGIN FUNCTION ---
+    function loginSystem() {
+        const btn = document.getElementById('loginBtn');
+        const err = document.getElementById('loginError');
+        const email = document.getElementById('emailInput').value.trim();
+        const pass = document.getElementById('passwordInput').value;
+        const roleVal = document.getElementById('loginRole').value;
+        
+        if(!email || !pass) { err.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!"; return; }
+
+        const emailPrefix = email.split('@')[0].toLowerCase();
+        if(!emailPrefix.includes(roleVal.toLowerCase())) {
+            err.innerText = "މި އީމެއިލްއަށް ހުއްދަދެވިފައިވާ ސެކްޝަން (Authorize Section) އިޚްތިޔާރުކުރައްވާ!";
+            return;
+        }
+        
+        btn.innerText = "AUTHENTICATING..."; err.innerText = "";
+        
+        firebase.auth().signInWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+            localStorage.setItem('rasfahi_current_role', roleVal);
+            
+            let redirectUrl = window.location.pathname;
+            if(roleVal === 'admin') redirectUrl += '?role=admin';
+            else if(roleVal.startsWith('jdg')) redirectUrl += '?role=judge&id=' + roleVal.replace('jdg', '');
+            else if(roleVal === 'live') redirectUrl += '?role=liveCtrl';
+            else if(roleVal === 'stu') redirectUrl += '?role=student';
+            else redirectUrl += '?role=' + roleVal; 
+            
+            window.location.href = redirectUrl;
+        })
+        .catch((error) => {
+            err.innerText = "އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި!";
+            btn.innerText = "ސެކިއުއަރ ލޮގިން";
+        });
+    }
+
+    function logoutSystem() {
+        localStorage.removeItem('rasfahi_current_role');
+        firebase.auth().signOut().then(() => {
+            window.location.href = window.location.pathname; 
+        });
+    }
+
+    window.onload = async function() {
+        initFilters(); fetchSurahList(); populateJuzList();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let urlRole = urlParams.get('role');
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.database();
+        syncRef = db.ref('live_session');
+        studentsRef = db.ref('students_db');
+
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                let savedRole = localStorage.getItem('rasfahi_current_role') || 'admin';
+                let urlId = urlParams.get('id');
+
+                if (savedRole !== 'admin') {
+                    let expectedUrlRole = '';
+                    let expectedId = null;
+
+                    if(savedRole.startsWith('jdg')) {
+                        expectedUrlRole = 'judge';
+                        expectedId = savedRole.replace('jdg', '');
+                    } else if (savedRole === 'live') {
+                        expectedUrlRole = 'liveCtrl';
+                    } else if (savedRole === 'stu') {
+                        expectedUrlRole = 'student';
+                    } else {
+                        expectedUrlRole = savedRole; // tv
+                    }
+
+                    if (urlRole !== expectedUrlRole || (expectedId && urlId !== expectedId)) {
+                        let redirectUrl = window.location.pathname + '?role=' + expectedUrlRole;
+                        if (expectedId) redirectUrl += '&id=' + expectedId;
+                        window.location.href = redirectUrl;
+                        return; 
+                    }
+                }
+
+                document.getElementById('loginScreen').style.display = 'none';
+                let activeRole = urlRole || savedRole;
+
+                studentsRef.once('value', (snapshot) => {
+                    if (!snapshot.exists() || snapshot.val() === "[]") {
+                        let localDB = localStorage.getItem('rasfahi_db_v1');
+                        if (localDB && localDB !== "[]") { studentsRef.set(localDB); }
+                    }
+                });
+                syncRef.once('value', (snapshot) => {
+                    if (!snapshot.exists()) {
+                        let localLive = localStorage.getItem('rasfahi_live_v1');
+                        if (localLive) { syncRef.set(localLive); }
+                    }
+                });
+
+                ['app_db', 'app_liveCtrl', 'app_student', 'app_judge', 'app_tv', 'roleScreen'].forEach(id => {
+                    let el = document.getElementById(id);
+                    if(el) el.classList.add('hidden');
+                });
+                document.getElementById('globalHeader').style.display = 'none';
+
+                if (activeRole === 'admin') {
+                    document.getElementById('roleScreen').classList.remove('hidden');
+                } 
+                else if (activeRole === 'db') {
+                    document.getElementById('app_db').classList.remove('hidden');
+                    loadFormDraft(); 
+                    document.getElementById('globalHeader').style.display = 'flex';
+                }
+                else if (activeRole === 'judge') {
+                    isJudgePopup = true; 
+                    currentJudgeId = parseInt(urlParams.get('id')) || 1;
+                    document.getElementById('jdg_headerTitle').innerText = "ޖަޖު " + currentJudgeId;
+                    document.getElementById('app_judge').classList.remove('hidden');
+                    addFloatingLogout();
+                } 
+                else {
+                    if(document.getElementById('app_' + activeRole)) {
+                        document.getElementById('app_' + activeRole).classList.remove('hidden');
+                    }
+                    if(activeRole === 'student') buildStudentGrid(getLiveState().pickCount || 1);
+                    if(activeRole === 'liveCtrl') { populateLiveCtrlDropdown(); populateNextCtrlDropdown(); }
+                    addFloatingLogout();
+                }
+
+                loadDB();
+                syncLiveStateUI();
+
+            } else {
+                document.getElementById('loginScreen').style.display = 'flex';
+                ['app_db', 'app_liveCtrl', 'app_student', 'app_judge', 'app_tv', 'roleScreen'].forEach(id => {
+                    let el = document.getElementById(id);
+                    if(el) el.classList.add('hidden');
+                });
+                document.getElementById('globalHeader').style.display = 'none';
+            }
+        });
+
+        syncRef.on('value', (snapshot) => {
+            let data = snapshot.val();
+            if (data) {
+                let st = typeof data === 'string' ? JSON.parse(data) : data;
+                if (!st.usedQ) st.usedQ = [];
+                if (!st.selectedQ) st.selectedQ = [];
+                if (!st.gridQuestions) st.gridQuestions = {};
+                if (!st.qMeta) st.qMeta = {};
+
+                localStorage.setItem('rasfahi_live_v1', JSON.stringify(st));
+                if (typeof syncLiveStateUI === 'function' && document.getElementById('loginScreen').style.display === 'none') {
+                    syncLiveStateUI();
+                }
+            }
+        });
+
+        studentsRef.on('value', (snapshot) => {
+            let data = snapshot.val();
+            if (data) {
+                students = JSON.parse(data);
+                localStorage.setItem('rasfahi_db_v1', data);
+                
+                if (document.getElementById('app_db') && !document.getElementById('app_db').classList.contains('hidden')) {
+                    generateLeaderboard();
+                }
+                if (document.getElementById('app_liveCtrl') && !document.getElementById('app_liveCtrl').classList.contains('hidden')) {
+                    populateLiveCtrlDropdown();
+                    populateNextCtrlDropdown();
+                }
+                if (typeof syncLiveStateUI === 'function' && document.getElementById('loginScreen').style.display === 'none') {
+                    syncLiveStateUI();
+                }
+            }
+        });
+    };
+
+    function openJudgeWindow(id) { 
+        let url = window.location.href.split('?')[0] + '?role=judge&id=' + id; 
+        window.open(url, '_blank', 'width=1300,height=800'); 
+    }
+
+    let students = []; let currentFilteredList = []; 
+    function saveDB() { 
+        let str = JSON.stringify(students);
+        localStorage.setItem('rasfahi_db_v1', str); 
+        if(studentsRef) studentsRef.set(str); 
+    }
+    
+    function loadDB() { 
+        let dbLoc = localStorage.getItem('rasfahi_db_v1'); 
+        if(dbLoc) { 
+            students = JSON.parse(dbLoc); 
+            generateLeaderboard(); 
+        } 
+    }
+    
+    const formFields = ['f_serial','f_regNo','f_name','f_idCard','f_permAddr','f_currAddr','f_contact','f_guardian','f_gPermAddr','f_gContact','f_branch','f_ageGroup','f_capacity'];
+    for(let i=1; i<=5; i++) { for(let j=1; j<=6; j++) formFields.push(`j${i}_c${j}`); }
+    
+    let draftTimer;
+    function saveFormDraft() { 
+        clearTimeout(draftTimer); 
+        draftTimer = setTimeout(() => { 
+            let draft = {}; 
+            formFields.forEach(id => { draft[id] = document.getElementById(id).value; }); 
+            localStorage.setItem('rasfahi_draft_form', JSON.stringify(draft)); 
+            let ind = document.getElementById('autoSaveIndicator'); 
+            ind.style.display = 'inline'; 
+            setTimeout(() => ind.style.display = 'none', 2000); 
+        }, 1000); 
+    }
+    
+    function loadFormDraft() { 
+        let d = localStorage.getItem('rasfahi_draft_form'); 
+        if(d) { 
+            d = JSON.parse(d); 
+            formFields.forEach(id => { 
+                if(document.getElementById(id)) document.getElementById(id).value = d[id] || ''; 
+            }); 
+        } 
+    }
+    
+    function clearFormDraft() { 
+        editingUid = null;
+        formFields.forEach(id => { 
+            let el = document.getElementById(id); 
+            if(el) { 
+                if(el.type === 'number') el.value = ''; 
+                else if (el.tagName === 'SELECT') el.value = el.options[0].value; 
+                else el.value = ''; 
+            } 
+        }); 
+        localStorage.removeItem('rasfahi_draft_form'); 
+        if(document.getElementById('addForm')) document.getElementById('addForm').style.display = 'none';
+    }
+    
+    const ageGroups = []; for(let i=5; i<=20; i++) ageGroups.push(`${i} އަހަރުން ދަށް`); ageGroups.push(`20 އަހަރުން މަތި`);
+    
+    function initFilters() { 
+        const a1 = document.getElementById('f_ageGroup'); 
+        const a2 = document.getElementById('filter_age'); 
+        if(a1 && a2) { 
+            ageGroups.forEach(age => { 
+                a1.innerHTML += `<option value="${age}">${age}</option>`; 
+                a2.innerHTML += `<option value="${age}">${age}</option>`; 
+            }); 
+        } 
+    }
+    
+    function toggleForm() { 
+        const f = document.getElementById('addForm'); 
+        if (f.style.display === 'block' && editingUid === null) {
+            f.style.display = 'none';
+        } else {
+            editingUid = null;
+            f.style.display = 'block';
+            formFields.forEach(id => { 
+                let el = document.getElementById(id); 
+                if(el) { if(el.type === 'number') el.value = ''; else if (el.tagName !== 'SELECT') el.value = ''; } 
+            });
+        }
+    }
+    
+    function calculateStatsAndRank(list) {
+        list.forEach(s => {
+            let activeJudges = 0; let grandTotal = 0;
+            for(let i=1; i<=5; i++) {
+                let jTotal = (parseFloat(s[`j${i}_c1`])||0) + (parseFloat(s[`j${i}_c2`])||0) + (parseFloat(s[`j${i}_c3`])||0) + (parseFloat(s[`j${i}_c4`])||0) + (parseFloat(s[`j${i}_c5`])||0) + (parseFloat(s[`j${i}_c6`])||0);
+                s[`j${i}_total`] = jTotal; if(jTotal > 0) { grandTotal += jTotal; activeJudges++; }
+            }
+            s.total = grandTotal; s.average = activeJudges > 0 ? (grandTotal / activeJudges) : 0;
+        });
+        list.sort((a, b) => b.average - a.average);
+        let currentRank = 1; 
+        for (let i = 0; i < list.length; i++) { 
+            if (i > 0 && list[i].average === list[i - 1].average) list[i].rank = list[i - 1].rank; 
+            else list[i].rank = currentRank; 
+            currentRank++; 
+        }
+        return list;
+    }
+    
+    function generateLeaderboard() {
+        let b = document.getElementById('filter_branch').value;
+        let a = document.getElementById('filter_age').value;
+        let c = document.getElementById('filter_capacity').value;
+        let limit = parseInt(document.getElementById('filter_top').value);
+        let q = document.getElementById('search_box').value.toLowerCase();
+        
+        let filtered = students.filter(s => 
+            (b === 'all' || s.f_branch === b) && 
+            (a === 'all' || s.f_ageGroup === a) && 
+            (c === 'all' || s.f_capacity === c) && 
+            (s.f_name.toLowerCase().includes(q) || s.f_idCard.toLowerCase().includes(q) || s.f_regNo.toLowerCase().includes(q))
+        );
+        
+        filtered = calculateStatsAndRank(filtered); 
+        if (limit > 0) filtered = filtered.filter(s => s.rank <= limit);
+        
+        currentFilteredList = filtered; 
+        renderTable(filtered);
+    }
+
+    // NEW EDIT FUNCTION
+    function editStudent(uid) {
+        let s = students.find(x => x.uid === uid);
+        if(!s) return;
+        editingUid = uid;
+        
+        formFields.forEach(id => {
+            if(document.getElementById(id)) {
+                document.getElementById(id).value = s[id] !== undefined ? s[id] : '';
+            }
+        });
+        
+        document.getElementById('addForm').style.display = 'block';
+        window.scrollTo({ top: document.getElementById('addForm').offsetTop - 50, behavior: 'smooth' });
+    }
+
+    // UPDATED SAVE FUNCTION TO HANDLE EDITS
+    function saveStudent() { 
+        if (editingUid) {
+            let idx = students.findIndex(s => s.uid === editingUid);
+            if (idx !== -1) {
+                formFields.forEach(id => { 
+                    students[idx][id] = document.getElementById(id).value || (id.startsWith('j') ? 0 : ''); 
+                });
+                // Admin manually amends marks, judge lock remains intact so judges can't alter again.
+            }
+            editingUid = null;
+            alert("✅ ދަރިވަރުގެ މަޢުލޫމާތާއި މާކްސް ކާމިޔާބުކަމާއެކު އިޞްލާޙު ކުރެވިއްޖެ!");
+        } else {
+            const s = { uid: Date.now() }; 
+            formFields.forEach(id => { s[id] = document.getElementById(id).value || (id.startsWith('j') ? 0 : ''); }); 
+            for(let i=1; i<=5; i++) { s[`j${i}_submitted`] = false; }
+            students.push(s); 
+            alert("✅ އައު ދަރިވަރެއް ޑޭޓާބޭސްއަށް އެޑްކުރެވިއްޖެ!");
+        }
+        
+        saveDB(); 
+        clearFormDraft(); 
+        generateLeaderboard(); 
+    }
+    
+    function deleteStudent(uid) { 
+        if(confirm("މި ދަރިވަރުގެ މަޢުލޫމާތު ފޮހެލަން ބޭނުންފުޅުތޯ؟")) { 
+            students = students.filter(s => s.uid !== uid); 
+            saveDB(); 
+            generateLeaderboard(); 
+        } 
+    }
+    
+    function renderTable(list) {
+        const tbody = document.getElementById('studentTableBody'); 
+        if(!tbody) return; 
+        tbody.innerHTML = '';
+        list.forEach(s => {
+            let rc = s.rank === 1 ? 'rank-1' : (s.rank === 2 ? 'rank-2' : (s.rank === 3 ? 'rank-3' : 'rank-other'));
+            let dJ1 = s.j1_total > 0 ? s.j1_total.toFixed(2) : '-'; 
+            let dJ2 = s.j2_total > 0 ? s.j2_total.toFixed(2) : '-'; 
+            let dJ3 = s.j3_total > 0 ? s.j3_total.toFixed(2) : '-'; 
+            let dJ4 = s.j4_total > 0 ? s.j4_total.toFixed(2) : '-'; 
+            let dJ5 = s.j5_total > 0 ? s.j5_total.toFixed(2) : '-';
+            
+            tbody.innerHTML += `<tr>
+                <td>
+                    <div style="display:flex; gap:5px; flex-direction:column;">
+                        <button class="btn-edit-row" onclick="editStudent(${s.uid})" title="އެޑިޓް / އިޞްލާޙުކުރުން">✏️</button>
+                        <button class="btn-delete" onclick="deleteStudent(${s.uid})" title="ފޮހެލުން">❌</button>
+                    </div>
+                </td>
+                <td>${s.f_serial}</td>
+                <td>${s.f_regNo}</td>
+                <td style="font-weight:bold; color:var(--royal-blue);">${s.f_name}</td>
+                <td>${s.f_idCard}</td>
+                <td>${s.f_branch}</td>
+                <td>${s.f_ageGroup}</td>
+                <td><span style="background:#eef2f3; padding:4px 8px; border-radius:4px; font-size:12px;">${s.f_capacity}</span></td>
+                <td>${dJ1}</td><td>${dJ2}</td><td>${dJ3}</td><td>${dJ4}</td><td>${dJ5}</td>
+                <td style="font-weight:bold;">${s.total.toFixed(2)}</td>
+                <td style="font-weight:900; color:var(--royal-blue); font-size:16px;">${s.average.toFixed(2)}</td>
+                <td><span class="rank-badge ${rc}">${s.rank}</span></td>
+            </tr>`;
+        });
+        if(document.getElementById('total-count')) document.getElementById('total-count').innerText = students.length;
+    }
+
+    function getLiveState() {
+        let state = localStorage.getItem('rasfahi_live_v1');
+        if(!state) return { 
+            uid: null, student: '---', idCard: '', branch: '', capacity: '', ageGroup: '', 
+            quranHtml: '', qMeta: {}, status: 'grid', gridQuestions: {}, usedQ: [], 
+            selectedQ: [], currentQIndex: 0, pickCount: 1, 
+            display: { fontSize: 65, lineHeight: 2.2, align: 'center' }, nextUid: null 
+        };
+        let st = JSON.parse(state);
+        if (!st.usedQ) st.usedQ = [];
+        if (!st.selectedQ) st.selectedQ = [];
+        if (!st.gridQuestions) st.gridQuestions = {};
+        if (!st.qMeta) st.qMeta = {};
+        return st;
+    }
+    
+    function saveLiveState(st) { 
+        let str = JSON.stringify(st);
+        localStorage.setItem('rasfahi_live_v1', str);
+        if(syncRef) syncRef.set(str); 
+        syncLiveStateUI(); 
+    }
+
+    function populateLiveCtrlDropdown() {
+        const sel = document.getElementById('ctrl_stuSelect'); if(!sel) return;
+        sel.innerHTML = '<option value="">-- ދަރިވަރަކު ނަންގަވާ --</option>';
+        students.forEach(s => { sel.innerHTML += `<option value="${s.uid}">${s.f_serial}. ${s.f_name} (${s.f_regNo})</option>`; });
+    }
+    
+    function populateNextCtrlDropdown() {
+        const sel = document.getElementById('ctrl_nextStuSelect'); if(!sel) return;
+        sel.innerHTML = '<option value="">-- ދަރިވަރަކު ނަންގަވާ --</option>';
+        students.forEach(s => { sel.innerHTML += `<option value="${s.uid}">${s.f_serial}. ${s.f_name} (${s.f_regNo})</option>`; });
+    }
+
+    function loadStudentToCtrl() {
+        const uid = document.getElementById('ctrl_stuSelect').value; 
+        const stu = students.find(s => s.uid == uid);
+        if(stu) { 
+            document.getElementById('ctrl_branch').value = stu.f_branch; 
+            document.getElementById('ctrl_age').value = stu.f_ageGroup; 
+        }
+    }
+    
+    function pushStudentLive() {
+        const uid = document.getElementById('ctrl_stuSelect').value; 
+        if(!uid) return alert("ދަރިވަރަކު ސެލެކްޓް ކުރައްވާ!");
+        
+        const stu = students.find(s => s.uid == uid); 
+        let st = getLiveState();
+        
+        st.uid = uid; 
+        st.student = stu.f_name; 
+        st.idCard = stu.f_idCard; 
+        st.branch = stu.f_branch; 
+        st.capacity = stu.f_capacity; 
+        st.ageGroup = stu.f_ageGroup;
+        st.pickCount = parseInt(document.getElementById('ctrl_qToPick').value) || 1;
+        
+        st.status = 'grid'; 
+        st.quranHtml = ''; 
+        st.selectedQ = []; 
+        st.currentQIndex = 0; 
+        
+        saveLiveState(st); 
+        alert("ދަރިވަރު ލައިވް ސްކްރީނަށް ފޮނުވިއްޖެ! (ކުރިން ލޯޑްކޮށްފައިވާ ސިލަބަސް ގްރިޑް ބޭނުންކުރެވޭނެއެވެ)");
+    }
+
+    function setNextStudent() {
+        const uid = document.getElementById('ctrl_nextStuSelect').value; 
+        let st = getLiveState(); 
+        st.nextUid = uid; 
+        saveLiveState(st); 
+        alert("ދެން ކިޔަވާނެ ދަރިވަރު ސެޓްކުރެވިއްޖެ!");
+    }
+
+    function toggleSyllabusType() {
+        let type = document.querySelector('input[name="sylType"]:checked').value;
+        if(type === 'surah') { 
+            document.getElementById('div_syl_surah').classList.remove('hidden'); 
+            document.getElementById('div_syl_juz').classList.add('hidden'); 
+        } else { 
+            document.getElementById('div_syl_surah').classList.add('hidden'); 
+            document.getElementById('div_syl_juz').classList.remove('hidden'); 
+        }
+    }
+
+    function setLiveBranch(branchName) {
+        let st = getLiveState();
+        if(!st.uid) return alert("ފުރަތަމަ ދަރިވަރަކު ލައިވް ކުރައްވާ!");
+        st.branch = branchName;
+        if(st.selectedQ && st.selectedQ.length === st.pickCount) { 
+            st.status = branchName.includes("ނުބަލާ") ? 'nubalaa' : 'quran'; 
+        }
+        saveLiveState(st);
+        alert("ގޮފި ބަދަލުކުރެވިއްޖެ: " + branchName);
+    }
+
+    function adjustDisplay(type, val) {
+        let st = getLiveState();
+        if(!st.display) st.display = { fontSize: 65, lineHeight: 2.2, align: 'center' };
+        
+        if(type === 'fontSize') st.display.fontSize += val;
+        else if(type === 'lineHeight') st.display.lineHeight = parseFloat((st.display.lineHeight + val).toFixed(1));
+        else if(type === 'align') st.display.align = val;
+        
+        saveLiveState(st);
+    }
+
+    let fullQuranCache = null;
+    async function fetchFullQuran() {
+        if(fullQuranCache) return fullQuranCache;
+        const res = await fetch('https://api.alquran.cloud/v1/quran/quran-uthmani'); 
+        const data = await res.json();
+        fullQuranCache = data.data.surahs; 
+        return fullQuranCache;
+    }
+
+    async function fetchSurahList() {
+        const sel1 = document.getElementById('ctrl_surahStart'); 
+        const sel2 = document.getElementById('ctrl_surahEnd');
+        if(!sel1 || !sel2) return;
+        try {
+            const res = await fetch('https://api.alquran.cloud/v1/meta'); 
+            const data = await res.json();
+            data.data.surahs.references.forEach(s => { 
+                let opt = `<option value="${s.number}">${s.number}. ${s.name}</option>`; 
+                sel1.innerHTML += opt; 
+                sel2.innerHTML += opt; 
+            });
+        } catch(e) { console.error("Quran API Error", e); }
+    }
+    
+    function populateJuzList() {
+        const sel1 = document.getElementById('ctrl_juzStart'); 
+        const sel2 = document.getElementById('ctrl_juzEnd');
+        if(!sel1 || !sel2) return;
+        for(let i=1; i<=30; i++) { 
+            let opt = `<option value="${i}">ފޮތް ${i}</option>`; 
+            sel1.innerHTML += opt; 
+            sel2.innerHTML += opt; 
+        }
+    }
+
+    async function loadGridSyllabus() {
+        const btn = document.getElementById('btnLoadSyllabus'); 
+        const stat = document.getElementById('ctrl_apiStatus');
+        btn.innerText = "ލޯޑްކުރަނީ..."; stat.innerText = "";
+        
+        let type = document.querySelector('input[name="sylType"]:checked').value;
+        let qLines = parseInt(document.getElementById('ctrl_qLines').value);
+        let targetWords = qLines * 14; 
+        let allAyahs = [];
+        
+        try {
+            const quran = await fetchFullQuran();
+            
+            if(type === 'surah') {
+                let sStart = parseInt(document.getElementById('ctrl_surahStart').value); 
+                let sEnd = parseInt(document.getElementById('ctrl_surahEnd').value);
+                if(sStart > sEnd) { 
+                    alert("ފެށޭ ސޫރަތް ނިމޭ ސޫރަތަށްވުރެ ފަހަތުގައި ނުބޭންދޭނެ!"); 
+                    btn.innerText = "20 ސުވާލުގެ ގްރިޑް ތައްޔާރުކުރޭ 🚀"; 
+                    return; 
+                }
+                for(let i=sStart-1; i<=sEnd-1; i++) { 
+                    let sName = quran[i].name;
+                    quran[i].ayahs.forEach(a => { 
+                        a.surahName = sName; 
+                        allAyahs.push(a); 
+                    }); 
+                }
+            } else {
+                let jStart = parseInt(document.getElementById('ctrl_juzStart').value); 
+                let jEnd = parseInt(document.getElementById('ctrl_juzEnd').value);
+                if(jStart > jEnd) { 
+                    alert("ފެށޭ ފޮތް ނިމޭ ފޮތަށްވުރެ ފަހަތުގައި ނުބޭންދޭނެ!"); 
+                    btn.innerText = "20 ސުވާލުގެ ގްރިޑް ތައްޔާރުކުރޭ 🚀"; 
+                    return; 
+                }
+                quran.forEach(s => { 
+                    s.ayahs.forEach(a => { 
+                        if(a.juz >= jStart && a.juz <= jEnd) { 
+                            a.surahName = s.name; 
+                            allAyahs.push(a); 
+                        } 
+                    }); 
+                });
+            }
+
+            let allChunks = [];
+            for(let i=0; i<allAyahs.length; i++) {
+                let currentChunk = []; let currentWCount = 0; let j = i;
+                while(j < allAyahs.length && currentWCount < targetWords) {
+                    let a = allAyahs[j];
+                    currentChunk.push(a);
+                    currentWCount += a.text.split(' ').length;
+                    j++;
+                }
+                if(currentWCount >= targetWords * 0.7) {
+                    let html = currentChunk.map(ay => { 
+                        let sName = ay.surahName || currentChunk[0].surahName || "---";
+                        let words = ay.text.split(' ').map(w => `<span class="q-word" data-surah="${sName}" data-ayah="${ay.numberInSurah}" data-juz="${ay.juz}" data-page="${ay.page}">${w}</span>`).join(' '); 
+                        return `${words} <span style="color:var(--royal-gold); font-weight:bold; font-size:0.8em;">(${ay.numberInSurah})</span> `; 
+                    }).join('');
+                    
+                    let meta = { 
+                        surah: currentChunk[0].surahName || "---", 
+                        startA: currentChunk[0].numberInSurah, 
+                        endA: currentChunk[currentChunk.length-1].numberInSurah, 
+                        juz: currentChunk[0].juz, 
+                        page: currentChunk[0].page, 
+                        lines: qLines 
+                    };
+                    let hash = `${meta.surah}_${meta.startA}_${meta.endA}`; 
+                    allChunks.push({ hash: hash, html: html, meta: meta });
+                }
+            }
+
+            let usedHistory = JSON.parse(localStorage.getItem('rasfahi_q_history') || '[]');
+            let availableChunks = allChunks.filter(c => !usedHistory.includes(c.hash));
+            
+            if(availableChunks.length < 20) { usedHistory = []; availableChunks = allChunks; }
+            if(availableChunks.length < 20) { 
+                alert("މި ރޭންޖުގައި 20 ސުވާލު ހެދޭވަރަށް އާޔަތެއް ނެތް! ރޭންޖު ބޮޑުކުރައްވާ."); 
+                btn.innerText = "20 ސުވާލުގެ ގްރިޑް ތައްޔާރުކުރޭ 🚀"; 
+                return; 
+            }
+
+            availableChunks.sort(() => 0.5 - Math.random());
+            let selected20 = availableChunks.slice(0, 20);
+            
+            selected20.forEach(c => usedHistory.push(c.hash));
+            if(usedHistory.length > 100) usedHistory = usedHistory.slice(usedHistory.length - 100);
+            localStorage.setItem('rasfahi_q_history', JSON.stringify(usedHistory));
+
+            let questions = {};
+            for(let i=0; i<20; i++) { questions[i+1] = selected20[i]; }
+
+            let st = getLiveState(); 
+            st.gridQuestions = questions; st.usedQ = []; st.selectedQ = []; st.status = 'grid'; 
+            saveLiveState(st);
+            
+            stat.innerText = `20 ސުވާލު ކާމިޔާބުކަމާއެކު ގްރިޑަށް ފޮނުވިއްޖެ ✓`;
+        } catch(e) { 
+            stat.innerText = "މައްސަލައެއް ދިމާވެއްޖެ! އިންޓަނެޓް ޗެކްކުރައްވާ."; 
+            stat.style.color = "red"; 
+        }
+        btn.innerText = "20 ސުވާލުގެ ގްރިޑް ތައްޔާރުކުރޭ 🚀";
+    }
+
+    function forceGridScreen() { 
+        let st = getLiveState(); 
+        st.status = 'grid'; 
+        st.quranHtml = ''; 
+        saveLiveState(st); 
+    }
+    
+    function nextQuestion() {
+        let st = getLiveState();
+        if(st.selectedQ.length === 0) return alert("ދަރިވަރު އަދި ސުވާލެއް ނުނަގާ!");
+        if(st.currentQIndex < st.selectedQ.length - 1) {
+            st.currentQIndex++;
+            let qNum = st.selectedQ[st.currentQIndex];
+            st.quranHtml = st.gridQuestions[qNum].html; 
+            st.qMeta = st.gridQuestions[qNum].meta; 
+            st.qMeta.qNum = qNum;
+            saveLiveState(st);
+        } else { alert("މިއީ އެންމެ ފަހު ސުވާލު!"); }
+    }
+    
+    function prevQuestion() {
+        let st = getLiveState();
+        if(st.selectedQ.length === 0) return alert("ދަރިވަރު އަދި ސުވާލެއް ނުނަގާ!");
+        if(st.currentQIndex > 0) {
+            st.currentQIndex--;
+            let qNum = st.selectedQ[st.currentQIndex];
+            st.quranHtml = st.gridQuestions[qNum].html; 
+            st.qMeta = st.gridQuestions[qNum].meta; 
+            st.qMeta.qNum = qNum;
+            saveLiveState(st);
+        } else { alert("މިއީ ފުރަތަމަ ސުވާލު!"); }
+    }
+
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) { 
+            document.documentElement.requestFullscreen().catch(err => { 
+                alert(`ފުލް ސްކްރީން ކުރެވޭގޮތެއް ނުވި!`); 
+            }); 
+        } else { 
+            if (document.exitFullscreen) { document.exitFullscreen(); } 
+        }
+    }
+
+    function buildStudentGrid(count) {
+        const grid = document.getElementById('stuGridBox'); if(!grid) return;
+        grid.innerHTML = '';
+        for(let i=1; i<=count; i++) { 
+            grid.innerHTML += `<div class="grid-btn" id="gridBtn_${i}" onclick="toggleGridSelection(${i})"><span style="font-size:45px;">${i}</span></div>`; 
+        }
+    }
+
+    function toggleGridSelection(num) {
+        let st = getLiveState();
+        if(st.usedQ.includes(num)) return; 
+        
+        let idx = st.selectedQ.indexOf(num);
+        if(idx > -1) { 
+            st.selectedQ.splice(idx, 1); 
+        } else {
+            if(st.selectedQ.length >= st.pickCount) return alert(`އެންމެ ގިނަވެގެން ނެގޭނީ ${st.pickCount} ސުވާލު!`);
+            st.selectedQ.push(num);
+        }
+        
+        if(st.selectedQ.length === st.pickCount) {
+            st.usedQ = st.usedQ.concat(st.selectedQ);
+            st.currentQIndex = 0;
+            let firstQ = st.selectedQ[0];
+            st.quranHtml = st.gridQuestions[firstQ].html;
+            st.qMeta = st.gridQuestions[firstQ].meta;
+            st.qMeta.qNum = firstQ;
+            st.status = st.branch.includes("ނުބަލާ") ? 'nubalaa' : 'quran';
+        }
+        saveLiveState(st);
+    }
+
+    function resetJudgeMarks() { 
+        myJudgeMarks = { c1: 40, c2: 20, c3: 10, c4: 10, c5: 10, c6: 10 }; 
+        myJudgeLogs = []; 
+        if(document.getElementById('jdg_comment')) document.getElementById('jdg_comment').value = '';
+        updateJudgeScoreUI(); 
+    }
+    
+    function deductJudgeMark(cat, amt) { 
+        myJudgeMarks[cat] = Math.max(0, myJudgeMarks[cat] - amt); 
+        updateJudgeScoreUI(); 
+    }
+    
+    function updateJudgeScoreUI() {
+        if(!isJudgePopup) return;
+        document.getElementById('jdg_score_c1').innerText = myJudgeMarks.c1.toFixed(2); 
+        document.getElementById('jdg_score_c2').innerText = myJudgeMarks.c2.toFixed(2); 
+        document.getElementById('jdg_score_c3').innerText = myJudgeMarks.c3.toFixed(2); 
+        document.getElementById('jdg_score_c4').innerText = myJudgeMarks.c4.toFixed(2); 
+        document.getElementById('jdg_score_c5').innerText = myJudgeMarks.c5.toFixed(2);
+        document.getElementById('jdg_score_c6').innerText = myJudgeMarks.c6.toFixed(2);
+        
+        let total = myJudgeMarks.c1 + myJudgeMarks.c2 + myJudgeMarks.c3 + myJudgeMarks.c4 + myJudgeMarks.c5 + myJudgeMarks.c6;
+        document.getElementById('jdg_score_total').innerText = total.toFixed(2);
+
+        let logHtml = '';
+        for(let i=0; i<10; i++) { 
+            let qLogs = myJudgeLogs.filter(l => l.qIndex === i);
+            if(qLogs.length > 0) {
+                logHtml += `<div style="background:#f0f4f8; padding:10px; margin-top:15px; font-weight:bold; color:var(--royal-blue); border-radius:5px; border-right:4px solid var(--royal-gold);">${i+1} ވަނަ ސުވާލުގެ ކުށްތައް:</div>`;
+                let reversedLogs = [...qLogs].reverse(); 
+                logHtml += reversedLogs.map(l => l.html).join('');
+            }
+        }
+        document.getElementById('jdg_errorLog').innerHTML = logHtml;
+    }
+    
+    function attachJudgeClickEvents() {
+        const box = document.getElementById('jdg_quranText'); 
+        const words = box.querySelectorAll('.q-word');
+        words.forEach(w => {
+            let newW = w.cloneNode(true); w.parentNode.replaceChild(newW, w); let timer;
+            newW.dataset.khafiClicks = 0;
+            newW.addEventListener('click', function(e) { 
+                if(e.detail === 1) { 
+                    timer = setTimeout(() => { 
+                        let clicks = parseInt(this.dataset.khafiClicks) || 0;
+                        if(clicks < 4 && !this.classList.contains('jali')) {
+                            clicks++;
+                            this.dataset.khafiClicks = clicks;
+                            logJudgeError(this, 'khafi', clicks);
+                        }
+                    }, 250); 
+                } 
+            });
+            newW.addEventListener('dblclick', function(e) { 
+                clearTimeout(timer); 
+                if(!this.classList.contains('jali')) {
+                    logJudgeError(this, 'jali'); 
+                }
+            });
+        });
+    }
+    
+    function logJudgeError(el, type, clickCount = 1) {
+        let st = getLiveState();
+        let qIndex = st.currentQIndex || 0;
+        let surah = el.getAttribute('data-surah') || "---";
+        let ayah = el.getAttribute('data-ayah') || "---";
+        let juz = el.getAttribute('data-juz') || "---";
+        let page = el.getAttribute('data-page') || "---";
+        
+        let metaStr = `<span style="font-size:14px; color:#555; display:block; margin-top:5px; font-weight:normal; font-family:'Faruma';">(ސޫރަތް: ${surah} | އާޔަތް: ${ayah} | ފޮތް: ${juz} | ޞަފުޙާ: ${page})</span>`;
+        let htmlStr = "";
+
+        if(type === 'jali') {
+            deductJudgeMark('c1', 1.0); el.classList.add('jali');
+            htmlStr = `<div class="log-item"><span style="color:var(--jali); font-weight:bold;">ލަޙްނު ޖަލީ (-1.0)</span> <span class="arabic">${el.innerText}</span> ${metaStr}</div>`;
+        } else {
+            deductJudgeMark('c2', 0.25); el.classList.add('khafi');
+            let totalForWord = clickCount * 0.25;
+            htmlStr = `<div class="log-item"><span style="color:var(--khafi); font-weight:bold;">ލަޙްނު ޚަފީ (-0.25) [ޖުމްލަ: -${totalForWord}]</span> <span class="arabic">${el.innerText}</span> ${metaStr}</div>`;
+        }
+        
+        myJudgeLogs.push({ qIndex: qIndex, html: htmlStr });
+        updateJudgeScoreUI();
+    }
+    
+    function submitJudgeMarks() {
+        let st = getLiveState(); if(!st.uid) return alert("ލައިވްގައި ދަރިވަރަކު ނެތް!");
+        
+        let dbStr = localStorage.getItem('rasfahi_db_v1');
+        if(dbStr) {
+            let tempStudents = JSON.parse(dbStr); 
+            let stuIndex = tempStudents.findIndex(s => String(s.uid) === String(st.uid));
+            
+            if(stuIndex !== -1) {
+                if(tempStudents[stuIndex][`j${currentJudgeId}_submitted`]) {
+                    return alert("މި ދަރިވަރަށް މާކްސް ދީ ނިމިފައި! ބަދަލުކުރެވޭނީ އެޑްމިންއަށް.");
+                }
+
+                tempStudents[stuIndex][`j${currentJudgeId}_c1`] = myJudgeMarks.c1; 
+                tempStudents[stuIndex][`j${currentJudgeId}_c2`] = myJudgeMarks.c2; 
+                tempStudents[stuIndex][`j${currentJudgeId}_c3`] = myJudgeMarks.c3; 
+                tempStudents[stuIndex][`j${currentJudgeId}_c4`] = myJudgeMarks.c4; 
+                tempStudents[stuIndex][`j${currentJudgeId}_c5`] = myJudgeMarks.c5;
+                tempStudents[stuIndex][`j${currentJudgeId}_c6`] = myJudgeMarks.c6;
+                tempStudents[stuIndex][`j${currentJudgeId}_submitted`] = true;
+                
+                students = tempStudents;
+                saveDB(); 
+                alert(`ޖަޖު ${currentJudgeId} ގެ މާކްސް ސޭވްވެއްޖެ ✓`);
+                syncLiveStateUI(); 
+            } else { alert("މެއިން ޑޭޓާބޭސްއިން މި ދަރިވަރު ނުފެނުނު!"); }
+        }
+    }
+    
+    function printJudgeReport() {
+        let st = getLiveState(); if(!st.student || st.student === '---') return alert("ދަރިވަރެއް ނެތް!");
+        
+        document.getElementById('jp_stuName').innerText = "ދަރިވަރު: " + st.student; 
+        document.getElementById('jp_idCard').innerText = "އައިޑީ: " + (st.idCard || "---"); 
+        document.getElementById('jp_judgeIdDisplay').innerText = "ޖަޖު: " + currentJudgeId;
+        
+        document.getElementById('jp_c1').innerText = myJudgeMarks.c1.toFixed(2); 
+        document.getElementById('jp_c2').innerText = myJudgeMarks.c2.toFixed(2); 
+        document.getElementById('jp_c3').innerText = myJudgeMarks.c3.toFixed(2); 
+        document.getElementById('jp_c4').innerText = myJudgeMarks.c4.toFixed(2); 
+        document.getElementById('jp_c5').innerText = myJudgeMarks.c5.toFixed(2);
+        document.getElementById('jp_c6').innerText = myJudgeMarks.c6.toFixed(2);
+        
+        document.getElementById('jp_errorLog').innerHTML = document.getElementById('jdg_errorLog').innerHTML;
+        document.getElementById('jp_comment').innerText = document.getElementById('jdg_comment').value || "";
+        
+        document.body.className = 'print-judge-live';
+        let originalTitle = document.title; document.title = st.idCard ? st.idCard + "_JudgeReport" : "Student_Report";
+        window.print();
+        document.title = originalTitle; document.body.className = '';
+    }
+
+    function parseCSVLine(str) {
+        let arr = []; let quote = false; let col = 0;
+        for (let c = 0; c < str.length; c++) {
+            let cc = str[c], nc = str[c+1];
+            arr[col] = arr[col] || '';
+            if (cc == '"' && quote && nc == '"') { arr[col] += cc; ++c; continue; }
+            if (cc == '"') { quote = !quote; continue; }
+            if (cc == ',' && !quote) { ++col; continue; }
+            arr[col] += cc;
+        }
+        return arr.map(v => v.trim());
+    }
+
+    function syncLiveStateUI() {
+        let st = getLiveState();
+        
+        if(document.getElementById('tv_stuName')) { 
+            document.getElementById('tv_stuName').innerText = st.student; 
+            document.getElementById('tv_branch').innerText = st.branch; 
+            
+            let starHtml = '';
+            if(st.uid) {
+                let dbStr = localStorage.getItem('rasfahi_db_v1');
+                if(dbStr) {
+                    let tempStudents = JSON.parse(dbStr);
+                    let stu = calculateStatsAndRank(tempStudents).find(s => s.uid == st.uid);
+                    if(stu && stu.average > 0) {
+                        let avg = stu.average; let stars = 0;
+                        if(avg >= 95) stars = 5; else if(avg >= 90) stars = 4; else if(avg >= 85) stars = 3; else if(avg >= 80) stars = 2; else if(avg >= 75) stars = 1;
+                        for(let i=0; i<stars; i++) { starHtml += `<span class="gold-star">★</span>`; }
+                    }
+                }
+            }
+            document.getElementById('tv_stars').innerHTML = starHtml;
+
+            if(st.nextUid) {
+                let dbStr = localStorage.getItem('rasfahi_db_v1');
+                if(dbStr) {
+                    let tempStudents = JSON.parse(dbStr);
+                    let nextStu = tempStudents.find(s => s.uid == st.nextUid);
+                    if(nextStu) {
+                        document.getElementById('tv_nextName').innerText = nextStu.f_name;
+                        document.getElementById('tv_nextMeta').innerText = `ރެޖިސްޓްރޭޝަން: ${nextStu.f_regNo} | ގޮފި: ${nextStu.f_branch} | ${nextStu.f_ageGroup}`;
+                    }
+                }
+            } else {
+                if(document.getElementById('tv_nextName')) {
+                    document.getElementById('tv_nextName').innerText = "---";
+                    document.getElementById('tv_nextMeta').innerText = "---";
+                }
+            }
+        }
+        
+        if(document.getElementById('btn_balai')) {
+            document.getElementById('btn_balai').style.background = st.branch.includes('ނުބަލާ') ? 'var(--dark)' : 'var(--green)';
+            document.getElementById('btn_nubalaa').style.background = st.branch.includes('ނުބަލާ') ? 'var(--green)' : 'var(--dark)';
+        }
+
+        if(st.display) {
+            let qTexts = document.querySelectorAll('.quran-text');
+            qTexts.forEach(el => {
+                if(el) {
+                    el.style.fontSize = st.display.fontSize + 'px';
+                    el.style.lineHeight = st.display.lineHeight;
+                    el.style.textAlign = st.display.align;
+                }
+            });
+            if(document.getElementById('ctrl_fontSize')) {
+                document.getElementById('ctrl_fontSize').value = st.display.fontSize;
+                document.getElementById('ctrl_lineHeight').value = st.display.lineHeight;
+            }
+        }
+
+        if(document.getElementById('stu_gridScreen')) {
+            if(document.getElementById('stu_pick_instruction')) document.getElementById('stu_pick_instruction').innerText = `(${st.pickCount || 1} ސުވާލު ނަގަންޖެހޭނެ)`;
+
+            if(st.gridQuestions && Object.keys(st.gridQuestions).length > 0) {
+                let qCount = Object.keys(st.gridQuestions).length;
+                if(document.getElementById('stuGridBox').children.length !== qCount) buildStudentGrid(qCount);
+                for(let i=1; i<=qCount; i++) {
+                    let btn = document.getElementById(`gridBtn_${i}`);
+                    if(btn) { 
+                        if(st.usedQ && st.usedQ.includes(i) && !st.selectedQ.includes(i)) { btn.className = 'grid-btn used'; }
+                        else if(st.selectedQ && st.selectedQ.includes(i)) { btn.className = 'grid-btn selected'; }
+                        else { btn.className = 'grid-btn'; }
+                    }
+                }
+            }
+
+            document.getElementById('stu_gridScreen').classList.add('hidden');
+            document.getElementById('stu_quranScreen').style.display = 'none';
+            document.getElementById('stu_nubalaaScreen').style.display = 'none';
+            
+            if(st.status === 'grid') {
+                document.getElementById('stu_gridScreen').classList.remove('hidden');
+            } else if(st.status === 'nubalaa') {
+                document.getElementById('stu_nubalaaScreen').style.display = 'flex';
+            } else if(st.status === 'quran') {
+                document.getElementById('stu_quranScreen').style.display = 'flex';
+                let qBoxStu = document.getElementById('stu_quranText');
+                qBoxStu.innerHTML = st.quranHtml || "ކިޔަވަން ފެށުމަށް އިންތިޒާރު ކުރައްވާ...";
+            }
+        }
+
+        if(isJudgePopup && document.getElementById('jdg_stuName')) {
+            let currentDisplayed = document.getElementById('jdg_stuName').innerText;
+            if(currentDisplayed !== "ދަރިވަރު: " + st.student) {
+                document.getElementById('jdg_stuName').innerText = "ދަރިވަރު: " + st.student;
+                resetJudgeMarks(); 
+            }
+            
+            let dbStr = localStorage.getItem('rasfahi_db_v1');
+            let isSubmitted = false;
+            if(dbStr && st.uid) {
+                let tempStudents = JSON.parse(dbStr);
+                let stu = tempStudents.find(s => String(s.uid) === String(st.uid));
+                if(stu && stu[`j${currentJudgeId}_submitted`]) {
+                    isSubmitted = true;
+                }
+            }
+
+            let metaText = `${st.branch} | ${st.ageGroup} | ${st.capacity}`;
+            if(isSubmitted) {
+                metaText += ` <span style="color:var(--ruby); font-weight:bold; background:#fff; padding:2px 8px; border-radius:5px; border:1px solid var(--ruby); margin-right:10px;">(މާކްސް ލޮކްކުރެވިފައި 🔒)</span>`;
+            }
+            document.getElementById('jdg_stuMeta').innerHTML = metaText;
+
+            const submitBtn = document.getElementById('btnSubmitJudge');
+            const resetBtn = document.getElementById('btnResetJudge');
+            const deductBtns = document.querySelectorAll('.btn-deduct');
+            const qBox = document.getElementById('jdg_quranText');
+
+            if(isSubmitted) {
+                if(submitBtn) submitBtn.style.display = 'none';
+                if(resetBtn) resetBtn.style.display = 'none';
+                deductBtns.forEach(b => { b.style.opacity = '0.3'; b.style.pointerEvents = 'none'; });
+                qBox.style.pointerEvents = 'none';
+            } else {
+                if(submitBtn) submitBtn.style.display = 'block';
+                if(resetBtn) resetBtn.style.display = 'block';
+                deductBtns.forEach(b => { b.style.opacity = '1'; b.style.pointerEvents = 'auto'; });
+                qBox.style.pointerEvents = 'auto';
+            }
+
+            if(st.branch.includes('ނުބަލާ')) {
+                qBox.style.opacity = '0.3';
+                qBox.style.backgroundColor = '#f9f9f9';
+                qBox.style.borderColor = 'var(--ruby)';
+            } else {
+                qBox.style.opacity = '1';
+                qBox.style.backgroundColor = 'white';
+                qBox.style.borderColor = 'var(--royal-gold)';
+            }
+
+            qBox.innerHTML = st.quranHtml || "ކިޔަވަން ފެށުމަށް އިންތިޒާރު ކުރައްވާ...";
+            if(st.quranHtml && !isSubmitted) attachJudgeClickEvents();
+
+            if(st.qMeta) {
+                let displayQNum = (st.currentQIndex + 1) + " ވަނަ ސުވާލު (ގްރިޑް: " + (st.qMeta.qNum || "---") + ")";
+                document.getElementById('jdg_meta_qNum').innerText = displayQNum;
+                document.getElementById('jdg_meta_surah').innerText = st.qMeta.surah || "---";
+                document.getElementById('jdg_meta_ayah').innerText = (st.qMeta.startA && st.qMeta.endA) ? `${st.qMeta.startA} - ${st.qMeta.endA}` : "---";
+                document.getElementById('jdg_meta_juz').innerText = st.qMeta.juz || "---";
+                document.getElementById('jdg_meta_page').innerText = st.qMeta.page || "---";
+            }
+        }
+    }
+
+    function togglePrintInputs() {
+        let type = document.querySelector('input[name="printType"]:checked').value;
+        if(type === 'results') { 
+            document.getElementById('grp_occasion').style.display = 'block'; 
+            document.getElementById('grp_datetime').style.display = 'none'; 
+            document.getElementById('grp_schedule_filters').style.display = 'none'; 
+        } else if (type === 'schedule') { 
+            document.getElementById('grp_occasion').style.display = 'none'; 
+            document.getElementById('grp_datetime').style.display = 'flex'; 
+            document.getElementById('grp_schedule_filters').style.display = 'block'; 
+        } else { 
+            document.getElementById('grp_occasion').style.display = 'none'; 
+            document.getElementById('grp_datetime').style.display = 'flex'; 
+            document.getElementById('grp_schedule_filters').style.display = 'none'; 
+        }
+    }
+
+    function openPrintModal() { 
+        if(currentFilteredList.length === 0) return alert("ޕްރިންޓް ކުރުމަށް ލިސްޓުގައި އެއްވެސް ޑޭޓާއެއް ނެތް!"); 
+        document.getElementById('printModal').style.display = 'flex'; 
+    }
+    function closePrintModal() { document.getElementById('printModal').style.display = 'none'; }
+    
+    function executePrint() {
+        let type = document.querySelector('input[name="printType"]:checked').value;
+        let mainTitle = document.getElementById('p_main_title').value;
+        let year = document.getElementById('p_year').value;
+        let selB = document.getElementById('filter_branch'); 
+        let selA = document.getElementById('filter_age');
+        let branch = selB.options[selB.selectedIndex].text; 
+        let age = selA.options[selA.selectedIndex].text;
+        
+        document.body.className = `print-${type}`;
+        
+        if (type === 'results') {
+            document.getElementById('print_title_main').innerText = mainTitle;
+            document.getElementById('print_title_sub').innerText = document.getElementById('p_occasion').value;
+            document.getElementById('lbl_year').innerText = year;
+            document.getElementById('lbl_branch').innerText = branch; 
+            document.getElementById('lbl_age').innerText = age;
+            document.getElementById('lbl_capacity').innerText = document.getElementById('filter_capacity').options[document.getElementById('filter_capacity').selectedIndex].text;
+            document.getElementById('lbl_top').innerText = document.getElementById('filter_top').options[document.getElementById('filter_top').selectedIndex].text;
+            
+            const pBody = document.getElementById('printTableBody'); pBody.innerHTML = '';
+            currentFilteredList.forEach(s => { 
+                pBody.innerHTML += `<tr><td style="font-weight:bold; font-size:16px;">${s.rank}</td><td>${s.f_regNo}</td><td class="text-right" style="font-weight:bold;">${s.f_name}</td><td>${s.f_idCard}</td><td class="text-right">${s.f_permAddr}</td><td>${s.total.toFixed(2)}</td><td style="font-weight:bold;">${s.average.toFixed(2)}</td></tr>`; 
+            });
+        } 
+        else {
+            let pDate = document.getElementById('p_date').value;
+            let pTime = document.getElementById('p_time').value;
+            let pHall = document.getElementById('p_hall').value;
+            
+            let sStart = parseInt(document.getElementById('sch_start').value) || 1;
+            let sEnd = parseInt(document.getElementById('sch_end').value) || currentFilteredList.length;
+            let sortedList = [...currentFilteredList].sort((a,b) => parseInt(a.f_serial) - parseInt(b.f_serial));
+            let targetList = sortedList.slice(sStart - 1, sEnd);
+
+            if (type === 'schedule') {
+                document.getElementById('sch_title_main').innerText = mainTitle;
+                document.getElementById('sch_date').innerText = pDate;
+                document.getElementById('sch_time').innerText = pTime;
+                document.getElementById('sch_hall').innerText = pHall;
+                document.getElementById('sch_branch').innerText = branch; 
+                document.getElementById('sch_age').innerText = age;
+                document.getElementById('sch_total').innerText = targetList.length;
+                
+                const tbody = document.getElementById('schTableBody'); tbody.innerHTML = '';
+                targetList.forEach((s, i) => { 
+                    tbody.innerHTML += `<tr><td>${sStart + i}</td><td>${s.f_regNo}</td><td style="text-align:right; font-weight:bold;">${s.f_name}</td><td>${s.f_idCard}</td><td>${s.f_permAddr}</td><td>${s.f_branch}</td><td>${s.f_ageGroup}</td></tr>`; 
+                });
+            }
+            else if (type === 'marksheet') {
+                document.getElementById('ms_title_main').innerText = mainTitle;
+                document.getElementById('ms_date').innerText = pDate;
+                document.getElementById('ms_time').innerText = pTime;
+                document.getElementById('ms_hall').innerText = pHall;
+                document.getElementById('ms_branch').innerText = branch; 
+                document.getElementById('ms_age').innerText = age;
+                
+                const tbody = document.getElementById('msTableBody'); tbody.innerHTML = '';
+                targetList.forEach((s, i) => { 
+                    tbody.innerHTML += `<tr><td>${sStart + i}</td><td>${s.f_regNo}</td><td style="text-align:right; font-weight:bold;">${s.f_name}</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`; 
+                });
+            }
+            else if (type === 'judgenote') {
+                let container = document.getElementById('jnContainer'); container.innerHTML = '';
+                targetList.forEach((s, i) => {
+                    container.innerHTML += `
+                    <div class="jn-card">
+                        <h2 style="text-align:center; margin-top:0;">${mainTitle} - ޖަޖުންގެ އަތްމަތީ ނޯޓް</h2>
+                        <table style="width:100%; margin-bottom:15px; font-size:16px;">
+                            <tr><td><b>ދަރިވަރު:</b> ${s.f_name}</td><td><b>ރެޖިސްޓްރޭޝަން:</b> ${s.f_regNo}</td></tr>
+                            <tr><td><b>ގޮފި:</b> ${s.f_branch}</td><td><b>ޢުމުރުފުރާ:</b> ${s.f_ageGroup}</td></tr>
+                        </table>
+                        <table class="print-data-table" style="width:100%;">
+                            <tr><th>ކިޔެވުން (40)</th><th>ތަޖުވީދު (20)</th><th>މަޚްރަޖު (10)</th><th>ޞިފަ (10)</th><th>ފަޞާޙާ (10)</th><th>އަޑާއި ރާގު (10)</th></tr>
+                            <tr><td style="height:50px;"></td><td></td><td></td><td></td><td></td><td></td></tr>
+                        </table>
+                        <div class="jn-notes"><b>އިތުރު ފާހަގަތައް / ނޯޓް:</b></div>
+                        <div style="margin-top:30px; text-align:left;"><b>ޖަޖުގެ ސޮއި:</b> ____________________</div>
+                    </div>`;
+                });
+            }
+        }
+        
+        closePrintModal(); window.print(); document.body.className = '';
+    }
+    
+    function exportToCSV() {
+        if(students.length === 0) return alert("ޑޭޓާއެއް ނެތް!");
+        let grouped = {}; 
+        students.forEach(s => { 
+            let key = s.f_branch + "_" + s.f_ageGroup + "_" + s.f_capacity; 
+            if(!grouped[key]) grouped[key] = []; 
+            grouped[key].push(s); 
+        });
+        let finalRanked = []; 
+        for(let key in grouped) finalRanked = finalRanked.concat(calculateStatsAndRank(grouped[key])); 
+        finalRanked.sort((a,b) => a.f_serial - b.f_serial); 
+        
+        const headers = ["ސުމާރު", "ރެޖިސްޓްރޭޝަން", "ދަރިވަރުގެ ނަން", "އައިޑީ ކާޑު", "ދާއިމީ އެޑްރެސް", "މިހާރު އުޅޭ އެޑްރެސް", "ކޮންޓެކްޓް", "ބެލެނިވެރިޔާ", "ބެލެނިވެރިޔާގެ އެޑްރެސް", "ގުޅޭނެ ނަންބަރ", "ގޮފި", "ޢުމުރުފުރާ", "ހައިސިއްޔަތު", "J1_ކިޔެވުން", "J1_ތަޖުވީދު", "J1_މަޚްރަޖު", "J1_ޞިފަ", "J1_ފަޞާޙާ", "J1_Voice&Melody", "J1_Total", "J2_ކިޔެވުން", "J2_ތަޖުވީދު", "J2_މަޚްރަޖު", "J2_ޞިފަ", "J2_ފަޞާޙާ", "J2_Voice&Melody", "J2_Total", "J3_ކިޔެވުން", "J3_ތަޖުވީދު", "J3_މަޚްރަޖު", "J3_ޞިފަ", "J3_ފަޞާޙާ", "J3_Voice&Melody", "J3_Total", "J4_ކިޔެވުން", "J4_ތަޖުވީދު", "J4_މަޚްރަޖު", "J4_ޞިފަ", "J4_ފަޞާޙާ", "J4_Voice&Melody", "J4_Total", "J5_ކިޔެވުން", "J5_ތަޖުވީދު", "J5_މަޚްރަޖު", "J5_ޞިފަ", "J5_ފަޞާޙާ", "J5_Voice&Melody", "J5_Total", "މުޅި ޖުމްލަ", "އެވްރެޖް", "ވަނަ"];
+        let csvContent = headers.join(",") + "\n";
+        finalRanked.forEach(s => {
+            let row = [`"${s.f_serial}"`, `"${s.f_regNo}"`, `"${s.f_name}"`, `"${s.f_idCard}"`, `"${s.f_permAddr}"`, `"${s.f_currAddr}"`, `"${s.f_contact}"`, `"${s.f_guardian}"`, `"${s.f_gPermAddr}"`, `"${s.f_gContact}"`, `"${s.f_branch}"`, `"${s.f_ageGroup}"`, `"${s.f_capacity}"`, s.j1_c1, s.j1_c2, s.j1_c3, s.j1_c4, s.j1_c5, s.j1_c6, s.j1_total.toFixed(2), s.j2_c1, s.j2_c2, s.j2_c3, s.j2_c4, s.j2_c5, s.j2_c6, s.j2_total.toFixed(2), s.j3_c1, s.j3_c2, s.j3_c3, s.j3_c4, s.j3_c5, s.j3_c6, s.j3_total.toFixed(2), s.j4_c1, s.j4_c2, s.j4_c3, s.j4_c4, s.j4_c5, s.j4_c6, s.j4_total.toFixed(2), s.j5_c1, s.j5_c2, s.j5_c3, s.j5_c4, s.j5_c5, s.j5_c6, s.j5_total.toFixed(2), s.total.toFixed(2), s.average.toFixed(2), s.rank];
+            csvContent += row.join(",") + "\n";
+        });
+        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
+        const link = document.createElement("a"); 
+        link.href = URL.createObjectURL(blob); 
+        link.download = "Rasfahi_Detailed_Results.csv"; 
+        link.click();
+    }
+
+    function importFromCSV(event) {
+        const file = event.target.files[0]; if (!file) return; 
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const rows = e.target.result.split('\n').filter(r => r.trim() !== '');
+            for(let i = 1; i < rows.length; i++) {
+                const c = parseCSVLine(rows[i]);
+                if (c.length >= 45) { 
+                    students.push({ uid: Date.now() + i, f_serial: c[0], f_regNo: c[1], f_name: c[2], f_idCard: c[3], f_permAddr: c[4], f_currAddr: c[5], f_contact: c[6], f_guardian: c[7], f_gPermAddr: c[8], f_gContact: c[9], f_branch: c[10], f_ageGroup: c[11], f_capacity: c[12], j1_c1: c[13]||0, j1_c2: c[14]||0, j1_c3: c[15]||0, j1_c4: c[16]||0, j1_c5: c[17]||0, j1_c6: c[18]||0, j2_c1: c[20]||0, j2_c2: c[21]||0, j2_c3: c[22]||0, j2_c4: c[23]||0, j2_c5: c[24]||0, j2_c6: c[25]||0, j3_c1: c[27]||0, j3_c2: c[28]||0, j3_c3: c[29]||0, j3_c4: c[30]||0, j3_c5: c[31]||0, j3_c6: c[32]||0, j4_c1: c[34]||0, j4_c2: c[35]||0, j4_c3: c[36]||0, j4_c4: c[37]||0, j4_c5: c[38]||0, j4_c6: c[39]||0, j5_c1: c[41]||0, j5_c2: c[42]||0, j5_c3: c[43]||0, j5_c4: c[44]||0, j5_c5: c[45]||0, j5_c6: c[46]||0 }); 
+                } else if (c.length >= 40) { 
+                    students.push({ uid: Date.now() + i, f_serial: c[0], f_regNo: c[1], f_name: c[2], f_idCard: c[3], f_permAddr: c[4], f_currAddr: c[5], f_contact: c[6], f_guardian: c[7], f_gPermAddr: c[8], f_gContact: c[9], f_branch: c[10], f_ageGroup: c[11], f_capacity: c[12], j1_c1: c[13]||0, j1_c2: c[14]||0, j1_c3: c[15]||0, j1_c4: c[16]||0, j1_c5: c[17]||0, j1_c6: 0, j2_c1: c[19]||0, j2_c2: c[20]||0, j2_c3: c[21]||0, j2_c4: c[22]||0, j2_c5: c[23]||0, j2_c6: 0, j3_c1: c[25]||0, j3_c2: c[26]||0, j3_c3: c[27]||0, j3_c4: c[28]||0, j3_c5: c[29]||0, j3_c6: 0, j4_c1: c[31]||0, j4_c2: c[32]||0, j4_c3: c[33]||0, j4_c4: c[34]||0, j4_c5: c[35]||0, j4_c6: 0, j5_c1: c[37]||0, j5_c2: c[38]||0, j5_c3: c[39]||0, j5_c4: c[40]||0, j5_c5: c[41]||0, j5_c6: 0 }); 
+                }
+            }
+            saveDB(); generateLeaderboard(); alert("ފައިލް ކާމިޔާބުކަމާއެކު އިމްޕޯރޓް ކުރެވިއްޖެ!"); event.target.value = ''; 
+        }; reader.readAsText(file);
+    }
+    
+    function generateDummyCSV() {
+        const btn = document.getElementById('dummyBtn'); btn.innerText = "⏳ ޑޭޓާ ތައްޔާރުކުރެވެނީ...";
+        setTimeout(() => {
+            const fNames = ["އަޙްމަދު", "ޢަލީ", "މުޙައްމަދު", "ފާޠިމަތު", "މަރްޔަމް", "ޢާއިޝަތު", "ޙަސަން", "ޙުސައިން", "އިބްރާހީމް", "ޚަދީޖާ"]; 
+            const lNames = ["ނަސީމް", "ރަޝީދު", "ޝަރީފް", "މާހިރު", "ޒުހައިރު", "ޖަލީލް", "ޙަލީމް", "ނިޒާމް", "ޝިޔާމް", "ޝަފީޤް"]; 
+            const islands = ["މާލެ", "ހުޅުމާލެ", "ވިލިމާލެ", "ސ. ހިތަދޫ", "ޏ. ފުވައްމުލައް"]; 
+            const houses = ["ހ. ނޫވިލާ", "މ. ހަވޭލި", "މއ. ކާމިނީގެ", "ގ. ސިނަމާލެ", "ފްލެޓް 01-04"]; 
+            const branches = ["ބަލައިގެން ކިޔެވުމުގެ ގޮފި", "ނުބަލާ ކިޔެވުމުގެ ގޮފި", "މުޅި ޤުރްއާން ޙިފްޘް"]; 
+            const capacities = ["ސްކޫލް", "ކޮލެޖް / ޔުނިވަރސިޓީ", "ޖަމްޢިއްޔާ / ޖަމާޢަތް", "އަމިއްލަ ގޮތުން"];
+            let dummyData = [];
+            for(let i=1; i<=3000; i++) {
+                let activeJ = Math.floor(Math.random() * 3) + 3; 
+                let s = { f_serial: i, f_regNo: `REG-2026-${String(i).padStart(4, '0')}`, name: `${fNames[Math.floor(Math.random()*fNames.length)]} ${lNames[Math.floor(Math.random()*lNames.length)]}`, idCard: `A${Math.floor(Math.random() * 300000 + 100000)}`, permAddr: `${houses[Math.floor(Math.random()*houses.length)]}, ${islands[Math.floor(Math.random()*islands.length)]}`, currAddr: `${houses[Math.floor(Math.random()*houses.length)]}, މާލެ`, contact: `7${Math.floor(Math.random() * 900000 + 100000)}`, guardian: `${fNames[Math.floor(Math.random()*fNames.length)]}`, gPermAddr: `މާލެ`, gContact: `9999999`, branch: branches[Math.floor(Math.random()*branches.length)], ageGroup: ageGroups[Math.floor(Math.random()*ageGroups.length)], capacity: capacities[Math.floor(Math.random()*capacities.length)], rank: 0 };
+                for(let j=1; j<=5; j++) { if (j <= activeJ) { s[`j${j}_c1`] = (Math.random() * 20 + 20).toFixed(2); s[`j${j}_c2`] = (Math.random() * 10 + 10).toFixed(2); s[`j${j}_c3`] = (Math.random() * 5 + 5).toFixed(2); s[`j${j}_c4`] = (Math.random() * 5 + 5).toFixed(2); s[`j${j}_c5`] = (Math.random() * 5 + 5).toFixed(2); s[`j${j}_c6`] = (Math.random() * 5 + 5).toFixed(2); } else { s[`j${j}_c1`] = 0; s[`j${j}_c2`] = 0; s[`j${j}_c3`] = 0; s[`j${j}_c4`] = 0; s[`j${j}_c5`] = 0; s[`j${j}_c6`] = 0; } } dummyData.push(s);
+            }
+            let grouped = {}; dummyData.forEach(s => { let key = s.branch + "_" + s.ageGroup + "_" + s.capacity; if(!grouped[key]) grouped[key] = []; grouped[key].push(s); });
+            let finalRanked = []; for(let key in grouped) finalRanked = finalRanked.concat(calculateStatsAndRank(grouped[key])); finalRanked.sort((a,b) => a.f_serial - b.f_serial);
+            
+            const headers = ["ސުމާރު", "ރެޖިސްޓްރޭޝަން", "ދަރިވަރުގެ ނަން", "އައިޑީ ކާޑު", "ދާއިމީ އެޑްރެސް", "މިހާރު އުޅޭ އެޑްރެސް", "ކޮންޓެކްޓް", "ބެލެނިވެރިޔާ", "ބެލެނިވެރިޔާގެ އެޑްރެސް", "ގުޅޭނެ ނަންބަރ", "ގޮފި", "ޢުމުރުފުރާ", "ހައިސިއްޔަތު", "J1_ކިޔެވުން", "J1_ތަޖުވީދު", "J1_މަޚްރަޖު", "J1_ޞިފަ", "J1_ފަޞާޙާ", "J1_Voice&Melody", "J1_Total", "J2_ކިޔެވުން", "J2_ތަޖުވީދު", "J2_މަޚްރަޖު", "J2_ޞިފަ", "J2_ފަޞާޙާ", "J2_Voice&Melody", "J2_Total", "J3_ކިޔެވުން", "J3_ތަޖުވީދު", "J3_މަޚްރަޖު", "J3_ޞިފަ", "J3_ފަޞާޙާ", "J3_Voice&Melody", "J3_Total", "J4_ކިޔެވުން", "J4_ތަޖުވީދު", "J4_މަޚްރަޖު", "J4_ޞިފަ", "J4_ފަޞާޙާ", "J4_Voice&Melody", "J4_Total", "J5_ކިޔެވުން", "J5_ތަޖުވީދު", "J5_މަޚްރަޖު", "J5_ޞިފަ", "J5_ފަޞާޙާ", "J5_Voice&Melody", "J5_Total", "މުޅި ޖުމްލަ", "އެވްރެޖް", "ވަނަ"];
+            let csvContent = headers.join(",") + "\n";
+            finalRanked.forEach(s => { let row = [`"${s.f_serial}"`, `"${s.f_regNo}"`, `"${s.name}"`, `"${s.idCard}"`, `"${s.permAddr}"`, `"${s.currAddr}"`, `"${s.contact}"`, `"${s.guardian}"`, `"${s.gPermAddr}"`, `"${s.gContact}"`, `"${s.branch}"`, `"${s.ageGroup}"`, `"${s.capacity}"`, s.j1_c1, s.j1_c2, s.j1_c3, s.j1_c4, s.j1_c5, s.j1_c6, s.j1_total.toFixed(2), s.j2_c1, s.j2_c2, s.j2_c3, s.j2_c4, s.j2_c5, s.j2_c6, s.j2_total.toFixed(2), s.j3_c1, s.j3_c2, s.j3_c3, s.j3_c4, s.j3_c5, s.j3_c6, s.j3_total.toFixed(2), s.j4_c1, s.j4_c2, s.j4_c3, s.j4_c4, s.j4_c5, s.j4_c6, s.j4_total.toFixed(2), s.j5_c1, s.j5_c2, s.j5_c3, s.j5_c4, s.j5_c5, s.j5_c6, s.j5_total.toFixed(2), s.total.toFixed(2), s.average.toFixed(2), s.rank]; csvContent += row.join(",") + "\n"; });
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "Rasfahi_3000_Detailed_Dummy.csv"; link.click();
+            btn.innerHTML = "📥 ޑަމީ ޑޭޓާ ޑައުންލޯޑް (3000)";
+        }, 100); 
+    }
+    
+    function clearData() { 
+        if(confirm("⚠️ ސަމާލު! މިއީ މުޅި މުބާރާތުގެ ހުރިހާ ޑޭޓާއެއް (ދަރިވަރުންގެ ލިސްޓް، މާކްސް، ލައިވް ސެޝަން އަދި ސުވާލު ހިސްޓްރީ) އެއްކޮށް ސަރވަރުންނާއި ބްރައުޒާއިން ފޮހެލާނެ ކަމެއް! މިކަން ކުރަން ބޭނުންފުޅުތޯ؟")) { 
+            let pass = prompt("ޔަޤީންކުރުމަށް ކެޕިޓަލް އަކުރުން 'RESET' މިހެން ޖައްސަވާ:");
+            
+            if(pass === "RESET") {
+                students = []; 
+                document.getElementById('search_box').value = ""; 
+                saveDB(); 
+                generateLeaderboard(); 
+
+                let emptyLive = { 
+                    uid: null, student: '---', idCard: '', branch: '', capacity: '', ageGroup: '', 
+                    quranHtml: '', qMeta: {}, status: 'grid', gridQuestions: {}, usedQ: [], 
+                    selectedQ: [], currentQIndex: 0, pickCount: 1, 
+                    display: { fontSize: 65, lineHeight: 2.2, align: 'center' }, nextUid: null 
+                };
+                localStorage.setItem('rasfahi_live_v1', JSON.stringify(emptyLive));
+                if(syncRef) syncRef.set(JSON.stringify(emptyLive));
+
+                localStorage.removeItem('rasfahi_q_history');
+                
+                alert("✅ މުބާރާތުގެ ހުރިހާ ޑޭޓާއެއް ކާމިޔާބުކަމާއެކު ފުލް ރިސެޓް ކުރެވިއްޖެ! ސިސްޓަމް ރީލޯޑް ވަނީ...");
+                window.location.reload();
+            } else {
+                alert("❌ ރިސެޓް ކެންސަލް ކުރެވިއްޖެ.");
+            }
+        } 
+    }
+</script>
+
+</body>
+</html>
