@@ -38,10 +38,10 @@
 
         body {
             font-family: 'Faruma', Arial, sans-serif;
-            background-color: #050d1a; /* Very dark background outside the app */
+            background-color: #050d1a;
             color: var(--text-dark);
             margin: 0;
-            padding: 8px; /* Space for outer royal feel */
+            padding: 8px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -57,7 +57,6 @@
             width: 100%;
             height: 100%;
             border-radius: 8px;
-            /* The Royal Thin Line Border */
             border: 2px solid var(--royal-gold);
             box-shadow: inset 0 0 0 4px var(--bg-ivory), inset 0 0 0 5px var(--royal-gold), 0 10px 30px rgba(0,0,0,0.5);
             display: flex;
@@ -208,7 +207,7 @@
         .signatures-grid { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 20px; }
         @media (min-width: 768px) { .signatures-grid { grid-template-columns: 1fr 1fr; } }
         .signature-box { border: 1px solid var(--royal-gold); padding: 15px; border-radius: 5px; background: #fafafa; page-break-inside: avoid; break-inside: avoid; position: relative; }
-        .sig-canvas { border: 1px solid #ccc; background: #fff; width: 100%; height: 120px; cursor: crosshair; touch-action: none; }
+        .sig-canvas { border: 1px solid #ccc; background: #fff; width: 100%; height: 120px; cursor: crosshair; touch-action: none; border-radius: 4px; }
 
         /* Upload Grid */
         .upload-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 20px; }
@@ -327,9 +326,9 @@
 
                         <h3>1. ސައިކަލުގެ މަޢުލޫމާތު:</h3>
                         <div style="padding-right: 20px;">
-                            ރަޖިސްޓްރީ ނަންބަރު: <span class="editable" data-sync="cycle-reg" contenteditable="true">AA0O-P2245</span><br>
-                            ބްރޭންޑް އަދި މޮޑެލް: <span class="editable" data-sync="cycle-model" contenteditable="true">YAMAHA NMAX</span><br>
-                            ކުލަ: <span class="editable" data-sync="cycle-color" contenteditable="true">BLUE</span>
+                            ރަޖިސްޓްރީ ނަންބަރު: <span class="editable" data-sync="cycle-reg" contenteditable="true">AB1A-1234</span><br>
+                            ބްރޭންޑް އަދި މޮޑެލް: <span class="editable" data-sync="cycle-model" contenteditable="true">Honda PCX</span><br>
+                            ކުލަ: <span class="editable" data-sync="cycle-color" contenteditable="true">ކަޅު</span>
                         </div>
 
                         <h3>2. ކުއްޔާއި މުއްދަތު:</h3>
@@ -588,7 +587,6 @@
                     if(t !== e.target) {
                         if(t.tagName === 'INPUT') {
                             t.value = val;
-                            // Update flatpickr instance if it exists
                             if(t._flatpickr) t._flatpickr.setDate(val, false);
                         }
                         else t.innerText = val;
@@ -1030,41 +1028,99 @@
             }
         }
 
-        // Canvas setup
+        // --- FIXED CANVAS SIGNATURE LOGIC ---
         function setupCanvas(canvasId) {
             const canvas = document.getElementById(canvasId);
             const ctx = canvas.getContext('2d');
             let isDrawing = false;
             
+            // Re-apply styles every time canvas size changes
+            function applyCanvasStyles() {
+                ctx.lineWidth = 2.5; 
+                ctx.lineCap = 'round'; 
+                ctx.strokeStyle = '#0b1d3a'; // Royal blue signature
+            }
+
             function resize() {
                 const rect = canvas.getBoundingClientRect();
-                if(canvas.width !== rect.width || canvas.height !== rect.height) {
+                // Only resize if the dimensions actually changed and are valid
+                if(rect.width > 0 && rect.height > 0 && (canvas.width !== rect.width || canvas.height !== rect.height)) {
                     const temp = canvas.toDataURL();
-                    canvas.width = rect.width; canvas.height = rect.height;
-                    const img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0); img.src = temp;
+                    canvas.width = rect.width; 
+                    canvas.height = rect.height;
+                    
+                    applyCanvasStyles(); // MUST set styles AFTER changing width/height
+                    
+                    const img = new Image(); 
+                    img.onload = () => ctx.drawImage(img, 0, 0); 
+                    img.src = temp;
+                } else {
+                    applyCanvasStyles();
                 }
             }
+            
+            // Initial setup
+            resize();
             window.addEventListener('resize', resize);
-            setTimeout(resize, 100); 
-
-            ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.strokeStyle = '#0b1d3a'; // Royal blue signature
+            // In case rendering takes a moment on mobile devices
+            setTimeout(resize, 500); 
 
             function getCoordinates(e) {
                 const rect = canvas.getBoundingClientRect();
-                if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                let clientX, clientY;
+                
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    clientX = e.changedTouches[0].clientX;
+                    clientY = e.changedTouches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+                
+                return { 
+                    x: clientX - rect.left, 
+                    y: clientY - rect.top 
+                };
             }
 
-            function startPosition(e) { e.preventDefault(); isDrawing = true; draw(e); }
-            function endPosition() { isDrawing = false; ctx.beginPath(); }
+            function startPosition(e) { 
+                e.preventDefault(); 
+                isDrawing = true; 
+                ctx.beginPath(); // Very important for touch screens to start a fresh line
+                draw(e); 
+            }
+            
+            function endPosition(e) { 
+                if(e && e.cancelable) e.preventDefault();
+                isDrawing = false; 
+                ctx.beginPath(); 
+            }
+            
             function draw(e) {
-                if (!isDrawing) return; e.preventDefault();
+                if (!isDrawing) return; 
+                if(e.cancelable) e.preventDefault();
+                
                 const { x, y } = getCoordinates(e);
-                ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
+                ctx.lineTo(x, y); 
+                ctx.stroke(); 
+                ctx.beginPath(); 
+                ctx.moveTo(x, y);
             }
 
-            canvas.addEventListener('mousedown', startPosition); canvas.addEventListener('mouseup', endPosition); canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('touchstart', startPosition, {passive: false}); canvas.addEventListener('touchend', endPosition); canvas.addEventListener('touchmove', draw, {passive: false});
+            // Mouse events
+            canvas.addEventListener('mousedown', startPosition); 
+            canvas.addEventListener('mouseup', endPosition); 
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseleave', endPosition);
+
+            // Touch events
+            canvas.addEventListener('touchstart', startPosition, {passive: false}); 
+            canvas.addEventListener('touchend', endPosition, {passive: false}); 
+            canvas.addEventListener('touchcancel', endPosition, {passive: false});
+            canvas.addEventListener('touchmove', draw, {passive: false});
         }
 
         ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2'].forEach(setupCanvas);
@@ -1074,6 +1130,7 @@
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
+        // --- END FIXED CANVAS SIGNATURE LOGIC ---
 
         let dashChart;
         function updateChart(total, expiring, expired) {
