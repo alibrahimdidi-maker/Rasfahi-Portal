@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ރަސްފަހި - މޮޓޯސައިކަލް މެނޭޖްމަންޓް</title>
-    
+
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <!-- Firebase Compat Libraries -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -20,6 +20,8 @@
             src: url('/fonts/faruma.ttf') format('truetype');
         }
 
+        * { box-sizing: border-box; }
+
         :root {
             --primary-dark-green: #0a5c36;
             --primary-royal-blue: #002366;
@@ -27,8 +29,6 @@
             --bg-color: #f4f7f6;
             --text-color: #333333;
         }
-
-        * { box-sizing: border-box; }
 
         body {
             font-family: 'Faruma', Arial, sans-serif;
@@ -99,7 +99,7 @@
         .status-new { border-color: var(--primary-dark-green); }
         .status-expiring { border-color: var(--primary-royal-blue); }
         .status-expired { border-color: var(--danger-red); }
-        
+
         .action-buttons-group { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px; }
         .btn-small { color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-family: 'Faruma', Arial, sans-serif; font-size: 12px; }
         .btn-wa { background: var(--primary-dark-green); }
@@ -121,12 +121,20 @@
         h1, h2, h3 { color: var(--primary-royal-blue); text-align: center; }
         h1 { font-size: 20px; border-bottom: 2px solid var(--primary-dark-green); padding-bottom: 10px; }
         @media (min-width: 768px) { h1 { font-size: 24px; } }
-        
+
         .editable {
             border-bottom: 1px dashed var(--primary-royal-blue); color: var(--primary-royal-blue); min-width: 50px; display: inline-block; padding: 0 5px; outline: none; text-align: center; max-width: 100%; word-wrap: break-word;
         }
         .editable:focus { border-bottom: 2px solid var(--primary-dark-green); background: #f0f8f5; }
         .editable[data-placeholder]:empty:before { content: attr(data-placeholder); color: #999; }
+
+        /* Date / Time dropdown selects, styled to match the editable fields */
+        .date-select, .time-select {
+            border: none; border-bottom: 1px dashed var(--primary-royal-blue); background: transparent;
+            color: var(--primary-royal-blue); font-family: 'Faruma', Arial, sans-serif; font-size: 14px;
+            padding: 2px 3px; outline: none; cursor: pointer; max-width: 100px;
+        }
+        .date-select:focus, .time-select:focus { border-bottom: 2px solid var(--primary-dark-green); background: #f0f8f5; }
 
         p { text-align: justify; }
 
@@ -173,14 +181,17 @@
             .sidebar, .dashboard-grid, .chart-container, .no-print, .top-actions { display: none !important; }
             .main-content { padding: 0; width: 100%; }
             .document-container { box-shadow: none; border: none; padding: 0; max-width: 100%; }
-            
+
+            .date-select, .time-select { -webkit-appearance: none; appearance: none; border: none; background: none; }
+
             .page-footer {
                 display: flex !important; position: fixed; bottom: 0; left: 0; right: 0; justify-content: space-between; align-items: flex-end; padding: 10px 20px; font-size: 11pt; background: white; border-top: 1px dashed var(--primary-royal-blue); color: var(--text-color);
             }
             .page-number::after { content: "ޞަފްޙާ " counter(page); }
+            body.lang-en .page-number::after { content: "Page " counter(page); }
             li { page-break-inside: avoid; break-inside: avoid; }
         }
-        
+
         .loading-overlay {
             position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.8);
             display: none; justify-content: center; align-items: center; z-index: 99999;
@@ -207,7 +218,7 @@
     <!-- Main App Content -->
     <div id="app-content">
         <div class="main-content">
-            
+
             <div class="dashboard-grid no-print">
                 <div class="stat-card">
                     <h3>ޖުމްލަ ދެވިފައި</h3>
@@ -236,85 +247,131 @@
                 <button onclick="saveAgreementToBank()" style="background: var(--primary-dark-green);">ސޭވްކުރޭ</button>
                 <button onclick="prepareAndPrint()" style="background: var(--primary-royal-blue);">ޕްރިންޓް</button>
                 <button onclick="exportToPDF()" style="background: var(--primary-royal-blue);">PDF ޑައުންލޯޑް</button>
+                <button onclick="toggleDocLanguage()" id="lang-toggle-btn" style="background: #6c3483;">English / ދިވެހި</button>
             </div>
 
             <div class="document-container" id="agreement-content">
                 <div style="text-align: center; margin-bottom: 10px; font-size: 12px; color: #777;" class="no-print">Reg: MED.03.IP.CR.26.EW5889</div>
-                
-                <h1>މޮޓޯސައިކަލް ކުއްޔަށް ދިނުމުގެ އެއްބަސްވުން</h1>
 
-                <p>މިއީ <span class="editable" id="agr-date" contenteditable="true" data-placeholder="ދުވަސް-މަސް-އަހަރު"></span> ވަނަ ދުވަހު، މޮޓޯސައިކަލުގެ ވެރިފަރާތް ކަމަށްވާ <span class="editable" id="owner-name" contenteditable="true">ޢަލީ އިބްރާހީމް ދީދީ</span> (އައިޑީ: <span class="editable" id="owner-id" contenteditable="true">A000000</span>، އެޑްރެސް: <span class="editable" id="owner-address" contenteditable="true">މ. މާލެ</span>) (މީގެ ފަހުން "ވެރިފަރާތް" މިހެން ކިޔާނީ) އާއި، ސައިކަލް ކުއްޔަށް ހިފާ ފަރާތް ކަމަށްވާ <span class="editable" id="renter-name" contenteditable="true" data-placeholder="ކުއްޔަށް ހިފާ ފަރާތުގެ ނަން"></span> (އައިޑީ: <span class="editable" id="renter-id" contenteditable="true" data-placeholder="އައިޑީ ނަންބަރު"></span>، އެޑްރެސް: <span class="editable" id="renter-address" contenteditable="true" data-placeholder="އެޑްރެސް"></span>، މޯބައިލް ނަންބަރު: <span class="editable" id="renter-mobile" contenteditable="true" data-placeholder="މޯބައިލް ނަންބަރު"></span>) (މީގެ ފަހުން "ކުއްޔަށް ހިފާ ފަރާތް" މިހެން ކިޔާނީ) އާ ދެމެދު ވެވިފައިވާ އެއްބަސްވުމެކެވެ.</p>
+                <h1 class="i18n" data-dv="މޮޓޯސައިކަލް ކުއްޔަށް ދިނުމުގެ އެއްބަސްވުން" data-en="Motorcycle Rental Agreement"></h1>
 
-                <h3>1. ސައިކަލުގެ މަޢުލޫމާތު:</h3>
+                <p>
+                    <span class="i18n" data-dv="މިއީ" data-en="This Agreement is made on"></span>
+                    <select class="date-select" id="agr-date-d"></select>-<select class="date-select" id="agr-date-m"></select>-<select class="date-select" id="agr-date-y"></select>
+                    <span class="i18n" data-dv="ވަނަ ދުވަހު، މޮޓޯސައިކަލުގެ ވެރިފަރާތް ކަމަށްވާ" data-en=", between the owner of the motorcycle,"></span>
+                    <span class="editable" id="owner-name" contenteditable="true">ޢަލީ އިބްރާހީމް ދީދީ</span>
+                    <span class="i18n" data-dv="(އައިޑީ:" data-en="(ID:"></span>
+                    <span class="editable" id="owner-id" contenteditable="true">A011265</span>
+                    <span class="i18n" data-dv="، އެޑްރެސް:" data-en=", Address:"></span>
+                    <span class="editable" id="owner-address" contenteditable="true">ހިޔާ 8-05-02 ހުޅުމާލެ (މާލެ ސިޓީ)</span>
+                    <span class="i18n" data-dv=")" data-en=")"></span>
+                    <span class="i18n" data-dv='(މީގެ ފަހުން "ވެރިފަރާތް" މިހެން ކިޔާނީ) އާއި، ސައިކަލް ކުއްޔަށް ހިފާ ފަރާތް ކަމަށްވާ' data-en='(hereinafter referred to as the "Owner"), and the party renting the motorcycle,'></span>
+                    <span class="editable" id="renter-name" contenteditable="true" data-placeholder="ކުއްޔަށް ހިފާ ފަރާތުގެ ނަން"></span>
+                    <span class="i18n" data-dv="(އައިޑީ:" data-en="(ID:"></span>
+                    <span class="editable" id="renter-id" contenteditable="true" data-placeholder="އައިޑީ ނަންބަރު"></span>
+                    <span class="i18n" data-dv="، އެޑްރެސް:" data-en=", Address:"></span>
+                    <span class="editable" id="renter-address" contenteditable="true" data-placeholder="އެޑްރެސް"></span>
+                    <span class="i18n" data-dv="، މޯބައިލް ނަންބަރު:" data-en=", Mobile Number:"></span>
+                    <span class="editable" id="renter-mobile" contenteditable="true" data-placeholder="މޯބައިލް ނަންބަރު"></span>
+                    <span class="i18n" data-dv=")" data-en=")"></span>
+                    <span class="i18n" data-dv='(މީގެ ފަހުން "ކުއްޔަށް ހިފާ ފަރާތް" މިހެން ކިޔާނީ) އާ ދެމެދު ވެވިފައިވާ އެއްބަސްވުމެކެވެ.' data-en='(hereinafter referred to as the "Renter").'></span>
+                </p>
+
+                <h3>1. <span class="i18n" data-dv="ސައިކަލުގެ މަޢުލޫމާތު:" data-en="Motorcycle Information:"></span></h3>
                 <div style="padding-right: 20px;">
-                    ރަޖިސްޓްރީ ނަންބަރު: <span class="editable" id="cycle-reg" contenteditable="true">AB1A-1234</span><br>
-                    ބްރޭންޑް އަދި މޮޑެލް: <span class="editable" id="cycle-model" contenteditable="true">Honda PCX</span><br>
-                    ކުލަ: <span class="editable" id="cycle-color" contenteditable="true">ކަޅު</span>
+                    <span class="i18n" data-dv="ރަޖިސްޓްރީ ނަންބަރު:" data-en="Registration Number:"></span> <span class="editable" id="cycle-reg" contenteditable="true">AB1A-1234</span><br>
+                    <span class="i18n" data-dv="ބްރޭންޑް އަދި މޮޑެލް:" data-en="Brand and Model:"></span> <span class="editable" id="cycle-model" contenteditable="true">Honda PCX</span><br>
+                    <span class="i18n" data-dv="ކުލަ:" data-en="Color:"></span> <span class="editable" id="cycle-color" contenteditable="true">ކަޅު</span>
                 </div>
 
-                <h3>2. ކުއްޔާއި މުއްދަތު:</h3>
+                <h3>2. <span class="i18n" data-dv="ކުއްޔާއި މުއްދަތު:" data-en="Rental Fee and Duration:"></span></h3>
                 <div style="padding-right: 20px; margin-bottom: 20px;">
-                    ކުއްޔަށް ނަގާ މުއްދަތު: <span class="editable" id="start-date" contenteditable="true" data-placeholder="DD-MM-YYYY"></span> ގެ <span class="editable" id="start-time" contenteditable="true" data-placeholder="ގަޑި"></span> އިން ފެށިގެން <span class="editable" id="end-date" contenteditable="true" data-placeholder="DD-MM-YYYY"></span> ގެ <span class="editable" id="end-time" contenteditable="true" data-placeholder="ގަޑި"></span> އަށް.<br>
-                    ކުލީގެ އަގު: <span class="editable" id="rental-price" contenteditable="true" data-placeholder="އަގު"></span> ރުފިޔާ.
+                    <span class="i18n" data-dv="ކުއްޔަށް ނަގާ މުއްދަތު:" data-en="Rental Period: From"></span>
+                    <select class="date-select" id="start-date-d"></select>-<select class="date-select" id="start-date-m"></select>-<select class="date-select" id="start-date-y"></select>
+                    <span class="i18n" data-dv="ގެ" data-en=""></span>
+                    <select class="time-select" id="start-time-h"></select>:<select class="time-select" id="start-time-m"></select>
+                    <span class="i18n" data-dv="އިން ފެށިގެން" data-en="to"></span>
+                    <select class="date-select" id="end-date-d"></select>-<select class="date-select" id="end-date-m"></select>-<select class="date-select" id="end-date-y"></select>
+                    <span class="i18n" data-dv="ގެ" data-en=""></span>
+                    <select class="time-select" id="end-time-h"></select>:<select class="time-select" id="end-time-m"></select>
+                    <span class="i18n" data-dv="އަށް." data-en="."></span><br>
+                    <span class="i18n" data-dv="ކުލީގެ އަގު:" data-en="Rental Price:"></span> <span class="editable" id="rental-price" contenteditable="true" data-placeholder="އަގު"></span> <span class="i18n" data-dv="ރުފިޔާ." data-en="MVR."></span>
                 </div>
 
-                <h3>3. އެއްބަސްވުމުގެ ޝަރުޠުތައް:</h3>
+                <h3>3. <span class="i18n" data-dv="އެއްބަސްވުމުގެ ޝަރުޠުތައް:" data-en="Terms of the Agreement:"></span></h3>
                 <ol>
-                    <li><strong>ޤާނޫނާ އެއްގޮތަށް ބޭނުންކުރުން:</strong> ދިވެހިރާއްޖޭގެ ޤާނޫނާއި ޤަވާޢިދާ ޚިލާފު އެއްވެސް ކަމެއްގައި މި ސައިކަލް ބޭނުން ނުކުރުން.</li>
-                    <li><strong>ދުއްވާ ސްޕީޑް:</strong> ހައިވޭތަކުގައި ދުއްވާއިރު ގަޑިއަކު 50 ކިލޯމީޓަރަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން. އެތެރޭގެ މަގުތަކުގައި ދުއްވާއިރު، ޓްރެފިކް ޤަވާޢިދުގައި ކަނޑައެޅިފައިވާ ސްޕީޑް ލިމިޓަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން.</li>
-                    <li><strong>ލައިސަންސް އަދި ލިޔެކިޔުން:</strong> ކުއްޔަށް ހިފާ ފަރާތުގެ އަތުގައި މުއްދަތު ހަމަނުވާ ސައްޙަ ޑްރައިވިންގ ލައިސަންސެއް އޮތުން. އަދި މިއެއްބަސްވުމުގައި ސޮއިކުރުމާއެކު، ކުއްޔަށް ހިފާ ފަރާތުގެ އައިޑީ ކާޑު ކޮޕީއާއި ލައިސަންސް ކޮޕީ ވެރިފަރާތަށް ފޮނުވުން ނުވަތަ ޙަވާލުކުރުން.</li>
-                    <li><strong>އެހެން ފަރާތަކަށް ނުދިނުން:</strong> ކުއްޔަށް ހިފާ ފަރާތް ފިޔަވައި، އެހެން ފަރާތެއްގެ އަތަށް އެއްވެސް ގޮތަކަށް ސައިކަލް ނުދިނުން.</li>
-                    <li><strong>ޕެޓްރޯލް އެޅުން:</strong> ދުއްވާ ވަގުތުގައި ސައިކަލަށް ބޭނުންވާ ޕެޓްރޯލް އެޅުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ އަމިއްލަ ޒިންމާއެކެވެ.</li>
-                    <li><strong>ސައިކަލް ހުއްޓުން:</strong> ޕެޓްރޯލް ހުސްވެގެން ނުވަތަ އެނޫންވެސް ސަބަބަކާހުރެ އެއްވެސް ތަނެއްގައި ސައިކަލް ހުއްޓިއްޖެނަމަ، ސައިކަލް ރައްކާތެރިކަމާއެކު ވެރިފަރާތާ ހަމައަށް ގެންގޮސްދިނުމުގެ ފުރިހަމަ ޒިންމާ ކުއްޔަށް ހިފާ ފަރާތުން ނެގުން.</li>
-                    <li><strong>ގެއްލުމުގެ ބަދަލުދިނުން:</strong> ކުއްޔަށް ހިފާ ފަރާތުގެ ބެލުމުގެ ދަށުގައި ސައިކަލް ހުއްޓާ އިހުމާލުން ނުވަތަ އެހެން ގޮތަކުން ނަމަވެސް ސައިކަލަށް ލިބޭ ކޮންމެ ގެއްލުމެއްގެ ފުރިހަމަ ބަދަލު ކުއްޔަށް ހިފާ ފަރާތުން ހޯދައިދިނުން.</li>
-                    <li><strong>ޖޫރިމަނާތައް:</strong> ކުއްޔަށް ހިފާފައިވާ ވަގުތުގެ ތެރޭގައި ޓްރެފިކް ޤަވާޢިދާ ޚިލާފުވެގެން ނުވަތަ ޕާކިންގ ގޯސްވެގެން އަންނަ ހުރިހާ ޖޫރިމަނާއެއް ދެއްކުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ ޒިންމާއެކެވެ.</li>
-                    <li><strong>މުއްދަތު އިތުރުކުރުމާއި ލަސްވުމުން ނަގާ ޖޫރިމަނާ:</strong> ކުއްޔަށް ހިފި މުއްދަތު ހަމަވުމަށްފަހު ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، ވަގުތު ހަމަވާ ހިސާބުން ފެށިގެން އިތުރުވާ ކޮންމެ ގަޑިއިރަކަށް 100 (ސަތޭކަ) ރުފިޔާގެ މަގުން ކުއްޔަށް ހިފާ ފަރާތް ޖޫރިމަނާ ކުރެވޭނެއެވެ. އަދި ކުއްޔަށް ހިފާފައިވާ މުއްދަތު އިތުރުކުރަން ބޭނުންވާނަމަ، އެއްބަސްވެފައިވާ ވަގުތު ހަމަވުމުގެ މަދުވެގެން 30 (ތިރީސް) މިނެޓު ކުރިން ވެރިފަރާތަށް އެކަން އަންގައި، އިތުރުކުރަން ބޭނުންވާ ވަގުތަށްވާ ފައިސާ ވެރިފަރާތަށް ޓްރާންސްފަރ ކުރަންވާނެއެވެ. ފައިސާ ޓްރާންސްފަރ ކުރުމަށްފަހު މެނުވީ މުއްދަތު އިތުރުކުރެވުނު ކަމަކަށް ނުބެލެވޭނެއެވެ.</li>
-                    <li><strong>ސައިކަލް ޙަވާލުނުކުރުން އަދި ސައިކަލް ހޯދައި ނެގުން:</strong> ސައިކަލް ޙަވާލުކުރަން އޮންނަ މުއްދަތު ފާއިތުވެގެން ދާއިރުވެސް ވެރިފަރާތަށް ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، ކުއްޔަށް ހިފާ ފަރާތުގެ ހުއްދައަކާ ނުލައި ސައިކަލް ހުރިތަނަކުން ހޯދައި، ވެރިފަރާތުގެ ބެލުމުގެ ދަށަށް ސައިކަލް ގެނައުމުގެ ފުރިހަމަ އިޚްތިޔާރު ވެރިފަރާތަށް ލިބިގެންވެއެވެ. އަދި މިގޮތަށް ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، މޯލްޑިވްސް ޕޮލިސް ސަރވިސް ނުވަތަ ކަމާބެހޭ އެހެނިހެން ފަރާތްތަކުގެ އެހީތެރިކަން ހޯދައިގެން ސައިކަލް ހޯދުމަށާއި، ކުއްޔަށް ހިފާ ފަރާތާމެދު ޤާނޫނީ ގޮތުން އަޅަންޖެހޭ އެންމެހާ ފިޔަވަޅުތައް އެޅުމުގެ ޙައްޤު ވެރިފަރާތަށް ލިބިގެންވެއެވެ.</li>
-                    <li><strong>ރިފަންޑް ދިނުމުގެ އުޞޫލު:</strong> އެއްބަސްވުމުގައި ސޮއިކޮށް، ކުލީގެ ފައިސާ ވެރިފަރާތުން ދީފައިވާ އެކައުންޓަށް ޓްރާންސްފަރ ކުރުމަށްފަހު ކެންސަލްކުރާނަމަ ޢަމަލުކުރެވޭނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ.
-                        <span class="sub-clause">ހ. ސައިކަލާ ޙަވާލުވެ ނުގެންގޮސް، ކިތަންމެ ކުޑަ ވަގުތުކޮޅެއްގެ ތެރޭގައި ނަމަވެސް ކުއްޔަށް ހިފާ ފަރާތުން މި އެއްބަސްވުން ކެންސަލްކުރަން ބޭނުންވެއްޖެނަމަ، ރިފަންޑުގެ ގޮތުގައި ފައިސާ އަނބުރާ ލިބޭނީ ދައްކާފައިވާ ޖުމްލަ ފައިސާގެ %50 (ފަންސާސް އިންސައްތަ) އުނިކުރުމަށްފަހުގައެވެ.</span>
-                        <span class="sub-clause">ށ. ކުއްޔަށް ހިފާ ފަރާތުން ސައިކަލާ ޙަވާލުވެ، ހިނދުކޮޅަކަށް ނަމަވެސް ސައިކަލް ގެންގޮސްފައިވާނަމަ، ދައްކާފައިވާ ފައިސާއިން އެއްވެސް މިންވަރެއް ރިފަންޑުގެ ގޮތުގައި އަނބުރާ ނުލިބޭނެއެވެ.</span>
+                    <li><strong class="i18n" data-dv="ޤާނޫނާ އެއްގޮތަށް ބޭނުންކުރުން:" data-en="Legal Use:"></strong> <span class="i18n" data-dv="ދިވެހިރާއްޖޭގެ ޤާނޫނާއި ޤަވާޢިދާ ޚިލާފު އެއްވެސް ކަމެއްގައި މި ސައިކަލް ބޭނުން ނުކުރުން." data-en="The motorcycle must not be used for any purpose that violates the laws and regulations of the Maldives."></span></li>
+
+                    <li><strong class="i18n" data-dv="ދުއްވާ ސްޕީޑް:" data-en="Speed Limit:"></strong> <span class="i18n" data-dv="ހައިވޭތަކުގައި ދުއްވާއިރު ގަޑިއަކު 50 ކިލޯމީޓަރަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން. އެތެރޭގެ މަގުތަކުގައި ދުއްވާއިރު، ޓްރެފިކް ޤަވާޢިދުގައި ކަނޑައެޅިފައިވާ ސްޕީޑް ލިމިޓަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން." data-en="Speed must not exceed 50 km/h while driving on highways. When driving on internal roads, the speed limit set by traffic regulations must not be exceeded."></span></li>
+
+                    <li><strong class="i18n" data-dv="ލައިސަންސް އަދި ލިޔެކިޔުން:" data-en="License and Documents:"></strong> <span class="i18n" data-dv="ކުއްޔަށް ހިފާ ފަރާތުގެ އަތުގައި މުއްދަތު ހަމަނުވާ ސައްޙަ ޑްރައިވިންގ ލައިސަންސެއް އޮތުން. އަދި މިއެއްބަސްވުމުގައި ސޮއިކުރުމާއެކު، ކުއްޔަށް ހިފާ ފަރާތުގެ އައިޑީ ކާޑު ކޮޕީއާއި ލައިސަންސް ކޮޕީ ވެރިފަރާތަށް ފޮނުވުން ނުވަތަ ޙަވާލުކުރުން." data-en="The Renter must hold a valid, unexpired driving license. Upon signing this Agreement, the Renter must send or hand over a copy of their ID card and driving license to the Owner."></span></li>
+
+                    <li><strong class="i18n" data-dv="އެހެން ފަރާތަކަށް ނުދިނުން:" data-en="No Transfer to Others:"></strong> <span class="i18n" data-dv="ކުއްޔަށް ހިފާ ފަރާތް ފިޔަވައި، އެހެން ފަރާތެއްގެ އަތަށް އެއްވެސް ގޮތަކަށް ސައިކަލް ނުދިނުން." data-en="The motorcycle must not be given to any person other than the Renter under any circumstances."></span></li>
+
+                    <li><strong class="i18n" data-dv="ޕެޓްރޯލް އެޅުން:" data-en="Fueling:"></strong> <span class="i18n" data-dv="ދުއްވާ ވަގުތުގައި ސައިކަލަށް ބޭނުންވާ ޕެޓްރޯލް އެޅުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ އަމިއްލަ ޒިންމާއެކެވެ." data-en="Fueling the motorcycle during use is the sole responsibility of the Renter."></span></li>
+
+                    <li><strong class="i18n" data-dv="ސައިކަލް ހުއްޓުން:" data-en="Breakdown:"></strong> <span class="i18n" data-dv="ޕެޓްރޯލް ހުސްވެގެން ނުވަތަ އެނޫންވެސް ސަބަބަކާހުރެ އެއްވެސް ތަނެއްގައި ސައިކަލް ހުއްޓިއްޖެނަމަ، ސައިކަލް ރައްކާތެރިކަމާއެކު ވެރިފަރާތާ ހަމައަށް ގެންގޮސްދިނުމުގެ ފުރިހަމަ ޒިންމާ ކުއްޔަށް ހިފާ ފަރާތުން ނެގުން." data-en="If the motorcycle stops anywhere due to running out of fuel or any other reason, the Renter bears full responsibility for safely returning the motorcycle to the Owner."></span></li>
+
+                    <li><strong class="i18n" data-dv="ގެއްލުމުގެ ބަދަލުދިނުން:" data-en="Compensation for Damage:"></strong> <span class="i18n" data-dv="ކުއްޔަށް ހިފާ ފަރާތުގެ ބެލުމުގެ ދަށުގައި ސައިކަލް ހުއްޓާ އިހުމާލުން ނުވަތަ އެހެން ގޮތަކުން ނަމަވެސް ސައިކަލަށް ލިބޭ ކޮންމެ ގެއްލުމެއްގެ ފުރިހަމަ ބަދަލު ކުއްޔަށް ހިފާ ފަރާތުން ހޯދައިދިނުން." data-en="The Renter must provide full compensation for any damage caused to the motorcycle while in the Renter's care, whether through negligence or otherwise."></span></li>
+
+                    <li><strong class="i18n" data-dv="ޖޫރިމަނާތައް:" data-en="Fines:"></strong> <span class="i18n" data-dv="ކުއްޔަށް ހިފާފައިވާ ވަގުތުގެ ތެރޭގައި ޓްރެފިކް ޤަވާޢިދާ ޚިލާފުވެގެން ނުވަތަ ޕާކިންގ ގޯސްވެގެން އަންނަ ހުރިހާ ޖޫރިމަނާއެއް ދެއްކުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ ޒިންމާއެކެވެ." data-en="The Renter is responsible for paying all fines arising from traffic or parking violations during the rental period."></span></li>
+
+                    <li><strong class="i18n" data-dv="މުއްދަތު އިތުރުކުރުމާއި ލަސްވުމުން ނަގާ ޖޫރިމަނާ:" data-en="Extension and Late-Return Fine:"></strong> <span class="i18n" data-dv="ކުއްޔަށް ހިފި މުއްދަތު ހަމަވުމަށްފަހު ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، ވަގުތު ހަމަވާ ހިސާބުން ފެށިގެން އިތުރުވާ ކޮންމެ ގަޑިއިރަކަށް 100 (ސަތޭކަ) ރުފިޔާގެ މަގުން ކުއްޔަށް ހިފާ ފަރާތް ޖޫރިމަނާ ކުރެވޭނެއެވެ. އަދި ކުއްޔަށް ހިފާފައިވާ މުއްދަތު އިތުރުކުރަން ބޭނުންވާނަމަ، އެއްބަސްވެފައިވާ ވަގުތު ހަމަވުމުގެ މަދުވެގެން 30 (ތިރީސް) މިނެޓު ކުރިން ވެރިފަރާތަށް އެކަން އަންގައި، އިތުރުކުރަން ބޭނުންވާ ވަގުތަށްވާ ފައިސާ ވެރިފަރާތަށް ޓްރާންސްފަރ ކުރަންވާނެއެވެ. ފައިސާ ޓްރާންސްފަރ ކުރުމަށްފަހު މެނުވީ މުއްދަތު އިތުރުކުރެވުނު ކަމަކަށް ނުބެލެވޭނެއެވެ." data-en="If the motorcycle is not returned after the rental period ends, the Renter will be fined MVR 100 (one hundred) for each additional hour. If the Renter wishes to extend the rental period, they must notify the Owner at least 30 (thirty) minutes before the agreed time ends and transfer payment for the extended period. The extension is not considered valid until the payment has been transferred."></span></li>
+
+                    <li><strong class="i18n" data-dv="ފައިސާ ދެއްކުން ލަސްވުން:" data-en="Late Payment of Fees:"></strong> <span class="i18n" data-dv="ކުއްޔަށް ހިފާ ފަރާތުން ދައްކަންޖެހޭ ފައިސާއެއް ދެއްކުމަށް ކަނޑައެޅިފައިވާ ވަގުތު ފާއިތުވެއްޖެނަމަ، ފާއިތުވާ ކޮންމެ ގަޑިއިރަކަށް 50 (ފަންސާސް) ރުފިޔާގެ މަގުން ޖޫރިމަނާ ނަގާނެއެވެ. އަދި ފައިސާ ދެއްކުން ލަސްވެ، ކުއްޔަށް ދީފައިވާ މުއްދަތުވެސް ހަމަވެފައިވާނަމަ، ކުއްޔަށް ހިފާ ފަރާތުގެ ހުއްދައަކާ ނުލައި، ކޮންމެ ވަގުތެއްގައިވެސް ސައިކަލް ހުރި ތަނަކުން ސައިކަލް ހޯދައި ނެގުމުގެ ފުރިހަމަ އިޚްތިޔާރު ވެރިފަރާތަށް ލިބިގެންވެއެވެ." data-en="If the Renter fails to pay any amount due by the specified time, a fine of MVR 50 (fifty) per hour will apply for each hour of delay. If payment is delayed and the rental period has also expired, the Owner shall have the full right, without the Renter's permission, to retrieve the motorcycle from wherever it may be located, at any time."></span></li>
+
+                    <li><strong class="i18n" data-dv="ސައިކަލް ޙަވާލުނުކުރުން އަދި ސައިކަލް ހޯދައި ނެގުން:" data-en="Failure to Return and Repossession:"></strong> <span class="i18n" data-dv="ސައިކަލް ޙަވާލުކުރަން އޮންނަ މުއްދަތު ފާއިތުވެގެން ދާއިރުވެސް ވެރިފަރާތަށް ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، ކުއްޔަށް ހިފާ ފަރާތުގެ ހުއްދައަކާ ނުލައި ސައިކަލް ހުރިތަނަކުން ހޯދައި، ވެރިފަރާތުގެ ބެލުމުގެ ދަށަށް ސައިކަލް ގެނައުމުގެ ފުރިހަމަ އިޚްތިޔާރު ވެރިފަރާތަށް ލިބިގެންވެއެވެ. އަދި މިގޮތަށް ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، މޯލްޑިވްސް ޕޮލިސް ސަރވިސް ނުވަތަ ކަމާބެހޭ އެހެނިހެން ފަރާތްތަކުގެ އެހީތެރިކަން ހޯދައިގެން ސައިކަލް ހޯދުމަށާއި، ކުއްޔަށް ހިފާ ފަރާތާމެދު ޤާނޫނީ ގޮތުން އަޅަންޖެހޭ އެންމެހާ ފިޔަވަޅުތައް އެޅުމުގެ ޙައްޤު ވެރިފަރާތަށް ލިބިގެންވެއެވެ." data-en="If the motorcycle is not handed over to the Owner even after the return deadline has passed, the Owner has the full right to retrieve the motorcycle from wherever it may be, without the Renter's permission. If the motorcycle is still not returned, the Owner has the right to seek the assistance of the Maldives Police Service or other relevant authorities to retrieve it, and to take all legal action against the Renter as required by law."></span></li>
+
+                    <li><strong class="i18n" data-dv="ރިފަންޑް ދިނުމުގެ އުޞޫލު:" data-en="Refund Policy:"></strong> <span class="i18n" data-dv="އެއްބަސްވުމުގައި ސޮއިކޮށް، ކުލީގެ ފައިސާ ވެރިފަރާތުން ދީފައިވާ އެކައުންޓަށް ޓްރާންސްފަރ ކުރުމަށްފަހު ކެންސަލްކުރާނަމަ ޢަމަލުކުރެވޭނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ." data-en="Once this Agreement is signed and the rental payment has been transferred to the account provided by the Owner, if the Agreement is cancelled, the following shall apply:"></span>
+                        <span class="sub-clause i18n" data-dv="ހ. ސައިކަލާ ޙަވާލުވެ ނުގެންގޮސް، ކިތަންމެ ކުޑަ ވަގުތުކޮޅެއްގެ ތެރޭގައި ނަމަވެސް ކުއްޔަށް ހިފާ ފަރާތުން މި އެއްބަސްވުން ކެންސަލްކުރަން ބޭނުންވެއްޖެނަމަ، ރިފަންޑުގެ ގޮތުގައި ފައިސާ އަނބުރާ ލިބޭނީ ދައްކާފައިވާ ޖުމްލަ ފައިސާގެ %50 (ފަންސާސް އިންސައްތަ) އުނިކުރުމަށްފަހުގައެވެ." data-en="a. If the Renter wishes to cancel this Agreement without having taken possession of the motorcycle, even for a very short time, 50% (fifty percent) of the total amount paid will be deducted before the remainder is refunded."></span>
+                        <span class="sub-clause i18n" data-dv="ށ. ކުއްޔަށް ހިފާ ފަރާތުން ސައިކަލާ ޙަވާލުވެ، ހިނދުކޮޅަކަށް ނަމަވެސް ސައިކަލް ގެންގޮސްފައިވާނަމަ، ދައްކާފައިވާ ފައިސާއިން އެއްވެސް މިންވަރެއް ރިފަންޑުގެ ގޮތުގައި އަނބުރާ ނުލިބޭނެއެވެ." data-en="b. If the Renter has taken possession of the motorcycle and taken it away, even briefly, no portion of the amount paid will be refunded."></span>
                     </li>
-                    <li><strong>ހެލްމެޓް ކުއްޔަށް ނެގުމާއި ގެއްލުމުގެ ބަދަލު ދިނުން:</strong> ސައިކަލާއެކު ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ތިރީގައިވާ ގޮތަށް ޢަމަލުކުރެވޭނެއެވެ.
-                        <span class="sub-clause">ހ. އެއް ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 30 (ތިރީސް) ރުފިޔާ ދައްކަންވާނެއެވެ.</span>
-                        <span class="sub-clause">ށ. ދެ ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 60 (ފަސްދޮޅަސް) ރުފިޔާ ދައްކަންވާނެއެވެ.</span>
-                        <span class="sub-clause">ނ. ކުއްޔަށް ހިފާފައިވާ މުއްދަތުގެ ތެރޭގައި ހެލްމެޓެއް ގެއްލިއްޖެނަމަ ނުވަތަ ހަލާކުވެއްޖެނަމަ، އެ ހެލްމެޓެއްގެ ބާޒާރު މަތީ އަގު ކުއްޔަށް ހިފާ ފަރާތުން ވެރިފަރާތަށް ދައްކަންވާނެއެވެ.</span>
+
+                    <li><strong class="i18n" data-dv="ހެލްމެޓް ކުއްޔަށް ނެގުމާއި ގެއްލުމުގެ ބަދަލު ދިނުން:" data-en="Helmet Rental and Compensation for Loss:"></strong> <span class="i18n" data-dv="ސައިކަލާއެކު ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ތިރީގައިވާ ގޮތަށް ޢަމަލުކުރެވޭނެއެވެ." data-en="If a helmet is rented along with the motorcycle, the following shall apply:"></span>
+                        <span class="sub-clause i18n" data-dv="ހ. އެއް ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 30 (ތިރީސް) ރުފިޔާ ދައްކަންވާނެއެވެ." data-en="a. For renting one helmet, an additional MVR 30 (thirty) must be paid as rental."></span>
+                        <span class="sub-clause i18n" data-dv="ށ. ދެ ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 60 (ފަސްދޮޅަސް) ރުފިޔާ ދައްކަންވާނެއެވެ." data-en="b. For renting two helmets, an additional MVR 60 (sixty) must be paid as rental."></span>
+                        <span class="sub-clause i18n" data-dv="ނ. ކުއްޔަށް ހިފާފައިވާ މުއްދަތުގެ ތެރޭގައި ހެލްމެޓެއް ގެއްލިއްޖެނަމަ ނުވަތަ ހަލާކުވެއްޖެނަމަ، އެ ހެލްމެޓެއްގެ ބާޒާރު މަތީ އަގު ކުއްޔަށް ހިފާ ފަރާތުން ވެރިފަރާތަށް ދައްކަންވާނެއެވެ." data-en="c. If a helmet is lost or damaged during the rental period, the Renter must pay the Owner the market value of that helmet."></span>
                     </li>
-                    <li><strong>މަރާމާތުކުރުމާއި ސަރވިސްކުރުން:</strong> ސައިކަލަށް ލިބޭ ގެއްލުމެއް ނުވަތަ މަރާމާތެއް ކުރުމުގައި ޢަމަލުކުރާނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ.
-                        <span class="sub-clause">ހ. ސައިކަލަށް ލިބޭ ގެއްލުމެއް ރަނގަޅުކުރުމަށް ނުވަތަ އަޑީތެޔޮ ބަދަލުކުރުން ފަދަ ކަމަކަށް އެއްވެސް ގަރާޖަކަށް ނުވަތަ ވޯކްޝޮޕަކަށް ސައިކަލް ގެންދަންވާނީ ވެރިފަރާތަށް އެންގުމަށްފަހު، ވެރިފަރާތުގެ ހާޒިރުގައި ނުވަތަ ވެރިފަރާތުން ފޮނުވާ ފަރާތެއްގެ ހާޒިރުގައެވެ.</span>
-                        <span class="sub-clause">ށ. ސައިކަލް މަރާމާތުކުރަން ނުވަތަ ސަރވިސްކުރަން ގެންދާ ގަރާޖު ނުވަތަ ވޯކްޝޮޕަކީ ސައިކަލުގެ ވެރިފަރާތް ޤަބޫލުކުރާ ނުވަތަ ވެރިފަރާތުން އެއްބަސްވާ ތަނަކަށް ވާންވާނެއެވެ.</span>
-                        <span class="sub-clause">ނ. ފުރޮޅުން ވައި މަދުވެގެން ވައިޖެހުމާއި، ޕެޓްރޯލް އެޅުން ފަދަ އާންމުކޮށް ކުރަންޖެހޭ ކުދި ކަންކަން، ވެރިފަރާތަށް އެންގުމަކާ ނުލައި ކުއްޔަށް ހިފާ ފަރާތަށް އަމިއްލައަށް ކުރެވިދާނެއެވެ.</span>
+
+                    <li><strong class="i18n" data-dv="މަރާމާތުކުރުމާއި ސަރވިސްކުރުން:" data-en="Repairs and Servicing:"></strong> <span class="i18n" data-dv="ސައިކަލަށް ލިބޭ ގެއްލުމެއް ނުވަތަ މަރާމާތެއް ކުރުމުގައި ޢަމަލުކުރާނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ." data-en="Any repair or servicing of the motorcycle shall be carried out as follows:"></span>
+                        <span class="sub-clause i18n" data-dv="ހ. ސައިކަލަށް ލިބޭ ގެއްލުމެއް ރަނގަޅުކުރުމަށް ނުވަތަ އަޑީތެޔޮ ބަދަލުކުރުން ފަދަ ކަމަކަށް އެއްވެސް ގަރާޖަކަށް ނުވަތަ ވޯކްޝޮޕަކަށް ސައިކަލް ގެންދަންވާނީ ވެރިފަރާތަށް އެންގުމަށްފަހު، ވެރިފަރާތުގެ ހާޒިރުގައި ނުވަތަ ވެރިފަރާތުން ފޮނުވާ ފަރާތެއްގެ ހާޒިރުގައެވެ." data-en="a. The motorcycle may only be taken to a garage or workshop for repairs or work such as an oil change after notifying the Owner, and in the presence of the Owner or a person sent by the Owner."></span>
+                        <span class="sub-clause i18n" data-dv="ށ. ސައިކަލް މަރާމާތުކުރަން ނުވަތަ ސަރވިސްކުރަން ގެންދާ ގަރާޖު ނުވަތަ ވޯކްޝޮޕަކީ ސައިކަލުގެ ވެރިފަރާތް ޤަބޫލުކުރާ ނުވަތަ ވެރިފަރާތުން އެއްބަސްވާ ތަނަކަށް ވާންވާނެއެވެ." data-en="b. The garage or workshop to which the motorcycle is taken for repair or servicing must be one accepted or agreed upon by the Owner."></span>
+                        <span class="sub-clause i18n" data-dv="ނ. ފުރޮޅުން ވައި މަދުވެގެން ވައިޖެހުމާއި، ޕެޓްރޯލް އެޅުން ފަދަ އާންމުކޮށް ކުރަންޖެހޭ ކުދި ކަންކަން، ވެރިފަރާތަށް އެންގުމަކާ ނުލައި ކުއްޔަށް ހިފާ ފަރާތަށް އަމިއްލައަށް ކުރެވިދާނެއެވެ." data-en="c. Minor routine tasks such as inflating tires and fueling may be carried out by the Renter without notifying the Owner."></span>
                     </li>
-                    <li><strong>ޕާކް ކުރުން:</strong> މަގުމަތީގައި ނުވަތަ އެނޫންވެސް ތަނެއްގައި ސައިކަލް ޕާކްކުރާއިރު، ސައިކަލަށް ގެއްލުމެއް ލިބިދާނެ ފަދަ ގޮތަކަށް ނުވަތަ ނުރައްކާތެރި ގޮތަކަށް ޕާކްކޮށްގެން ނުވާނެއެވެ.</li>
-                    <li><strong>އަމާނާތަށް ރައްކާތެރިވުން:</strong> ކުއްޔަށް ހިފާފައިވާ ސައިކަލަކީ ކުއްޔަށް ހިފި ފަރާތުގެ ބެލުމުގެ ދަށުގައިވާ ބޮޑު އަމާނާތެކެވެ. އެހެންކަމުން، އެ އަމާނާތަށް ޚިޔާނާތްތެރިވުން ކަމަށް ބެލެވޭ ފަދަ އެއްވެސް ޢަމަލެއް ކުއްޔަށް ހިފާ ފަރާތުން ހިންގައިގެން ނުވާނެއެވެ.</li>
-                    <li><strong>ތެޔޮ ބަދަލުކުރުމާއި ސައިކަލް ސާފުކުރުން:</strong> އެއް ފަރާތަކުން ސައިކަލް ކުއްޔަށް ހިފައިގެން 1000 (އެއްހާސް) ކިލޯމީޓަރަށް ދުއްވިފައިވާނަމަ، ސައިކަލުގެ އަޑީތެލާއި ގިއަރު ތެޔޮ ބަދަލުކުރުމާއި، ސައިކަލް ދޮވެ ޕޮލިޝްކުރުމުގެ ކަންކަން ކުއްޔަށް ހިފާ ފަރާތުން ބަލަހައްޓަންވާނެއެވެ. (ނޯޓް: ތެޔޮ ބަދަލުކުރުމުގައި ޢަމަލުކުރާނީ މި އެއްބަސްވުމުގެ 13 ވަނަ މާއްދާގައި ބަޔާންކޮށްފައިވާ އުޞޫލުން ވެރިފަރާތަށް އެނގިގެން ވެރިފަރާތުގެ ހާޒިރުގައެވެ.)</li>
+
+                    <li><strong class="i18n" data-dv="ޕާކް ކުރުން:" data-en="Parking:"></strong> <span class="i18n" data-dv="މަގުމަތީގައި ނުވަތަ އެނޫންވެސް ތަނެއްގައި ސައިކަލް ޕާކްކުރާއިރު، ސައިކަލަށް ގެއްލުމެއް ލިބިދާނެ ފަދަ ގޮތަކަށް ނުވަތަ ނުރައްކާތެރި ގޮތަކަށް ޕާކްކޮށްގެން ނުވާނެއެވެ." data-en="When parking the motorcycle on the road or elsewhere, it must not be parked in a manner that could cause damage to it or in a dangerous manner."></span></li>
+
+                    <li><strong class="i18n" data-dv="އަމާނާތަށް ރައްކާތެރިވުން:" data-en="Care of Trust:"></strong> <span class="i18n" data-dv="ކުއްޔަށް ހިފާފައިވާ ސައިކަލަކީ ކުއްޔަށް ހިފި ފަރާތުގެ ބެލުމުގެ ދަށުގައިވާ ބޮޑު އަމާނާތެކެވެ. އެހެންކަމުން، އެ އަމާނާތަށް ޚިޔާނާތްތެރިވުން ކަމަށް ބެލެވޭ ފަދަ އެއްވެސް ޢަމަލެއް ކުއްޔަށް ހިފާ ފަރާތުން ހިންގައިގެން ނުވާނެއެވެ." data-en="The rented motorcycle is a significant trust placed in the Renter's care. The Renter must not engage in any act that could be regarded as a breach of that trust."></span></li>
+
+                    <li><strong class="i18n" data-dv="ތެޔޮ ބަދަލުކުރުމާއި ސައިކަލް ސާފުކުރުން:" data-en="Oil Change and Cleaning:"></strong> <span class="i18n" data-dv="އެއް ފަރާތަކުން ސައިކަލް ކުއްޔަށް ހިފައިގެން 1000 (އެއްހާސް) ކިލޯމީޓަރަށް ދުއްވިފައިވާނަމަ، ސައިކަލުގެ އަޑީތެލާއި ގިއަރު ތެޔޮ ބަދަލުކުރުމާއި، ސައިކަލް ދޮވެ ޕޮލިޝްކުރުމުގެ ކަންކަން ކުއްޔަށް ހިފާ ފަރާތުން ބަލަހައްޓަންވާނެއެވެ. (ނޯޓް: ތެޔޮ ބަދަލުކުރުމުގައި ޢަމަލުކުރާނީ މި އެއްބަސްވުމުގެ 13 ވަނަ މާއްދާގައި ބަޔާންކޮށްފައިވާ އުޞޫލުން ވެރިފަރާތަށް އެނގިގެން ވެރިފަރާތުގެ ހާޒިރުގައެވެ.)" data-en="If the motorcycle has been driven 1000 (one thousand) kilometers by one party, the Renter must arrange for the engine oil and gear oil to be changed, and for the motorcycle to be washed and polished. (Note: Oil changes must be carried out in accordance with the procedure set out in Clause 13 of this Agreement, with the Owner's knowledge and in the Owner's presence.)"></span></li>
                 </ol>
-                
+
                 <div style="page-break-inside: avoid; break-inside: avoid;">
-                    <p style="font-weight: bold; margin-top: 30px;">މި އެއްބަސްވުމުގައިވާ ހުރިހާ މާއްދާތަކެއް ކިޔައި، އެކަންކަމަށް ފުރިހަމައަށް އެއްބަސްވެ ތިރީގައި ސޮއިކުރީމެވެ.</p>
+                    <p style="font-weight: bold; margin-top: 30px;" class="i18n" data-dv="މި އެއްބަސްވުމުގައިވާ ހުރިހާ މާއްދާތަކެއް ކިޔައި، އެކަންކަމަށް ފުރިހަމައަށް އެއްބަސްވެ ތިރީގައި ސޮއިކުރީމެވެ." data-en="We have read all the clauses of this Agreement, fully agree to them, and have signed below."></p>
 
                     <div class="signatures-grid">
                         <div class="signature-box">
-                            <h3 style="margin-bottom: 5px;">ވެރިފަރާތް</h3>
+                            <h3 style="margin-bottom: 5px;" class="i18n" data-dv="ވެރިފަރާތް" data-en="Owner"></h3>
                             <div style="font-size: 14px; text-align: center; color: var(--primary-dark-green); margin-bottom: 5px;" id="sig-owner-name-display">ޢަލީ އިބްރާހީމް ދީދީ</div>
                             <canvas id="sig-owner" class="sig-canvas"></canvas>
                             <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-owner')">ސޮއި ފުހެލައްވާ</button>
                         </div>
-                        
+
                         <div class="signature-box">
-                            <h3 style="margin-bottom: 5px;">ކުއްޔަށް ހިފާ ފަރާތް</h3>
+                            <h3 style="margin-bottom: 5px;" class="i18n" data-dv="ކުއްޔަށް ހިފާ ފަރާތް" data-en="Renter"></h3>
                             <div style="font-size: 14px; text-align: center; color: var(--primary-dark-green); margin-bottom: 5px;" id="sig-renter-name-display">-</div>
                             <canvas id="sig-renter" class="sig-canvas"></canvas>
                             <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-renter')">ސޮއި ފުހެލައްވާ</button>
                         </div>
 
                         <div class="signature-box">
-                            <h3>ހެކި 1: މަރިޔަމް ޢާލިމާ</h3>
+                            <h3><span class="i18n" data-dv="ހެކި 1:" data-en="Witness 1:"></span> މަރިޔަމް ޢާލިމާ</h3>
                             <canvas id="sig-wit1" class="sig-canvas"></canvas>
                             <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-wit1')">ސޮއި ފުހެލައްވާ</button>
                         </div>
 
                         <div class="signature-box">
-                            <h3>ހެކި 2: <span class="editable" id="wit2-name" contenteditable="true" data-placeholder="ނަން"></span></h3>
+                            <h3><span class="i18n" data-dv="ހެކި 2:" data-en="Witness 2:"></span> <span class="editable" id="wit2-name" contenteditable="true" data-placeholder="ނަން"></span></h3>
                             <canvas id="sig-wit2" class="sig-canvas"></canvas>
                             <button class="no-print btn-small" style="background:#e74c3c; margin-top:5px;" onclick="clearSignature('sig-wit2')">ސޮއި ފުހެލައްވާ</button>
                         </div>
@@ -323,25 +380,25 @@
 
                 <!-- Attachments -->
                 <div style="page-break-before: always;">
-                    <h3 style="border-top: 2px dashed #ddd; padding-top: 30px; margin-top: 40px;">ލިޔެކިޔުންތައް (އައިޑީ ކާޑު އަދި ލައިސަންސް)</h3>
+                    <h3 style="border-top: 2px dashed #ddd; padding-top: 30px; margin-top: 40px;" class="i18n" data-dv="ލިޔެކިޔުންތައް (އައިޑީ ކާޑު އަދި ލައިސަންސް)" data-en="Documents (ID Card and License)"></h3>
                     <div class="upload-grid">
                         <div class="upload-box">
-                            <label>އައިޑީ ކާޑު (ކުރިމަތި)</label><br>
+                            <label class="i18n" data-dv="އައިޑީ ކާޑު (ކުރިމަތި)" data-en="ID Card (Front)"></label><br>
                             <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'id-front-img')">
                             <img id="id-front-img" alt="ID Front">
                         </div>
                         <div class="upload-box">
-                            <label>އައިޑީ ކާޑު (ފަހަތް)</label><br>
+                            <label class="i18n" data-dv="އައިޑީ ކާޑު (ފަހަތް)" data-en="ID Card (Back)"></label><br>
                             <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'id-back-img')">
                             <img id="id-back-img" alt="ID Back">
                         </div>
                         <div class="upload-box">
-                            <label>ލައިސަންސް (ކުރިމަތި)</label><br>
+                            <label class="i18n" data-dv="ލައިސަންސް (ކުރިމަތި)" data-en="License (Front)"></label><br>
                             <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'lic-front-img')">
                             <img id="lic-front-img" alt="License Front">
                         </div>
                         <div class="upload-box">
-                            <label>ލައިސަންސް (ފަހަތް)</label><br>
+                            <label class="i18n" data-dv="ލައިސަންސް (ފަހަތް)" data-en="License (Back)"></label><br>
                             <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'lic-back-img')">
                             <img id="lic-back-img" alt="License Back">
                         </div>
@@ -351,14 +408,14 @@
                 <!-- ޕްރިންޓް/PDF ފުޓަރ -->
                 <div class="page-footer" id="print-footer">
                     <div style="text-align: center; width: 33%;">
-                        <span style="display:block; font-size:10pt;">ކުއްޔަށް ހިފާ ފަރާތުގެ ސޮއި:</span>
+                        <span style="display:block; font-size:10pt;" class="i18n" data-dv="ކުއްޔަށް ހިފާ ފަރާތުގެ ސޮއި:" data-en="Renter's Signature:"></span>
                         <img id="footer-img-renter" style="height: 35px; object-fit: contain;">
                     </div>
                     <div style="text-align: center; width: 33%;">
                         <span class="page-number" style="font-weight:bold;"></span>
                     </div>
                     <div style="text-align: center; width: 33%;">
-                        <span style="display:block; font-size:10pt;">ވެރިފަރާތުގެ ސޮއި:</span>
+                        <span style="display:block; font-size:10pt;" class="i18n" data-dv="ވެރިފަރާތުގެ ސޮއި:" data-en="Owner's Signature:"></span>
                         <img id="footer-img-owner" style="height: 35px; object-fit: contain;">
                     </div>
                 </div>
@@ -370,7 +427,7 @@
         <div class="sidebar no-print">
             <h2>އެގްރިމެންޓް ބޭންކް</h2>
             <div id="renters-list" style="flex:1; overflow-y:auto; margin-bottom:15px;"></div>
-            
+
             <button class="logout-btn" onclick="logoutUser()">ލޮގްއައުޓް</button>
         </div>
     </div>
@@ -380,7 +437,7 @@
         <div class="receipt-slip" id="receiptContent">
             <span style="position: absolute; top: 10px; right: 20px; font-size: 24px; cursor: pointer; color: red;" onclick="document.getElementById('receiptModal').style.display='none'">×</span>
             <h2 style="text-align: center; border-bottom: 2px solid var(--primary-dark-green); padding-bottom: 10px;">ޕޭމަންޓް ރިސީޓް</h2>
-            
+
             <p><strong>ކުއްޔަށް ހިފާ ފަރާތް:</strong> <span id="rec-renter-name"></span></p>
             <p><strong>އައިޑީ ކާޑު:</strong> <span id="rec-renter-id"></span> | <strong>މޯބައިލް:</strong> <span id="rec-renter-mobile"></span></p>
             <p><strong>އެޑްރެސް:</strong> <span id="rec-renter-address"></span></p>
@@ -389,13 +446,13 @@
             <p><strong>މުއްދަތު ފެށޭ:</strong> <span id="rec-start"></span></p>
             <p><strong>މުއްދަތު ހަމަވާ:</strong> <span id="rec-end"></span></p>
             <p><strong>ދެއްކި އަދަދު:</strong> <span id="rec-price" style="font-weight: bold; color: var(--primary-dark-green); font-size: 20px;"></span> ރުފިޔާ</p>
-            
+
             <div style="display: flex; justify-content: space-between; margin-top: 40px; align-items: flex-end;">
                 <div>
                     <p>ޕޭމަންޓް ލިބުނުކަމުގެ ސޮއި:</p>
                     <p>.......................................</p>
                 </div>
-                
+
                 <div style="text-align: center;">
                     <div style="width: 100px; height: 100px; border: 2px dashed #ccc; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 10px auto; overflow: hidden; cursor:pointer;" onclick="document.getElementById('seal-upload').click()">
                         <img id="zaag-seal" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Seal" style="width:100%; height:100%; object-fit:contain;">
@@ -405,7 +462,7 @@
                     <strong style="font-family: Arial, sans-serif; font-size: 11px; color: var(--primary-royal-blue);">ZAAG HOLDINGS PRIVATE LIMITED</strong>
                 </div>
             </div>
-            
+
             <button onclick="printReceipt()" style="width: 100%; margin-top: 20px; padding: 10px; background: var(--primary-royal-blue); color: white; border: none; border-radius: 5px; font-family: 'Faruma'; cursor: pointer;" class="no-print">ރިސީޓް ޕްރިންޓް ކުރައްވާ</button>
         </div>
     </div>
@@ -421,7 +478,7 @@
             appId: "1:944427746679:web:583c736db436fa24c9cd72",
             measurementId: "G-M54J6V3D6W"
         };
-        
+
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
@@ -429,6 +486,7 @@
         // App State
         let rentersBank = [];
         let currentEditDocId = null;
+        let currentDocLang = 'dv';
 
         // 2. Authentication Logic
         auth.onAuthStateChanged((user) => {
@@ -450,7 +508,7 @@
             const email = document.getElementById('auth-email').value;
             const pass = document.getElementById('auth-password').value;
             const errDiv = document.getElementById('login-error');
-            
+
             if(!email || !pass) {
                 errDiv.innerText = "އީމެއިލް އަދި ޕާސްވޯޑް ޖައްސަވާ!";
                 errDiv.style.display = 'block';
@@ -488,15 +546,15 @@
 
         function saveAgreementToBank() {
             document.getElementById('loading').style.display = 'flex';
-            
+
             const agreementData = {
                 // Ensure all custom fields are captured
-                agrDate: document.getElementById('agr-date').innerText,
+                agrDate: getDateValue('agr-date'),
                 ownerName: document.getElementById('owner-name').innerText,
                 ownerId: document.getElementById('owner-id').innerText,
                 ownerAddress: document.getElementById('owner-address').innerText,
                 wit2Name: document.getElementById('wit2-name').innerText,
-                
+
                 renterName: document.getElementById('renter-name').innerText,
                 id: document.getElementById('renter-id').innerText,
                 address: document.getElementById('renter-address').innerText,
@@ -504,12 +562,12 @@
                 cycleReg: document.getElementById('cycle-reg').innerText,
                 cycleModel: document.getElementById('cycle-model').innerText,
                 cycleColor: document.getElementById('cycle-color').innerText,
-                startDate: document.getElementById('start-date').innerText,
-                startTime: document.getElementById('start-time').innerText,
-                endDate: document.getElementById('end-date').innerText,
-                endTime: document.getElementById('end-time').innerText,
+                startDate: getDateValue('start-date'),
+                startTime: getTimeValue('start-time'),
+                endDate: getDateValue('end-date'),
+                endTime: getTimeValue('end-time'),
                 price: document.getElementById('rental-price').innerText,
-                
+
                 idFront: document.getElementById('id-front-img').src,
                 idBack: document.getElementById('id-back-img').src,
                 licFront: document.getElementById('lic-front-img').src,
@@ -546,14 +604,42 @@
             });
         }
 
+        // 3b. Delete with two-step (2FA-style) verification:
+        // Step 1: confirm dialog. Step 2: re-enter the account password, which
+        // Firebase re-verifies (reauthenticateWithCredential) before the delete runs.
         function deleteAgreement(docId) {
-            if(confirm("ޔަޤީންތޯ މި އެގްރިމެންޓް ޑިލީޓްކުރަން ބޭނުންފުޅުވާކަން؟ (މިކަން އަނބުރާ އިއާދައެއް ނުކުރެވޭނެ)")) {
-                document.getElementById('loading').style.display = 'flex';
+            if(!confirm("ޔަޤީންތޯ މި އެގްރިމެންޓް ޑިލީޓްކުރަން ބޭނުންފުޅުވާކަން؟ (މިކަން އަނބުރާ އިއާދައެއް ނުކުރެވޭނެ)")) {
+                return;
+            }
+
+            const password = prompt("ސެކިއުރިޓީގެ ގޮތުން ދެވަނަ ފަހަރު ވެރިފައި ކުރުމަށް، ތިޔަފަރާތުގެ އެކައުންޓް ޕާސްވޯޑް ޖައްސަވާ:");
+            if(!password) {
+                alert("ޑިލީޓް ކުރުން ކެންސަލްކުރެވިއްޖެ.");
+                return;
+            }
+
+            const user = auth.currentUser;
+            if(!user || !user.email) {
+                alert("ވެރިފިކޭޝަން ފެއިލްވެއްޖެ! ދެވަނަފަހަރު ލޮގިންވެލައްވާ.");
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'flex';
+            const cred = firebase.auth.EmailAuthProvider.credential(user.email, password);
+
+            user.reauthenticateWithCredential(cred).then(() => {
                 db.collection("agreements").doc(docId).delete().then(() => {
                     document.getElementById('loading').style.display = 'none';
                     if(currentEditDocId === docId) clearForm();
+                }).catch((error) => {
+                    document.getElementById('loading').style.display = 'none';
+                    alert('ޑިލީޓްކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެ!');
+                    console.error(error);
                 });
-            }
+            }).catch((error) => {
+                document.getElementById('loading').style.display = 'none';
+                alert("ވެރިފިކޭޝަން ފެއިލްވެއްޖެ! ޕާސްވޯޑް ރަނގަޅުތޯ ބައްލަވާ.");
+            });
         }
 
         // 4. UI & Dashboard Logic
@@ -577,7 +663,7 @@
         function updateDashboard() {
             const listContainer = document.getElementById('renters-list');
             listContainer.innerHTML = '';
-            
+
             let total = rentersBank.length;
             let expiring = 0; let expired = 0; let income = 0;
             let now = new Date();
@@ -586,9 +672,9 @@
                 income += parseInt(r.price) || 0;
                 let endDate = parseDateString(r.endDate, r.endTime);
                 let diffHours = (endDate - now) / (1000 * 60 * 60);
-                
-                let statusClass = "status-new"; 
-                if (diffHours < 0) { statusClass = "status-expired"; expired++; } 
+
+                let statusClass = "status-new";
+                if (diffHours < 0) { statusClass = "status-expired"; expired++; }
                 else if (diffHours <= 24) { statusClass = "status-expiring"; expiring++; }
 
                 const item = document.createElement('div');
@@ -602,7 +688,7 @@
                     <div class="action-buttons-group">
                         <button class="btn-small btn-wa" onclick="sendWhatsApp('${r.mobile}', '${statusClass}')">WA</button>
                         <button class="btn-small btn-rcpt" onclick="openReceipt(${index})">ރިސީޓް</button>
-                        <button class="btn-small btn-load" onclick="loadAgreementFromBank(${index})">އެޑިޓް/ހުޅުވާ</button>
+                        <button class="btn-small btn-load" onclick="loadAgreementFromBank(${index})" title="އެޑިޓް">✏️ އެޑިޓް</button>
                         <button class="btn-small btn-del" onclick="deleteAgreement('${r.docId}')">ޑިލީޓް</button>
                     </div>
                 `;
@@ -620,14 +706,14 @@
         function loadAgreementFromBank(index) {
             const r = rentersBank[index];
             currentEditDocId = r.docId;
-            
+
             // Populate all fields including the missing ones
-            document.getElementById('agr-date').innerText = r.agrDate || '';
+            setDateValue('agr-date', r.agrDate || '');
             document.getElementById('owner-name').innerText = r.ownerName || 'ޢަލީ އިބްރާހީމް ދީދީ';
-            document.getElementById('owner-id').innerText = r.ownerId || 'A000000';
-            document.getElementById('owner-address').innerText = r.ownerAddress || 'މ. މާލެ';
+            document.getElementById('owner-id').innerText = r.ownerId || 'A011265';
+            document.getElementById('owner-address').innerText = r.ownerAddress || 'ހިޔާ 8-05-02 ހުޅުމާލެ (މާލެ ސިޓީ)';
             document.getElementById('wit2-name').innerText = r.wit2Name || '';
-            
+
             document.getElementById('renter-name').innerText = r.renterName || '';
             document.getElementById('renter-id').innerText = r.id || '';
             document.getElementById('renter-address').innerText = r.address || '';
@@ -635,10 +721,10 @@
             document.getElementById('cycle-reg').innerText = r.cycleReg || '';
             document.getElementById('cycle-model').innerText = r.cycleModel || '';
             document.getElementById('cycle-color').innerText = r.cycleColor || '';
-            document.getElementById('start-date').innerText = r.startDate || '';
-            document.getElementById('start-time').innerText = r.startTime || '';
-            document.getElementById('end-date').innerText = r.endDate || '';
-            document.getElementById('end-time').innerText = r.endTime || '';
+            setDateValue('start-date', r.startDate || '');
+            setTimeValue('start-time', r.startTime || '');
+            setDateValue('end-date', r.endDate || '');
+            setTimeValue('end-time', r.endTime || '');
             document.getElementById('rental-price').innerText = r.price || '';
 
             document.getElementById('owner-name').dispatchEvent(new Event('input'));
@@ -665,27 +751,127 @@
             }
             loadSig('sig-owner', r.sigOwner); loadSig('sig-renter', r.sigRenter);
             loadSig('sig-wit1', r.sigWit1); loadSig('sig-wit2', r.sigWit2);
-            
+
             if(window.innerWidth < 992) window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
         function clearForm() {
             currentEditDocId = null;
             document.querySelectorAll('.editable:not(#owner-name):not(#owner-id):not(#owner-address)').forEach(el => el.innerText = '');
-            
+
             document.getElementById('owner-name').innerText = 'ޢަލީ އިބްރާހީމް ދީދީ';
-            document.getElementById('owner-id').innerText = 'A000000';
-            document.getElementById('owner-address').innerText = 'މ. މާލެ';
+            document.getElementById('owner-id').innerText = 'A011265';
+            document.getElementById('owner-address').innerText = 'ހިޔާ 8-05-02 ހުޅުމާލެ (މާލެ ސިޓީ)';
+
+            setDateValue('agr-date', '');
+            setDateValue('start-date', '');
+            setTimeValue('start-time', '');
+            setDateValue('end-date', '');
+            setTimeValue('end-time', '');
 
             document.querySelectorAll('.upload-box img').forEach(img => {
                 img.src = ''; img.style.display = 'none'; img.parentElement.style.border = '2px dashed var(--primary-royal-blue)';
             });
             ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2'].forEach(clearSignature);
-            
+
             document.getElementById('owner-name').dispatchEvent(new Event('input'));
             document.getElementById('renter-name').dispatchEvent(new Event('input'));
-            
+
             if(window.innerWidth < 992) window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        // 4b. Date / Time dropdown helpers
+        function pad2(n) { return n.toString().padStart(2, '0'); }
+
+        function populateDateSelects(prefix) {
+            const d = document.getElementById(prefix + '-d');
+            const m = document.getElementById(prefix + '-m');
+            const y = document.getElementById(prefix + '-y');
+
+            let dOpts = '<option value="">ދު</option>';
+            for(let i = 1; i <= 31; i++) dOpts += `<option value="${pad2(i)}">${i}</option>`;
+            d.innerHTML = dOpts;
+
+            const monthNames = ['ޖެނުއަރީ','ފެބްރުއަރީ','މާރިޗު','އޭޕްރީލް','މޭ','ޖޫން','ޖުލައި','އޮގަސްޓް','ސެޕްޓެމްބަރ','އޮކްޓޯބަރ','ނޮވެމްބަރ','ޑިސެމްބަރ'];
+            let mOpts = '<option value="">މަ</option>';
+            monthNames.forEach((name, i) => { mOpts += `<option value="${pad2(i+1)}">${pad2(i+1)} - ${name}</option>`; });
+            m.innerHTML = mOpts;
+
+            const curYear = new Date().getFullYear();
+            let yOpts = '<option value="">އަ</option>';
+            for(let yy = curYear - 1; yy <= curYear + 5; yy++) yOpts += `<option value="${yy}">${yy}</option>`;
+            y.innerHTML = yOpts;
+        }
+
+        function populateTimeSelects(prefix) {
+            const h = document.getElementById(prefix + '-h');
+            const mn = document.getElementById(prefix + '-m');
+
+            let hOpts = '<option value="">--</option>';
+            for(let i = 0; i < 24; i++) hOpts += `<option value="${pad2(i)}">${pad2(i)}</option>`;
+            h.innerHTML = hOpts;
+
+            let mOpts = '<option value="">--</option>';
+            ['00','15','30','45'].forEach(v => { mOpts += `<option value="${v}">${v}</option>`; });
+            mn.innerHTML = mOpts;
+        }
+
+        function getDateValue(prefix) {
+            const d = document.getElementById(prefix + '-d').value;
+            const m = document.getElementById(prefix + '-m').value;
+            const y = document.getElementById(prefix + '-y').value;
+            if(!d || !m || !y) return '';
+            return `${d}-${m}-${y}`;
+        }
+
+        function setDateValue(prefix, val) {
+            const dEl = document.getElementById(prefix + '-d');
+            const mEl = document.getElementById(prefix + '-m');
+            const yEl = document.getElementById(prefix + '-y');
+            if(!val) { dEl.value = ''; mEl.value = ''; yEl.value = ''; return; }
+            const parts = val.split('-');
+            dEl.value = parts[0] || '';
+            mEl.value = parts[1] || '';
+            yEl.value = parts[2] || '';
+        }
+
+        function getTimeValue(prefix) {
+            const h = document.getElementById(prefix + '-h').value;
+            const m = document.getElementById(prefix + '-m').value;
+            if(!h || !m) return '';
+            return `${h}:${m}`;
+        }
+
+        function setTimeValue(prefix, val) {
+            const hEl = document.getElementById(prefix + '-h');
+            const mEl = document.getElementById(prefix + '-m');
+            if(!val) { hEl.value = ''; mEl.value = ''; return; }
+            const parts = val.split(':');
+            hEl.value = parts[0] || '';
+            mEl.value = parts[1] || '';
+        }
+
+        // 4c. Dhivehi / English toggle for the printable agreement text
+        function applyLang(lang) {
+            document.querySelectorAll('.i18n').forEach(el => {
+                el.textContent = lang === 'en' ? el.getAttribute('data-en') : el.getAttribute('data-dv');
+            });
+            const doc = document.getElementById('agreement-content');
+            if(lang === 'en') {
+                doc.style.direction = 'ltr';
+                doc.style.fontFamily = "Arial, sans-serif";
+                doc.querySelectorAll('p, li').forEach(el => el.style.textAlign = 'left');
+            } else {
+                doc.style.direction = 'rtl';
+                doc.style.fontFamily = "'Faruma', Arial, sans-serif";
+                doc.querySelectorAll('p, li').forEach(el => el.style.textAlign = 'justify');
+            }
+            document.body.classList.toggle('lang-en', lang === 'en');
+            currentDocLang = lang;
+        }
+
+        function toggleDocLanguage() {
+            applyLang(currentDocLang === 'dv' ? 'en' : 'dv');
         }
 
         // Image Compression
@@ -708,8 +894,8 @@
                         canvas.width = width; canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        
-                        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
+
+                        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
                         const displayImg = document.getElementById(imgId);
                         displayImg.src = compressedBase64;
                         displayImg.style.display = 'block';
@@ -725,7 +911,7 @@
             if(!mobile) { alert('މޯބައިލް ނަންބަރެއް ނެތް!'); return; }
             let cleanNumber = mobile.replace(/[^0-9]/g, '');
             if(cleanNumber.length === 7) cleanNumber = '960' + cleanNumber;
-            
+
             let msg = "";
             if (status === 'status-expiring') {
                 msg = "އައްސަލާމް ޢަލައިކުމް. ސައިކަލް ކުއްޔަށް ނެގި މުއްދަތު ވަރަށް އަވަހަށް ހަމަވާނެކަން ހަނދާންކޮށްދެމެވެ. މުއްދަތު އިތުރުކުރަން ބޭނުންފުޅުނަމަ 30 މިނެޓު ކުރިން އަންގަވާ ފައިސާ ޓްރާންސްފަރ ކުރެއްވުން އެދެމެވެ.";
@@ -741,7 +927,7 @@
         function prepareAndPrint() {
             const ownerData = document.getElementById('sig-owner').toDataURL();
             const renterData = document.getElementById('sig-renter').toDataURL();
-            const isBlank = (data) => data.length < 5000; 
+            const isBlank = (data) => data.length < 5000;
 
             let fOwner = document.getElementById('footer-img-owner');
             let fRenter = document.getElementById('footer-img-renter');
@@ -759,7 +945,7 @@
 
             const ownerData = document.getElementById('sig-owner').toDataURL();
             const renterData = document.getElementById('sig-renter').toDataURL();
-            const isBlank = (data) => data.length < 5000; 
+            const isBlank = (data) => data.length < 5000;
 
             if(!isBlank(ownerData)) document.getElementById('footer-img-owner').src = ownerData;
             if(!isBlank(renterData)) document.getElementById('footer-img-renter').src = renterData;
@@ -767,7 +953,7 @@
             document.getElementById('print-footer').style.display = 'flex';
 
             const renterName = document.getElementById('renter-name').innerText.trim() || 'Agreement';
-            
+
             const opt = {
                 margin: [15, 15, 25, 15],
                 filename: `Agreement_${renterName}.pdf`,
@@ -794,7 +980,7 @@
             document.getElementById('rec-start').innerText = r.startDate + ' ' + r.startTime;
             document.getElementById('rec-end').innerText = r.endDate + ' ' + r.endTime;
             document.getElementById('rec-price').innerText = r.price;
-            
+
             document.getElementById('receiptModal').style.display = 'flex';
         }
 
@@ -824,7 +1010,7 @@
             const canvas = document.getElementById(canvasId);
             const ctx = canvas.getContext('2d');
             let isDrawing = false;
-            
+
             function resize() {
                 const rect = canvas.getBoundingClientRect();
                 if(canvas.width !== rect.width || canvas.height !== rect.height) {
@@ -834,7 +1020,7 @@
                 }
             }
             window.addEventListener('resize', resize);
-            setTimeout(resize, 100); 
+            setTimeout(resize, 100);
 
             ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#002366';
 
@@ -885,13 +1071,23 @@
         window.onload = function() {
             let savedSeal = localStorage.getItem('zaagSeal');
             if(savedSeal) { document.getElementById('zaag-seal').src = savedSeal; document.getElementById('seal-text').style.display = 'none'; }
-            
+
+            // Build the date / time dropdowns
+            populateDateSelects('agr-date');
+            populateDateSelects('start-date');
+            populateDateSelects('end-date');
+            populateTimeSelects('start-time');
+            populateTimeSelects('end-time');
+
             // Set defaults if currently empty
             if(!document.getElementById('owner-name').innerText) document.getElementById('owner-name').innerText = 'ޢަލީ އިބްރާހީމް ދީދީ';
-            if(!document.getElementById('owner-id').innerText) document.getElementById('owner-id').innerText = 'A000000';
-            if(!document.getElementById('owner-address').innerText) document.getElementById('owner-address').innerText = 'މ. މާލެ';
+            if(!document.getElementById('owner-id').innerText) document.getElementById('owner-id').innerText = 'A011265';
+            if(!document.getElementById('owner-address').innerText) document.getElementById('owner-address').innerText = 'ހިޔާ 8-05-02 ހުޅުމާލެ (މާލެ ސިޓީ)';
 
-            document.getElementById('owner-name').dispatchEvent(new Event('input')); 
+            document.getElementById('owner-name').dispatchEvent(new Event('input'));
+
+            // Start the agreement text in Dhivehi by default
+            applyLang('dv');
         };
     </script>
 </body>
