@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Cinzel:wght@600&display=swap" rel="stylesheet">
     
     <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -211,8 +212,8 @@
         @media (min-width: 768px) { .signatures-grid { flex-direction: row; flex-wrap: wrap; } }
         .signature-box { flex: 1 1 45%; border: 1px solid var(--royal-gold); padding: 15px; border-radius: 5px; background: #fafafa; page-break-inside: avoid; break-inside: avoid; position: relative; box-sizing: border-box; }
         .sig-canvas { border: 1px solid #ccc; background: #fff; width: 100%; height: 120px; cursor: crosshair; touch-action: none; border-radius: 4px; }
-        /* Hidden image tags used only during print to preserve signatures */
-        .print-only-img { display: none; width: 100%; height: 120px; object-fit: contain; }
+        /* Hidden image tags used only during PDF generation to preserve signatures */
+        .print-only-img { display: none; width: 100%; object-fit: contain; }
 
         /* Upload Grid */
         .upload-grid { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
@@ -240,34 +241,11 @@
         }
         .logout-btn:hover { background: #c0392b; color: white; border-color: #c0392b; }
 
-        /* Print Table Footers (Ensures signatures on EVERY printed page natively) */
-        .print-tfoot { display: none; }
-        
-        @media print {
-            @page { size: A4 portrait; margin: 15mm 15mm 25mm 15mm; }
-            body { display: block; background: #fff; height: auto; overflow: visible; font-size: 12pt; padding: 0; direction: rtl; }
-            .royal-wrapper { border: none; box-shadow: none; border-radius: 0; display: block; overflow: visible; }
-            .sidebar, .dashboard-grid, .chart-container, .no-print, .top-actions { display: none !important; }
-            .main-content { padding: 0; width: 100%; overflow: visible; display: block; }
-            .document-container { box-shadow: none; border: none; padding: 0; max-width: 100%; display: block; overflow: visible; }
-            .document-container::before { display: none; }
-            .editable-block { border: none; background: transparent; padding: 0; }
-            .inline-input::-webkit-calendar-picker-indicator { display: none; }
-            .inline-input { border: none !important; appearance: none; -webkit-appearance: none; width: auto; }
-            
-            /* Magic for Native Signatures: Hide Canvas, Show Image Data */
-            canvas.sig-canvas { display: none !important; }
-            img.print-only-img { display: block !important; }
-
-            .print-tfoot { display: table-footer-group !important; }
-            li, .signature-box, .upload-box { page-break-inside: avoid; break-inside: avoid; }
-        }
-        
         .loading-overlay {
             position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.9);
             display: none; justify-content: center; align-items: center; z-index: 99999;
-            color: var(--presidential-blue); font-size: 24px; font-weight: bold; font-family: 'Playfair Display', serif;
-            flex-direction: column; gap: 10px;
+            color: var(--presidential-blue); font-size: 20px; font-weight: bold; font-family: 'Playfair Display', 'Faruma', serif;
+            flex-direction: column; gap: 10px; text-align: center;
         }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--royal-gold); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -324,228 +302,206 @@
                 <div class="top-actions no-print">
                     <button onclick="clearForm()" style="background: #7f8c8d;">ފޯމު ހުސްކުރޭ (އައު)</button>
                     <button onclick="saveAgreementToBank()" style="background: var(--presidential-green);">ސޭވްކުރޭ</button>
-                    <!-- UNIFIED PRINT & PDF BUTTON -->
-                    <button onclick="triggerPrintAndPDF()" style="background: var(--presidential-blue);">ޕްރިންޓް / ޕީޑީއެފް (Print/PDF)</button>
+                    <!-- UNIFIED EXPORT BUTTON -->
+                    <button onclick="exportToPDF()" style="background: var(--presidential-blue);">ޕީޑީއެފް އެކްސްޕޯޓް (Export PDF)</button>
                     <button id="lang-btn" onclick="toggleLanguage()" style="background: linear-gradient(to right, #c5a059, #e6c875); color: #0b1d3a;">English Version</button>
                 </div>
 
                 <div class="document-container" id="agreement-content">
                     
-                    <!-- Table wrapper to force repeating footer on print across all browsers/iOS -->
-                    <table style="width: 100%; border: none; border-collapse: collapse;">
-                        <thead style="display: table-header-group;"><tr><td><div style="height: 10px;"></div></td></tr></thead>
-                        
-                        <tfoot class="print-tfoot">
-                            <tr><td>
-                                <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--royal-gold);">
-                                    <div style="text-align: left; width: 33%;">
-                                        <img id="footer-img-renter-initial" style="height: 40px; object-fit: contain;">
-                                    </div>
-                                    <div style="text-align: center; width: 33%;"></div>
-                                    <div style="text-align: right; width: 33%;">
-                                        <img id="footer-img-owner-initial" style="height: 40px; object-fit: contain;">
-                                    </div>
-                                </div>
-                            </td></tr>
-                        </tfoot>
+                    <div style="text-align: center; margin-bottom: 10px; font-size: 12px; color: #777; font-family: Arial;" class="no-print">Reg: MED.03.IP.CR.26.EW5889</div>
+                    
+                    <!-- DHIVEHI VERSION -->
+                    <div id="doc-dv">
+                        <h1>މޮޓޯސައިކަލް ކުއްޔަށް ދިނުމުގެ އެއްބަސްވުން</h1>
 
-                        <tbody><tr><td>
-                            <div style="text-align: center; margin-bottom: 10px; font-size: 12px; color: #777; font-family: Arial;" class="no-print">Reg: MED.03.IP.CR.26.EW5889</div>
+                        <p>މިއީ <input type="text" class="inline-input date-picker" data-sync="agr-date" placeholder="DD/MM/YYYY"> ވަނަ ދުވަހު، މޮޓޯސައިކަލުގެ ވެރިފަރާތް ކަމަށްވާ <span class="editable" data-sync="owner-name" contenteditable="true">ޢަލީ އިބްރާހީމް ދީދީ</span> (އައިޑީ: <span class="editable" data-sync="owner-id" contenteditable="true">A011265</span>، އެޑްރެސް: <span class="editable" data-sync="owner-address" contenteditable="true">ހިޔާ 8-05-02 ހުޅުމާލެ (މާލެސިޓީ)</span>) (މީގެ ފަހުން "ވެރިފަރާތް" މިހެން ކިޔާނީ) އާއި، ސައިކަލް ކުއްޔަށް ހިފާ ފަރާތް ކަމަށްވާ <span class="editable" data-sync="renter-name" contenteditable="true" data-placeholder="ކުއްޔަށް ހިފާ ފަރާތުގެ ނަން"></span> (އައިޑީ: <span class="editable" data-sync="renter-id" contenteditable="true" data-placeholder="އައިޑީ ނަންބަރު"></span>، އެޑްރެސް: <span class="editable" data-sync="renter-address" contenteditable="true" data-placeholder="އެޑްރެސް"></span>، މޯބައިލް ނަންބަރު: <span class="editable" data-sync="renter-mobile" contenteditable="true" data-placeholder="މޯބައިލް ނަންބަރު"></span>) (މީގެ ފަހުން "ކުއްޔަށް ހިފާ ފަރާތް" މިހެން ކިޔާނީ) އާ ދެމެދު ވެވިފައިވާ އެއްބަސްވުމެކެވެ.</p>
+
+                        <h3>1. ސައިކަލުގެ މަޢުލޫމާތު:</h3>
+                        <div style="padding-right: 20px;">
+                            ރަޖިސްޓްރީ ނަންބަރު: <span class="editable" data-sync="cycle-reg" contenteditable="true">AA0O-P2245</span><br>
+                            ބްރޭންޑް އަދި މޮޑެލް: <span class="editable" data-sync="cycle-model" contenteditable="true">YAMAHA NMAX 155 cc</span><br>
+                            ކުލަ: <span class="editable" data-sync="cycle-color" contenteditable="true">BLUE</span>
+                        </div>
+
+                        <h3>2. ކުއްޔާއި މުއްދަތު:</h3>
+                        <div style="padding-right: 20px; margin-bottom: 20px;">
+                            ކުއްޔަށް ނަގާ މުއްދަތު: <input type="text" class="inline-input date-picker" data-sync="start-date" placeholder="DD/MM/YYYY"> ގެ <input type="text" class="inline-input time-picker" data-sync="start-time" placeholder="HH:MM"> އިން ފެށިގެން <input type="text" class="inline-input date-picker" data-sync="end-date" placeholder="DD/MM/YYYY"> ގެ <input type="text" class="inline-input time-picker" data-sync="end-time" placeholder="HH:MM"> އަށް.<br>
+                            ކުލީގެ އަގު: <span class="editable" data-sync="rental-price" contenteditable="true" data-placeholder="އަގު"></span> ރުފިޔާ.
+                        </div>
+
+                        <h3>3. އެއްބަސްވުމުގެ ޝަރުޠުތައް:</h3>
+                        <ol>
+                            <li><strong>ޤާނޫނާ އެއްގޮތަށް ބޭނުންކުރުން:</strong> ދިވެހިރާއްޖޭގެ ޤާނޫނާއި ޤަވާޢިދާ ޚިލާފު އެއްވެސް ކަމެއްގައި މި ސައިކަލް ބޭނުން ނުކުރުން.</li>
+                            <li><strong>ދުއްވާ ސްޕީޑް:</strong> ހައިވޭތަކުގައި ދުއްވާއިރު ގަޑިއަކު 50 ކިލޯމީޓަރަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން. އެތެރޭގެ މަގުތަކުގައި ދުއްވާއިރު، ޓްރެފިކް ޤަވާޢިދުގައި ކަނޑައެޅިފައިވާ ސްޕީޑް ލިމިޓަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން.</li>
+                            <li><strong>ލައިސަންސް އަދި ލިޔެކިޔުން:</strong> ކުއްޔަށް ހިފާ ފަރާތުގެ އަތުގައި މުއްދަތު ހަމަނުވާ ސައްޙަ ޑްރައިވިންގ ލައިސަންސެއް އޮތުން. އަދި މިއެއްބަސްވުމުގައި ސޮއިކުރުމާއެކު، ކުއްޔަށް ހިފާ ފަރާތުގެ އައިޑީ ކާޑު ކޮޕީއާއި ލައިސަންސް ކޮޕީ ވެރިފަރާތަށް ފޮނުވުން ނުވަތަ ޙަވާލުކުރުން.</li>
+                            <li><strong>އެހެން ފަރާތަކަށް ނުދިނުން:</strong> ކުއްޔަށް ހިފާ ފަރާތް ފިޔަވައި، އެހެން ފަރާތެއްގެ އަތަށް އެއްވެސް ގޮތަކަށް ސައިކަލް ނުދިނުން.</li>
+                            <li><strong>ޕެޓްރޯލް އެޅުން:</strong> ދުއްވާ ވަގުތުގައި ސައިކަލަށް ބޭނުންވާ ޕެޓްރޯލް އެޅުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ އަމިއްލަ ޒިންމާއެކެވެ.</li>
+                            <li><strong>ސައިކަލް ހުއްޓުން:</strong> ޕެޓްރޯލް ހުސްވެގެން ނުވަތަ އެނޫންވެސް ސަބަބަކާހުރެ އެއްވެސް ތަނެއްގައި ސައިކަލް ހުއްޓިއްޖެނަމަ، ސައިކަލް ރައްކާތެރިކަމާއެކު ވެރިފަރާތާ ހަމައަށް ގެންގޮސްދިނުމުގެ ފުރިހަމަ ޒިންމާ ކުއްޔަށް ހިފާ ފަރާތުން ނެގުން.</li>
+                            <li><strong>ގެއްލުމުގެ ބަދަލުދިނުން:</strong> ކުއްޔަށް ހިފާ ފަރާތުގެ ބެލުމުގެ ދަށުގައި ސައިކަލް ހުއްޓާ އިހުމާލުން ނުވަތަ އެހެން ގޮތަކުން ނަމަވެސް ސައިކަލަށް ލިބޭ ކޮންމެ ގެއްލުމެއްގެ ފުރިހަމަ ބަދަލު ކުއްޔަށް ހިފާ ފަރާތުން ހޯދައިދިނުން.</li>
+                            <li><strong>ޖޫރިމަނާތައް:</strong> ކުއްޔަށް ހިފާފައިވާ ވަގުތުގެ ތެރޭގައި ޓްރެފިކް ޤަވާޢިދާ ޚިލާފުވެގެން ނުވަތަ ޕާކިންގ ގޯސްވެގެން އަންނަ ހުރިހާ ޖޫރިމަނާއެއް ދެއްކުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ ޒިންމާއެކެވެ.</li>
+                            <li><strong>މުއްދަތު އިތުރުކުރުމާއި ލަސްވުމުން ނަގާ ޖޫރިމަނާ:</strong> ކުއްޔަށް ހިފި މުއްދަތު ހަމަވުމަށްފަހު ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، ވަގުތު ހަމަވާ ހިސާބުން ފެށިގެން އިތުރުވާ ކޮންމެ ގަޑިއިރަކަށް 50 (ފަންސާސް) ރުފިޔާގެ މަގުން ކުއްޔަށް ހިފާ ފަރާތް ޖޫރިމަނާ ކުރެވޭނެއެވެ. އަދި ކުއްޔަށް ހިފާފައިވާ މުއްދަތު އިތުރުކުރަން ބޭނުންވާނަމަ، އެއްބަސްވެފައިވާ ވަގުތު ހަމަވުމުގެ މަދުވެގެން 30 (ތިރީސް) މިނެޓު ކުރިން ވެރިފަރާތަށް އެކަން އަންގައި، އިތުރުކުރަން ބޭނުންވާ ވަގުތަށްވާ ފައިސާ ވެރިފަރާތަށް ޓްރާންސްފަރ ކުރަންވާނެއެވެ. ފައިސާ ޓްރާންސްފަރ ކުރުމަށްފަހު މެނުވީ މުއްދަތު އިތުރުކުރެވުނު ކަމަކަށް ނުބެލެވޭނެއެވެ.</li>
+                            <li><strong>ސައިކަލް ޙަވާލުނުކުރުން އަދި ސައިކަލް ހޯދައި ނެގުން:</strong> ކުއްޔަށް ހިފި މުއްދަތު ހަމަވެ ފައިސާ ދެއްކުން ލަސްވެއްޖެނަމަ، ކޮންމެ ވަގުތަކުވެސް ކުއްޔަށް ހިފާ ފަރާތުގެ ހުއްދައަކާ ނުލައި ސައިކަލް ހުރިތަނަކުން ނެގުމުގެ ބާރު ވެރިފަރާތަށް ލިބިގެންވެއެވެ. އަދި މިގޮތަށް ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، މޯލްޑިވްސް ޕޮލިސް ސަރވިސް ނުވަތަ ކަމާބެހޭ އެހެނިހެން ފަރާތްތަކުގެ އެހީތެރިކަން ހޯދައިގެން ސައިކަލް ހޯދުމަށާއި، ކުއްޔަށް ހިފާ ފަރާތާމެދު ޤާނޫނީ ގޮތުން އަޅަންޖެހޭ އެންމެހާ ފިޔަވަޅުތައް އެޅުމުގެ ޙައްޤު ވެރިފަރާތަށް ލިބިގެންވެއެވެ.</li>
+                            <li><strong>ރިފަންޑް ދިނުމުގެ އުޞޫލު:</strong> އެއްބަސްވުމުގައި ސޮއިކޮށް، ކުލީގެ ފައިސާ ވެރިފަރާތުން ދީފައިވާ އެކައުންޓަށް ޓްރާންސްފަރ ކުރުމަށްފަހު ކެންސަލްކުރާނަމަ ޢަމަލުކުރެވޭނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ.
+                                <span class="sub-clause">ހ. ސައިކަލާ ޙަވާލުވެ ނުގެންގޮސް، ކިތަންމެ ކުޑަ ވަގުތުކޮޅެއްގެ ތެރޭގައި ނަމަވެސް ކުއްޔަށް ހިފާ ފަރާތުން މި އެއްބަސްވުން ކެންސަލްކުރަން ބޭނުންވެއްޖެނަމަ، ރިފަންޑުގެ ގޮތުގައި ފައިސާ އަނބުރާ ލިބޭނީ ދައްކާފައިވާ ޖުމްލަ ފައިސާގެ %50 (ފަންސާސް އިންސައްތަ) އުނިކުރުމަށްފަހުގައެވެ.</span>
+                                <span class="sub-clause">ށ. ކުއްޔަށް ހިފާ ފަރާތުން ސައިކަލާ ޙަވާލުވެ، ހިނދުކޮޅަކަށް ނަމަވެސް ސައިކަލް ގެންގޮސްފައިވާނަމަ، ދައްކާފައިވާ ފައިސާއިން އެއްވެސް މިންވަރެއް ރިފަންޑުގެ ގޮތުގައި އަނބުރާ ނުލިބޭނެއެވެ.</span>
+                            </li>
+                            <li><strong>ހެލްމެޓް ކުއްޔަށް ނެގުމާއި ގެއްލުމުގެ ބަދަލު ދިނުން:</strong> ސައިކަލާއެކު ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ތިރީގައިވާ ގޮތަށް ޢަމަލުކުރެވޭނެއެވެ.
+                                <span class="sub-clause">ހ. އެއް ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 30 (ތިރީސް) ރުފިޔާ ދައްކަންވާނެއެވެ.</span>
+                                <span class="sub-clause">ށ. ދެ ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 60 (ފަސްދޮޅަސް) ރުފިޔާ ދައްކަންވާނެއެވެ.</span>
+                                <span class="sub-clause">ނ. ކުއްޔަށް ހިފާފައިވާ މުއްދަތުގެ ތެރޭގައި ހެލްމެޓެއް ގެއްލިއްޖެނަމަ ނުވަތަ ހަލާކުވެއްޖެނަމަ، އެ ހެލްމެޓެއްގެ ބާޒާރު މަތީ އަގު ކުއްޔަށް ހިފާ ފަރާތުން ވެރިފަރާތަށް ދައްކަންވާނެއެވެ.</span>
+                            </li>
+                            <li><strong>މަރާމާތުކުރުމާއި ސަރވިސްކުރުން:</strong> ސައިކަލަށް ލިބޭ ގެއްލުމެއް ނުވަތަ މަރާމާތެއް ކުރުމުގައި ޢަމަލުކުރާނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ.
+                                <span class="sub-clause">ހ. ސައިކަލަށް ލިބޭ ގެއްލުމެއް ރަނގަޅުކުރުމަށް ނުވަތަ އަޑީތެޔޮ ބަދަލުކުރުން ފަދަ ކަމަކަށް އެއްވެސް ގަރާޖަކަށް ނުވަތަ ވޯކްޝޮޕަކަށް ސައިކަލް ގެންދަންވާނީ ވެރިފަރާތަށް އެންގުމަށްފަހު، ވެރިފަރާތުގެ ހާޒިރުގައި ނުވަތަ ވެރިފަރާތުން ފޮނުވާ ފަރާތެއްގެ ހާޒިރުގައެވެ.</span>
+                                <span class="sub-clause">ށ. ސައިކަލް މަރާމާތުކުރަން ނުވަތަ ސަރވިސްކުރަން ގެންދާ ގަރާޖު ނުވަތަ ވޯކްޝޮޕަކީ ސައިކަލުގެ ވެރިފަރާތް ޤަބޫލުކުރާ ނުވަތަ ވެރިފަރާތުން އެއްބަސްވާ ތަނަކަށް ވާންވާނެއެވެ.</span>
+                                <span class="sub-clause">ނ. ފުރޮޅުން ވައި މަދުވެގެން ވައިޖެހުމާއި، ޕެޓްރޯލް އެޅުން ފަދަ އާންމުކޮށް ކުރަންޖެހޭ ކުދި ކަންކަން، ވެރިފަރާތަށް އެންގުމަކާ ނުލައި ކުއްޔަށް ހިފާ ފަރާތަށް އަމިއްލައަށް ކުރެވިދާނެއެވެ.</span>
+                            </li>
+                            <li><strong>ޕާކް ކުރުން:</strong> މަގުމަތީގައި ނުވަތަ އެނޫންވެސް ތަނެއްގައި ސައިކަލް ޕާކްކުރާއިރު، ސައިކަލަށް ގެއްލުމެއް ލިބިދާނެ ފަދަ ގޮތަކަށް ނުވަތަ ނުރައްކާތެރި ގޮތަކަށް ޕާކްކޮށްގެން ނުވާނެއެވެ.</li>
+                            <li><strong>އަމާނާތަށް ރައްކާތެރިވުން:</strong> ކުއްޔަށް ހިފާފައިވާ ސައިކަލަކީ ކުއްޔަށް ހިފި ފަރާތުގެ ބެލުމުގެ ދަށުގައިވާ ބޮޑު އަމާނާތެކެވެ. އެހެންކަމުން، އެ އަމާނާތަށް ޚިޔާނާތްތެރިވުން ކަމަށް ބެލެވޭ ފަދަ އެއްވެސް ޢަމަލެއް ކުއްޔަށް ހިފާ ފަރާތުން ހިންގައިގެން ނުވާނެއެވެ.</li>
+                            <li><strong>ތެޔޮ ބަދަލުކުރުމާއި ސައިކަލް ސާފުކުރުން:</strong> އެއް ފަރާތަކުން ސައިކަލް ކުއްޔަށް ހިފައިގެން 1000 (އެއްހާސް) ކިލޯމީޓަރަށް ދުއްވިފައިވާނަމަ، ސައިކަލުގެ އަޑީތެލާއި ގިއަރު ތެޔޮ ބަދަލުކުރުމާއި، ސައިކަލް ދޮވެ ޕޮލިޝްކުރުމުގެ ކަންކަން ކުއްޔަށް ހިފާ ފަރާތުން ބަލަހައްޓަންވާނެއެވެ. (ނޯޓް: ތެޔޮ ބަދަލުކުރުމުގައި ޢަމަލުކުރާނީ މި އެއްބަސްވުމުގެ 13 ވަނަ މާއްދާގައި ބަޔާންކޮށްފައިވާ އުޞޫލުން ވެރިފަރާތަށް އެނގިގެން ވެރިފަރާތުގެ ހާޒިރުގައެވެ.)</li>
+                        </ol>
+
+                        <h3>4. އިތުރު މަޢުލޫމާތާއި ޚާއްޞަ ޝަރުޠުތައް:</h3>
+                        <div class="editable-block" contenteditable="true" data-placeholder="އިތުރު މަޢުލޫމާތެއް ނުވަތަ ޝަރުޠެއް ވާނަމަ މިތާނގައި ލިޔުއްވާ (ބޭނުންފުޅުނަމަ ފަހުންވެސް ބަދަލުކުރެވޭނެ)..." data-sync="extra-info"></div>
+
+                    </div>
+
+                    <!-- ENGLISH VERSION -->
+                    <div id="doc-en" class="en-version" style="display: none;">
+                        <h1>MOTORCYCLE RENTAL AGREEMENT</h1>
+
+                        <p>This Agreement is made on <input type="text" class="inline-input date-picker" data-sync="agr-date" placeholder="DD/MM/YYYY">, between the Owner of the motorcycle <span class="editable" data-sync="owner-name" contenteditable="true">Ali Ibrahim Didi</span> (ID: <span class="editable" data-sync="owner-id" contenteditable="true">A011265</span>, Address: <span class="editable" data-sync="owner-address" contenteditable="true">Hiyaa 8-05-02 Hulhumale (Male' City)</span>) (hereinafter referred to as the "Owner"), and the Renter <span class="editable" data-sync="renter-name" contenteditable="true" data-placeholder="Renter's Name"></span> (ID: <span class="editable" data-sync="renter-id" contenteditable="true" data-placeholder="ID Number"></span>, Address: <span class="editable" data-sync="renter-address" contenteditable="true" data-placeholder="Address"></span>, Mobile: <span class="editable" data-sync="renter-mobile" contenteditable="true" data-placeholder="Mobile Number"></span>) (hereinafter referred to as the "Renter").</p>
+
+                        <h3>1. Motorcycle Details:</h3>
+                        <div>
+                            Registration Number: <span class="editable" data-sync="cycle-reg" contenteditable="true">AA0O-P2245</span><br>
+                            Brand and Model: <span class="editable" data-sync="cycle-model" contenteditable="true">YAMAHA NMAX 155 cc</span><br>
+                            Color: <span class="editable" data-sync="cycle-color" contenteditable="true">BLUE</span>
+                        </div>
+
+                        <h3>2. Rent and Duration:</h3>
+                        <div style="margin-bottom: 20px;">
+                            Rental Period: From <input type="text" class="inline-input date-picker" data-sync="start-date" placeholder="DD/MM/YYYY"> at <input type="text" class="inline-input time-picker" data-sync="start-time" placeholder="HH:MM"> to <input type="text" class="inline-input date-picker" data-sync="end-date" placeholder="DD/MM/YYYY"> at <input type="text" class="inline-input time-picker" data-sync="end-time" placeholder="HH:MM">.<br>
+                            Rental Price: <span class="editable" data-sync="rental-price" contenteditable="true" data-placeholder="Price"></span> MVR.
+                        </div>
+
+                        <h3>3. Terms and Conditions:</h3>
+                        <ol>
+                            <li><strong>Lawful Use:</strong> The motorcycle shall not be used for any unlawful purposes under the laws and regulations of the Maldives.</li>
+                            <li><strong>Speed Limit:</strong> Do not exceed 50 km/h on highways. On inner roads, strictly adhere to the speed limits set by traffic regulations.</li>
+                            <li><strong>License and Documentation:</strong> The Renter must possess a valid driving license. Upon signing this agreement, copies of the Renter's ID card and driving license must be provided to the Owner.</li>
+                            <li><strong>Sub-renting/Lending:</strong> The motorcycle shall not be given to any other person under any circumstance, except the Renter.</li>
+                            <li><strong>Fuel:</strong> Refueling the motorcycle during the rental period is the sole responsibility of the Renter.</li>
+                            <li><strong>Stoppage/Breakdown:</strong> If the motorcycle stops anywhere due to lack of fuel or any other reason, it is the Renter's full responsibility to safely return it to the Owner.</li>
+                            <li><strong>Damages:</strong> The Renter must fully compensate for any damages caused to the motorcycle due to negligence or otherwise while under the Renter's care.</li>
+                            <li><strong>Fines:</strong> The Renter is fully responsible for paying any traffic or parking fines incurred during the rental period.</li>
+                            <li><strong>Extension and Late Penalties:</strong> If the motorcycle is not returned after the agreed rental period, a penalty of 50 (Fifty) MVR per hour will be charged. If the Renter wishes to extend the rental period, the Owner must be informed at least 30 minutes before the period expires, and the payment for the extended time must be transferred. The extension is not considered valid until the payment is completed.</li>
+                            <li><strong>Failure to Return & Repossession:</strong> If payment is delayed and the rental period has expired, the Owner has the full authority to repossess the motorcycle from wherever it is at any time, without the Renter's permission. Furthermore, the Owner reserves the right to seek assistance from the Maldives Police Service or relevant authorities and take all necessary legal actions against the Renter.</li>
+                            <li><strong>Refund Policy:</strong> If the Renter cancels after signing and transferring payment:
+                                <span class="sub-clause">a. If the motorcycle hasn't been taken and is canceled shortly after, 50% of the payment will be deducted as a refund fee.</span>
+                                <span class="sub-clause">b. If the motorcycle has been taken even for a short moment, no refund will be issued.</span>
+                            </li>
+                            <li><strong>Helmet Rental & Damages:</strong>
+                                <span class="sub-clause">a. Renting one helmet costs an additional 30 MVR.</span>
+                                <span class="sub-clause">b. Renting two helmets costs an additional 60 MVR.</span>
+                                <span class="sub-clause">c. If a helmet is lost or damaged, the Renter must pay its market price.</span>
+                            </li>
+                            <li><strong>Maintenance and Service:</strong>
+                                <span class="sub-clause">a. Any repairs or oil changes must be done only after informing the Owner, and in the presence of the Owner or their representative.</span>
+                                <span class="sub-clause">b. The garage or workshop must be approved by the Owner.</span>
+                                <span class="sub-clause">c. Minor issues like inflating tires or refueling can be done by the Renter without prior notice.</span>
+                            </li>
+                            <li><strong>Parking:</strong> The motorcycle must not be parked in a hazardous manner or where it might get damaged.</li>
+                            <li><strong>Trust (Amanah):</strong> The rented motorcycle is a major trust under the Renter's care. No actions breaching this trust shall be committed.</li>
+                            <li><strong>Oil Change & Cleaning:</strong> If rented by a single party for up to 1000 km, the Renter must change the engine oil and gear oil, and wash/polish the motorcycle (in accordance with clause 13).</li>
+                        </ol>
+
+                        <h3>4. Additional Information & Special Conditions:</h3>
+                        <div class="editable-block" contenteditable="true" data-placeholder="Write any additional information or special conditions here (can be amended later)..." data-sync="extra-info"></div>
+
+                    </div>
+
+                    <div style="page-break-inside: avoid; break-inside: avoid;">
+                        <p style="font-weight: bold; margin-top: 30px; text-align: center; color: var(--presidential-blue);" id="agreement-declaration">މި އެއްބަސްވުމުގައިވާ ހުރިހާ މާއްދާތަކެއް ކިޔައި، އެކަންކަމަށް ފުރިހަމައަށް އެއްބަސްވެ ތިރީގައި ސޮއިކުރީމެވެ.</p>
+
+                        <div class="signatures-grid">
+                            <div class="signature-box">
+                                <h3 style="margin-bottom: 5px;" class="sig-title-owner">ވެރިފަރާތް (Owner)</h3>
+                                <div style="font-size: 14px; text-align: center; color: var(--presidential-green); margin-bottom: 5px; font-weight: bold;" id="sig-owner-name-display">ޢަލީ އިބްރާހީމް ދީދީ</div>
+                                <canvas id="sig-owner" class="sig-canvas"></canvas>
+                                <img id="img-sig-owner" class="print-only-img" alt="Owner Signature">
+                                <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-owner')">ސޮއި ފުހެލައްވާ / Clear</button>
+                            </div>
                             
-                            <!-- DHIVEHI VERSION -->
-                            <div id="doc-dv">
-                                <h1>މޮޓޯސައިކަލް ކުއްޔަށް ދިނުމުގެ އެއްބަސްވުން</h1>
-
-                                <p>މިއީ <input type="text" class="inline-input date-picker" data-sync="agr-date" placeholder="DD/MM/YYYY"> ވަނަ ދުވަހު، މޮޓޯސައިކަލުގެ ވެރިފަރާތް ކަމަށްވާ <span class="editable" data-sync="owner-name" contenteditable="true">ޢަލީ އިބްރާހީމް ދީދީ</span> (އައިޑީ: <span class="editable" data-sync="owner-id" contenteditable="true">A011265</span>، އެޑްރެސް: <span class="editable" data-sync="owner-address" contenteditable="true">ހިޔާ 8-05-02 ހުޅުމާލެ (މާލެސިޓީ)</span>) (މީގެ ފަހުން "ވެރިފަރާތް" މިހެން ކިޔާނީ) އާއި، ސައިކަލް ކުއްޔަށް ހިފާ ފަރާތް ކަމަށްވާ <span class="editable" data-sync="renter-name" contenteditable="true" data-placeholder="ކުއްޔަށް ހިފާ ފަރާތުގެ ނަން"></span> (އައިޑީ: <span class="editable" data-sync="renter-id" contenteditable="true" data-placeholder="އައިޑީ ނަންބަރު"></span>، އެޑްރެސް: <span class="editable" data-sync="renter-address" contenteditable="true" data-placeholder="އެޑްރެސް"></span>، މޯބައިލް ނަންބަރު: <span class="editable" data-sync="renter-mobile" contenteditable="true" data-placeholder="މޯބައިލް ނަންބަރު"></span>) (މީގެ ފަހުން "ކުއްޔަށް ހިފާ ފަރާތް" މިހެން ކިޔާނީ) އާ ދެމެދު ވެވިފައިވާ އެއްބަސްވުމެކެވެ.</p>
-
-                                <h3>1. ސައިކަލުގެ މަޢުލޫމާތު:</h3>
-                                <div style="padding-right: 20px;">
-                                    ރަޖިސްޓްރީ ނަންބަރު: <span class="editable" data-sync="cycle-reg" contenteditable="true">AA0O-P2245</span><br>
-                                    ބްރޭންޑް އަދި މޮޑެލް: <span class="editable" data-sync="cycle-model" contenteditable="true">YAMAHA NMAX 155 cc</span><br>
-                                    ކުލަ: <span class="editable" data-sync="cycle-color" contenteditable="true">BLUE</span>
-                                </div>
-
-                                <h3>2. ކުއްޔާއި މުއްދަތު:</h3>
-                                <div style="padding-right: 20px; margin-bottom: 20px;">
-                                    ކުއްޔަށް ނަގާ މުއްދަތު: <input type="text" class="inline-input date-picker" data-sync="start-date" placeholder="DD/MM/YYYY"> ގެ <input type="text" class="inline-input time-picker" data-sync="start-time" placeholder="HH:MM"> އިން ފެށިގެން <input type="text" class="inline-input date-picker" data-sync="end-date" placeholder="DD/MM/YYYY"> ގެ <input type="text" class="inline-input time-picker" data-sync="end-time" placeholder="HH:MM"> އަށް.<br>
-                                    ކުލީގެ އަގު: <span class="editable" data-sync="rental-price" contenteditable="true" data-placeholder="އަގު"></span> ރުފިޔާ.
-                                </div>
-
-                                <h3>3. އެއްބަސްވުމުގެ ޝަރުޠުތައް:</h3>
-                                <ol>
-                                    <li><strong>ޤާނޫނާ އެއްގޮތަށް ބޭނުންކުރުން:</strong> ދިވެހިރާއްޖޭގެ ޤާނޫނާއި ޤަވާޢިދާ ޚިލާފު އެއްވެސް ކަމެއްގައި މި ސައިކަލް ބޭނުން ނުކުރުން.</li>
-                                    <li><strong>ދުއްވާ ސްޕީޑް:</strong> ހައިވޭތަކުގައި ދުއްވާއިރު ގަޑިއަކު 50 ކިލޯމީޓަރަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން. އެތެރޭގެ މަގުތަކުގައި ދުއްވާއިރު، ޓްރެފިކް ޤަވާޢިދުގައި ކަނޑައެޅިފައިވާ ސްޕީޑް ލިމިޓަށްވުރެ ސްޕީޑް ބާރު ނުކުރުން.</li>
-                                    <li><strong>ލައިސަންސް އަދި ލިޔެކިޔުން:</strong> ކުއްޔަށް ހިފާ ފަރާތުގެ އަތުގައި މުއްދަތު ހަމަނުވާ ސައްޙަ ޑްރައިވިންގ ލައިސަންސެއް އޮތުން. އަދި މިއެއްބަސްވުމުގައި ސޮއިކުރުމާއެކު، ކުއްޔަށް ހިފާ ފަރާތުގެ އައިޑީ ކާޑު ކޮޕީއާއި ލައިސަންސް ކޮޕީ ވެރިފަރާތަށް ފޮނުވުން ނުވަތަ ޙަވާލުކުރުން.</li>
-                                    <li><strong>އެހެން ފަރާތަކަށް ނުދިނުން:</strong> ކުއްޔަށް ހިފާ ފަރާތް ފިޔަވައި، އެހެން ފަރާތެއްގެ އަތަށް އެއްވެސް ގޮތަކަށް ސައިކަލް ނުދިނުން.</li>
-                                    <li><strong>ޕެޓްރޯލް އެޅުން:</strong> ދުއްވާ ވަގުތުގައި ސައިކަލަށް ބޭނުންވާ ޕެޓްރޯލް އެޅުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ އަމިއްލަ ޒިންމާއެކެވެ.</li>
-                                    <li><strong>ސައިކަލް ހުއްޓުން:</strong> ޕެޓްރޯލް ހުސްވެގެން ނުވަތަ އެނޫންވެސް ސަބަބަކާހުރެ އެއްވެސް ތަނެއްގައި ސައިކަލް ހުއްޓިއްޖެނަމަ، ސައިކަލް ރައްކާތެރިކަމާއެކު ވެރިފަރާތާ ހަމައަށް ގެންގޮސްދިނުމުގެ ފުރިހަމަ ޒިންމާ ކުއްޔަށް ހިފާ ފަރާތުން ނެގުން.</li>
-                                    <li><strong>ގެއްލުމުގެ ބަދަލުދިނުން:</strong> ކުއްޔަށް ހިފާ ފަރާތުގެ ބެލުމުގެ ދަށުގައި ސައިކަލް ހުއްޓާ އިހުމާލުން ނުވަތަ އެހެން ގޮތަކުން ނަމަވެސް ސައިކަލަށް ލިބޭ ކޮންމެ ގެއްލުމެއްގެ ފުރިހަމަ ބަދަލު ކުއްޔަށް ހިފާ ފަރާތުން ހޯދައިދިނުން.</li>
-                                    <li><strong>ޖޫރިމަނާތައް:</strong> ކުއްޔަށް ހިފާފައިވާ ވަގުތުގެ ތެރޭގައި ޓްރެފިކް ޤަވާޢިދާ ޚިލާފުވެގެން ނުވަތަ ޕާކިންގ ގޯސްވެގެން އަންނަ ހުރިހާ ޖޫރިމަނާއެއް ދެއްކުމަކީ ކުއްޔަށް ހިފާ ފަރާތުގެ ޒިންމާއެކެވެ.</li>
-                                    <li><strong>މުއްދަތު އިތުރުކުރުމާއި ލަސްވުމުން ނަގާ ޖޫރިމަނާ:</strong> ކުއްޔަށް ހިފި މުއްދަތު ހަމަވުމަށްފަހު ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، ވަގުތު ހަމަވާ ހިސާބުން ފެށިގެން އިތުރުވާ ކޮންމެ ގަޑިއިރަކަށް 50 (ފަންސާސް) ރުފިޔާގެ މަގުން ކުއްޔަށް ހިފާ ފަރާތް ޖޫރިމަނާ ކުރެވޭނެއެވެ. އަދި ކުއްޔަށް ހިފާފައިވާ މުއްދަތު އިތުރުކުރަން ބޭނުންވާނަމަ، އެއްބަސްވެފައިވާ ވަގުތު ހަމަވުމުގެ މަދުވެގެން 30 (ތިރީސް) މިނެޓު ކުރިން ވެރިފަރާތަށް އެކަން އަންގައި، އިތުރުކުރަން ބޭނުންވާ ވަގުތަށްވާ ފައިސާ ވެރިފަރާތަށް ޓްރާންސްފަރ ކުރަންވާނެއެވެ. ފައިސާ ޓްރާންސްފަރ ކުރުމަށްފަހު މެނުވީ މުއްދަތު އިތުރުކުރެވުނު ކަމަކަށް ނުބެލެވޭނެއެވެ.</li>
-                                    <li><strong>ސައިކަލް ޙަވާލުނުކުރުން އަދި ސައިކަލް ހޯދައި ނެގުން:</strong> ކުއްޔަށް ހިފި މުއްދަތު ހަމަވެ ފައިސާ ދެއްކުން ލަސްވެއްޖެނަމަ، ކޮންމެ ވަގުތަކުވެސް ކުއްޔަށް ހިފާ ފަރާތުގެ ހުއްދައަކާ ނުލައި ސައިކަލް ހުރިތަނަކުން ނެގުމުގެ ބާރު ވެރިފަރާތަށް ލިބިގެންވެއެވެ. އަދި މިގޮތަށް ސައިކަލް ޙަވާލުނުކޮށްފިނަމަ، މޯލްޑިވްސް ޕޮލިސް ސަރވިސް ނުވަތަ ކަމާބެހޭ އެހެނިހެން ފަރާތްތަކުގެ އެހީތެރިކަން ހޯދައިގެން ސައިކަލް ހޯދުމަށާއި، ކުއްޔަށް ހިފާ ފަރާތާމެދު ޤާނޫނީ ގޮތުން އަޅަންޖެހޭ އެންމެހާ ފިޔަވަޅުތައް އެޅުމުގެ ޙައްޤު ވެރިފަރާތަށް ލިބިގެންވެއެވެ.</li>
-                                    <li><strong>ރިފަންޑް ދިނުމުގެ އުޞޫލު:</strong> އެއްބަސްވުމުގައި ސޮއިކޮށް، ކުލީގެ ފައިސާ ވެރިފަރާތުން ދީފައިވާ އެކައުންޓަށް ޓްރާންސްފަރ ކުރުމަށްފަހު ކެންސަލްކުރާނަމަ ޢަމަލުކުރެވޭނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ.
-                                        <span class="sub-clause">ހ. ސައިކަލާ ޙަވާލުވެ ނުގެންގޮސް، ކިތަންމެ ކުޑަ ވަގުތުކޮޅެއްގެ ތެރޭގައި ނަމަވެސް ކުއްޔަށް ހިފާ ފަރާތުން މި އެއްބަސްވުން ކެންސަލްކުރަން ބޭނުންވެއްޖެނަމަ، ރިފަންޑުގެ ގޮތުގައި ފައިސާ އަނބުރާ ލިބޭނީ ދައްކާފައިވާ ޖުމްލަ ފައިސާގެ %50 (ފަންސާސް އިންސައްތަ) އުނިކުރުމަށްފަހުގައެވެ.</span>
-                                        <span class="sub-clause">ށ. ކުއްޔަށް ހިފާ ފަރާތުން ސައިކަލާ ޙަވާލުވެ، ހިނދުކޮޅަކަށް ނަމަވެސް ސައިކަލް ގެންގޮސްފައިވާނަމަ، ދައްކާފައިވާ ފައިސާއިން އެއްވެސް މިންވަރެއް ރިފަންޑުގެ ގޮތުގައި އަނބުރާ ނުލިބޭނެއެވެ.</span>
-                                    </li>
-                                    <li><strong>ހެލްމެޓް ކުއްޔަށް ނެގުމާއި ގެއްލުމުގެ ބަދަލު ދިނުން:</strong> ސައިކަލާއެކު ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ތިރީގައިވާ ގޮތަށް ޢަމަލުކުރެވޭނެއެވެ.
-                                        <span class="sub-clause">ހ. އެއް ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 30 (ތިރީސް) ރުފިޔާ ދައްކަންވާނެއެވެ.</span>
-                                        <span class="sub-clause">ށ. ދެ ހެލްމެޓް ކުއްޔަށް ނަގާނަމަ، ކުލީގެ ގޮތުގައި އިތުރަށް 60 (ފަސްދޮޅަސް) ރުފިޔާ ދައްކަންވާނެއެވެ.</span>
-                                        <span class="sub-clause">ނ. ކުއްޔަށް ހިފާފައިވާ މުއްދަތުގެ ތެރޭގައި ހެލްމެޓެއް ގެއްލިއްޖެނަމަ ނުވަތަ ހަލާކުވެއްޖެނަމަ، އެ ހެލްމެޓެއްގެ ބާޒާރު މަތީ އަގު ކުއްޔަށް ހިފާ ފަރާތުން ވެރިފަރާތަށް ދައްކަންވާނެއެވެ.</span>
-                                    </li>
-                                    <li><strong>މަރާމާތުކުރުމާއި ސަރވިސްކުރުން:</strong> ސައިކަލަށް ލިބޭ ގެއްލުމެއް ނުވަތަ މަރާމާތެއް ކުރުމުގައި ޢަމަލުކުރާނީ ތިރީގައިވާ ގޮތުގެ މަތިންނެވެ.
-                                        <span class="sub-clause">ހ. ސައިކަލަށް ލިބޭ ގެއްލުމެއް ރަނގަޅުކުރުމަށް ނުވަތަ އަޑީތެޔޮ ބަދަލުކުރުން ފަދަ ކަމަކަށް އެއްވެސް ގަރާޖަކަށް ނުވަތަ ވޯކްޝޮޕަކަށް ސައިކަލް ގެންދަންވާނީ ވެރިފަރާތަށް އެންގުމަށްފަހު، ވެރިފަރާތުގެ ހާޒިރުގައި ނުވަތަ ވެރިފަރާތުން ފޮނުވާ ފަރާތެއްގެ ހާޒިރުގައެވެ.</span>
-                                        <span class="sub-clause">ށ. ސައިކަލް މަރާމާތުކުރަން ނުވަތަ ސަރވިސްކުރަން ގެންދާ ގަރާޖު ނުވަތަ ވޯކްޝޮޕަކީ ސައިކަލުގެ ވެރިފަރާތް ޤަބޫލުކުރާ ނުވަތަ ވެރިފަރާތުން އެއްބަސްވާ ތަނަކަށް ވާންވާނެއެވެ.</span>
-                                        <span class="sub-clause">ނ. ފުރޮޅުން ވައި މަދުވެގެން ވައިޖެހުމާއި، ޕެޓްރޯލް އެޅުން ފަދަ އާންމުކޮށް ކުރަންޖެހޭ ކުދި ކަންކަން، ވެރިފަރާތަށް އެންގުމަކާ ނުލައި ކުއްޔަށް ހިފާ ފަރާތަށް އަމިއްލައަށް ކުރެވިދާނެއެވެ.</span>
-                                    </li>
-                                    <li><strong>ޕާކް ކުރުން:</strong> މަގުމަތީގައި ނުވަތަ އެނޫންވެސް ތަނެއްގައި ސައިކަލް ޕާކްކުރާއިރު، ސައިކަލަށް ގެއްލުމެއް ލިބިދާނެ ފަދަ ގޮތަކަށް ނުވަތަ ނުރައްކާތެރި ގޮތަކަށް ޕާކްކޮށްގެން ނުވާނެއެވެ.</li>
-                                    <li><strong>އަމާނާތަށް ރައްކާތެރިވުން:</strong> ކުއްޔަށް ހިފާފައިވާ ސައިކަލަކީ ކުއްޔަށް ހިފި ފަރާތުގެ ބެލުމުގެ ދަށުގައިވާ ބޮޑު އަމާނާތެކެވެ. އެހެންކަމުން، އެ އަމާނާތަށް ޚިޔާނާތްތެރިވުން ކަމަށް ބެލެވޭ ފަދަ އެއްވެސް ޢަމަލެއް ކުއްޔަށް ހިފާ ފަރާތުން ހިންގައިގެން ނުވާނެއެވެ.</li>
-                                    <li><strong>ތެޔޮ ބަދަލުކުރުމާއި ސައިކަލް ސާފުކުރުން:</strong> އެއް ފަރާތަކުން ސައިކަލް ކުއްޔަށް ހިފައިގެން 1000 (އެއްހާސް) ކިލޯމީޓަރަށް ދުއްވިފައިވާނަމަ، ސައިކަލުގެ އަޑީތެލާއި ގިއަރު ތެޔޮ ބަދަލުކުރުމާއި، ސައިކަލް ދޮވެ ޕޮލިޝްކުރުމުގެ ކަންކަން ކުއްޔަށް ހިފާ ފަރާތުން ބަލަހައްޓަންވާނެއެވެ. (ނޯޓް: ތެޔޮ ބަދަލުކުރުމުގައި ޢަމަލުކުރާނީ މި އެއްބަސްވުމުގެ 13 ވަނަ މާއްދާގައި ބަޔާންކޮށްފައިވާ އުޞޫލުން ވެރިފަރާތަށް އެނގިގެން ވެރިފަރާތުގެ ހާޒިރުގައެވެ.)</li>
-                                </ol>
-
-                                <h3>4. އިތުރު މަޢުލޫމާތާއި ޚާއްޞަ ޝަރުޠުތައް:</h3>
-                                <div class="editable-block" contenteditable="true" data-placeholder="އިތުރު މަޢުލޫމާތެއް ނުވަތަ ޝަރުޠެއް ވާނަމަ މިތާނގައި ލިޔުއްވާ (ބޭނުންފުޅުނަމަ ފަހުންވެސް ބަދަލުކުރެވޭނެ)..." data-sync="extra-info"></div>
-
+                            <div class="signature-box">
+                                <h3 style="margin-bottom: 5px;" class="sig-title-renter">ކުއްޔަށް ހިފާ ފަރާތް (Renter)</h3>
+                                <div style="font-size: 14px; text-align: center; color: var(--presidential-green); margin-bottom: 5px; font-weight: bold;" id="sig-renter-name-display">-</div>
+                                <canvas id="sig-renter" class="sig-canvas"></canvas>
+                                <img id="img-sig-renter" class="print-only-img" alt="Renter Signature">
+                                <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-renter')">ސޮއި ފުހެލައްވާ / Clear</button>
                             </div>
 
-                            <!-- ENGLISH VERSION -->
-                            <div id="doc-en" class="en-version" style="display: none;">
-                                <h1>MOTORCYCLE RENTAL AGREEMENT</h1>
-
-                                <p>This Agreement is made on <input type="text" class="inline-input date-picker" data-sync="agr-date" placeholder="DD/MM/YYYY">, between the Owner of the motorcycle <span class="editable" data-sync="owner-name" contenteditable="true">Ali Ibrahim Didi</span> (ID: <span class="editable" data-sync="owner-id" contenteditable="true">A011265</span>, Address: <span class="editable" data-sync="owner-address" contenteditable="true">Hiyaa 8-05-02 Hulhumale (Male' City)</span>) (hereinafter referred to as the "Owner"), and the Renter <span class="editable" data-sync="renter-name" contenteditable="true" data-placeholder="Renter's Name"></span> (ID: <span class="editable" data-sync="renter-id" contenteditable="true" data-placeholder="ID Number"></span>, Address: <span class="editable" data-sync="renter-address" contenteditable="true" data-placeholder="Address"></span>, Mobile: <span class="editable" data-sync="renter-mobile" contenteditable="true" data-placeholder="Mobile Number"></span>) (hereinafter referred to as the "Renter").</p>
-
-                                <h3>1. Motorcycle Details:</h3>
-                                <div>
-                                    Registration Number: <span class="editable" data-sync="cycle-reg" contenteditable="true">AA0O-P2245</span><br>
-                                    Brand and Model: <span class="editable" data-sync="cycle-model" contenteditable="true">YAMAHA NMAX 155 cc</span><br>
-                                    Color: <span class="editable" data-sync="cycle-color" contenteditable="true">BLUE</span>
-                                </div>
-
-                                <h3>2. Rent and Duration:</h3>
-                                <div style="margin-bottom: 20px;">
-                                    Rental Period: From <input type="text" class="inline-input date-picker" data-sync="start-date" placeholder="DD/MM/YYYY"> at <input type="text" class="inline-input time-picker" data-sync="start-time" placeholder="HH:MM"> to <input type="text" class="inline-input date-picker" data-sync="end-date" placeholder="DD/MM/YYYY"> at <input type="text" class="inline-input time-picker" data-sync="end-time" placeholder="HH:MM">.<br>
-                                    Rental Price: <span class="editable" data-sync="rental-price" contenteditable="true" data-placeholder="Price"></span> MVR.
-                                </div>
-
-                                <h3>3. Terms and Conditions:</h3>
-                                <ol>
-                                    <li><strong>Lawful Use:</strong> The motorcycle shall not be used for any unlawful purposes under the laws and regulations of the Maldives.</li>
-                                    <li><strong>Speed Limit:</strong> Do not exceed 50 km/h on highways. On inner roads, strictly adhere to the speed limits set by traffic regulations.</li>
-                                    <li><strong>License and Documentation:</strong> The Renter must possess a valid driving license. Upon signing this agreement, copies of the Renter's ID card and driving license must be provided to the Owner.</li>
-                                    <li><strong>Sub-renting/Lending:</strong> The motorcycle shall not be given to any other person under any circumstance, except the Renter.</li>
-                                    <li><strong>Fuel:</strong> Refueling the motorcycle during the rental period is the sole responsibility of the Renter.</li>
-                                    <li><strong>Stoppage/Breakdown:</strong> If the motorcycle stops anywhere due to lack of fuel or any other reason, it is the Renter's full responsibility to safely return it to the Owner.</li>
-                                    <li><strong>Damages:</strong> The Renter must fully compensate for any damages caused to the motorcycle due to negligence or otherwise while under the Renter's care.</li>
-                                    <li><strong>Fines:</strong> The Renter is fully responsible for paying any traffic or parking fines incurred during the rental period.</li>
-                                    <li><strong>Extension and Late Penalties:</strong> If the motorcycle is not returned after the agreed rental period, a penalty of 50 (Fifty) MVR per hour will be charged. If the Renter wishes to extend the rental period, the Owner must be informed at least 30 minutes before the period expires, and the payment for the extended time must be transferred. The extension is not considered valid until the payment is completed.</li>
-                                    <li><strong>Failure to Return & Repossession:</strong> If payment is delayed and the rental period has expired, the Owner has the full authority to repossess the motorcycle from wherever it is at any time, without the Renter's permission. Furthermore, the Owner reserves the right to seek assistance from the Maldives Police Service or relevant authorities and take all necessary legal actions against the Renter.</li>
-                                    <li><strong>Refund Policy:</strong> If the Renter cancels after signing and transferring payment:
-                                        <span class="sub-clause">a. If the motorcycle hasn't been taken and is canceled shortly after, 50% of the payment will be deducted as a refund fee.</span>
-                                        <span class="sub-clause">b. If the motorcycle has been taken even for a short moment, no refund will be issued.</span>
-                                    </li>
-                                    <li><strong>Helmet Rental & Damages:</strong>
-                                        <span class="sub-clause">a. Renting one helmet costs an additional 30 MVR.</span>
-                                        <span class="sub-clause">b. Renting two helmets costs an additional 60 MVR.</span>
-                                        <span class="sub-clause">c. If a helmet is lost or damaged, the Renter must pay its market price.</span>
-                                    </li>
-                                    <li><strong>Maintenance and Service:</strong>
-                                        <span class="sub-clause">a. Any repairs or oil changes must be done only after informing the Owner, and in the presence of the Owner or their representative.</span>
-                                        <span class="sub-clause">b. The garage or workshop must be approved by the Owner.</span>
-                                        <span class="sub-clause">c. Minor issues like inflating tires or refueling can be done by the Renter without prior notice.</span>
-                                    </li>
-                                    <li><strong>Parking:</strong> The motorcycle must not be parked in a hazardous manner or where it might get damaged.</li>
-                                    <li><strong>Trust (Amanah):</strong> The rented motorcycle is a major trust under the Renter's care. No actions breaching this trust shall be committed.</li>
-                                    <li><strong>Oil Change & Cleaning:</strong> If rented by a single party for up to 1000 km, the Renter must change the engine oil and gear oil, and wash/polish the motorcycle (in accordance with clause 13).</li>
-                                </ol>
-
-                                <h3>4. Additional Information & Special Conditions:</h3>
-                                <div class="editable-block" contenteditable="true" data-placeholder="Write any additional information or special conditions here (can be amended later)..." data-sync="extra-info"></div>
-
+                            <div class="signature-box">
+                                <h3 class="sig-title-wit1">ހެކި 1: މަރިޔަމް ޢާލިމާ<br><small>(Witness 1: Mariyam Aalima)</small></h3>
+                                <canvas id="sig-wit1" class="sig-canvas"></canvas>
+                                <img id="img-sig-wit1" class="print-only-img" alt="Witness 1">
+                                <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-wit1')">ސޮއި ފުހެލައްވާ / Clear</button>
                             </div>
 
-                            <div style="page-break-inside: avoid; break-inside: avoid;">
-                                <p style="font-weight: bold; margin-top: 30px; text-align: center; color: var(--presidential-blue);" id="agreement-declaration">މި އެއްބަސްވުމުގައިވާ ހުރިހާ މާއްދާތަކެއް ކިޔައި، އެކަންކަމަށް ފުރިހަމައަށް އެއްބަސްވެ ތިރީގައި ސޮއިކުރީމެވެ.</p>
-
-                                <div class="signatures-grid">
-                                    <div class="signature-box">
-                                        <h3 style="margin-bottom: 5px;" class="sig-title-owner">ވެރިފަރާތް (Owner)</h3>
-                                        <div style="font-size: 14px; text-align: center; color: var(--presidential-green); margin-bottom: 5px; font-weight: bold;" id="sig-owner-name-display">ޢަލީ އިބްރާހީމް ދީދީ</div>
-                                        <canvas id="sig-owner" class="sig-canvas"></canvas>
-                                        <img id="img-sig-owner" class="print-only-img" alt="Owner Signature">
-                                        <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-owner')">ސޮއި ފުހެލައްވާ / Clear</button>
-                                    </div>
-                                    
-                                    <div class="signature-box">
-                                        <h3 style="margin-bottom: 5px;" class="sig-title-renter">ކުއްޔަށް ހިފާ ފަރާތް (Renter)</h3>
-                                        <div style="font-size: 14px; text-align: center; color: var(--presidential-green); margin-bottom: 5px; font-weight: bold;" id="sig-renter-name-display">-</div>
-                                        <canvas id="sig-renter" class="sig-canvas"></canvas>
-                                        <img id="img-sig-renter" class="print-only-img" alt="Renter Signature">
-                                        <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-renter')">ސޮއި ފުހެލައްވާ / Clear</button>
-                                    </div>
-
-                                    <div class="signature-box">
-                                        <h3 class="sig-title-wit1">ހެކި 1: މަރިޔަމް ޢާލިމާ<br><small>(Witness 1: Mariyam Aalima)</small></h3>
-                                        <canvas id="sig-wit1" class="sig-canvas"></canvas>
-                                        <img id="img-sig-wit1" class="print-only-img" alt="Witness 1">
-                                        <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-wit1')">ސޮއި ފުހެލައްވާ / Clear</button>
-                                    </div>
-
-                                    <div class="signature-box">
-                                        <h3 class="sig-title-wit2">ހެކި 2 / Witness 2:<br><span class="editable" data-sync="wit2-name" contenteditable="true" data-placeholder="ނަން / Name"></span></h3>
-                                        <canvas id="sig-wit2" class="sig-canvas"></canvas>
-                                        <img id="img-sig-wit2" class="print-only-img" alt="Witness 2">
-                                        <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-wit2')">ސޮއި ފުހެލައްވާ / Clear</button>
-                                    </div>
-                                </div>
+                            <div class="signature-box">
+                                <h3 class="sig-title-wit2">ހެކި 2 / Witness 2:<br><span class="editable" data-sync="wit2-name" contenteditable="true" data-placeholder="ނަން / Name"></span></h3>
+                                <canvas id="sig-wit2" class="sig-canvas"></canvas>
+                                <img id="img-sig-wit2" class="print-only-img" alt="Witness 2">
+                                <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-wit2')">ސޮއި ފުހެލައްވާ / Clear</button>
                             </div>
+                        </div>
+                    </div>
 
-                            <!-- Page Initials (For Footers) -->
-                            <div style="page-break-inside: avoid; break-inside: avoid;" class="no-print">
-                                <h3 style="margin-top: 40px; border-top: 2px dashed var(--royal-gold); padding-top: 20px;">ކޮންމެ ޞަފްޙާއެއްގެ ކަނުގައި ކުރާ ސޮއި (Page Initials)</h3>
-                                <p style="text-align: center; font-size: 14px; color: #555;">މިތަނުގައި ކުރާ ސޮއި (ނުވަތަ އިނިޝިއަލް) PDF އަދި ޕްރިންޓްކުރާއިރު ކޮންމެ ޞަފްޙާއެއްގެ ތިރީ ކަނުގައި ޖެހިގެންދާނެއެވެ.</p>
-                                
-                                <div class="signatures-grid">
-                                    <div class="signature-box">
-                                        <h4 style="margin-bottom: 5px; text-align: center; color: var(--presidential-blue);">ވެރިފަރާތް (Owner Initial)</h4>
-                                        <canvas id="sig-owner-initial" class="sig-canvas" style="height: 80px;"></canvas>
-                                        <button class="btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-owner-initial')">ފުހެލައްވާ / Clear</button>
-                                    </div>
-                                    <div class="signature-box">
-                                        <h4 style="margin-bottom: 5px; text-align: center; color: var(--presidential-blue);">ކުއްޔަށް ހިފާ ފަރާތް (Renter Initial)</h4>
-                                        <canvas id="sig-renter-initial" class="sig-canvas" style="height: 80px;"></canvas>
-                                        <button class="btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-renter-initial')">ފުހެލައްވާ / Clear</button>
-                                    </div>
-                                </div>
+                    <!-- Page Initials (For Footers) -->
+                    <div style="page-break-inside: avoid; break-inside: avoid;" class="no-print">
+                        <h3 style="margin-top: 40px; border-top: 2px dashed var(--royal-gold); padding-top: 20px;">ކޮންމެ ޞަފްޙާއެއްގެ ކަނުގައި ކުރާ ސޮއި (Page Initials)</h3>
+                        <p style="text-align: center; font-size: 14px; color: #555;">މިތަނުގައި ކުރާ ސޮއި (ނުވަތަ އިނިޝިއަލް) PDF އަދި ޕްރިންޓްކުރާއިރު ކޮންމެ ޞަފްޙާއެއްގެ ތިރީ ކަނުގައި ޖެހިގެންދާނެއެވެ.</p>
+                        
+                        <div class="signatures-grid">
+                            <div class="signature-box">
+                                <h4 style="margin-bottom: 5px; text-align: center; color: var(--presidential-blue);">ވެރިފަރާތް (Owner Initial)</h4>
+                                <canvas id="sig-owner-initial" class="sig-canvas" style="height: 80px;"></canvas>
+                                <button class="btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-owner-initial')">ފުހެލައްވާ / Clear</button>
                             </div>
-
-                            <!-- Attachments -->
-                            <div style="page-break-before: always;">
-                                <h3 style="border-top: 2px dashed var(--royal-gold); padding-top: 30px; margin-top: 40px;" id="attachments-title">ލިޔެކިޔުންތައް (އައިޑީ ކާޑު އަދި ލައިސަންސް) / Documents</h3>
-                                <div class="upload-grid">
-                                    <div class="upload-box">
-                                        <label style="font-weight: bold; color: var(--presidential-blue);">އައިޑީ ކާޑު (ކުރިމަތި) / ID Front</label><br>
-                                        <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'id-front-img')">
-                                        <img id="id-front-img" alt="ID Front">
-                                    </div>
-                                    <div class="upload-box">
-                                        <label style="font-weight: bold; color: var(--presidential-blue);">އައިޑީ ކާޑު (ފަހަތް) / ID Back</label><br>
-                                        <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'id-back-img')">
-                                        <img id="id-back-img" alt="ID Back">
-                                    </div>
-                                    <div class="upload-box">
-                                        <label style="font-weight: bold; color: var(--presidential-blue);">ލައިސަންސް (ކުރިމަތި) / License Front</label><br>
-                                        <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'lic-front-img')">
-                                        <img id="lic-front-img" alt="License Front">
-                                    </div>
-                                    <div class="upload-box">
-                                        <label style="font-weight: bold; color: var(--presidential-blue);">ލައިސަންސް (ފަހަތް) / License Back</label><br>
-                                        <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'lic-back-img')">
-                                        <img id="lic-back-img" alt="License Back">
-                                    </div>
-                                </div>
+                            <div class="signature-box">
+                                <h4 style="margin-bottom: 5px; text-align: center; color: var(--presidential-blue);">ކުއްޔަށް ހިފާ ފަރާތް (Renter Initial)</h4>
+                                <canvas id="sig-renter-initial" class="sig-canvas" style="height: 80px;"></canvas>
+                                <button class="btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-renter-initial')">ފުހެލައްވާ / Clear</button>
                             </div>
+                        </div>
+                    </div>
 
-                        </td></tr></tbody>
-                    </table>
+                    <!-- Attachments -->
+                    <div style="page-break-before: always;">
+                        <h3 style="border-top: 2px dashed var(--royal-gold); padding-top: 30px; margin-top: 40px;" id="attachments-title">ލިޔެކިޔުންތައް (އައިޑީ ކާޑު އަދި ލައިސަންސް) / Documents</h3>
+                        <div class="upload-grid">
+                            <div class="upload-box">
+                                <label style="font-weight: bold; color: var(--presidential-blue);">އައިޑީ ކާޑު (ކުރިމަތި) / ID Front</label><br>
+                                <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'id-front-img')">
+                                <img id="id-front-img" alt="ID Front">
+                            </div>
+                            <div class="upload-box">
+                                <label style="font-weight: bold; color: var(--presidential-blue);">އައިޑީ ކާޑު (ފަހަތް) / ID Back</label><br>
+                                <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'id-back-img')">
+                                <img id="id-back-img" alt="ID Back">
+                            </div>
+                            <div class="upload-box">
+                                <label style="font-weight: bold; color: var(--presidential-blue);">ލައިސަންސް (ކުރިމަތި) / License Front</label><br>
+                                <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'lic-front-img')">
+                                <img id="lic-front-img" alt="License Front">
+                            </div>
+                            <div class="upload-box">
+                                <label style="font-weight: bold; color: var(--presidential-blue);">ލައިސަންސް (ފަހަތް) / License Back</label><br>
+                                <input type="file" class="no-print" accept="image/*" onchange="handleImageUpload(event, 'lic-back-img')">
+                                <img id="lic-back-img" alt="License Back">
+                            </div>
+                        </div>
+                    </div>
 
                 </div>
             </div>
@@ -589,8 +545,6 @@
                         <strong style="font-family: 'Cinzel', serif; font-size: 12px; color: var(--presidential-blue);">ZAAG HOLDINGS PVT LTD</strong>
                     </div>
                 </div>
-                
-                <button onclick="triggerPrintAndPDF()" style="width: 100%; margin-top: 25px; padding: 12px; background: var(--presidential-blue); color: white; border: none; border-radius: 5px; font-family: 'Faruma'; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s;" class="no-print">ރިސީޓް ޕްރިންޓް ކުރައްވާ</button>
             </div>
         </div>
 
@@ -1009,34 +963,109 @@
             window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-        // --- NEW UNIFIED PRINT/PDF LOGIC ---
-        function triggerPrintAndPDF() {
-            // 1. Convert all canvases to images so mobile OS doesn't discard them during print
-            const canvases = ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2'];
-            canvases.forEach(id => {
-                const canvas = document.getElementById(id);
-                const img = document.getElementById('img-' + id);
-                if(canvas && img) {
-                    const data = canvas.toDataURL('image/png');
-                    if(data.length > 5000) { img.src = data; } else { img.src = ''; }
-                }
+        // --- NEW EXPORT PDF LOGIC (Fixes Mobile RTL Squish + Footers) ---
+        function exportToPDF() {
+            const loading = document.getElementById('loading');
+            loading.style.display = 'flex';
+            loading.querySelector('span').innerText = 'ޕީޑީއެފް ތައްޔާރުކުރެވެނީ...';
+
+            const originalElement = document.getElementById('agreement-content');
+            
+            // Sync inputs to attributes for cloning
+            originalElement.querySelectorAll('input').forEach(input => {
+                input.setAttribute('value', input.value);
             });
+            
+            // Clone the element to a hidden absolute wrapper to force desktop-width (800px)
+            const clone = originalElement.cloneNode(true);
+            
+            // Convert main signatures into images inside the clone so they render safely
+            ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2'].forEach(id => {
+                const canvas = document.getElementById(id);
+                const clonedImg = clone.querySelector('#img-' + id);
+                const clonedCanvas = clone.querySelector('#' + id);
+                if(canvas && clonedImg) {
+                    const dataUrl = canvas.toDataURL('image/png');
+                    if(dataUrl.length > 2500) { // Check if not just an empty clear canvas
+                        clonedImg.src = dataUrl;
+                        clonedImg.style.display = 'block';
+                        clonedImg.style.height = '60px'; // Proper height inside PDF
+                    }
+                }
+                if(clonedCanvas) clonedCanvas.style.display = 'none'; // Hide cloned canvas
+            });
+            
+            // Hide no-print elements in the clone
+            clone.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
+            
+            // Setup hidden 800px container
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'absolute';
+            wrapper.style.top = '-9999px';
+            wrapper.style.left = '0';
+            wrapper.style.width = '800px'; 
+            wrapper.style.backgroundColor = '#ffffff';
+            wrapper.style.direction = 'rtl';
+            
+            clone.style.border = 'none';
+            clone.style.boxShadow = 'none';
+            clone.style.margin = '0';
+            clone.style.padding = '20px 40px'; 
+            
+            wrapper.appendChild(clone);
+            document.body.appendChild(wrapper);
 
-            // 2. Insert initials into the repeated footer
-            const ownerInitialData = document.getElementById('sig-owner-initial').toDataURL();
-            const renterInitialData = document.getElementById('sig-renter-initial').toDataURL();
-            const isBlank = (data) => data.length < 5000; 
+            const renterName = getFieldValue('renter-name').trim() || 'Agreement';
+            
+            const opt = {
+                margin: [15, 15, 25, 15], // Bottom 25mm reserved for footer initials
+                filename: `Agreement_${renterName}.pdf`,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: { 
+                    scale: 2, 
+                    useCORS: true, 
+                    width: 800,
+                    windowWidth: 800,
+                    scrollY: 0
+                },
+                pagebreak: { mode: 'css', avoid: ['.signature-box', 'h3', '.upload-box', 'li'] },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
 
-            let fOwner = document.getElementById('footer-img-owner-initial');
-            let fRenter = document.getElementById('footer-img-renter-initial');
+            const ownerInitialData = document.getElementById('sig-owner-initial').toDataURL('image/png');
+            const renterInitialData = document.getElementById('sig-renter-initial').toDataURL('image/png');
+            const isBlank = (data) => !data || data.length < 2500;
 
-            if(!isBlank(ownerInitialData)) fOwner.src = ownerInitialData; else fOwner.src = '';
-            if(!isBlank(renterInitialData)) fRenter.src = renterInitialData; else fRenter.src = '';
-
-            // 3. Trigger Native Print Dialog (Allows "Save as PDF" natively)
-            setTimeout(() => {
-                window.print();
-            }, 300);
+            // Generate PDF
+            html2pdf().set(opt).from(wrapper).toPdf().get('pdf').then(function (pdf) {
+                const totalPages = pdf.internal.getNumberOfPages();
+                
+                for (let i = 1; i <= totalPages; i++) {
+                    pdf.setPage(i);
+                    // Renter Initial (Left corner)
+                    if (!isBlank(renterInitialData)) {
+                        pdf.addImage(renterInitialData, 'PNG', 15, 276, 25, 10);
+                    }
+                    // Owner Initial (Right corner)
+                    if (!isBlank(ownerInitialData)) {
+                        pdf.addImage(ownerInitialData, 'PNG', 170, 276, 25, 10);
+                    }
+                    
+                    // Page Number (Center)
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(100);
+                    pdf.text("Page " + i + " of " + totalPages, 105, 283, {align: 'center'});
+                }
+            }).save().then(() => {
+                document.body.removeChild(wrapper);
+                loading.style.display = 'none';
+                loading.querySelector('span').innerText = 'މަޑުކޮށްލައްވާ...';
+            }).catch(err => {
+                document.body.removeChild(wrapper);
+                loading.style.display = 'none';
+                console.error(err);
+                alert("ޕީޑީއެފް ސޭވްކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެ!");
+            });
         }
 
         // Receipt Module
