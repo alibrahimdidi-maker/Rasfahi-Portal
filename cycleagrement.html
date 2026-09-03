@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Cinzel:wght@600&display=swap" rel="stylesheet">
     
     <!-- Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -168,19 +167,6 @@
         }
         @media (min-width: 768px) { .document-container { padding: 40px 50px; } }
 
-        /* --- PDF FORCE DESKTOP MODE (Solves the squish & blank page issue) --- */
-        .pdf-force-desktop {
-            width: 800px !important; max-width: 800px !important; min-width: 800px !important;
-            margin: 0 auto !important; padding: 40px 50px !important; 
-            border: none !important; box-shadow: none !important; font-size: 16px !important; 
-            direction: rtl !important; background: #fff !important; border-radius: 0 !important;
-        }
-        .pdf-force-desktop .inline-input {
-            background: transparent !important; border: none !important; color: var(--presidential-blue) !important;
-        }
-        .pdf-force-desktop .editable-block { border: none !important; background: transparent !important; }
-        .pdf-force-desktop .print-tfoot { display: none !important; } /* Hide table tfoot during PDF export */
-
         h1, h2, h3, h4 { color: var(--presidential-blue); text-align: center; font-family: 'Playfair Display', 'Faruma', serif; }
         h1 { font-size: 20px; border-bottom: 2px solid var(--royal-gold); padding-bottom: 10px; margin-bottom: 20px; }
         @media (min-width: 768px) { h1 { font-size: 26px; } }
@@ -225,8 +211,8 @@
         @media (min-width: 768px) { .signatures-grid { flex-direction: row; flex-wrap: wrap; } }
         .signature-box { flex: 1 1 45%; border: 1px solid var(--royal-gold); padding: 15px; border-radius: 5px; background: #fafafa; page-break-inside: avoid; break-inside: avoid; position: relative; box-sizing: border-box; }
         .sig-canvas { border: 1px solid #ccc; background: #fff; width: 100%; height: 120px; cursor: crosshair; touch-action: none; border-radius: 4px; }
-        /* Hidden image tags used only during PDF generation to preserve signatures */
-        .print-only-img { display: none; width: 100%; object-fit: contain; }
+        /* Hidden image tags used only during print to preserve signatures */
+        .print-only-img { display: none; width: 100%; height: 120px; object-fit: contain; }
 
         /* Upload Grid */
         .upload-grid { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
@@ -243,7 +229,7 @@
             display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 20px; padding: 15px; background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); width: 100%;
         }
         .top-actions button {
-            padding: 10px 15px; border: none; border-radius: 5px; font-family: 'Faruma', sans-serif; cursor: pointer; color: white; font-size: 14px; font-weight: bold; flex: 1 1 45%; min-width: 100px; transition: 0.3s;
+            padding: 10px; border: none; border-radius: 5px; font-family: 'Faruma', sans-serif; cursor: pointer; color: white; font-size: 14px; font-weight: bold; flex: 1 1 45%; min-width: 100px; transition: 0.3s;
         }
         @media (min-width: 768px) { .top-actions button { flex: unset; min-width: 120px; padding: 10px 15px; } }
         .top-actions button:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
@@ -254,11 +240,11 @@
         }
         .logout-btn:hover { background: #c0392b; color: white; border-color: #c0392b; }
 
-        /* Print Table Footers (For regular Window.Print ONLY) */
+        /* Print Table Footers (Ensures signatures on EVERY printed page natively) */
         .print-tfoot { display: none; }
         
         @media print {
-            @page { size: A4 portrait; margin: 15mm; }
+            @page { size: A4 portrait; margin: 15mm 15mm 25mm 15mm; }
             body { display: block; background: #fff; height: auto; overflow: visible; font-size: 12pt; padding: 0; direction: rtl; }
             .royal-wrapper { border: none; box-shadow: none; border-radius: 0; display: block; overflow: visible; }
             .sidebar, .dashboard-grid, .chart-container, .no-print, .top-actions { display: none !important; }
@@ -269,6 +255,7 @@
             .inline-input::-webkit-calendar-picker-indicator { display: none; }
             .inline-input { border: none !important; appearance: none; -webkit-appearance: none; width: auto; }
             
+            /* Magic for Native Signatures: Hide Canvas, Show Image Data */
             canvas.sig-canvas { display: none !important; }
             img.print-only-img { display: block !important; }
 
@@ -337,14 +324,14 @@
                 <div class="top-actions no-print">
                     <button onclick="clearForm()" style="background: #7f8c8d;">ފޯމު ހުސްކުރޭ (އައު)</button>
                     <button onclick="saveAgreementToBank()" style="background: var(--presidential-green);">ސޭވްކުރޭ</button>
-                    <!-- UNIFIED EXPORT BUTTON -->
-                    <button onclick="exportToPDF()" style="background: var(--presidential-blue);">ޕްރިންޓް / ޕީޑީއެފް (Print/PDF)</button>
+                    <!-- UNIFIED PRINT & PDF BUTTON -->
+                    <button onclick="triggerPrintAndPDF()" style="background: var(--presidential-blue);">ޕްރިންޓް / ޕީޑީއެފް (Print/PDF)</button>
                     <button id="lang-btn" onclick="toggleLanguage()" style="background: linear-gradient(to right, #c5a059, #e6c875); color: #0b1d3a;">English Version</button>
                 </div>
 
                 <div class="document-container" id="agreement-content">
                     
-                    <!-- Table wrapper to force repeating footer on standard window.print() -->
+                    <!-- Table wrapper to force repeating footer on print across all browsers/iOS -->
                     <table style="width: 100%; border: none; border-collapse: collapse;">
                         <thead style="display: table-header-group;"><tr><td><div style="height: 10px;"></div></td></tr></thead>
                         
@@ -602,6 +589,8 @@
                         <strong style="font-family: 'Cinzel', serif; font-size: 12px; color: var(--presidential-blue);">ZAAG HOLDINGS PVT LTD</strong>
                     </div>
                 </div>
+                
+                <button onclick="triggerPrintAndPDF()" style="width: 100%; margin-top: 25px; padding: 12px; background: var(--presidential-blue); color: white; border: none; border-radius: 5px; font-family: 'Faruma'; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s;" class="no-print">ރިސީޓް ޕްރިންޓް ކުރައްވާ</button>
             </div>
         </div>
 
@@ -1020,96 +1009,34 @@
             window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-        // --- UNIFIED PDF EXPORT LOGIC ---
-        function exportToPDF() {
-            const loading = document.getElementById('loading');
-            loading.style.display = 'flex';
-            loading.querySelector('span').innerText = 'ޕީޑީއެފް ތައްޔާރުކުރެވެނީ...';
-
-            const element = document.getElementById('agreement-content');
-            
-            // Sync inputs to attributes for HTML2Canvas
-            element.querySelectorAll('input').forEach(input => {
-                input.setAttribute('value', input.value);
-            });
-            
-            // Swap canvases to images so they render properly
-            ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2'].forEach(id => {
+        // --- NEW UNIFIED PRINT/PDF LOGIC ---
+        function triggerPrintAndPDF() {
+            // 1. Convert all canvases to images so mobile OS doesn't discard them during print
+            const canvases = ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2'];
+            canvases.forEach(id => {
                 const canvas = document.getElementById(id);
                 const img = document.getElementById('img-' + id);
                 if(canvas && img) {
-                    const dataUrl = canvas.toDataURL('image/png');
-                    if(dataUrl.length > 2500) {
-                        img.src = dataUrl;
-                        img.style.display = 'block';
-                        img.style.height = '120px';
-                    }
-                    canvas.style.display = 'none'; // Hide canvas temporarily
+                    const data = canvas.toDataURL('image/png');
+                    if(data.length > 5000) { img.src = data; } else { img.src = ''; }
                 }
             });
 
-            // Force Desktop Layout for accurate render on mobile
-            element.classList.add('pdf-force-desktop');
+            // 2. Insert initials into the repeated footer
+            const ownerInitialData = document.getElementById('sig-owner-initial').toDataURL();
+            const renterInitialData = document.getElementById('sig-renter-initial').toDataURL();
+            const isBlank = (data) => data.length < 5000; 
 
-            const renterName = getFieldValue('renter-name').trim() || 'Agreement';
-            const ownerInitialData = document.getElementById('sig-owner-initial').toDataURL('image/png');
-            const renterInitialData = document.getElementById('sig-renter-initial').toDataURL('image/png');
-            const isBlank = (data) => !data || data.length < 2500;
+            let fOwner = document.getElementById('footer-img-owner-initial');
+            let fRenter = document.getElementById('footer-img-renter-initial');
 
-            const opt = {
-                margin: [15, 15, 25, 15], 
-                filename: `Agreement_${renterName}.pdf`,
-                image: { type: 'jpeg', quality: 1 },
-                html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    windowWidth: 800,
-                    scrollY: 0
-                },
-                pagebreak: { mode: 'css', avoid: ['.signature-box', 'h3', '.upload-box', 'li'] },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
+            if(!isBlank(ownerInitialData)) fOwner.src = ownerInitialData; else fOwner.src = '';
+            if(!isBlank(renterInitialData)) fRenter.src = renterInitialData; else fRenter.src = '';
 
-            // Allow DOM to update styles before rendering
+            // 3. Trigger Native Print Dialog (Allows "Save as PDF" natively)
             setTimeout(() => {
-                html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
-                    const totalPages = pdf.internal.getNumberOfPages();
-                    for (let i = 1; i <= totalPages; i++) {
-                        pdf.setPage(i);
-                        // Renter Initial (Left corner)
-                        if (!isBlank(renterInitialData)) {
-                            pdf.addImage(renterInitialData, 'PNG', 15, 276, 25, 10);
-                        }
-                        // Owner Initial (Right corner)
-                        if (!isBlank(ownerInitialData)) {
-                            pdf.addImage(ownerInitialData, 'PNG', 170, 276, 25, 10);
-                        }
-                        
-                        // Page Number (Center)
-                        pdf.setFontSize(10);
-                        pdf.setTextColor(100);
-                        pdf.text("Page " + i + " of " + totalPages, 105, 283, {align: 'center'});
-                    }
-                }).save().then(() => {
-                    cleanupAfterPDF();
-                }).catch(err => {
-                    cleanupAfterPDF();
-                    console.error(err);
-                    alert("ޕީޑީއެފް ސޭވްކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެ!");
-                });
+                window.print();
             }, 300);
-
-            function cleanupAfterPDF() {
-                element.classList.remove('pdf-force-desktop');
-                ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2'].forEach(id => {
-                    const canvas = document.getElementById(id);
-                    const img = document.getElementById('img-' + id);
-                    if(canvas) canvas.style.display = 'block';
-                    if(img) img.style.display = 'none';
-                });
-                loading.style.display = 'none';
-                loading.querySelector('span').innerText = 'މަޑުކޮށްލައްވާ...';
-            }
         }
 
         // Receipt Module
