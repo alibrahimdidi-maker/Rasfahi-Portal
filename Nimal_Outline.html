@@ -12,13 +12,18 @@
         /* ==========================================
            1. FONTS & TYPOGRAPHY
            ========================================== */
+        /* Dhivehi (Thaana) typography: prefer a locally installed Faruma-family font if the
+           user's system has one (common on Maldivian government machines), then fall back to
+           Noto Sans Thaana — a real, freely-licensed Thaana font embedded from Google Fonts so
+           Dhivehi text always renders correctly even on a machine with no Thaana font installed. */
         @font-face {
             font-family: 'Faruma';
-            src: url('fonts/faruma.ttf') format('truetype');
+            src: local('Faruma'), local('MV Faruma'), local('A_Faruma'), local('Faruma Regular');
             font-weight: normal;
             font-style: normal;
+            font-display: swap;
         }
-        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Playfair+Display:wght@600;700&family=Segoe+UI:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans+Thaana:wght@400;500;700&family=Playfair+Display:wght@600;700&family=Segoe+UI:wght@400;600;700&display=swap');
 
         /* ROYAL THEME COLORS */
         :root {
@@ -60,7 +65,7 @@
 
         .rtl-input { 
             direction: rtl; 
-            font-family: 'Faruma', 'Amiri', serif; 
+            font-family: 'Faruma', 'MV Faruma', 'A_Faruma', 'Noto Sans Thaana', 'Amiri', serif; 
             font-size: 1.2rem; 
             text-align: right; 
         }
@@ -1334,8 +1339,8 @@ Upon successful completion of this Module, students will have the knowledge and 
                     <h2 class="section-header"><i class="fas fa-file-word"></i> Smart Word Importer (Beta)</h2>
                     
                     <div class="importer-box">
-                        <p>Upload a previously exported <b>.docx</b> file. The system will read the text, automatically create a new Module in your Archive, and fill out the forms with extracted data.</p>
-                        <input type="file" id="word-upload" accept=".docx" style="display:none;" onchange="readWordFile(event)">
+                        <p>Upload a previously exported <b>.docx</b> or <b>.doc</b> file (including files exported by this app itself). The system will read the text, automatically create a new Module in your Archive, and fill out the forms with extracted data.</p>
+                        <input type="file" id="word-upload" accept=".docx,.doc,.htm,.html,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/html" style="display:none;" onchange="readWordFile(event)">
                         <button class="btn btn-blue" onclick="document.getElementById('word-upload').click()"><i class="fas fa-upload"></i> Select Word File to Import</button>
                         <div id="import-success-msg" class="import-success">✅ File successfully parsed! A new module has been created and loaded from your Archive.</div>
                     </div>
@@ -1351,7 +1356,50 @@ Upon successful completion of this Module, students will have the knowledge and 
 
                 <div id="step-9" class="form-section">
                     <h2 class="section-header"><i class="fas fa-crown"></i> Review & Export Center</h2>
-                    <p style="margin-bottom: 25px; color:#555; font-size:1.1rem; font-weight:600;">Choose your export format. The layout perfectly matches the MQA guidelines.</p>
+                    <p style="margin-bottom: 25px; color:#555; font-size:1.1rem; font-weight:600;">Choose your export format. The layout perfectly matches the MQA guidelines and is fully set to A3 paper size.</p>
+
+                    <div style="background: var(--light-bg); border: 2px dashed var(--royal-blue); border-radius: 10px; padding: 25px; margin-bottom: 30px;">
+                        <h3 style="color:var(--royal-blue); margin-bottom:15px;"><i class="fas fa-image"></i> Header Logo & Letterhead</h3>
+                        <div class="form-grid">
+                            <div class="form-group full" style="display:flex; align-items:center; gap:10px;">
+                                <input type="checkbox" id="hdr-enable" class="prog-data" style="width:20px; height:20px;">
+                                <label style="margin:0;">Show a letterhead (logo / institution / course name) at the top of every exported document</label>
+                            </div>
+                            <div class="form-group">
+                                <label>Header Logo</label>
+                                <input type="file" id="hdr-logo-upload" accept="image/*" onchange="handleLogoUpload(this, 'hdr-logo-data', 'hdr-logo-preview')">
+                                <img id="hdr-logo-preview" src="" style="display:none; max-height:60px; margin-top:8px; border:1px solid var(--border); border-radius:4px; padding:4px;">
+                                <button type="button" class="btn btn-outline" style="margin-top:8px; padding:6px 12px; font-size:0.85rem;" onclick="clearLogoField('hdr-logo-data','hdr-logo-preview','hdr-logo-upload')"><i class="fas fa-times"></i> Remove Logo</button>
+                                <input type="hidden" id="hdr-logo-data" class="prog-data" value="">
+                            </div>
+                            <div class="form-group">
+                                <label>Institution Name (shown in header)</label>
+                                <input type="text" id="hdr-inst-name" class="rtl-input prog-data" placeholder="e.g. ޒާދް އެކަޑެމީ">
+                            </div>
+                            <div class="form-group full">
+                                <label>Course / Programme Name (shown in header)</label>
+                                <input type="text" id="hdr-course-name" class="rtl-input prog-data" placeholder="e.g. ފިޤްހު އަޙްކާމުލް ޖަނާއިޒް">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--light-bg); border: 2px dashed var(--royal-green); border-radius: 10px; padding: 25px; margin-bottom: 30px;">
+                        <h3 style="color:var(--royal-green); margin-bottom:15px;"><i class="fas fa-tint"></i> Watermark (all export pages)</h3>
+                        <div class="form-grid">
+                            <div class="form-group full" style="display:flex; align-items:center; gap:10px;">
+                                <input type="checkbox" id="wm-enable" class="prog-data" style="width:20px; height:20px;">
+                                <label style="margin:0;">Stamp the institution logo as a faint watermark on every exported page</label>
+                            </div>
+                            <div class="form-group">
+                                <label>Watermark Logo</label>
+                                <input type="file" id="wm-logo-upload" accept="image/*" onchange="handleLogoUpload(this, 'wm-logo-data', 'wm-logo-preview')">
+                                <img id="wm-logo-preview" src="" style="display:none; max-height:60px; margin-top:8px; border:1px solid var(--border); border-radius:4px; padding:4px;">
+                                <button type="button" class="btn btn-outline" style="margin-top:8px; padding:6px 12px; font-size:0.85rem;" onclick="clearLogoField('wm-logo-data','wm-logo-preview','wm-logo-upload')"><i class="fas fa-times"></i> Remove Logo</button>
+                                <input type="hidden" id="wm-logo-data" class="prog-data" value="">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-grid" style="gap: 40px;">
                         <div class="export-card">
                             <h3><i class="fas fa-file-invoice"></i> Module Outline Only</h3>
@@ -1582,6 +1630,8 @@ const firebaseConfig = {
                 if (el.type !== 'password') {
                     if (el.hasAttribute('contenteditable')) {
                         progInputs[el.id] = { value: el.innerText, manual: el.getAttribute('data-manual') };
+                    } else if (el.type === 'checkbox') {
+                        progInputs[el.id] = { checkbox: true, checked: el.checked };
                     } else {
                         progInputs[el.id] = el.value;
                     }
@@ -1601,6 +1651,8 @@ const firebaseConfig = {
                     if (!el.id) el.id = 'm_dyn_' + i; 
                     if (el.hasAttribute('contenteditable')) {
                         modInputs[el.id] = { value: el.innerText, manual: el.getAttribute('data-manual') };
+                    } else if (el.type === 'checkbox') {
+                        modInputs[el.id] = { checkbox: true, checked: el.checked };
                     } else {
                         modInputs[el.id] = el.value;
                     }
@@ -1636,7 +1688,10 @@ const firebaseConfig = {
                 for (const [id, valObj] of Object.entries(pData.inputs)) { 
                     let el = document.getElementById(id); 
                     if (el) {
-                        if(el.hasAttribute('contenteditable')) {
+                        if(typeof valObj === 'object' && valObj !== null && valObj.checkbox) {
+                            el.checked = !!valObj.checked;
+                        }
+                        else if(el.hasAttribute('contenteditable')) {
                             el.innerText = typeof valObj === 'object' ? valObj.value : valObj;
                             if(typeof valObj === 'object' && valObj.manual) el.setAttribute('data-manual', valObj.manual);
                         }
@@ -1657,7 +1712,10 @@ const firebaseConfig = {
                     for (const [id, valObj] of Object.entries(mData.inputs)) { 
                         let el = document.getElementById(id); 
                         if (el) {
-                            if(el.hasAttribute('contenteditable')) {
+                            if(typeof valObj === 'object' && valObj !== null && valObj.checkbox) {
+                                el.checked = !!valObj.checked;
+                            }
+                            else if(el.hasAttribute('contenteditable')) {
                                 el.innerText = typeof valObj === 'object' ? valObj.value : valObj;
                                 if(typeof valObj === 'object' && valObj.manual) el.setAttribute('data-manual', valObj.manual);
                             }
@@ -1673,6 +1731,8 @@ const firebaseConfig = {
                 });
             }
 
+            refreshLogoPreviews();
+
             if(triggerRender) {
                 recalculateAllRows(); calcF3Total(); updateTopTitleStatus();
                 if(document.getElementById('step-10').classList.contains('active')) renderArchive();
@@ -1687,7 +1747,9 @@ const firebaseConfig = {
                 for (const [id, valObj] of Object.entries(course.programData.inputs)) { 
                     let el = document.getElementById(id); 
                     if (el) { 
-                        if(el.hasAttribute('contenteditable')) {
+                        if(typeof valObj === 'object' && valObj !== null && valObj.checkbox) {
+                            el.checked = !!valObj.checked;
+                        } else if(el.hasAttribute('contenteditable')) {
                             el.innerText = typeof valObj === 'object' ? valObj.value : valObj;
                             if(typeof valObj === 'object' && valObj.manual) el.setAttribute('data-manual', valObj.manual);
                         } else {
@@ -1706,7 +1768,9 @@ const firebaseConfig = {
                     for (const [id, valObj] of Object.entries(mData.inputs)) { 
                         let el = document.getElementById(id); 
                         if (el) { 
-                            if(el.hasAttribute('contenteditable')) {
+                            if(typeof valObj === 'object' && valObj !== null && valObj.checkbox) {
+                                el.checked = !!valObj.checked;
+                            } else if(el.hasAttribute('contenteditable')) {
                                 el.innerText = typeof valObj === 'object' ? valObj.value : valObj;
                                 if(typeof valObj === 'object' && valObj.manual) el.setAttribute('data-manual', valObj.manual);
                             } else {
@@ -1719,10 +1783,17 @@ const firebaseConfig = {
             recalculateAllRows();
         }
 
+        function genId(prefix) {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return prefix + "_" + window.crypto.randomUUID();
+            }
+            return prefix + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10);
+        }
+
         function createNewCourse() {
             saveCurrentToDB();
             
-            let nCid = "c_" + Date.now(); let nMid = "m_" + Date.now();
+            let nCid = genId("c"); let nMid = genId("m");
             dbState.courses[nCid] = { id: nCid, name: "New Blank Program", programData: { inputs: {}, sCount: 0, aCount: 0, f3Count:0 }, modules: {} };
             dbState.courses[nCid].modules[nMid] = { id: nMid, name: "New Module", code: "MOD01", moduleData: { inputs: {} } };
             
@@ -1730,7 +1801,13 @@ const firebaseConfig = {
             activeModuleId = nMid;
 
             isProgrammaticChange = true;
-            document.querySelectorAll('input, textarea').forEach(el => { if(el.type!=='password') el.value=''; });
+            document.querySelectorAll('input, textarea').forEach(el => {
+                if(el.type==='password') return;
+                if(el.type==='checkbox' || el.type==='radio') { el.checked = false; }
+                else { el.value=''; }
+            });
+            document.getElementById('hdr-logo-preview').style.display = 'none'; document.getElementById('hdr-logo-preview').src = '';
+            document.getElementById('wm-logo-preview').style.display = 'none'; document.getElementById('wm-logo-preview').src = '';
             document.getElementById('semesters-container').innerHTML = ""; document.getElementById('annex-container').innerHTML = "";
             document.getElementById('tbody-matrix').innerHTML = ""; document.getElementById('tbody-sch').innerHTML = ""; document.getElementById('tbody-f3-details').innerHTML = ""; document.getElementById('tbody-assess').innerHTML = "";
             semCount = 0; annexCount = 0; f3RowCount = 0;
@@ -1747,7 +1824,7 @@ const firebaseConfig = {
 
         function createNewModule(cId) {
             saveCurrentToDB();
-            let nMid = "m_" + Date.now();
+            let nMid = genId("m");
             dbState.courses[cId].modules[nMid] = { id: nMid, name: "New Module", code: "NEW", moduleData: {} };
             
             if(cId === activeCourseId) {
@@ -1977,6 +2054,30 @@ const firebaseConfig = {
         }
 
         // --- SMART WORD IMPORTER ---
+        function htmlToPlainText(html) {
+            let s = html;
+            s = s.replace(/<(br|\/p|\/div|\/tr|\/h[1-6]|\/li)\s*\/?>/gi, '\n');
+            s = s.replace(/<\/td>/gi, '\t');
+            s = s.replace(/<[^>]+>/g, '');
+            let ta = document.createElement('textarea');
+            ta.innerHTML = s;
+            return ta.value;
+        }
+
+        function parseHtmlWordDoc(rawFileText) {
+            const parser = new DOMParser();
+            const parsedDoc = parser.parseFromString(rawFileText, 'text/html');
+            const bodyEl = parsedDoc.body || parsedDoc.documentElement;
+            const rawHtml = bodyEl ? bodyEl.innerHTML : rawFileText;
+            const rawText = htmlToPlainText(rawHtml);
+
+            const viewer = document.getElementById("word-viewer");
+            viewer.innerHTML = rawHtml;
+            viewer.style.display = "block";
+
+            parseWordToForms(rawText, rawHtml);
+        }
+
         function readWordFile(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1984,24 +2085,48 @@ const firebaseConfig = {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const arrayBuffer = e.target.result;
-                
-                mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
-                    .then(function(result){
-                        const html = result.value;
-                        const viewer = document.getElementById("word-viewer");
-                        viewer.innerHTML = html; 
-                        viewer.style.display = "block";
-                        
-                        // Parse normal text
-                        mammoth.extractRawText({ arrayBuffer: arrayBuffer })
-                            .then(function(rawResult) {
-                                parseWordToForms(rawResult.value, html);
-                            });
-                    })
-                    .catch(function(err){
-                        console.error(err);
-                        alert("Error reading Word File. Ensure it is a valid .docx file.");
-                    });
+
+                // Mammoth only understands real .docx (OOXML/ZIP) files. Many "Word" files -
+                // including every .doc this app itself exports - are actually plain HTML saved
+                // with a .doc extension (MS Word's "Web Page" export format). If mammoth can't
+                // read the file, fall back to reading it directly as HTML instead of giving up.
+                // IMPORTANT: for a malformed/non-zip input, mammoth 1.4.2 throws SYNCHRONOUSLY
+                // (before even returning a Promise) rather than rejecting asynchronously, so this
+                // fallback has to be reachable from a synchronous catch too, not only a .catch().
+                function tryHtmlFallback(err) {
+                    console.warn('[RASFAHI Importer] mammoth could not read this as .docx, trying HTML fallback:', err && err.message);
+                    try {
+                        let textContent = (typeof TextDecoder !== 'undefined')
+                            ? new TextDecoder('utf-8').decode(new Uint8Array(arrayBuffer))
+                            : String.fromCharCode.apply(null, new Uint8Array(arrayBuffer));
+                        const looksLikeHtml = /<html[\s>]/i.test(textContent) || /<table[\s>]/i.test(textContent) || /<body[\s>]/i.test(textContent);
+                        if (!looksLikeHtml) throw new Error('not HTML either');
+                        parseHtmlWordDoc(textContent);
+                    } catch (fallbackErr) {
+                        console.error(err, fallbackErr);
+                        alert("Error reading Word File. Please make sure it is a real .docx file (File > Save As > Word Document (.docx) in Microsoft Word), or a Word document exported/saved as HTML (.doc). PDF files cannot be read by the importer.");
+                    }
+                }
+
+                try {
+                    mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+                        .then(function(result){
+                            const html = result.value;
+                            const viewer = document.getElementById("word-viewer");
+                            viewer.innerHTML = html; 
+                            viewer.style.display = "block";
+                            
+                            // Parse normal text
+                            mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                                .then(function(rawResult) {
+                                    parseWordToForms(rawResult.value, html);
+                                })
+                                .catch(tryHtmlFallback);
+                        })
+                        .catch(tryHtmlFallback);
+                } catch (syncErr) {
+                    tryHtmlFallback(syncErr);
+                }
             };
             reader.readAsArrayBuffer(file);
         }
@@ -2040,6 +2165,20 @@ const firebaseConfig = {
             }
             
             return cleanText(searchArea.substring(0, endIndex));
+        }
+
+        function cellText(el) {
+            // .innerText only resolves correctly for elements that are part of a rendered page;
+            // on a detached element (like tempDiv below, which is never added to the document)
+            // real browsers silently return an empty string. This is a reliable, attachment-
+            // independent replacement: it still turns <br> tags into line breaks like innerText
+            // does, but works purely off the DOM tree via textContent.
+            if (!el) return '';
+            let html = el.innerHTML || '';
+            html = html.replace(/<br\s*\/?>/gi, '\n');
+            let tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            return (tmp.textContent || '').trim();
         }
 
         function parseWordToForms(rawText, rawHtml) {
@@ -2111,7 +2250,7 @@ const firebaseConfig = {
             
             function getNextCell(idx) {
                 for(let j = idx + 1; j < tds.length && j <= idx + 3; j++) {
-                    let txt = tds[j].innerText.trim();
+                    let txt = cellText(tds[j]);
                     if(txt !== "" && !txt.match(/^11\.\d+$/) && !txt.toLowerCase().includes("students will be able to")) {
                         return cleanText(txt);
                     }
@@ -2120,8 +2259,8 @@ const firebaseConfig = {
             }
 
             for (let i = 0; i < tds.length; i++) {
-                let txt = tds[i].innerText.trim().toLowerCase();
-                let rawTxt = tds[i].innerText.trim();
+                let txt = cellText(tds[i]).toLowerCase();
+                let rawTxt = cellText(tds[i]);
                 
                 if (txt === "module name" || txt === "11.1 module name") {
                     if(!data.mName) data.mName = getNextCell(i);
@@ -2177,12 +2316,12 @@ const firebaseConfig = {
                     else if(!data.devQual) data.devQual = getNextCell(i);
                 }
                 if (txt.includes("designation")) {
-                    let parts = rawTxt.split(/designation.*?:?/i);
+                    let parts = rawTxt.split(/designation.*?:/i);
                     if(parts.length > 1 && parts[1].trim()) data.devDesig = cleanText(parts[1]);
                     else if(!data.devDesig) data.devDesig = getNextCell(i);
                 }
                 if (txt.includes("e-mail")) {
-                    let parts = rawTxt.split(/e-mail.*?:?/i);
+                    let parts = rawTxt.split(/e-mail.*?:/i);
                     if(parts.length > 1 && parts[1].trim()) data.devMail = cleanText(parts[1]);
                     else if(!data.devMail) data.devMail = getNextCell(i);
                 }
@@ -2195,47 +2334,76 @@ const firebaseConfig = {
             data.schData = [];
             data.matrixData = [];
             data.assessData = [];
-            
+
             tables.forEach(tbl => {
-                let tText = tbl.innerText.toLowerCase();
-                
-                // Schedule Table
-                if((tText.includes("topics") && tText.includes("pedagogy")) || tText.includes("curricular content")) {
+                let tText = tbl.textContent.toLowerCase();
+
+                // --- Schedule Table (11.9) ---
+                // Broad keyword match: needs at least 2 of these hints anywhere in the table,
+                // since rowspan/colspan headers often get mangled when a doc round-trips through Word.
+                let schKeywords = ["topics", "pedagogy", "resources", "credits", "learning hours", "curricular content", "week"];
+                let schHits = schKeywords.filter(k => tText.includes(k)).length;
+                if (schHits >= 2) {
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
-                        let cells = Array.from(r.querySelectorAll('td, th')).map(td => td.innerText.trim());
-                        if(cells.length >= 7 && cells[0].match(/^\d+$/)) {
-                            data.schData.push({
-                                wk: cells[0], top: cells[1]||'', det: cells[2]||'', ped: cells[3]||'', res: cells[4]||'',
-                                cr: cells[5]||'0', lh: cells[6]||'0', f2f: cells[7]||'0', bf2f: cells[8]||'0', bsync: cells[9]||'0', 
-                                basync: cells[10]||'0', esync: cells[11]||'0', easync: cells[12]||'0'
-                            });
-                        }
+                        let cells = Array.from(r.querySelectorAll('td, th')).map(td => cellText(td));
+                        if (cells.length < 5) return;
+                        let wkMatch = cells[0].match(/\d+/);
+                        if (!wkMatch) return; // header/total rows won't start with a number - safely skipped
+                        let c = cells.slice();
+                        while (c.length < 13) c.push('');
+                        data.schData.push({
+                            wk: wkMatch[0], top: c[1]||'', det: c[2]||'', ped: c[3]||'', res: c[4]||'',
+                            cr: c[5]||'0', lh: c[6]||'0', f2f: c[7]||'0', bf2f: c[8]||'0', bsync: c[9]||'0',
+                            basync: c[10]||'0', esync: c[11]||'0', easync: c[12]||'0'
+                        });
                     });
+                    if (data.schData.length > 0) console.log('[RASFAHI Importer] Schedule rows found:', data.schData.length);
                 }
-                
-                // Matrix Table
-                if(tText.includes("knowledge and understanding") && tText.includes("generic cognitive skills")) {
+
+                // --- Matrix Table (11.8 Level Descriptors) ---
+                // A single distinctive indicator-column phrase is enough to flag the table; row shape
+                // is then validated individually so header/merged cells never get treated as data.
+                let matrixKeywords = ["knowledge and understanding", "generic cognitive skills", "communication, ict", "autonomy, accountability", "applied knowledge and understanding"];
+                let matrixHits = matrixKeywords.filter(k => tText.includes(k)).length;
+                if (matrixHits >= 1) {
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
-                        let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
-                        if(cells.length >= 6 && !cells[0].toLowerCase().includes("module outcomes") && !cells[0].includes("MNQF")) {
-                            data.matrixData.push(cells);
+                        let cells = Array.from(r.querySelectorAll('td')).map(td => cellText(td));
+                        if (cells.length < 2) return;
+                        let firstLower = cells[0].toLowerCase();
+                        if (firstLower.includes("module outcomes") || firstLower.includes("subjects/modules") || cells[0].toUpperCase().includes("MNQF")) return;
+                        if (cells.some(c => /level descriptors/i.test(c))) return;
+                        if (cells.every(c => c === '')) return;
+                        let outcome, indicators;
+                        if (cells.length >= 6) {
+                            indicators = cells.slice(-5);
+                            outcome = cells.slice(0, cells.length - 5).join(' ').trim();
+                        } else {
+                            outcome = cells[0];
+                            indicators = cells.slice(1);
+                            while (indicators.length < 5) indicators.push('');
                         }
+                        if (!outcome) return;
+                        data.matrixData.push([outcome, ...indicators]);
                     });
+                    if (data.matrixData.length > 0) console.log('[RASFAHI Importer] Matrix rows found:', data.matrixData.length);
                 }
-                
-                // Assessment Table
+
+                // --- Assessment Table (11.10) ---
                 if(tText.includes("assessment task title") || tText.includes("weightage")) {
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
-                        let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
-                        if(cells.length >= 5 && cells[0].match(/^\d+$/)) {
+                        let cells = Array.from(r.querySelectorAll('td')).map(td => cellText(td));
+                        if(cells.length >= 5 && cells[0].match(/\d+/)) {
                             data.assessData.push(cells);
                         }
                     });
                 }
             });
+
+            if (data.schData.length === 0) console.warn('[RASFAHI Importer] Could not detect a Weekly Schedule (11.9) table in this document.');
+            if (data.matrixData.length === 0) console.warn('[RASFAHI Importer] Could not detect a Level Descriptors Matrix (11.8) table in this document.');
 
             let caMatch = rawText.match(/Continuous Assessments.*?(\d+%?)/i);
             data.caPer = caMatch ? caMatch[1] : "40%";
@@ -2293,8 +2461,8 @@ const firebaseConfig = {
             // 5. WRITE TO DATABASE & RE-RENDER (BUG FIX APPLIED HERE)
             // ----------------------------------------------------
             saveCurrentToDB();
-            let nCid = "c_" + Date.now();
-            let nMid = "m_" + Date.now();
+            let nCid = genId("c");
+            let nMid = genId("m");
 
             // Initialize empty shells in dbState
             dbState.courses[nCid] = { id: nCid, name: pName, programData: { inputs: {}, sCount: 0, aCount: 0, f3Count: 1 }, modules: {} };
@@ -2403,7 +2571,7 @@ const firebaseConfig = {
             } else { addMatrixRow(); }
 
             if(data.schData.length > 0) {
-                data.schData.forEach(r => addSchRow(r.top, r.det, r.res, r.cr, r.lh, r.f2f, r.bf2f, r.bsync, r.basync, r.esync, r.easync));
+                data.schData.forEach(r => addSchRow(r.top, r.det, r.ped, r.res, r.cr, r.lh, r.f2f, r.bf2f, r.bsync, r.basync, r.esync, r.easync));
             } else { addSchRow(); }
 
             if(data.assessData.length > 0) {
@@ -2505,6 +2673,42 @@ const firebaseConfig = {
             container.appendChild(div);
         }
 
+        // --- HEADER LOGO / WATERMARK HELPERS ---
+        function handleLogoUpload(inputEl, dataFieldId, previewId) {
+            const file = inputEl.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) { alert("Please choose a logo image under 2MB."); inputEl.value = ''; return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById(dataFieldId).value = e.target.result;
+                const preview = document.getElementById(previewId);
+                preview.src = e.target.result;
+                preview.style.display = 'inline-block';
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => performSave(false, false), 300);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearLogoField(dataFieldId, previewId, uploadId) {
+            document.getElementById(dataFieldId).value = '';
+            document.getElementById(previewId).src = '';
+            document.getElementById(previewId).style.display = 'none';
+            document.getElementById(uploadId).value = '';
+            performSave(false, false);
+        }
+
+        function refreshLogoPreviews() {
+            ['hdr-logo', 'wm-logo'].forEach(prefix => {
+                let dataEl = document.getElementById(prefix + '-data');
+                let previewEl = document.getElementById(prefix + '-preview');
+                if (dataEl && previewEl) {
+                    if (dataEl.value) { previewEl.src = dataEl.value; previewEl.style.display = 'inline-block'; }
+                    else { previewEl.src = ''; previewEl.style.display = 'none'; }
+                }
+            });
+        }
+
         function addMatrixRow() {
             dynMatCounter++;
             const tb = document.getElementById('tbody-matrix'); const c = dynMatCounter; const tr = document.createElement('tr');
@@ -2529,13 +2733,14 @@ const firebaseConfig = {
             tb.appendChild(tr);
         }
 
-        function addSchRow(top="", det="", res="", cr="0", lh="0", f2f="0", bf2f="0", bsync="0", basync="0", esync="0", easync="0") {
+        function addSchRow(top="", det="", ped="", res="", cr="0", lh="0", f2f="0", bf2f="0", bsync="0", basync="0", esync="0", easync="0") {
             dynSchCounter++;
             const tb = document.getElementById('tbody-sch'); const c = dynSchCounter; const rowNum = tb.rows.length + 1; const tr = document.createElement('tr');
+            let pedVal = ped && ped.trim() !== '' ? ped : 'ޙަރަކާތް: ކްލާހުގައި ދަރިވަރުން...';
             tr.innerHTML = `<td><input type="text" class="ltr-input mod-data" value="${rowNum}" style="text-align:center; width:40px;" id="dyn_sch_${c}_0"></td>
             <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_1">${top}</textarea></td>
             <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_2">${det}</textarea></td>
-            <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_3">ޙަރަކާތް: ކްލާހުގައި ދަރިވަރުން...</textarea></td>
+            <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_3">${pedVal}</textarea></td>
             <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_4">${res}</textarea></td>
             <td><input type="number" class="ltr-input sch-cr mod-data" value="${cr}" style="text-align:center;" oninput="calcRowLh(this); calcT()" id="dyn_sch_${c}_5"></td>
             <td><input type="number" class="ltr-input sch-lh mod-data" value="${lh}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_6"></td>
@@ -2597,16 +2802,66 @@ const firebaseConfig = {
         }
 
         // --- 5. EXPORT STYLES (Strict Black & White, Proper Word RTL, Break Elements) ---
+        /* Header/Watermark are injected per-export from the #hdr-inst-name, #hdr-course-name,
+           #hdr-logo-data and #wm-logo-data settings captured in Step 9 (Review & Export). */
+        function buildLetterheadHTML() {
+            let showHdr = document.getElementById('hdr-enable') ? document.getElementById('hdr-enable').checked : false;
+            if (!showHdr) return '';
+            let logo = document.getElementById('hdr-logo-data') ? document.getElementById('hdr-logo-data').value : '';
+            let inst = document.getElementById('hdr-inst-name') ? document.getElementById('hdr-inst-name').value : '';
+            let course = document.getElementById('hdr-course-name') ? document.getElementById('hdr-course-name').value : '';
+            if (!logo && !inst && !course) return '';
+            return `<table class="letterhead-table"><tr>
+                ${logo ? `<td style="width:110px; border:none; padding:0 15px 10px 0;"><img src="${logo}" style="max-width:100px; max-height:100px;"></td>` : ''}
+                <td style="border:none; padding:0; vertical-align:middle;">
+                    ${inst ? `<div class="rtl-p" style="font-size:15pt; font-weight:bold; margin:0; text-align:${logo?'left':'center'};">${inst}</div>` : ''}
+                    ${course ? `<div class="rtl-p" style="font-size:12pt; margin:0; text-align:${logo?'left':'center'};">${course}</div>` : ''}
+                </td>
+            </tr></table><div style="border-bottom:2px solid #0A192F; margin-bottom:20px;"></div>`;
+        }
+        function buildWatermarkHeaderVML() {
+            let showWm = document.getElementById('wm-enable') ? document.getElementById('wm-enable').checked : false;
+            let wmLogo = document.getElementById('wm-logo-data') ? document.getElementById('wm-logo-data').value : '';
+            if (!showWm || !wmLogo) return '';
+            // Word's HTML/.doc renderer does not honor CSS position:fixed, opacity or z-index the
+            // way browsers do, so those alone just render the logo as a plain full-opacity image
+            // sitting in the document flow. A real repeating, translucent watermark in this format
+            // has to live inside a page HEADER (mso-element:header) using Word's own mso-position-*
+            // extensions to center it on the page, plus the legacy IE "filter:alpha()" property
+            // (Word's renderer is IE/Trident-based and still honors it) to fade it out.
+            return `<div style='mso-element:header' id="wm-header">
+                <p class="MsoHeader" style="text-align:center; margin:0; border:none;">
+                <span style='position:absolute; left:0; top:0; z-index:-1; mso-position-horizontal:center; mso-position-horizontal-relative:margin; mso-position-vertical:center; mso-position-vertical-relative:margin;'>
+                <img src="${wmLogo}" width="380" style="opacity:0.15; filter:alpha(opacity=15); -ms-filter:'alpha(opacity=15)';">
+                </span>
+                </p>
+            </div>`;
+        }
+        function buildWatermarkStyleTag() {
+            let showWm = document.getElementById('wm-enable') ? document.getElementById('wm-enable').checked : false;
+            let wmLogo = document.getElementById('wm-logo-data') ? document.getElementById('wm-logo-data').value : '';
+            if (!showWm || !wmLogo) return '';
+            return `<style>@page Section1 { mso-header: wm-header; }</style>`;
+        }
+
         const exportWordStyles = `
             <style>
+                @page Section1 {
+                    size: 420.0mm 297.0mm;
+                    mso-page-orientation: landscape;
+                    margin: 15mm 15mm 15mm 15mm;
+                }
+                div.Section1 { page: Section1; }
                 body { font-family: 'Segoe UI', Tahoma, sans-serif; color: black; background: white; margin: 0; padding: 0; }
-                .export-wrapper { width: 100%; max-width: 1000px; margin: 0 auto; direction: ltr; padding: 40px; box-sizing: border-box; text-align: left; }
+                .export-wrapper { width: 100%; max-width: 1550px; margin: 0 auto; direction: ltr; padding: 20px 30px; box-sizing: border-box; text-align: left; page: Section1; mso-page-orientation: landscape; position: relative; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; table-layout: fixed; word-wrap: break-word; color: black; }
+                table.letterhead-table { table-layout: auto; margin-bottom: 8px; }
+                table.letterhead-table td { border: none !important; }
                 th, td { border: 1px solid black; padding: 10px; vertical-align: top; color: black; text-align: left; }
                 tr { page-break-inside: avoid; }
                 .bg-gray { background-color: #f3f4f6 !important; font-weight: bold; color: #0A192F !important; }
                 .center { text-align: center !important; }
-                .rtl-p { direction: rtl; text-align: justify; text-justify: inter-word; font-family: 'Faruma', 'Amiri', serif; font-size: 13pt; line-height: 1.8; }
+                .rtl-p { direction: rtl; text-align: justify; text-justify: inter-word; font-family: 'Faruma', 'MV Faruma', 'A_Faruma', 'Noto Sans Thaana', 'Amiri', serif; font-size: 13pt; line-height: 1.8; }
                 .v-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; margin: auto; padding: 10px 0; font-size: 9pt;}
                 h1, h2, h3, h4, h5, p { color: #0A192F; }
                 h1 { font-family: 'Playfair Display', serif; border-bottom: 3px solid #004D1A; padding-bottom: 10px; text-align: center; page-break-before: always; margin-top: 40px; }
@@ -2623,7 +2878,7 @@ const firebaseConfig = {
         }
 
         function buildForm3HTML() {
-            return `
+            let html = `
             <div class="export-wrapper">
                 <div style="text-align:center; margin-bottom: 30px;">
                     <img src="https://raw.githubusercontent.com/alibrahimdidi/iumlogo/main/ium.png" alt="IUM Logo" style="max-width: 300px; height: auto;">
@@ -2721,6 +2976,7 @@ const firebaseConfig = {
         function buildProgramHTMLPartA_B() {
             let html = `
             <div class="export-wrapper">
+                ${buildLetterheadHTML()}
                 <div style="text-align:center; margin-bottom: 50px;">
                     <h1 class="rtl-p center" style="font-size: 26pt; margin-bottom: 10px; border:none; margin-top:0; page-break-before: avoid;">${document.getElementById('a-inst').value}</h1>
                     <h2 class="rtl-p center" style="font-size: 20pt; margin-bottom: 30px;">ޕްރޮގްރާމް އައުޓްލައިން</h2>
@@ -2919,6 +3175,7 @@ const firebaseConfig = {
             
             let html = `
             <div class="export-wrapper">
+                ${buildLetterheadHTML()}
                 <div style="page-break-before: always;"></div>
                 <table border="1" cellpadding="8">
                     <tr>
@@ -3222,7 +3479,7 @@ const firebaseConfig = {
             }
 
             const src = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-            <head><meta charset='utf-8'>${exportWordStyles}</head><body>${htmlContent}</body></html>`;
+            <head><meta charset='utf-8'>${exportWordStyles}${buildWatermarkStyleTag()}</head><body>${buildWatermarkHeaderVML()}${htmlContent}</body></html>`;
             
             const blob = new Blob(['\ufeff', src], { type: 'application/msword' });
             const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${fileName}.doc`; link.click();
@@ -3234,6 +3491,7 @@ const firebaseConfig = {
         function buildSampleModuleHTML() {
             return `
             <div class="export-wrapper">
+                ${buildLetterheadHTML()}
                 <div style="page-break-before: always;"></div>
                 <table border="1" cellpadding="8">
                     <tr>
@@ -3359,6 +3617,7 @@ const firebaseConfig = {
         function buildSampleStructureHTML() {
             return `
             <div class="export-wrapper">
+                ${buildLetterheadHTML()}
                 <h3 style="margin-top:0;">10. Program Structure Summary</h3>
                 <h4 style="margin-top:20px; font-size:14pt;">Semester 1</h4>
                 <table border="1" cellpadding="6">
@@ -3404,8 +3663,8 @@ const firebaseConfig = {
                 const src = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
                 <head>
                     <meta charset='utf-8'>
-                    ${exportWordStyles}
-                </head><body>${htmlContent}</body></html>`;
+                    ${exportWordStyles}${buildWatermarkStyleTag()}
+                </head><body>${buildWatermarkHeaderVML()}${htmlContent}</body></html>`;
                 
                 const blob = new Blob(['\ufeff', src], { type: 'application/msword' });
                 const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${fileName}.doc`; link.click();
