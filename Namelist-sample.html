@@ -1469,16 +1469,16 @@ Upon successful completion of this Module, students will have the knowledge and 
             if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) { return false; }
         };
 
-         // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDD7W7fJmu5iZER7_jdBdEDo-90BHwH4W8",
-  authDomain: "outlinesoft-9bc23.firebaseapp.com",
-  projectId: "outlinesoft-9bc23",
-  storageBucket: "outlinesoft-9bc23.firebasestorage.app",
-  messagingSenderId: "577003244212",
-  appId: "1:577003244212:web:0b07089e57d44d1a8a25e1",
-  measurementId: "G-44M2Z0R3VH"
-};
+        // --- 1. FIREBASE SETUP & AUTHENTICATION LOGIC ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAimgH2ZPF8KxIv1qteHX4kMTgNiPbRjzo",
+            authDomain: "masterprogrambuilder.firebaseapp.com",
+            projectId: "masterprogrambuilder",
+            storageBucket: "masterprogrambuilder.firebasestorage.app",
+            messagingSenderId: "282371495854",
+            appId: "1:282371495854:web:63ce37ec3c0e3805bd5a3f",
+            measurementId: "G-1JFMC9FXW9"
+        };
         
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
@@ -1964,7 +1964,7 @@ const firebaseConfig = {
             if (navigator.onLine && !forceLocal && userDocRef) {
                 let metaPayload = { activeCourseId: activeCourseId, activeModuleId: activeModuleId, timestamp: payload.timestamp };
                 let batch = db.batch();
-                batch.set(userDocRef, metaPayload);
+                batch.set(userDocRef, metaPayload, { merge: true });
                 if (activeCourseId && dbState.courses[activeCourseId]) {
                     batch.set(userDocRef.collection('courses').doc(activeCourseId), dbState.courses[activeCourseId]);
                 }
@@ -1975,9 +1975,11 @@ const firebaseConfig = {
                 }).catch(err => {
                     console.error("Cloud save failed", err);
                     saveToLocal(payload, uid, false);
-                    statusEl.innerHTML = 'Cloud save failed - saved locally only <i class="fas fa-exclamation-triangle"></i>';
+                    let errMsg = (err && (err.code || err.message)) ? (err.code || err.message) : 'unknown error';
+                    statusEl.innerHTML = 'Cloud save failed (' + errMsg + ') - saved locally only <i class="fas fa-exclamation-triangle"></i>';
+                    statusEl.title = err && err.message ? err.message : '';
                     statusEl.parentElement.style.color = "var(--danger)";
-                    if(isManual) alert("Could not save to the Cloud Archive (saved to this browser only). This device may be offline, or a single course may have grown too large (e.g. very large logo images) - try removing a large logo and saving again.");
+                    if(isManual) alert("Could not save to the Cloud Archive (saved to this browser only).\n\nError: " + errMsg + "\n\nThis is usually either no internet connection, or the Firestore Security Rules not allowing access to the 'courses' subcollection - check the Firebase Console > Firestore Database > Rules.");
                 });
             } else {
                 saveToLocal(payload, uid, isManual);
@@ -1992,11 +1994,15 @@ const firebaseConfig = {
             let courseIds = Object.keys(dbState.courses);
             if (courseIds.length === 0) return Promise.resolve();
             let batch = db.batch();
-            batch.set(userDocRef, { activeCourseId: activeCourseId, activeModuleId: activeModuleId, timestamp: new Date().toISOString() });
+            batch.set(userDocRef, { activeCourseId: activeCourseId, activeModuleId: activeModuleId, timestamp: new Date().toISOString() }, { merge: true });
             courseIds.forEach(cId => {
                 batch.set(userDocRef.collection('courses').doc(cId), dbState.courses[cId]);
             });
-            return batch.commit().catch(err => {
+            return batch.commit().then(() => {
+                // Every course is now safely in its own document, so it's safe to clear any
+                // leftover embedded blob from the old single-document format.
+                return userDocRef.update({ dbState: firebase.firestore.FieldValue.delete() }).catch(() => {});
+            }).catch(err => {
                 console.error('[RASFAHI] syncAllCoursesToCloud failed', err);
                 if (!silent) alert("Could not fully sync to the Cloud Archive - some courses may be too large. Your data is still safe in this browser.");
             });
