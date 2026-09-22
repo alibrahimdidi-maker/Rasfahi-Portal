@@ -2086,37 +2086,47 @@ Upon successful completion of this Module, students will have the knowledge and 
             reader.onload = function(e) {
                 const arrayBuffer = e.target.result;
 
-                mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
-                    .then(function(result){
-                        const html = result.value;
-                        const viewer = document.getElementById("word-viewer");
-                        viewer.innerHTML = html; 
-                        viewer.style.display = "block";
-                        
-                        // Parse normal text
-                        mammoth.extractRawText({ arrayBuffer: arrayBuffer })
-                            .then(function(rawResult) {
-                                parseWordToForms(rawResult.value, html);
-                            });
-                    })
-                    .catch(function(err){
-                        // Mammoth only understands real .docx (OOXML/ZIP) files. Many "Word" files -
-                        // including every .doc this app itself exports - are actually plain HTML saved
-                        // with a .doc extension (MS Word's "Web Page" export format). If mammoth fails,
-                        // try reading the file directly as HTML before giving up.
-                        console.warn('[RASFAHI Importer] mammoth could not read this as .docx, trying HTML fallback:', err.message);
-                        try {
-                            let textContent = (typeof TextDecoder !== 'undefined')
-                                ? new TextDecoder('utf-8').decode(new Uint8Array(arrayBuffer))
-                                : String.fromCharCode.apply(null, new Uint8Array(arrayBuffer));
-                            const looksLikeHtml = /<html[\s>]/i.test(textContent) || /<table[\s>]/i.test(textContent) || /<body[\s>]/i.test(textContent);
-                            if (!looksLikeHtml) throw new Error('not HTML either');
-                            parseHtmlWordDoc(textContent);
-                        } catch (fallbackErr) {
-                            console.error(err, fallbackErr);
-                            alert("Error reading Word File. Please make sure it is a real .docx file (File > Save As > Word Document (.docx) in Microsoft Word), or a Word document exported/saved as HTML (.doc). PDF files cannot be read by the importer.");
-                        }
-                    });
+                // Mammoth only understands real .docx (OOXML/ZIP) files. Many "Word" files -
+                // including every .doc this app itself exports - are actually plain HTML saved
+                // with a .doc extension (MS Word's "Web Page" export format). If mammoth can't
+                // read the file, fall back to reading it directly as HTML instead of giving up.
+                // IMPORTANT: for a malformed/non-zip input, mammoth 1.4.2 throws SYNCHRONOUSLY
+                // (before even returning a Promise) rather than rejecting asynchronously, so this
+                // fallback has to be reachable from a synchronous catch too, not only a .catch().
+                function tryHtmlFallback(err) {
+                    console.warn('[RASFAHI Importer] mammoth could not read this as .docx, trying HTML fallback:', err && err.message);
+                    try {
+                        let textContent = (typeof TextDecoder !== 'undefined')
+                            ? new TextDecoder('utf-8').decode(new Uint8Array(arrayBuffer))
+                            : String.fromCharCode.apply(null, new Uint8Array(arrayBuffer));
+                        const looksLikeHtml = /<html[\s>]/i.test(textContent) || /<table[\s>]/i.test(textContent) || /<body[\s>]/i.test(textContent);
+                        if (!looksLikeHtml) throw new Error('not HTML either');
+                        parseHtmlWordDoc(textContent);
+                    } catch (fallbackErr) {
+                        console.error(err, fallbackErr);
+                        alert("Error reading Word File. Please make sure it is a real .docx file (File > Save As > Word Document (.docx) in Microsoft Word), or a Word document exported/saved as HTML (.doc). PDF files cannot be read by the importer.");
+                    }
+                }
+
+                try {
+                    mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+                        .then(function(result){
+                            const html = result.value;
+                            const viewer = document.getElementById("word-viewer");
+                            viewer.innerHTML = html; 
+                            viewer.style.display = "block";
+                            
+                            // Parse normal text
+                            mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                                .then(function(rawResult) {
+                                    parseWordToForms(rawResult.value, html);
+                                })
+                                .catch(tryHtmlFallback);
+                        })
+                        .catch(tryHtmlFallback);
+                } catch (syncErr) {
+                    tryHtmlFallback(syncErr);
+                }
             };
             reader.readAsArrayBuffer(file);
         }
