@@ -1856,6 +1856,9 @@ Upon successful completion of this Module, students will have the knowledge and 
             if(verify !== "DELETE") { alert("Deletion cancelled."); return; }
 
             delete dbState.courses[cId];
+            if (navigator.onLine && userDocRef) {
+                userDocRef.collection('courses').doc(cId).delete().catch(err => console.error('[RASFAHI] cloud course delete failed', err));
+            }
             let keys = Object.keys(dbState.courses);
             if(keys.length === 0) { 
                 createNewCourse(); 
@@ -1902,7 +1905,16 @@ Upon successful completion of this Module, students will have the knowledge and 
             
             const uid = auth.currentUser ? auth.currentUser.uid : 'guest';
             localStorage.removeItem('rasfahi_archive_' + uid);
-            
+
+            if (navigator.onLine && userDocRef) {
+                userDocRef.collection('courses').get().then(snap => {
+                    let batch = db.batch();
+                    snap.forEach(d => batch.delete(d.ref));
+                    batch.set(userDocRef, { activeCourseId: null, activeModuleId: null, timestamp: new Date().toISOString() });
+                    return batch.commit();
+                }).catch(err => console.error('[RASFAHI] cloud archive wipe failed', err));
+            }
+
             createNewCourse(); 
             alert("✅ Archive has been completely reset.");
         }
@@ -1936,6 +1948,12 @@ Upon successful completion of this Module, students will have the knowledge and 
         }
 
         // --- DATA SYNC ---
+        // IMPORTANT: Firestore caps every document at 1MB. The old design stored the user's ENTIRE
+        // archive (every course, every module, and now every uploaded logo as base64) inside ONE
+        // document, which could silently exceed that cap - the cloud write would then fail, the app
+        // would quietly fall back to browser-only storage, and the newer data would simply never
+        // reach another device. Each course is now its own document instead, which both keeps
+        // documents small and means unrelated courses don't get rewritten on every keystroke.
         function performSave(isManual = false, forceLocal = false) {
             saveCurrentToDB(); 
             const statusEl = document.getElementById('sync-status-text');
@@ -1944,14 +1962,44 @@ Upon successful completion of this Module, students will have the knowledge and 
             let payload = { dbState: dbState, activeCourseId: activeCourseId, activeModuleId: activeModuleId, timestamp: new Date().toISOString() };
             
             if (navigator.onLine && !forceLocal && userDocRef) {
-                userDocRef.set(payload).then(() => {
+                let metaPayload = { activeCourseId: activeCourseId, activeModuleId: activeModuleId, timestamp: payload.timestamp };
+                let batch = db.batch();
+                batch.set(userDocRef, metaPayload);
+                if (activeCourseId && dbState.courses[activeCourseId]) {
+                    batch.set(userDocRef.collection('courses').doc(activeCourseId), dbState.courses[activeCourseId]);
+                }
+                batch.commit().then(() => {
                     statusEl.innerHTML = 'Saved to Cloud <i class="fas fa-check-circle"></i>'; 
                     statusEl.parentElement.style.color = "var(--royal-green-light)";
                     if(isManual) alert("Successfully saved to Cloud Archive!");
-                }).catch(err => { console.error("Cloud save failed", err); saveToLocal(payload, uid, isManual); });
+                }).catch(err => {
+                    console.error("Cloud save failed", err);
+                    saveToLocal(payload, uid, false);
+                    statusEl.innerHTML = 'Cloud save failed - saved locally only <i class="fas fa-exclamation-triangle"></i>';
+                    statusEl.parentElement.style.color = "var(--danger)";
+                    if(isManual) alert("Could not save to the Cloud Archive (saved to this browser only). This device may be offline, or a single course may have grown too large (e.g. very large logo images) - try removing a large logo and saving again.");
+                });
             } else {
                 saveToLocal(payload, uid, isManual);
             }
+        }
+
+        // Syncs every course in dbState to its own Firestore document. Used for bulk operations
+        // (restoring a backup, migrating an older single-document archive) where more than just the
+        // active course needs to reach the cloud - performSave() alone only touches the active course.
+        function syncAllCoursesToCloud(silent = true) {
+            if (!(navigator.onLine && userDocRef)) return Promise.resolve();
+            let courseIds = Object.keys(dbState.courses);
+            if (courseIds.length === 0) return Promise.resolve();
+            let batch = db.batch();
+            batch.set(userDocRef, { activeCourseId: activeCourseId, activeModuleId: activeModuleId, timestamp: new Date().toISOString() });
+            courseIds.forEach(cId => {
+                batch.set(userDocRef.collection('courses').doc(cId), dbState.courses[cId]);
+            });
+            return batch.commit().catch(err => {
+                console.error('[RASFAHI] syncAllCoursesToCloud failed', err);
+                if (!silent) alert("Could not fully sync to the Cloud Archive - some courses may be too large. Your data is still safe in this browser.");
+            });
         }
 
         function saveToLocal(payload, uid, isManual) {
@@ -1965,14 +2013,10 @@ Upon successful completion of this Module, students will have the knowledge and 
         window.addEventListener('online', () => {
             const statusEl = document.getElementById('sync-status-text');
             statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Back Online. Syncing...';
-            const uid = auth.currentUser ? auth.currentUser.uid : 'guest';
-            const localData = localStorage.getItem('rasfahi_archive_' + uid);
-            if (localData && userDocRef) {
-                userDocRef.set(JSON.parse(localData)).then(() => {
-                    statusEl.innerHTML = 'Saved to Cloud <i class="fas fa-check-circle"></i>'; 
-                    statusEl.parentElement.style.color = "var(--royal-green-light)";
-                });
-            }
+            syncAllCoursesToCloud(false).then(() => {
+                statusEl.innerHTML = 'Saved to Cloud <i class="fas fa-check-circle"></i>'; 
+                statusEl.parentElement.style.color = "var(--royal-green-light)";
+            });
         });
 
         window.addEventListener('offline', () => { document.getElementById('sync-status-text').innerText = "Offline Mode"; document.getElementById('sync-status-text').parentElement.style.color = "orange"; });
@@ -1981,13 +2025,34 @@ Upon successful completion of this Module, students will have the knowledge and 
             const statusEl = document.getElementById('sync-status-text');
             statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Archive...';
             if (navigator.onLine && userDocRef) {
-                userDocRef.get().then((doc) => {
-                    if (doc.exists && doc.data().dbState && Object.keys(doc.data().dbState.courses).length > 0) {
-                        dbState = doc.data().dbState; loadStateFromMemory(doc.data().activeCourseId, doc.data().activeModuleId, true);
-                        statusEl.innerHTML = 'Loaded from Cloud <i class="fas fa-check-circle"></i>'; 
-                        statusEl.parentElement.style.color = "var(--royal-green-light)";
-                    } else { loadLocal(uid); }
-                }).catch(err => { loadLocal(uid); });
+                userDocRef.get().then((metaDoc) => {
+                    userDocRef.collection('courses').get().then((coursesSnap) => {
+                        let cloudCourses = {};
+                        coursesSnap.forEach(d => { cloudCourses[d.id] = d.data(); });
+
+                        if (Object.keys(cloudCourses).length > 0) {
+                            dbState = { courses: cloudCourses };
+                            let meta = metaDoc.exists ? metaDoc.data() : {};
+                            let cid = (meta.activeCourseId && cloudCourses[meta.activeCourseId]) ? meta.activeCourseId : Object.keys(cloudCourses)[0];
+                            let mid = meta.activeModuleId || null;
+                            loadStateFromMemory(cid, mid, true);
+                            statusEl.innerHTML = 'Loaded from Cloud <i class="fas fa-check-circle"></i>';
+                            statusEl.parentElement.style.color = "var(--royal-green-light)";
+                        } else if (metaDoc.exists && metaDoc.data().dbState && Object.keys(metaDoc.data().dbState.courses || {}).length > 0) {
+                            // Archive still in the old single-document format from before this fix -
+                            // load it as-is, then migrate it into the new per-course documents so it
+                            // keeps syncing correctly (and stays under Firestore's 1MB-per-doc limit).
+                            let oldData = metaDoc.data();
+                            dbState = oldData.dbState;
+                            loadStateFromMemory(oldData.activeCourseId, oldData.activeModuleId, true);
+                            statusEl.innerHTML = 'Loaded from Cloud <i class="fas fa-check-circle"></i>';
+                            statusEl.parentElement.style.color = "var(--royal-green-light)";
+                            syncAllCoursesToCloud(true);
+                        } else {
+                            loadLocal(uid);
+                        }
+                    }).catch(err => { console.error('[RASFAHI] restoreData (courses) failed', err); loadLocal(uid); });
+                }).catch(err => { console.error('[RASFAHI] restoreData (meta) failed', err); loadLocal(uid); });
             } else { loadLocal(uid); }
         }
 
@@ -1998,6 +2063,9 @@ Upon successful completion of this Module, students will have the knowledge and 
                 let data = JSON.parse(localData);
                 if(data.dbState && Object.keys(data.dbState.courses).length > 0) {
                     dbState = data.dbState; loadStateFromMemory(data.activeCourseId, data.activeModuleId, true);
+                    // Local data exists but the cloud had none for this account - push it up so
+                    // other devices can see it too.
+                    if (navigator.onLine && userDocRef) syncAllCoursesToCloud(true);
                 } else { initDefaultDB(); }
                 statusEl.innerHTML = 'Loaded from Browser <i class="fas fa-check-circle"></i>'; 
                 statusEl.parentElement.style.color = "var(--royal-green-light)";
@@ -2039,7 +2107,8 @@ Upon successful completion of this Module, students will have the knowledge and 
                                 loadStateFromMemory(firstCourseId, firstModId);
                             }
                             renderArchive();
-                            performSave(true, false);
+                            performSave(false, false);
+                            syncAllCoursesToCloud(false);
                             alert("✅ Database successfully imported and restored!");
                         }
                     } else {
