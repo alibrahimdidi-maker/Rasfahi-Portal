@@ -2157,6 +2157,20 @@ Upon successful completion of this Module, students will have the knowledge and 
             return cleanText(searchArea.substring(0, endIndex));
         }
 
+        function cellText(el) {
+            // .innerText only resolves correctly for elements that are part of a rendered page;
+            // on a detached element (like tempDiv below, which is never added to the document)
+            // real browsers silently return an empty string. This is a reliable, attachment-
+            // independent replacement: it still turns <br> tags into line breaks like innerText
+            // does, but works purely off the DOM tree via textContent.
+            if (!el) return '';
+            let html = el.innerHTML || '';
+            html = html.replace(/<br\s*\/?>/gi, '\n');
+            let tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            return (tmp.textContent || '').trim();
+        }
+
         function parseWordToForms(rawText, rawHtml) {
             let tempDiv = document.createElement('div');
             tempDiv.innerHTML = rawHtml;
@@ -2226,7 +2240,7 @@ Upon successful completion of this Module, students will have the knowledge and 
             
             function getNextCell(idx) {
                 for(let j = idx + 1; j < tds.length && j <= idx + 3; j++) {
-                    let txt = tds[j].innerText.trim();
+                    let txt = cellText(tds[j]);
                     if(txt !== "" && !txt.match(/^11\.\d+$/) && !txt.toLowerCase().includes("students will be able to")) {
                         return cleanText(txt);
                     }
@@ -2235,8 +2249,8 @@ Upon successful completion of this Module, students will have the knowledge and 
             }
 
             for (let i = 0; i < tds.length; i++) {
-                let txt = tds[i].innerText.trim().toLowerCase();
-                let rawTxt = tds[i].innerText.trim();
+                let txt = cellText(tds[i]).toLowerCase();
+                let rawTxt = cellText(tds[i]);
                 
                 if (txt === "module name" || txt === "11.1 module name") {
                     if(!data.mName) data.mName = getNextCell(i);
@@ -2312,7 +2326,7 @@ Upon successful completion of this Module, students will have the knowledge and 
             data.assessData = [];
 
             tables.forEach(tbl => {
-                let tText = tbl.innerText.toLowerCase();
+                let tText = tbl.textContent.toLowerCase();
 
                 // --- Schedule Table (11.9) ---
                 // Broad keyword match: needs at least 2 of these hints anywhere in the table,
@@ -2322,7 +2336,7 @@ Upon successful completion of this Module, students will have the knowledge and 
                 if (schHits >= 2) {
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
-                        let cells = Array.from(r.querySelectorAll('td, th')).map(td => td.innerText.trim());
+                        let cells = Array.from(r.querySelectorAll('td, th')).map(td => cellText(td));
                         if (cells.length < 5) return;
                         let wkMatch = cells[0].match(/\d+/);
                         if (!wkMatch) return; // header/total rows won't start with a number - safely skipped
@@ -2345,7 +2359,7 @@ Upon successful completion of this Module, students will have the knowledge and 
                 if (matrixHits >= 1) {
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
-                        let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
+                        let cells = Array.from(r.querySelectorAll('td')).map(td => cellText(td));
                         if (cells.length < 2) return;
                         let firstLower = cells[0].toLowerCase();
                         if (firstLower.includes("module outcomes") || firstLower.includes("subjects/modules") || cells[0].toUpperCase().includes("MNQF")) return;
@@ -2370,7 +2384,7 @@ Upon successful completion of this Module, students will have the knowledge and 
                 if(tText.includes("assessment task title") || tText.includes("weightage")) {
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
-                        let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
+                        let cells = Array.from(r.querySelectorAll('td')).map(td => cellText(td));
                         if(cells.length >= 5 && cells[0].match(/\d+/)) {
                             data.assessData.push(cells);
                         }
