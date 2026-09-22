@@ -2819,11 +2819,29 @@ Upon successful completion of this Module, students will have the knowledge and 
                 </td>
             </tr></table><div style="border-bottom:2px solid #0A192F; margin-bottom:20px;"></div>`;
         }
-        function buildWatermarkHTML() {
+        function buildWatermarkHeaderVML() {
             let showWm = document.getElementById('wm-enable') ? document.getElementById('wm-enable').checked : false;
             let wmLogo = document.getElementById('wm-logo-data') ? document.getElementById('wm-logo-data').value : '';
             if (!showWm || !wmLogo) return '';
-            return `<div class="doc-watermark"><img src="${wmLogo}"></div>`;
+            // Word's HTML/.doc renderer does not honor CSS position:fixed, opacity or z-index the
+            // way browsers do, so those alone just render the logo as a plain full-opacity image
+            // sitting in the document flow. A real repeating, translucent watermark in this format
+            // has to live inside a page HEADER (mso-element:header) using Word's own mso-position-*
+            // extensions to center it on the page, plus the legacy IE "filter:alpha()" property
+            // (Word's renderer is IE/Trident-based and still honors it) to fade it out.
+            return `<div style='mso-element:header' id="wm-header">
+                <p class="MsoHeader" style="text-align:center; margin:0; border:none;">
+                <span style='position:absolute; left:0; top:0; z-index:-1; mso-position-horizontal:center; mso-position-horizontal-relative:margin; mso-position-vertical:center; mso-position-vertical-relative:margin;'>
+                <img src="${wmLogo}" width="380" style="opacity:0.15; filter:alpha(opacity=15); -ms-filter:'alpha(opacity=15)';">
+                </span>
+                </p>
+            </div>`;
+        }
+        function buildWatermarkStyleTag() {
+            let showWm = document.getElementById('wm-enable') ? document.getElementById('wm-enable').checked : false;
+            let wmLogo = document.getElementById('wm-logo-data') ? document.getElementById('wm-logo-data').value : '';
+            if (!showWm || !wmLogo) return '';
+            return `<style>@page Section1 { mso-header: wm-header; }</style>`;
         }
 
         const exportWordStyles = `
@@ -2852,8 +2870,6 @@ Upon successful completion of this Module, students will have the knowledge and 
                 .table-separator { margin-bottom: 30px; clear: both; }
                 ul { margin-right: 30px; line-height: 1.6; }
                 li { margin-bottom: 8px; }
-                .doc-watermark { position: fixed; top: 35%; left: 30%; width: 40%; opacity: 0.10; z-index: -1; text-align: center; mso-position-horizontal: center; mso-position-vertical: center; }
-                .doc-watermark img { width: 100%; }
             </style>
         `;
 
@@ -2864,7 +2880,6 @@ Upon successful completion of this Module, students will have the knowledge and 
         function buildForm3HTML() {
             let html = `
             <div class="export-wrapper">
-                ${buildWatermarkHTML()}
                 <div style="text-align:center; margin-bottom: 30px;">
                     <img src="https://raw.githubusercontent.com/alibrahimdidi/iumlogo/main/ium.png" alt="IUM Logo" style="max-width: 300px; height: auto;">
                 </div>
@@ -2961,7 +2976,6 @@ Upon successful completion of this Module, students will have the knowledge and 
         function buildProgramHTMLPartA_B() {
             let html = `
             <div class="export-wrapper">
-                ${buildWatermarkHTML()}
                 ${buildLetterheadHTML()}
                 <div style="text-align:center; margin-bottom: 50px;">
                     <h1 class="rtl-p center" style="font-size: 26pt; margin-bottom: 10px; border:none; margin-top:0; page-break-before: avoid;">${document.getElementById('a-inst').value}</h1>
@@ -3161,7 +3175,6 @@ Upon successful completion of this Module, students will have the knowledge and 
             
             let html = `
             <div class="export-wrapper">
-                ${buildWatermarkHTML()}
                 ${buildLetterheadHTML()}
                 <div style="page-break-before: always;"></div>
                 <table border="1" cellpadding="8">
@@ -3466,7 +3479,7 @@ Upon successful completion of this Module, students will have the knowledge and 
             }
 
             const src = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-            <head><meta charset='utf-8'>${exportWordStyles}</head><body>${htmlContent}</body></html>`;
+            <head><meta charset='utf-8'>${exportWordStyles}${buildWatermarkStyleTag()}</head><body>${buildWatermarkHeaderVML()}${htmlContent}</body></html>`;
             
             const blob = new Blob(['\ufeff', src], { type: 'application/msword' });
             const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${fileName}.doc`; link.click();
@@ -3478,7 +3491,6 @@ Upon successful completion of this Module, students will have the knowledge and 
         function buildSampleModuleHTML() {
             return `
             <div class="export-wrapper">
-                ${buildWatermarkHTML()}
                 ${buildLetterheadHTML()}
                 <div style="page-break-before: always;"></div>
                 <table border="1" cellpadding="8">
@@ -3605,7 +3617,6 @@ Upon successful completion of this Module, students will have the knowledge and 
         function buildSampleStructureHTML() {
             return `
             <div class="export-wrapper">
-                ${buildWatermarkHTML()}
                 ${buildLetterheadHTML()}
                 <h3 style="margin-top:0;">10. Program Structure Summary</h3>
                 <h4 style="margin-top:20px; font-size:14pt;">Semester 1</h4>
@@ -3622,7 +3633,6 @@ Upon successful completion of this Module, students will have the knowledge and 
         function buildSampleForm3HTML() {
             return `
             <div class="export-wrapper">
-                ${buildWatermarkHTML()}
                 <div style="text-align:center; margin-bottom: 30px;">
                     <img src="https://raw.githubusercontent.com/alibrahimdidi/iumlogo/main/ium.png" alt="IUM Logo" style="max-width: 300px; height: auto;">
                 </div>
@@ -3653,8 +3663,8 @@ Upon successful completion of this Module, students will have the knowledge and 
                 const src = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
                 <head>
                     <meta charset='utf-8'>
-                    ${exportWordStyles}
-                </head><body>${htmlContent}</body></html>`;
+                    ${exportWordStyles}${buildWatermarkStyleTag()}
+                </head><body>${buildWatermarkHeaderVML()}${htmlContent}</body></html>`;
                 
                 const blob = new Blob(['\ufeff', src], { type: 'application/msword' });
                 const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${fileName}.doc`; link.click();
