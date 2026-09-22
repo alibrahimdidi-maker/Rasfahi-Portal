@@ -1339,8 +1339,8 @@ Upon successful completion of this Module, students will have the knowledge and 
                     <h2 class="section-header"><i class="fas fa-file-word"></i> Smart Word Importer (Beta)</h2>
                     
                     <div class="importer-box">
-                        <p>Upload a previously exported <b>.docx</b> file. The system will read the text, automatically create a new Module in your Archive, and fill out the forms with extracted data.</p>
-                        <input type="file" id="word-upload" accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword" style="display:none;" onchange="readWordFile(event)">
+                        <p>Upload a previously exported <b>.docx</b> or <b>.doc</b> file (including files exported by this app itself). The system will read the text, automatically create a new Module in your Archive, and fill out the forms with extracted data.</p>
+                        <input type="file" id="word-upload" accept=".docx,.doc,.htm,.html,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/html" style="display:none;" onchange="readWordFile(event)">
                         <button class="btn btn-blue" onclick="document.getElementById('word-upload').click()"><i class="fas fa-upload"></i> Select Word File to Import</button>
                         <div id="import-success-msg" class="import-success">✅ File successfully parsed! A new module has been created and loaded from your Archive.</div>
                     </div>
@@ -2054,6 +2054,30 @@ Upon successful completion of this Module, students will have the knowledge and 
         }
 
         // --- SMART WORD IMPORTER ---
+        function htmlToPlainText(html) {
+            let s = html;
+            s = s.replace(/<(br|\/p|\/div|\/tr|\/h[1-6]|\/li)\s*\/?>/gi, '\n');
+            s = s.replace(/<\/td>/gi, '\t');
+            s = s.replace(/<[^>]+>/g, '');
+            let ta = document.createElement('textarea');
+            ta.innerHTML = s;
+            return ta.value;
+        }
+
+        function parseHtmlWordDoc(rawFileText) {
+            const parser = new DOMParser();
+            const parsedDoc = parser.parseFromString(rawFileText, 'text/html');
+            const bodyEl = parsedDoc.body || parsedDoc.documentElement;
+            const rawHtml = bodyEl ? bodyEl.innerHTML : rawFileText;
+            const rawText = htmlToPlainText(rawHtml);
+
+            const viewer = document.getElementById("word-viewer");
+            viewer.innerHTML = rawHtml;
+            viewer.style.display = "block";
+
+            parseWordToForms(rawText, rawHtml);
+        }
+
         function readWordFile(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -2061,7 +2085,7 @@ Upon successful completion of this Module, students will have the knowledge and 
             const reader = new FileReader();
             reader.onload = function(e) {
                 const arrayBuffer = e.target.result;
-                
+
                 mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
                     .then(function(result){
                         const html = result.value;
@@ -2076,8 +2100,22 @@ Upon successful completion of this Module, students will have the knowledge and 
                             });
                     })
                     .catch(function(err){
-                        console.error(err);
-                        alert("Error reading Word File. Please make sure it is a real .docx file (File > Save As > Word Document (.docx) in Microsoft Word). The old .doc format and PDF files cannot be read by the importer.");
+                        // Mammoth only understands real .docx (OOXML/ZIP) files. Many "Word" files -
+                        // including every .doc this app itself exports - are actually plain HTML saved
+                        // with a .doc extension (MS Word's "Web Page" export format). If mammoth fails,
+                        // try reading the file directly as HTML before giving up.
+                        console.warn('[RASFAHI Importer] mammoth could not read this as .docx, trying HTML fallback:', err.message);
+                        try {
+                            let textContent = (typeof TextDecoder !== 'undefined')
+                                ? new TextDecoder('utf-8').decode(new Uint8Array(arrayBuffer))
+                                : String.fromCharCode.apply(null, new Uint8Array(arrayBuffer));
+                            const looksLikeHtml = /<html[\s>]/i.test(textContent) || /<table[\s>]/i.test(textContent) || /<body[\s>]/i.test(textContent);
+                            if (!looksLikeHtml) throw new Error('not HTML either');
+                            parseHtmlWordDoc(textContent);
+                        } catch (fallbackErr) {
+                            console.error(err, fallbackErr);
+                            alert("Error reading Word File. Please make sure it is a real .docx file (File > Save As > Word Document (.docx) in Microsoft Word), or a Word document exported/saved as HTML (.doc). PDF files cannot be read by the importer.");
+                        }
                     });
             };
             reader.readAsArrayBuffer(file);
@@ -2311,6 +2349,7 @@ Upon successful completion of this Module, students will have the knowledge and 
                         if (cells.length < 2) return;
                         let firstLower = cells[0].toLowerCase();
                         if (firstLower.includes("module outcomes") || firstLower.includes("subjects/modules") || cells[0].toUpperCase().includes("MNQF")) return;
+                        if (cells.some(c => /level descriptors/i.test(c))) return;
                         if (cells.every(c => c === '')) return;
                         let outcome, indicators;
                         if (cells.length >= 6) {
