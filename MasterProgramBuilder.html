@@ -1340,7 +1340,7 @@ Upon successful completion of this Module, students will have the knowledge and 
                     
                     <div class="importer-box">
                         <p>Upload a previously exported <b>.docx</b> file. The system will read the text, automatically create a new Module in your Archive, and fill out the forms with extracted data.</p>
-                        <input type="file" id="word-upload" accept=".docx" style="display:none;" onchange="readWordFile(event)">
+                        <input type="file" id="word-upload" accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword" style="display:none;" onchange="readWordFile(event)">
                         <button class="btn btn-blue" onclick="document.getElementById('word-upload').click()"><i class="fas fa-upload"></i> Select Word File to Import</button>
                         <div id="import-success-msg" class="import-success">✅ File successfully parsed! A new module has been created and loaded from your Archive.</div>
                     </div>
@@ -2077,7 +2077,7 @@ Upon successful completion of this Module, students will have the knowledge and 
                     })
                     .catch(function(err){
                         console.error(err);
-                        alert("Error reading Word File. Ensure it is a valid .docx file.");
+                        alert("Error reading Word File. Please make sure it is a real .docx file (File > Save As > Word Document (.docx) in Microsoft Word). The old .doc format and PDF files cannot be read by the importer.");
                     });
             };
             reader.readAsArrayBuffer(file);
@@ -2272,47 +2272,75 @@ Upon successful completion of this Module, students will have the knowledge and 
             data.schData = [];
             data.matrixData = [];
             data.assessData = [];
-            
+
             tables.forEach(tbl => {
                 let tText = tbl.innerText.toLowerCase();
-                
-                // Schedule Table
-                if((tText.includes("topics") && tText.includes("pedagogy")) || tText.includes("curricular content")) {
+
+                // --- Schedule Table (11.9) ---
+                // Broad keyword match: needs at least 2 of these hints anywhere in the table,
+                // since rowspan/colspan headers often get mangled when a doc round-trips through Word.
+                let schKeywords = ["topics", "pedagogy", "resources", "credits", "learning hours", "curricular content", "week"];
+                let schHits = schKeywords.filter(k => tText.includes(k)).length;
+                if (schHits >= 2) {
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
                         let cells = Array.from(r.querySelectorAll('td, th')).map(td => td.innerText.trim());
-                        if(cells.length >= 7 && cells[0].match(/^\d+$/)) {
-                            data.schData.push({
-                                wk: cells[0], top: cells[1]||'', det: cells[2]||'', ped: cells[3]||'', res: cells[4]||'',
-                                cr: cells[5]||'0', lh: cells[6]||'0', f2f: cells[7]||'0', bf2f: cells[8]||'0', bsync: cells[9]||'0', 
-                                basync: cells[10]||'0', esync: cells[11]||'0', easync: cells[12]||'0'
-                            });
-                        }
+                        if (cells.length < 5) return;
+                        let wkMatch = cells[0].match(/\d+/);
+                        if (!wkMatch) return; // header/total rows won't start with a number - safely skipped
+                        let c = cells.slice();
+                        while (c.length < 13) c.push('');
+                        data.schData.push({
+                            wk: wkMatch[0], top: c[1]||'', det: c[2]||'', ped: c[3]||'', res: c[4]||'',
+                            cr: c[5]||'0', lh: c[6]||'0', f2f: c[7]||'0', bf2f: c[8]||'0', bsync: c[9]||'0',
+                            basync: c[10]||'0', esync: c[11]||'0', easync: c[12]||'0'
+                        });
                     });
+                    if (data.schData.length > 0) console.log('[RASFAHI Importer] Schedule rows found:', data.schData.length);
                 }
-                
-                // Matrix Table
-                if(tText.includes("knowledge and understanding") && tText.includes("generic cognitive skills")) {
+
+                // --- Matrix Table (11.8 Level Descriptors) ---
+                // A single distinctive indicator-column phrase is enough to flag the table; row shape
+                // is then validated individually so header/merged cells never get treated as data.
+                let matrixKeywords = ["knowledge and understanding", "generic cognitive skills", "communication, ict", "autonomy, accountability", "applied knowledge and understanding"];
+                let matrixHits = matrixKeywords.filter(k => tText.includes(k)).length;
+                if (matrixHits >= 1) {
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
                         let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
-                        if(cells.length >= 6 && !cells[0].toLowerCase().includes("module outcomes") && !cells[0].includes("MNQF")) {
-                            data.matrixData.push(cells);
+                        if (cells.length < 2) return;
+                        let firstLower = cells[0].toLowerCase();
+                        if (firstLower.includes("module outcomes") || firstLower.includes("subjects/modules") || cells[0].toUpperCase().includes("MNQF")) return;
+                        if (cells.every(c => c === '')) return;
+                        let outcome, indicators;
+                        if (cells.length >= 6) {
+                            indicators = cells.slice(-5);
+                            outcome = cells.slice(0, cells.length - 5).join(' ').trim();
+                        } else {
+                            outcome = cells[0];
+                            indicators = cells.slice(1);
+                            while (indicators.length < 5) indicators.push('');
                         }
+                        if (!outcome) return;
+                        data.matrixData.push([outcome, ...indicators]);
                     });
+                    if (data.matrixData.length > 0) console.log('[RASFAHI Importer] Matrix rows found:', data.matrixData.length);
                 }
-                
-                // Assessment Table
+
+                // --- Assessment Table (11.10) ---
                 if(tText.includes("assessment task title") || tText.includes("weightage")) {
                     let rows = tbl.querySelectorAll('tr');
                     rows.forEach(r => {
                         let cells = Array.from(r.querySelectorAll('td')).map(td => td.innerText.trim());
-                        if(cells.length >= 5 && cells[0].match(/^\d+$/)) {
+                        if(cells.length >= 5 && cells[0].match(/\d+/)) {
                             data.assessData.push(cells);
                         }
                     });
                 }
             });
+
+            if (data.schData.length === 0) console.warn('[RASFAHI Importer] Could not detect a Weekly Schedule (11.9) table in this document.');
+            if (data.matrixData.length === 0) console.warn('[RASFAHI Importer] Could not detect a Level Descriptors Matrix (11.8) table in this document.');
 
             let caMatch = rawText.match(/Continuous Assessments.*?(\d+%?)/i);
             data.caPer = caMatch ? caMatch[1] : "40%";
@@ -2480,7 +2508,7 @@ Upon successful completion of this Module, students will have the knowledge and 
             } else { addMatrixRow(); }
 
             if(data.schData.length > 0) {
-                data.schData.forEach(r => addSchRow(r.top, r.det, r.res, r.cr, r.lh, r.f2f, r.bf2f, r.bsync, r.basync, r.esync, r.easync));
+                data.schData.forEach(r => addSchRow(r.top, r.det, r.ped, r.res, r.cr, r.lh, r.f2f, r.bf2f, r.bsync, r.basync, r.esync, r.easync));
             } else { addSchRow(); }
 
             if(data.assessData.length > 0) {
@@ -2642,13 +2670,14 @@ Upon successful completion of this Module, students will have the knowledge and 
             tb.appendChild(tr);
         }
 
-        function addSchRow(top="", det="", res="", cr="0", lh="0", f2f="0", bf2f="0", bsync="0", basync="0", esync="0", easync="0") {
+        function addSchRow(top="", det="", ped="", res="", cr="0", lh="0", f2f="0", bf2f="0", bsync="0", basync="0", esync="0", easync="0") {
             dynSchCounter++;
             const tb = document.getElementById('tbody-sch'); const c = dynSchCounter; const rowNum = tb.rows.length + 1; const tr = document.createElement('tr');
+            let pedVal = ped && ped.trim() !== '' ? ped : 'ޙަރަކާތް: ކްލާހުގައި ދަރިވަރުން...';
             tr.innerHTML = `<td><input type="text" class="ltr-input mod-data" value="${rowNum}" style="text-align:center; width:40px;" id="dyn_sch_${c}_0"></td>
             <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_1">${top}</textarea></td>
             <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_2">${det}</textarea></td>
-            <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_3">ޙަރަކާތް: ކްލާހުގައި ދަރިވަރުން...</textarea></td>
+            <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_3">${pedVal}</textarea></td>
             <td><textarea class="rtl-input mod-data" rows="3" id="dyn_sch_${c}_4">${res}</textarea></td>
             <td><input type="number" class="ltr-input sch-cr mod-data" value="${cr}" style="text-align:center;" oninput="calcRowLh(this); calcT()" id="dyn_sch_${c}_5"></td>
             <td><input type="number" class="ltr-input sch-lh mod-data" value="${lh}" style="text-align:center;" oninput="calcT()" id="dyn_sch_${c}_6"></td>
