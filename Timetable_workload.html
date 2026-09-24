@@ -392,8 +392,8 @@
                         </div>
                     </div>
                     
-                    <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-                        <h3 class="text-xs font-black text-yellow-800 uppercase mb-3 border-b border-yellow-300 pb-2">Pending Event Invitations</h3>
+                    <div class="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                        <h3 class="text-xs font-black text-purple-800 uppercase mb-3 border-b border-purple-300 pb-2">Pending Event Invitations</h3>
                         <div id="lecturer-events-pending" class="space-y-3 max-h-48 overflow-y-auto pr-2"></div>
                     </div>
                 </div>
@@ -524,7 +524,7 @@
                     <div id="summary-table-container" class="mb-6"></div>
                     
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                        <div class="card p-4 border-t-4 border-yellow-500">
+                        <div class="card p-4 border-t-4 border-purple-500">
                             <h3 class="text-xs font-black uppercase text-gray-800 mb-2 tracking-wide">Tasks Completion Progress</h3>
                             <div class="h-48"><canvas id="taskCompletionChart"></canvas></div>
                         </div>
@@ -571,8 +571,8 @@
                             <h3 class="text-[10px] font-black uppercase text-teal-700 mb-2 border-b pb-1">PT Load Met (>= Target)</h3>
                             <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-pt-met"></div>
                         </div>
-                        <div class="card p-4 border-t-4 border-yellow-500 bg-yellow-50/30">
-                            <h3 class="text-[10px] font-black uppercase text-yellow-700 mb-2 border-b pb-1">PT Underloaded (< Target)</h3>
+                        <div class="card p-4 border-t-4 border-purple-500 bg-purple-50/30">
+                            <h3 class="text-[10px] font-black uppercase text-purple-700 mb-2 border-b pb-1">PT Underloaded (< Target)</h3>
                             <div class="max-h-48 overflow-y-auto text-[10px] space-y-1 pr-2" id="list-pt-under"></div>
                         </div>
                     </div>
@@ -873,7 +873,7 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-center">
                         <div class="bg-red-50 p-3 rounded border border-red-200"><span class="block text-2xl font-bold text-red-700" id="exam-stat-pending">0</span><span class="text-[10px] font-black uppercase text-red-900 tracking-wide">Pending Tasks</span></div>
-                        <div class="bg-yellow-50 p-3 rounded border border-yellow-200"><span class="block text-2xl font-bold text-yellow-700" id="exam-stat-progress">0</span><span class="text-[10px] font-black uppercase text-yellow-900 tracking-wide">In Progress</span></div>
+                        <div class="bg-purple-50 p-3 rounded border border-purple-200"><span class="block text-2xl font-bold text-purple-700" id="exam-stat-progress">0</span><span class="text-[10px] font-black uppercase text-purple-900 tracking-wide">In Progress</span></div>
                         <div class="bg-green-50 p-3 rounded border border-green-200"><span class="block text-2xl font-bold text-green-700" id="exam-stat-complete">0</span><span class="text-[10px] font-black uppercase text-green-900 tracking-wide">Fully Completed</span></div>
                     </div>
                     
@@ -1527,7 +1527,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDoc, setDoc, deleteDoc, getDocs, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyDh-pcU3quxlFJxDg_SwkrRCoMPyD48dBc",
@@ -2181,7 +2181,7 @@
                     const lType = String(window.getSafeVal(asL, ['LecturerType'])).toLowerCase();
                     const isPT = lType.includes('part');
                     const asFac = window.getFaculty(asL);
-                    if(isPT) rowColorClass = 'bg-[#fef08a]'; 
+                    if(isPT) rowColorClass = 'bg-[#e9d5ff]'; 
                     else if(asFac !== fac) rowColorClass = 'bg-[#bbf7d0]'; 
                     else rowColorClass = 'bg-[#bfdbfe]'; 
                 }
@@ -2219,13 +2219,15 @@
     window.updateAssignment = (mCode, lId) => {
         if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { id: '', mode: 'Individual' };
         localDB.assignments[mCode].id = lId;
-        window.saveLocal(true); window.triggerAllRenders();
+        window.saveLocal(true);
+        window.renderMatrix(); window.updateAnalytics();
     };
 
     window.updateAssignmentMode = (mCode, mode) => {
         if (!localDB.assignments[mCode]) localDB.assignments[mCode] = { id: '', mode: 'Individual' };
         localDB.assignments[mCode].mode = mode;
-        window.saveLocal(true); window.triggerAllRenders();
+        window.saveLocal(true);
+        window.renderMatrix(); window.updateAnalytics();
     };
 
     window.clearAssignment = (mCode) => {
@@ -2757,12 +2759,54 @@
         });
     }
 
+    let cloudUnsubscribe = null;
+    let lastWrittenTimestamp = null; // guards the live listener against re-rendering our own just-sent write
+
+    function applyCloudSnapshot(data) {
+        const fields = ['modules', 'lecturers', 'assignments', 'timetable', 'exam_timetable', 'rooms', 'students',
+            'events', 'weekly_reports', 'tasks', 'requests', 'exam_progress', 'coordinators', 'coordination_reports'];
+        fields.forEach(f => { if (data[f] !== undefined) localDB[f] = data[f]; });
+        if (data.settings) {
+            if (data.settings.timeslots) localDB.settings.timeslots = data.settings.timeslots;
+            if (data.settings.roomList) localDB.settings.roomList = data.settings.roomList;
+            if (data.settings.completed_tts) localDB.settings.completed_tts = data.settings.completed_tts;
+        }
+        // Keep the local cache fresh too, so the offline fallback isn't stale next time.
+        try { window.saveLocal(true); } catch (e) {}
+    }
+
+    function startLiveSync() {
+        if (!dbCloud || cloudUnsubscribe) return; // already listening, or no cloud available
+        const docRef = doc(collection(dbCloud, 'workload_data'), 'master_record');
+        cloudUnsubscribe = onSnapshot(docRef, (snap) => {
+            if (!snap.exists()) return;
+            const data = snap.data();
+            // Skip the update that's just an echo of our own most recent write - avoids yanking
+            // the UI out from under someone who is actively editing right after they save.
+            if (data.last_updated && data.last_updated === lastWrittenTimestamp) return;
+            applyCloudSnapshot(data);
+            window.triggerAllRenders();
+            window.showToast("Updated with the latest changes from the server.", "info");
+        }, (err) => {
+            console.error("[live sync] listener error", err);
+        });
+    }
+
     async function loadCloudData() {
         document.getElementById('loader').style.display = 'flex';
         document.getElementById('loader-text').innerText = "Syncing from Cloud...";
         try {
             if (!navigator.onLine) throw new Error("Offline");
-            loadLocalCache(); 
+            if (!dbCloud) throw new Error("Cloud not initialized");
+            const docRef = doc(collection(dbCloud, 'workload_data'), 'master_record');
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                applyCloudSnapshot(snap.data());
+            } else {
+                // No shared record yet (brand-new project) - fall back to whatever is cached locally.
+                loadLocalCache();
+            }
+            startLiveSync();
             document.getElementById('cloud-pulse').style.background = "#4ade80"; 
             document.getElementById('cloud-pulse').style.animation = "pulse 2s infinite";
             document.getElementById('cloud-txt').innerText = "Connected & Synced";
@@ -2792,6 +2836,8 @@
             if (dbCloud) {
                 const batch = writeBatch(dbCloud);
                 const docRef = doc(collection(dbCloud, 'workload_data'), 'master_record');
+                const nowStamp = new Date().toISOString();
+                lastWrittenTimestamp = nowStamp;
                 batch.set(docRef, {
                     modules: localDB.modules,
                     lecturers: localDB.lecturers,
@@ -2808,7 +2854,7 @@
                     coordinators: localDB.coordinators,
                     coordination_reports: localDB.coordination_reports,
                     settings: localDB.settings,
-                    last_updated: new Date().toISOString()
+                    last_updated: nowStamp
                 });
                 await batch.commit();
             }
@@ -2849,6 +2895,7 @@
     };
 
     window.handleLogout = async () => {
+        if (cloudUnsubscribe) { cloudUnsubscribe(); cloudUnsubscribe = null; }
         if (auth) await signOut(auth);
         localStorage.removeItem('userRole');
         location.reload();
@@ -3277,8 +3324,7 @@
         localDB.settings.timeslots.forEach((ts, idx) => {
             html += `<div class="tt-header-cell">
                 <div class="tt-time-top">${ts.start}</div><div class="tt-time-bot">to ${ts.end}</div>
-                <span class="tt-col-del" title="Delete Time Column" onclick="window.remove
-TimeslotAndRender(${idx}, 'CLASS')">✖</span>
+                <span class="tt-col-del" title="Delete Time Column" onclick="window.removeTimeslotAndRender(${idx}, 'CLASS')">✖</span>
                 </div>`;
             });
             html += `</div>`;
@@ -3819,7 +3865,7 @@ TimeslotAndRender(${idx}, 'CLASS')">✖</span>
                 const l = localDB.lecturers.find(lx => window.makeSafeId(window.getSafeVal(lx, ['LecturerID'])) === r.lectId);
                 const lName = l ? window.getSafeVal(l, ['LecturerName']) : (r.lectId.startsWith('S') ? 'Student' : 'Unknown');
 
-                const statusColor = r.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : (r.status === 'Approved' ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300');
+                const statusColor = r.status === 'Pending' ? 'bg-purple-100 text-purple-800 border-purple-300' : (r.status === 'Approved' ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300');
                 
                 const btnHtml = (r.status === 'Pending' && (activeRole === 'ALL' || activeRole === r.targetRole || (activeRole !== 'LECTURER' && activeRole !== 'STUDENT'))) ? `
                     <div class="mt-2 flex gap-2 justify-end border-t pt-2">
@@ -3992,7 +4038,7 @@ TimeslotAndRender(${idx}, 'CLASS')">✖</span>
 
                 let pctColor = 'text-red-500';
                 if(pct === 100) pctColor = 'text-green-600';
-                else if(pct >= 50) pctColor = 'text-yellow-600';
+                else if(pct >= 50) pctColor = 'text-purple-600';
 
                 html += `<tr class="hover:bg-green-50 border-b border-gray-100 transition">
                     <td class="p-3 border-r border-gray-100"><b class="text-royal-blue text-xs">${code}</b><br><span class="text-[9px] text-gray-600">${name}</span></td>
@@ -4006,7 +4052,7 @@ TimeslotAndRender(${idx}, 'CLASS')">✖</span>
                     <td class="p-2 border-r border-gray-100">${buildToggle('assign')}</td>
                     <td class="p-2 border-r border-gray-100">${buildToggle('returned')}</td>
                     <td class="p-3 text-center">
-                        <div class="relative w-12 h-12 mx-auto flex items-center justify-center rounded-full border-4 ${pct===100?'border-green-500':(pct>0?'border-yellow-400':'border-gray-200')}">
+                        <div class="relative w-12 h-12 mx-auto flex items-center justify-center rounded-full border-4 ${pct===100?'border-green-500':(pct>0?'border-purple-400':'border-gray-200')}">
                             <span class="font-black text-[10px] ${pctColor}">${pct}%</span>
                         </div>
                     </td>
@@ -4188,8 +4234,8 @@ TimeslotAndRender(${idx}, 'CLASS')">✖</span>
                 const myFac = window.getFaculty(l);
                 if(e.targetRole === 'ALL' || e.targetRole === myFac) {
                     if(!e.responses[currentLecturerId]) {
-                        pendingEventsHtml += `<div class="border border-yellow-300 bg-white rounded p-2 text-xs shadow-sm mb-2">
-                            <h4 class="font-bold text-yellow-800">${e.type}: ${e.title}</h4>
+                        pendingEventsHtml += `<div class="border border-purple-300 bg-white rounded p-2 text-xs shadow-sm mb-2">
+                            <h4 class="font-bold text-purple-800">${e.type}: ${e.title}</h4>
                             <p class="text-[10px] text-gray-600 mb-2">Date: ${e.date}</p>
                             <div class="flex gap-1 flex-wrap">
                                 <button onclick="window.markAttendance('${e.id}', 'Attended')" class="flex-1 bg-green-500 text-white px-2 py-1 rounded text-[9px] font-bold">Attending</button>
@@ -4407,7 +4453,7 @@ TimeslotAndRender(${idx}, 'CLASS')">✖</span>
                 if(stats.facTotalWCH[f] > 0) {
                     const modCount = localDB.modules.filter(m => window.getFaculty(m) === f).length;
                     const pct = Math.round((stats.facAssignedWCH[f] / stats.facTotalWCH[f]) * 100) || 0;
-                    let pctColor = pct < 50 ? 'text-red-600' : (pct < 90 ? 'text-yellow-600' : 'text-green-600');
+                    let pctColor = pct < 50 ? 'text-red-600' : (pct < 90 ? 'text-purple-600' : 'text-green-600');
                     
                     tableHtml += `<tr>
                         <td class="p-2 border font-bold">${f}</td>
@@ -4496,7 +4542,7 @@ TimeslotAndRender(${idx}, 'CLASS')">✖</span>
                 if(ctx && (tDone>0 || tPend>0 || tOver>0)) {
                     charts[chartVarName] = new Chart(ctx, {
                         type: 'doughnut',
-                        data: { labels: ['Completed', 'Pending', 'Overdue'], datasets: [{ data: [tDone, tPend, tOver], backgroundColor: ['#22c55e', '#eab308', '#ef4444'], borderWidth: 0 }] },
+                        data: { labels: ['Completed', 'Pending', 'Overdue'], datasets: [{ data: [tDone, tPend, tOver], backgroundColor: ['#22c55e', '#a855f7', '#ef4444'], borderWidth: 0 }] },
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels:{font:{size:9}, boxWidth:10} } } }
                     });
                 }
@@ -4600,7 +4646,7 @@ TimeslotAndRender(${idx}, 'CLASS')">✖</span>
 
                 if(modCount > 0) {
                     const pct = totalWch > 0 ? Math.round((assignWch / totalWch) * 100) : 0;
-                    let colorClass = pct < 50 ? 'border-red-500 bg-red-50' : (pct < 90 ? 'border-yellow-500 bg-yellow-50' : 'border-green-500 bg-green-50');
+                    let colorClass = pct < 50 ? 'border-red-500 bg-red-50' : (pct < 90 ? 'border-purple-500 bg-purple-50' : 'border-green-500 bg-green-50');
                     
                     html += `<div class="royal-spin-card border-t-4 ${colorClass}" onclick="window.smoothScrollToLists()">
                         <div class="royal-spin-inner bg-white text-gray-800 border-none !p-3">
@@ -4615,7 +4661,7 @@ TimeslotAndRender(${idx}, 'CLASS')">✖</span>
                                 <span class="font-bold text-gray-500">Pending:</span><span class="font-black text-red-600">${(totalWch - assignWch).toFixed(1)}</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2.5 mt-1 overflow-hidden relative">
-                                <div class="${pct < 50 ? 'bg-red-500' : (pct < 90 ? 'bg-yellow-500' : 'bg-green-500')} h-2.5 rounded-full" style="width: ${pct}%"></div>
+                                <div class="${pct < 50 ? 'bg-red-500' : (pct < 90 ? 'bg-purple-500' : 'bg-green-500')} h-2.5 rounded-full" style="width: ${pct}%"></div>
                                 <span class="absolute inset-0 flex items-center justify-center text-[6px] font-black text-white mix-blend-difference">${pct}%</span>
                             </div>
                         </div>
