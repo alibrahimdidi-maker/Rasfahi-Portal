@@ -2775,18 +2775,29 @@
         try { window.saveLocal(true); } catch (e) {}
     }
 
+    let liveSyncRenderTimeout = null;
+
     function startLiveSync() {
         if (!dbCloud || cloudUnsubscribe) return; // already listening, or no cloud available
         const docRef = doc(collection(dbCloud, 'workload_data'), 'master_record');
         cloudUnsubscribe = onSnapshot(docRef, (snap) => {
             if (!snap.exists()) return;
             const data = snap.data();
-            // Skip the update that's just an echo of our own most recent write - avoids yanking
-            // the UI out from under someone who is actively editing right after they save.
+            // Skip the update that's just an echo of our own most recent write (or the data we
+            // just loaded a moment ago) - onSnapshot always fires once immediately with the
+            // current data as soon as you subscribe, so without this check every login would
+            // re-run the full render straight after the page's own initial render.
             if (data.last_updated && data.last_updated === lastWrittenTimestamp) return;
+            lastWrittenTimestamp = data.last_updated || lastWrittenTimestamp;
             applyCloudSnapshot(data);
-            window.triggerAllRenders();
-            window.showToast("Updated with the latest changes from the server.", "info");
+            // Coalesce a burst of close-together remote saves (e.g. someone else actively
+            // editing) into a single re-render instead of running the full 15-view cascade
+            // again for every single one of their saves.
+            clearTimeout(liveSyncRenderTimeout);
+            liveSyncRenderTimeout = setTimeout(() => {
+                window.triggerAllRenders();
+                window.showToast("Updated with the latest changes from the server.", "info");
+            }, 400);
         }, (err) => {
             console.error("[live sync] listener error", err);
         });
@@ -2801,7 +2812,9 @@
             const docRef = doc(collection(dbCloud, 'workload_data'), 'master_record');
             const snap = await getDoc(docRef);
             if (snap.exists()) {
-                applyCloudSnapshot(snap.data());
+                const data = snap.data();
+                applyCloudSnapshot(data);
+                lastWrittenTimestamp = data.last_updated || lastWrittenTimestamp; // see startLiveSync() comment
             } else {
                 // No shared record yet (brand-new project) - fall back to whatever is cached locally.
                 loadLocalCache();
