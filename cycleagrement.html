@@ -9,7 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Cinzel:wght@600&display=swap" rel="stylesheet">
     
     <!-- Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- PDF: html2canvas + jsPDF (މޯބައިލް ހިމެނޭގޮތަށް ހުރިހާ ޑިވައިސްއެއްގައި ވެއެވެ) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -212,9 +214,7 @@
         @media (min-width: 768px) { .signatures-grid { flex-direction: row; flex-wrap: wrap; } }
         .signature-box { flex: 1 1 45%; border: 1px solid var(--royal-gold); padding: 15px; border-radius: 5px; background: #fafafa; position: relative; box-sizing: border-box; }
         
-        .sig-canvas { border: 1px solid #ccc; background: #fff; width: 100%; height: 120px; cursor: crosshair; touch-action: none; border-radius: 4px; }
-        /* Hidden image tags used only during print to preserve signatures */
-        .print-only-img { display: none; width: auto; max-width: 100%; height: 80px; object-fit: contain; margin: 0 auto; }
+        .sig-canvas { display: block; border: 1px solid #ccc; background: #fff; width: 100%; height: 120px; cursor: crosshair; touch-action: none; -ms-touch-action: none; user-select: none; -webkit-user-select: none; border-radius: 4px; }
 
         /* Upload Grid */
         .upload-grid { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
@@ -222,9 +222,17 @@
         .upload-box { flex: 1 1 45%; border: 1px dashed var(--royal-gold); background: #fdfdfd; padding: 10px; text-align: center; border-radius: 5px; box-sizing: border-box; overflow: hidden; }
         .upload-box img { width: 100%; max-height: 200px; object-fit: contain; margin-top: 10px; display: none; }
 
-        /* Receipt Modal */
+        /* Modals */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 29, 58, 0.8); z-index: 1000; justify-content: center; align-items: center; padding: 15px; }
         .receipt-slip { background: #fff; width: 100%; max-width: 600px; padding: 30px; border-radius: 8px; border: 2px solid var(--royal-gold); border-top: 10px solid var(--presidential-blue); position: relative; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .modal-close { position: absolute; top: 10px; right: 20px; font-size: 26px; cursor: pointer; color: #c0392b; font-weight: bold; line-height: 1; }
+
+        .export-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .export-actions button {
+            padding: 14px; border: none; border-radius: 6px; font-family: 'Faruma', sans-serif; font-size: 16px;
+            font-weight: bold; cursor: pointer; color: #fff;
+        }
+        .export-hint { font-size: 13px; color: #666; text-align: center; margin-top: 15px; }
 
         /* Top Action Buttons */
         .top-actions {
@@ -241,66 +249,73 @@
             font-family: 'Faruma'; color: #333; font-weight: bold; margin-top: 15px; width: 100%; transition: 0.3s;
         }
         .logout-btn:hover { background: #c0392b; color: white; border-color: #c0392b; }
-
-        /* FIXED FOOTER FOR PDF/PRINT EXPORT */
-        #print-fixed-footer { display: none; }
-        
-        @media print {
-            @page { size: A4 portrait; margin: 15mm 15mm 30mm 15mm; }
-            
-            /* Hide UI elements */
-            body * { visibility: hidden; }
-            #agreement-content, #agreement-content * { visibility: visible; }
-            
-            /* Clean up document container for print */
-            html, body, .royal-wrapper, .main-content, #app-content {
-                height: auto !important; width: 100% !important; margin: 0 !important; padding: 0 !important;
-                display: block !important; position: static !important; overflow: visible !important;
-                background: #fff !important;
-            }
-
-            #agreement-content {
-                position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0;
-                border: none; box-shadow: none; direction: rtl; padding-bottom: 40px !important;
-            }
-
-            .document-container::before { display: none; }
-            .editable-block { border: none !important; background: transparent !important; padding: 0 !important; color: #000 !important; }
-            .inline-input::-webkit-calendar-picker-indicator { display: none; }
-            .inline-input { border: none !important; appearance: none; -webkit-appearance: none; width: auto !important; color: #000 !important; }
-            
-            /* Canvas Replacement */
-            canvas.sig-canvas { display: none !important; }
-            img.print-only-img { display: block !important; margin: 0 auto !important; }
-            .no-print { display: none !important; }
-            li, .signature-box, .upload-box { page-break-inside: avoid; break-inside: avoid; }
-
-            /* Repeating Footers via Fixed Position */
-            #print-fixed-footer {
-                display: flex !important;
-                visibility: visible !important;
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                justify-content: space-between;
-                align-items: flex-end;
-                padding: 10px 20px;
-                border-top: 1px solid var(--royal-gold);
-                background: white;
-                z-index: 1000;
-            }
-            #print-fixed-footer * { visibility: visible !important; }
-        }
         
         .loading-overlay {
-            position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.9);
+            position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.95);
             display: none; justify-content: center; align-items: center; z-index: 99999;
-            color: var(--presidential-blue); font-size: 24px; font-weight: bold; font-family: 'Playfair Display', serif;
-            flex-direction: column; gap: 10px;
+            color: var(--presidential-blue); font-size: 22px; font-weight: bold; font-family: 'Faruma', 'Playfair Display', serif;
+            flex-direction: column; gap: 10px; text-align: center; padding: 20px;
         }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--royal-gold); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* =========================================================
+           PDF / PRINT PAGE LAYOUT
+           ޕީޑީއެފް ހަދަނީ ސްކްރީނުން ބޭރުގައި A4 ސައިޒުގެ ޞަފްޙާތައް
+           ހަދައިގެން. ސްކްރީން ސައިޒަކާ ގުޅުމެއް ނެތް، ފޯނާއި
+           ކޮމްޕިއުޓަރުގައި ފެންނާނީ އެއް ގޮތަކަށް.
+           ========================================================= */
+        #export-stage { position: absolute; top: 0; left: -12000px; width: 794px; }
+        .pdf-page {
+            width: 794px; height: 1123px; background: #fff; position: relative; overflow: hidden;
+            box-sizing: border-box; padding: 42px 56px 0 56px; border-top: 8px solid #0b1d3a;
+            font-family: 'Faruma', Tahoma, Arial, sans-serif; font-size: 15px; line-height: 1.85;
+            color: #1a1a1a; direction: rtl; text-align: right; margin-bottom: 20px;
+        }
+        .pdf-page.en-version { direction: ltr !important; text-align: left !important; }
+        .pdf-body { height: 963px; overflow: hidden; }
+        .pdf-page h1 { font-size: 22px; margin: 0 0 18px 0; padding-bottom: 10px; border-bottom: 2px solid #c5a059; text-align: center !important; }
+        .pdf-page h3 { font-size: 17px; margin: 14px 0 6px 0; }
+        .pdf-page p { margin: 0 0 10px 0; }
+        .pdf-page ol { margin: 0 0 4px 0; }
+        .pdf-page li { margin-bottom: 9px; }
+        .pdf-page .x-field { font-weight: bold; color: #0b1d3a; border-bottom: 1px solid #c5a059; padding: 0 4px; }
+        .pdf-page .x-blank { display: inline-block; min-width: 110px; }
+        .pdf-page .x-block { margin: 4px 0 12px 0; text-align: justify; }
+        .pdf-page .signatures-grid { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 14px; margin: 0 0 14px 0; }
+        .pdf-page .signature-box { flex: 1 1 0; min-width: 0; background: #fff; padding: 10px; text-align: center; }
+        .pdf-page .signature-box h3 { font-size: 14px; margin: 0 0 4px 0; text-align: center !important; }
+        .pdf-page .x-sig { height: 86px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid #999; }
+        .pdf-page .x-sig img { max-height: 82px; max-width: 100%; width: auto; height: auto; display: block; }
+        .pdf-page .x-att-row { display: flex; flex-direction: row; gap: 14px; margin-bottom: 14px; }
+        .pdf-page .x-att { flex: 1 1 0; min-width: 0; border: 1px solid #ddd; border-radius: 6px; padding: 8px; text-align: center; }
+        .pdf-page .x-att-label { font-weight: bold; color: #0b1d3a; font-size: 13px; margin-bottom: 6px; }
+        .pdf-page .x-att img { max-width: 100%; max-height: 330px; width: auto; height: auto; display: block; margin: 0 auto; }
+
+        .pdf-footer {
+            position: absolute; left: 56px; right: 56px; bottom: 0; height: 110px;
+            border-top: 1px solid #c5a059; display: flex; justify-content: space-between; align-items: center;
+            direction: ltr; font-family: 'Faruma', Arial, sans-serif; font-size: 11px; color: #555;
+        }
+        .pf-cell { width: 190px; text-align: center; }
+        .pf-sig { height: 54px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px dashed #999; margin-bottom: 3px; }
+        .pf-sig img { max-height: 52px; max-width: 180px; width: auto; height: auto; display: block; }
+        .pf-center { text-align: center; font-family: Arial, sans-serif; font-size: 12px; color: #0b1d3a; font-weight: bold; }
+
+        /* Print = ހަދާފައިވާ ޞަފްޙާތަކުގެ ފޮޓޯ ޕްރިންޓްކުރުން */
+        #print-area { display: none; }
+        @media print {
+            @page { size: A4 portrait; margin: 0; }
+            html, body {
+                margin: 0 !important; padding: 0 !important; background: #fff !important;
+                height: auto !important; min-height: 0 !important; overflow: visible !important; display: block !important;
+            }
+            body > *:not(#print-area) { display: none !important; }
+            #print-area { display: block !important; }
+            .print-sheet { width: 210mm; height: 296.5mm; overflow: hidden; page-break-after: always; break-after: page; }
+            .print-sheet:last-child { page-break-after: auto; break-after: auto; }
+            .print-sheet img { width: 100%; height: auto; display: block; }
+        }
     </style>
 </head>
 <body>
@@ -310,7 +325,7 @@
         <!-- Loading Overlay -->
         <div class="loading-overlay" id="loading">
             <div class="spinner"></div>
-            <span>މަޑުކޮށްލައްވާ...</span>
+            <span id="loading-text">މަޑުކޮށްލައްވާ...</span>
         </div>
 
         <!-- Login Screen -->
@@ -354,7 +369,6 @@
                 <div class="top-actions no-print">
                     <button onclick="clearForm()" style="background: #7f8c8d;">ފޯމު ހުސްކުރޭ (އައު)</button>
                     <button onclick="saveAgreementToBank()" style="background: var(--presidential-green);">ސޭވްކުރޭ</button>
-                    <!-- UNIFIED NATIVE PRINT/PDF EXPORT BUTTON -->
                     <button onclick="triggerPrintAndPDF()" style="background: var(--presidential-blue);">ޕްރިންޓް / ޕީޑީއެފް ސޭވްކުރޭ</button>
                     <button id="lang-btn" onclick="toggleLanguage()" style="background: linear-gradient(to right, #c5a059, #e6c875); color: #0b1d3a;">English Version</button>
                 </div>
@@ -473,15 +487,14 @@
 
                     </div>
 
-                    <div style="page-break-inside: avoid; break-inside: avoid;">
+                    <div>
                         <p style="font-weight: bold; margin-top: 30px; text-align: center; color: var(--presidential-blue);" id="agreement-declaration">މި އެއްބަސްވުމުގައިވާ ހުރިހާ މާއްދާތަކެއް ކިޔައި، އެކަންކަމަށް ފުރިހަމައަށް އެއްބަސްވެ ތިރީގައި ސޮއިކުރީމެވެ.</p>
 
-                        <div class="signatures-grid">
+                        <div class="signatures-grid" id="main-signatures">
                             <div class="signature-box">
                                 <h3 style="margin-bottom: 5px;" class="sig-title-owner">ވެރިފަރާތް (Owner)</h3>
                                 <div style="font-size: 14px; text-align: center; color: var(--presidential-green); margin-bottom: 5px; font-weight: bold;" id="sig-owner-name-display">ޢަލީ އިބްރާހީމް ދީދީ</div>
                                 <canvas id="sig-owner" class="sig-canvas"></canvas>
-                                <img id="img-sig-owner" class="print-only-img" alt="Owner Signature">
                                 <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-owner')">ސޮއި ފުހެލައްވާ / Clear</button>
                             </div>
                             
@@ -489,28 +502,25 @@
                                 <h3 style="margin-bottom: 5px;" class="sig-title-renter">ކުއްޔަށް ހިފާ ފަރާތް (Renter)</h3>
                                 <div style="font-size: 14px; text-align: center; color: var(--presidential-green); margin-bottom: 5px; font-weight: bold;" id="sig-renter-name-display">-</div>
                                 <canvas id="sig-renter" class="sig-canvas"></canvas>
-                                <img id="img-sig-renter" class="print-only-img" alt="Renter Signature">
                                 <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-renter')">ސޮއި ފުހެލައްވާ / Clear</button>
                             </div>
 
                             <div class="signature-box">
                                 <h3 class="sig-title-wit1">ހެކި 1: މަރިޔަމް ޢާލިމާ<br><small>(Witness 1: Mariyam Aalima)</small></h3>
                                 <canvas id="sig-wit1" class="sig-canvas"></canvas>
-                                <img id="img-sig-wit1" class="print-only-img" alt="Witness 1">
                                 <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-wit1')">ސޮއި ފުހެލައްވާ / Clear</button>
                             </div>
 
                             <div class="signature-box">
                                 <h3 class="sig-title-wit2">ހެކި 2 / Witness 2:<br><span class="editable" data-sync="wit2-name" contenteditable="true" data-placeholder="ނަން / Name"></span></h3>
                                 <canvas id="sig-wit2" class="sig-canvas"></canvas>
-                                <img id="img-sig-wit2" class="print-only-img" alt="Witness 2">
                                 <button class="no-print btn-small" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-wit2')">ސޮއި ފުހެލައްވާ / Clear</button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Page Initials (For Footers) -->
-                    <div style="page-break-inside: avoid; break-inside: avoid;" class="no-print">
+                    <div class="no-print">
                         <h3 style="margin-top: 40px; border-top: 2px dashed var(--royal-gold); padding-top: 20px;">ކޮންމެ ޞަފްޙާއެއްގެ ކަނުގައި ކުރާ ސޮއި (Page Initials)</h3>
                         <p style="text-align: center; font-size: 14px; color: #555;">މިތަނުގައި ކުރާ ސޮއި (ނުވަތަ އިނިޝިއަލް) PDF އަދި ޕްރިންޓްކުރާއިރު ކޮންމެ ޞަފްޙާއެއްގެ ތިރީ ކަނުގައި ޖެހިގެންދާނެއެވެ.</p>
                         
@@ -518,20 +528,18 @@
                             <div class="signature-box">
                                 <h4 style="margin-bottom: 5px; text-align: center; color: var(--presidential-blue);">ވެރިފަރާތް (Owner Initial)</h4>
                                 <canvas id="sig-owner-initial" class="sig-canvas" style="height: 80px;"></canvas>
-                                <img id="img-sig-owner-initial" class="print-only-img" alt="Owner Initial">
                                 <button class="btn-small no-print" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-owner-initial')">ފުހެލައްވާ / Clear</button>
                             </div>
                             <div class="signature-box">
                                 <h4 style="margin-bottom: 5px; text-align: center; color: var(--presidential-blue);">ކުއްޔަށް ހިފާ ފަރާތް (Renter Initial)</h4>
                                 <canvas id="sig-renter-initial" class="sig-canvas" style="height: 80px;"></canvas>
-                                <img id="img-sig-renter-initial" class="print-only-img" alt="Renter Initial">
                                 <button class="btn-small no-print" style="background:#c0392b; margin-top:5px; width: 100%;" onclick="clearSignature('sig-renter-initial')">ފުހެލައްވާ / Clear</button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Attachments -->
-                    <div style="page-break-before: always;">
+                    <div>
                         <h3 style="border-top: 2px dashed var(--royal-gold); padding-top: 30px; margin-top: 40px;" id="attachments-title">ލިޔެކިޔުންތައް (އައިޑީ ކާޑު އަދި ލައިސަންސް) / Documents</h3>
                         <div class="upload-grid">
                             <div class="upload-box">
@@ -557,17 +565,6 @@
                         </div>
                     </div>
 
-                    <!-- ޕްރިންޓް ފުޓަރ (Repeating on every page via CSS) -->
-                    <div id="print-fixed-footer">
-                        <div style="width: 33%; text-align: left;">
-                            <img id="footer-img-renter-initial" src="" style="height: 40px; object-fit: contain;">
-                        </div>
-                        <div style="width: 33%; text-align: center;"></div>
-                        <div style="width: 33%; text-align: right;">
-                            <img id="footer-img-owner-initial" src="" style="height: 40px; object-fit: contain;">
-                        </div>
-                    </div>
-
                 </div>
             </div>
 
@@ -583,7 +580,7 @@
         <!-- Receipt Modal -->
         <div class="modal" id="receiptModal">
             <div class="receipt-slip" id="receiptContent">
-                <span style="position: absolute; top: 10px; right: 20px; font-size: 24px; cursor: pointer; color: #c0392b; font-weight: bold;" onclick="document.getElementById('receiptModal').style.display='none'">×</span>
+                <span class="modal-close" onclick="document.getElementById('receiptModal').style.display='none'">×</span>
                 <h2 style="text-align: center; border-bottom: 2px solid var(--royal-gold); padding-bottom: 10px; color: var(--presidential-blue); font-family: 'Playfair Display', serif;">ޕޭމަންޓް ރިސީޓް / Payment Receipt</h2>
                 
                 <p><strong>ކުއްޔަށް ހިފާ ފަރާތް:</strong> <span id="rec-renter-name"></span></p>
@@ -613,13 +610,72 @@
             </div>
         </div>
 
+        <!-- Export (PDF / Print) Modal -->
+        <div class="modal" id="exportModal">
+            <div class="receipt-slip" style="max-width: 440px; text-align: center;">
+                <span class="modal-close" onclick="closeExportModal()">×</span>
+                <h2 style="margin-top: 5px; font-family: 'Faruma', serif;">ފައިލް ތައްޔާރުވެއްޖެ ✅</h2>
+                <p id="export-info" style="text-align: center; color: #555; margin: 0;"></p>
+                <div class="export-actions">
+                    <button onclick="downloadPDF()" style="background: var(--presidential-green);">⬇️ PDF ޑައުންލޯޑް ކުރޭ</button>
+                    <button id="btn-share-pdf" onclick="sharePDF()" style="background: #128c7e;">📤 ޝެއަރ ކުރޭ (WhatsApp / Viber)</button>
+                    <button onclick="printPages()" style="background: var(--presidential-blue);">🖨️ ޕްރިންޓް ކުރޭ</button>
+                    <button onclick="openPDF()" style="background: var(--royal-gold); color: var(--presidential-blue);">👁️ PDF ހުޅުވާ</button>
+                </div>
+                <p class="export-hint">ފޯނުގައި ޕްރިންޓް ބަޓަނުން ޕްރިންޓް ނުވާނަމަ "PDF ހުޅުވާ" ނުވަތަ "ޝެއަރ ކުރޭ" އިން ޕްރިންޓް ކުރެއްވޭނެއެވެ.</p>
+            </div>
+        </div>
+
     </div> <!-- End Royal Wrapper -->
 
+    <!-- ޕްރިންޓްކުރާއިރު ހަމައެކަނި މި ބައި ފެންނާނެ -->
+    <div id="print-area"></div>
+
     <script>
-        // Initialize Flatpickr for Date & Time (DD/MM/YYYY Format)
+        // ===============================================
+        // 0. Helpers
+        // ===============================================
+        const SIG_IDS = ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2', 'sig-owner-initial', 'sig-renter-initial'];
+        const OWNER_DEFAULTS = {
+            'owner-name': 'ޢަލީ އިބްރާހީމް ދީދީ',
+            'owner-id': 'A011265',
+            'owner-address': 'ހިޔާ 8-05-02 ހުޅުމާލެ (މާލެސިޓީ)',
+            'cycle-reg': 'AA0O-P2245',
+            'cycle-model': 'YAMAHA NMAX 155 cc',
+            'cycle-color': 'BLUE'
+        };
+
+        function showLoading(text) {
+            document.getElementById('loading-text').innerText = text || 'މަޑުކޮށްލައްވާ...';
+            document.getElementById('loading').style.display = 'flex';
+        }
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('loading-text').innerText = 'މަޑުކޮށްލައްވާ...';
+        }
+
+        // ===============================================
+        // 1. Date / Time pickers (ދެބަހުގެ ވާޝަނަށް ސިންކްވާގޮތަށް)
+        // ===============================================
+        function syncPicker(selectedDates, dateStr, instance) {
+            const key = instance.input.dataset.sync;
+            if (!key) return;
+            document.querySelectorAll(`[data-sync="${key}"]`).forEach(t => {
+                if (t === instance.input) return;
+                if (t._flatpickr) {
+                    if (dateStr) t._flatpickr.setDate(dateStr, false);
+                    else t._flatpickr.clear(false);
+                } else {
+                    t.value = dateStr;
+                }
+            });
+        }
+
         flatpickr(".date-picker", {
             dateFormat: "d/m/Y",
-            allowInput: true
+            allowInput: true,
+            disableMobile: true,
+            onChange: syncPicker
         });
 
         flatpickr(".time-picker", {
@@ -627,10 +683,14 @@
             noCalendar: true,
             dateFormat: "H:i",
             time_24hr: true,
-            allowInput: true
+            allowInput: true,
+            disableMobile: true,
+            onChange: syncPicker
         });
 
-        // 1. Firebase Initialization
+        // ===============================================
+        // 2. Firebase
+        // ===============================================
         const firebaseConfig = {
             apiKey: "AIzaSyDvTAGmahiEHuKhnFihij3OAL7O961120U",
             authDomain: "agrimentportal.firebaseapp.com",
@@ -649,18 +709,16 @@
         let rentersBank = [];
         let currentEditDocId = null;
         let currentLang = 'dv';
+        let unsubAgreements = null;
 
-        // Synchronize Fields across languages
+        // Synchronize typed fields across languages
         document.addEventListener('input', function(e) {
-            if(e.target.dataset.sync) {
+            if(e.target.dataset && e.target.dataset.sync) {
                 let val = e.target.tagName === 'INPUT' ? e.target.value : e.target.innerText;
                 let targets = document.querySelectorAll(`[data-sync="${e.target.dataset.sync}"]`);
                 targets.forEach(t => {
                     if(t !== e.target) {
-                        if(t.tagName === 'INPUT') {
-                            t.value = val;
-                            if(t._flatpickr) t._flatpickr.setDate(val, false);
-                        }
+                        if(t.tagName === 'INPUT') t.value = val;
                         else t.innerText = val;
                     }
                 });
@@ -678,8 +736,11 @@
             let targets = document.querySelectorAll(`[data-sync="${syncKey}"]`);
             targets.forEach(t => {
                 if(t.tagName === 'INPUT') {
+                    if(t._flatpickr) {
+                        if(val) t._flatpickr.setDate(val, false);
+                        else t._flatpickr.clear(false);
+                    }
                     t.value = val || '';
-                    if(t._flatpickr) t._flatpickr.setDate(val || '', false);
                 }
                 else t.innerText = val || '';
             });
@@ -688,7 +749,7 @@
         function getFieldValue(syncKey) {
             let el = document.querySelector(`[data-sync="${syncKey}"]`);
             if(!el) return '';
-            return el.tagName === 'INPUT' ? el.value : el.innerText;
+            return (el.tagName === 'INPUT' ? el.value : el.innerText).trim();
         }
 
         function toggleLanguage() {
@@ -707,19 +768,21 @@
             }
         }
 
-        // 2. Authentication Logic
+        // ===============================================
+        // 3. Authentication
+        // ===============================================
         auth.onAuthStateChanged((user) => {
-            const loading = document.getElementById('loading');
-            loading.style.display = 'flex';
+            showLoading();
 
             if (user) {
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('app-content').style.display = 'flex';
                 loadDataFromFirebase();
             } else {
+                if(unsubAgreements) { unsubAgreements(); unsubAgreements = null; }
                 document.getElementById('login-screen').style.display = 'flex';
                 document.getElementById('app-content').style.display = 'none';
-                loading.style.display = 'none';
+                hideLoading();
             }
         });
 
@@ -734,21 +797,25 @@
                 return;
             }
 
-            document.getElementById('loading').style.display = 'flex';
-            auth.signInWithEmailAndPassword(email, pass).catch((error) => {
-                document.getElementById('loading').style.display = 'none';
+            showLoading();
+            auth.signInWithEmailAndPassword(email, pass).catch(() => {
+                hideLoading();
                 errDiv.innerText = "އީމެއިލް ނުވަތަ ޕާސްވޯޑް ނުބައި!";
                 errDiv.style.display = 'block';
             });
         }
 
         function logoutUser() {
+            if(unsubAgreements) { unsubAgreements(); unsubAgreements = null; }
             auth.signOut();
         }
 
-        // 3. Database Logic (Firestore)
+        // ===============================================
+        // 4. Firestore
+        // ===============================================
         function loadDataFromFirebase() {
-            db.collection("agreements").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+            if(unsubAgreements) unsubAgreements();
+            unsubAgreements = db.collection("agreements").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
                 rentersBank = [];
                 snapshot.forEach((doc) => {
                     let data = doc.data();
@@ -756,16 +823,19 @@
                     rentersBank.push(data);
                 });
                 updateDashboard();
-                document.getElementById('loading').style.display = 'none';
+                hideLoading();
             }, (error) => {
                 console.log("Error getting documents: ", error);
-                document.getElementById('loading').style.display = 'none';
+                hideLoading();
             });
         }
 
+        function getUploadSrc(imgId) {
+            const src = document.getElementById(imgId).getAttribute('src') || '';
+            return src.startsWith('data:image') ? src : '';
+        }
+
         function saveAgreementToBank() {
-            document.getElementById('loading').style.display = 'flex';
-            
             const agreementData = {
                 agrDate: getFieldValue('agr-date'),
                 ownerName: getFieldValue('owner-name'),
@@ -787,25 +857,32 @@
                 endTime: getFieldValue('end-time'),
                 price: getFieldValue('rental-price'),
                 
-                idFront: document.getElementById('id-front-img').src,
-                idBack: document.getElementById('id-back-img').src,
-                licFront: document.getElementById('lic-front-img').src,
-                licBack: document.getElementById('lic-back-img').src,
-                sigOwner: document.getElementById('sig-owner').toDataURL(),
-                sigRenter: document.getElementById('sig-renter').toDataURL(),
-                sigWit1: document.getElementById('sig-wit1').toDataURL(),
-                sigWit2: document.getElementById('sig-wit2').toDataURL(),
-                sigOwnerInitial: document.getElementById('sig-owner-initial').toDataURL(),
-                sigRenterInitial: document.getElementById('sig-renter-initial').toDataURL(),
-                
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                idFront: getUploadSrc('id-front-img'),
+                idBack: getUploadSrc('id-back-img'),
+                licFront: getUploadSrc('lic-front-img'),
+                licBack: getUploadSrc('lic-back-img'),
+                // ހުސް ސޮއިތައް ސޭވް ނުކުރެވޭނެ (ޑޭޓާބޭސް ސައިޒު ކުޑަކުރުމަށް)
+                sigOwner: getSigData('sig-owner'),
+                sigRenter: getSigData('sig-renter'),
+                sigWit1: getSigData('sig-wit1'),
+                sigWit2: getSigData('sig-wit2'),
+                sigOwnerInitial: getSigData('sig-owner-initial'),
+                sigRenterInitial: getSigData('sig-renter-initial')
             };
 
             if(!agreementData.renterName) {
-                document.getElementById('loading').style.display = 'none';
                 alert('ކުއްޔަށް ހިފާ ފަރާތުގެ ނަން ލިޔުއްވާ!');
                 return;
             }
+
+            // Firestore ގެ ލިމިޓް 1MB
+            if(JSON.stringify(agreementData).length > 950000) {
+                alert('ފޮޓޯތަކާއި ސޮއިތަކުގެ ސައިޒު ބޮޑުވެގެން ސޭވެއް ނުކުރެވޭނެ. އެއްވެސް ފޮޓޯއެއް އަލުން (ކުޑަކޮށް) އަޕްލޯޑް ކުރައްވާ.');
+                return;
+            }
+
+            agreementData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+            showLoading();
 
             let docRef;
             if(currentEditDocId) {
@@ -817,31 +894,33 @@
 
             docRef.set(agreementData, { merge: true }).then(() => {
                 currentEditDocId = docRef.id;
-                document.getElementById('loading').style.display = 'none';
+                hideLoading();
                 alert('އެގްރިމެންޓް ކާމިޔާބުކަމާއެކު ޑޭޓާބޭސްއަށް ސޭވްކުރެވިއްޖެއެވެ.');
             }).catch((error) => {
-                document.getElementById('loading').style.display = 'none';
+                hideLoading();
                 alert('ސޭވްކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެ!');
                 console.error(error);
             });
         }
 
         function deleteAgreement(docId) {
-            let pin = prompt("އެގްރިމެންޓް ޑިލީޓްކުރުމަށް 2-ފެކްޓަރ ވެރިފިކޭޝަން ޕިން (PIN) ޖައްސަވާ (ޕިން: 5889):");
+            let pin = prompt("އެގްރިމެންޓް ޑިލީޓްކުރުމަށް ޕިން (PIN) ޖައްސަވާ:");
             if(pin === "5889") {
                 if(confirm("ޔަޤީންތޯ މި އެގްރިމެންޓް ޑިލީޓްކުރަން ބޭނުންފުޅުވާކަން؟ (މިކަން އަނބުރާ އިއާދައެއް ނުކުރެވޭނެ)")) {
-                    document.getElementById('loading').style.display = 'flex';
+                    showLoading();
                     db.collection("agreements").doc(docId).delete().then(() => {
-                        document.getElementById('loading').style.display = 'none';
+                        hideLoading();
                         if(currentEditDocId === docId) clearForm();
-                    });
+                    }).catch(() => hideLoading());
                 }
             } else {
                 if(pin !== null) alert("ޕިން ނުބައި! ޑިލީޓެއް ނުކުރެވުނު.");
             }
         }
 
-        // 4. UI & Dashboard Logic
+        // ===============================================
+        // 5. UI & Dashboard
+        // ===============================================
         function parseDateString(dateString, timeString) {
             if(!dateString) return new Date(9999, 11, 31);
             let parts = dateString.split('/'); 
@@ -878,7 +957,7 @@
                         <small style="color: #666;">ހަމަވާ: ${r.endDate || '-'} ${r.endTime || '-'}</small>
                     </div>
                     <div class="action-buttons-group">
-                        <button class="btn-small btn-wa" onclick="sendWhatsApp('${r.mobile}', '${statusClass}')">WA</button>
+                        <button class="btn-small btn-wa" onclick="sendWhatsApp('${r.mobile || ''}', '${statusClass}')">WA</button>
                         <button class="btn-small btn-rcpt" onclick="openReceipt(${index})">ރިސީޓް</button>
                         <button class="btn-small btn-load" onclick="loadAgreementFromBank(${index})" title="އެޑިޓް">✏️ އެޑިޓް</button>
                         <button class="btn-small btn-del" onclick="deleteAgreement('${r.docId}')">ޑިލީޓް</button>
@@ -895,14 +974,23 @@
             updateChart(total, expiring, expired);
         }
 
+        function setUploadImage(imgId, srcStr) {
+            let img = document.getElementById(imgId);
+            if(srcStr && srcStr.startsWith('data:image')) {
+                img.src = srcStr; img.style.display = 'block'; img.parentElement.style.border = 'none';
+            } else {
+                img.removeAttribute('src'); img.style.display = 'none'; img.parentElement.style.border = '1px dashed var(--royal-gold)';
+            }
+        }
+
         function loadAgreementFromBank(index) {
             const r = rentersBank[index];
             currentEditDocId = r.docId;
             
             setFieldValue('agr-date', r.agrDate);
-            setFieldValue('owner-name', r.ownerName || 'ޢަލީ އިބްރާހީމް ދީދީ');
-            setFieldValue('owner-id', r.ownerId || 'A011265');
-            setFieldValue('owner-address', r.ownerAddress || 'ހިޔާ 8-05-02 ހުޅުމާލެ (މާލެސިޓީ)');
+            setFieldValue('owner-name', r.ownerName || OWNER_DEFAULTS['owner-name']);
+            setFieldValue('owner-id', r.ownerId || OWNER_DEFAULTS['owner-id']);
+            setFieldValue('owner-address', r.ownerAddress || OWNER_DEFAULTS['owner-address']);
             setFieldValue('wit2-name', r.wit2Name);
             setFieldValue('extra-info', r.extraInfo);
             
@@ -910,9 +998,9 @@
             setFieldValue('renter-id', r.id);
             setFieldValue('renter-address', r.address);
             setFieldValue('renter-mobile', r.mobile);
-            setFieldValue('cycle-reg', r.cycleReg || 'AA0O-P2245');
-            setFieldValue('cycle-model', r.cycleModel || 'YAMAHA NMAX 155 cc');
-            setFieldValue('cycle-color', r.cycleColor || 'BLUE');
+            setFieldValue('cycle-reg', r.cycleReg || OWNER_DEFAULTS['cycle-reg']);
+            setFieldValue('cycle-model', r.cycleModel || OWNER_DEFAULTS['cycle-model']);
+            setFieldValue('cycle-color', r.cycleColor || OWNER_DEFAULTS['cycle-color']);
             setFieldValue('start-date', r.startDate);
             setFieldValue('start-time', r.startTime);
             setFieldValue('end-date', r.endDate);
@@ -922,59 +1010,42 @@
             document.getElementById('sig-owner-name-display').innerText = r.ownerName || '-';
             document.getElementById('sig-renter-name-display').innerText = r.renterName || '-';
 
-            function loadImage(imgId, srcStr) {
-                let img = document.getElementById(imgId);
-                if(srcStr && srcStr.startsWith('data:image')) {
-                    img.src = srcStr; img.style.display = 'block'; img.parentElement.style.border = 'none';
-                } else {
-                    img.src = ''; img.style.display = 'none'; img.parentElement.style.border = '1px dashed var(--royal-gold)';
-                }
-            }
-            loadImage('id-front-img', r.idFront); loadImage('id-back-img', r.idBack);
-            loadImage('lic-front-img', r.licFront); loadImage('lic-back-img', r.licBack);
+            setUploadImage('id-front-img', r.idFront); setUploadImage('id-back-img', r.idBack);
+            setUploadImage('lic-front-img', r.licFront); setUploadImage('lic-back-img', r.licBack);
 
-            function loadSig(canvasId, srcStr) {
-                let canvas = document.getElementById(canvasId);
-                let ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if(srcStr && srcStr.length > 100) {
-                    let img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0); img.src = srcStr;
-                }
-            }
-            loadSig('sig-owner', r.sigOwner); loadSig('sig-renter', r.sigRenter);
-            loadSig('sig-wit1', r.sigWit1); loadSig('sig-wit2', r.sigWit2);
-            loadSig('sig-owner-initial', r.sigOwnerInitial); loadSig('sig-renter-initial', r.sigRenterInitial);
+            loadSignature('sig-owner', r.sigOwner); loadSignature('sig-renter', r.sigRenter);
+            loadSignature('sig-wit1', r.sigWit1); loadSignature('sig-wit2', r.sigWit2);
+            loadSignature('sig-owner-initial', r.sigOwnerInitial); loadSignature('sig-renter-initial', r.sigRenterInitial);
             
             if(window.innerWidth < 992) {
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            } else {
                 document.querySelector('.main-content').scrollTo({top: 0, behavior: 'smooth'});
             }
         }
 
         function clearForm() {
             currentEditDocId = null;
-            document.querySelectorAll('.editable:not([data-sync="owner-name"]):not([data-sync="owner-id"]):not([data-sync="owner-address"]):not([data-sync="cycle-reg"]):not([data-sync="cycle-model"]):not([data-sync="cycle-color"])').forEach(el => el.innerText = '');
+            document.querySelectorAll('.editable').forEach(el => {
+                if(!OWNER_DEFAULTS[el.dataset.sync]) el.innerText = '';
+            });
             document.querySelectorAll('.editable-block').forEach(el => el.innerText = '');
             document.querySelectorAll('.inline-input').forEach(el => {
+                if(el._flatpickr) el._flatpickr.clear(false);
                 el.value = '';
-                if(el._flatpickr) el._flatpickr.clear();
             });
-            
-            setFieldValue('owner-name', 'ޢަލީ އިބްރާހީމް ދީދީ');
-            setFieldValue('owner-id', 'A011265');
-            setFieldValue('owner-address', 'ހިޔާ 8-05-02 ހުޅުމާލެ (މާލެސިޓީ)');
-            setFieldValue('cycle-reg', 'AA0O-P2245');
-            setFieldValue('cycle-model', 'YAMAHA NMAX 155 cc');
-            setFieldValue('cycle-color', 'BLUE');
+            Object.keys(OWNER_DEFAULTS).forEach(k => setFieldValue(k, OWNER_DEFAULTS[k]));
 
-            document.querySelectorAll('.upload-box img').forEach(img => {
-                img.src = ''; img.style.display = 'none'; img.parentElement.style.border = '1px dashed var(--royal-gold)';
-            });
-            ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2', 'sig-owner-initial', 'sig-renter-initial'].forEach(clearSignature);
+            ['id-front-img', 'id-back-img', 'lic-front-img', 'lic-back-img'].forEach(id => setUploadImage(id, ''));
+            document.querySelectorAll('.upload-box input[type="file"]').forEach(i => i.value = '');
+            SIG_IDS.forEach(clearSignature);
             
-            document.getElementById('sig-owner-name-display').innerText = 'ޢަލީ އިބްރާހީމް ދީދީ';
+            document.getElementById('sig-owner-name-display').innerText = OWNER_DEFAULTS['owner-name'];
             document.getElementById('sig-renter-name-display').innerText = '-';
             
             if(window.innerWidth < 992) {
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            } else {
                 document.querySelector('.main-content').scrollTo({top: 0, behavior: 'smooth'});
             }
         }
@@ -996,15 +1067,12 @@
                         } else {
                             if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
                         }
-                        canvas.width = width; canvas.height = height;
+                        canvas.width = Math.round(width); canvas.height = Math.round(height);
                         const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        
-                        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
-                        const displayImg = document.getElementById(imgId);
-                        displayImg.src = compressedBase64;
-                        displayImg.style.display = 'block';
-                        displayImg.parentElement.style.border = 'none';
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        setUploadImage(imgId, canvas.toDataURL('image/jpeg', 0.6));
                     }
                     img.src = e.target.result;
                 }
@@ -1028,47 +1096,482 @@
             window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-        // --- NEW NATIVE PRINT TO PDF ---
-        function triggerPrintAndPDF() {
-            const loading = document.getElementById('loading');
-            loading.style.display = 'flex';
-            loading.querySelector('span').innerText = 'ތައްޔާރުކުރެވެނީ...';
+        // ===============================================
+        // 6. Signature pads (މޯބައިލްގައި ރަނގަޅަށް ވާގޮތަށް)
+        // ===============================================
+        const sigPads = {};
 
-            // 1. Convert Canvas Signatures to Images so they don't disappear on print
-            ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2', 'sig-owner-initial', 'sig-renter-initial'].forEach(id => {
-                const canvas = document.getElementById(id);
-                const img = document.getElementById('img-' + id);
-                if(canvas && img) {
-                    const dataUrl = canvas.toDataURL('image/png');
-                    if(dataUrl.length > 2500) { img.src = dataUrl; } else { img.src = ''; }
+        function isCanvasBlank(c) {
+            if(!c.width || !c.height) return true;
+            const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+            for(let i = 3; i < d.length; i += 4) { if(d[i] !== 0) return false; }
+            return true;
+        }
+
+        function setupCanvas(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const pad = { canvas, ctx, signed: false };
+            sigPads[canvasId] = pad;
+            let drawing = false;
+            let last = null;
+
+            function applyStyles() {
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = '#0b1d3a';
+            }
+
+            // ކެންވަސް ފެންނަ ސައިޒަށް ހަމަޖައްސާ (ސޮއި ގެއްލިނުދާނެ)
+            function resize() {
+                const rect = canvas.getBoundingClientRect();
+                if(rect.width < 10 || rect.height < 10) return;
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                const w = Math.round(rect.width * dpr), h = Math.round(rect.height * dpr);
+                if(canvas.width === w && canvas.height === h) return;
+
+                let snapshot = null;
+                if(pad.signed) {
+                    snapshot = document.createElement('canvas');
+                    snapshot.width = canvas.width; snapshot.height = canvas.height;
+                    snapshot.getContext('2d').drawImage(canvas, 0, 0);
+                }
+                canvas.width = w; canvas.height = h;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                applyStyles();
+                if(snapshot) {
+                    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.drawImage(snapshot, 0, 0, w, h);
+                    ctx.restore();
+                }
+            }
+            pad.resize = resize;
+
+            if('ResizeObserver' in window) {
+                new ResizeObserver(() => resize()).observe(canvas);
+            } else {
+                window.addEventListener('resize', resize);
+            }
+            resize();
+
+            function pos(e) {
+                const r = canvas.getBoundingClientRect();
+                return { x: e.clientX - r.left, y: e.clientY - r.top };
+            }
+
+            canvas.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                resize();
+                drawing = true;
+                try { canvas.setPointerCapture(e.pointerId); } catch(_) {}
+                last = pos(e);
+                ctx.beginPath();
+                ctx.moveTo(last.x, last.y);
+                ctx.lineTo(last.x + 0.01, last.y + 0.01);
+                ctx.stroke();
+                pad.signed = true;
+            });
+            canvas.addEventListener('pointermove', (e) => {
+                if(!drawing) return;
+                e.preventDefault();
+                const p = pos(e);
+                ctx.beginPath();
+                ctx.moveTo(last.x, last.y);
+                ctx.lineTo(p.x, p.y);
+                ctx.stroke();
+                last = p;
+            });
+            ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
+                canvas.addEventListener(ev, () => { drawing = false; })
+            );
+        }
+
+        SIG_IDS.forEach(setupCanvas);
+
+        function clearSignature(canvasId) {
+            const pad = sigPads[canvasId];
+            if(!pad) return;
+            pad.ctx.save();
+            pad.ctx.setTransform(1, 0, 0, 1, 0, 0);
+            pad.ctx.clearRect(0, 0, pad.canvas.width, pad.canvas.height);
+            pad.ctx.restore();
+            pad.signed = false;
+        }
+
+        function loadSignature(canvasId, srcStr) {
+            clearSignature(canvasId);
+            const pad = sigPads[canvasId];
+            if(!pad || !srcStr || !srcStr.startsWith('data:image')) return;
+            pad.resize();
+            const img = new Image();
+            img.onload = () => {
+                pad.ctx.save();
+                pad.ctx.setTransform(1, 0, 0, 1, 0, 0);
+                pad.ctx.drawImage(img, 0, 0, pad.canvas.width, pad.canvas.height);
+                pad.ctx.restore();
+                pad.signed = !isCanvasBlank(pad.canvas);
+            };
+            img.src = srcStr;
+        }
+
+        // ސޮއި ހުރިނަމަ PNG ޑޭޓާ، ނެތްނަމަ ހުސް
+        function getSigData(canvasId) {
+            const pad = sigPads[canvasId];
+            if(!pad || !pad.signed || isCanvasBlank(pad.canvas)) return '';
+            return pad.canvas.toDataURL('image/png');
+        }
+
+        // ===============================================
+        // 7. PDF / PRINT EXPORT
+        //    A4 ޞަފްޙާތައް ހަދައި، ކޮންމެ ޞަފްޙާއެއްގެ ތިރީގައި
+        //    އިނިޝިއަލް ޖައްސައި، PDF ހަދަނީ.
+        // ===============================================
+        let exportState = { blob: null, url: null, name: '', file: null };
+
+        function loadImg(src) {
+            return new Promise(res => {
+                const im = new Image();
+                im.onload = () => res(im);
+                im.onerror = () => res(null);
+                im.src = src;
+            });
+        }
+
+        // ކްލޯން ކޮށް، ފޯމުގެ ބައިތައް ސާދާ ލިޔުމަކަށް ބަދަލުކުރުން
+        function cleanClone(node) {
+            const c = node.cloneNode(true);
+            c.querySelectorAll('.no-print, button, input[type="file"], .flatpickr-mobile').forEach(e => e.remove());
+
+            c.querySelectorAll('input').forEach(inp => {
+                const key = inp.dataset.sync;
+                const v = key ? getFieldValue(key) : (inp.value || '').trim();
+                const s = document.createElement('span');
+                s.className = 'x-field' + (v ? '' : ' x-blank');
+                s.textContent = v || '\u00A0';
+                inp.replaceWith(s);
+            });
+
+            const editables = [c, ...c.querySelectorAll('[contenteditable]')].filter(el => el.hasAttribute && el.hasAttribute('contenteditable'));
+            editables.forEach(el => {
+                el.removeAttribute('contenteditable');
+                el.removeAttribute('data-placeholder');
+                if(el.classList.contains('editable-block')) {
+                    el.className = 'x-block';
+                    if(!el.textContent.trim()) el.textContent = '—';
+                } else {
+                    el.classList.remove('editable');
+                    el.classList.add('x-field');
+                    if(!el.textContent.trim()) { el.textContent = '\u00A0'; el.classList.add('x-blank'); }
                 }
             });
 
-            // 2. Set the footers into the fixed bottom element
-            const ownerInitialImg = document.getElementById('img-sig-owner-initial');
-            const renterInitialImg = document.getElementById('img-sig-renter-initial');
-            
-            document.getElementById('footer-img-owner-initial').src = ownerInitialImg.src;
-            document.getElementById('footer-img-renter-initial').src = renterInitialImg.src;
-
-            // 3. Trigger Native Print (Allows saving as perfectly formatted PDF without text squishing)
-            setTimeout(() => {
-                loading.style.display = 'none';
-                window.print(); 
-            }, 500);
+            [c, ...c.querySelectorAll('[id]')].forEach(e => { if(e.removeAttribute) e.removeAttribute('id'); });
+            return c;
         }
 
-        // Receipt Module
+        async function exportSigBox(box) {
+            const canvas = box.querySelector('canvas');
+            const data = canvas ? getSigData(canvas.id) : '';
+            const c = cleanClone(box);
+            const holder = document.createElement('div');
+            holder.className = 'x-sig';
+            if(data) {
+                const im = await loadImg(data);
+                if(im) holder.appendChild(im);
+            }
+            const cv = c.querySelector('canvas');
+            if(cv) cv.replaceWith(holder); else c.appendChild(holder);
+            return c;
+        }
+
+        async function buildFooterTemplate() {
+            const footer = document.createElement('div');
+            footer.className = 'pdf-footer';
+            const makeCell = async (sigId, label) => {
+                const cell = document.createElement('div');
+                cell.className = 'pf-cell';
+                const sig = document.createElement('div');
+                sig.className = 'pf-sig';
+                const data = getSigData(sigId);
+                if(data) { const im = await loadImg(data); if(im) sig.appendChild(im); }
+                const lab = document.createElement('div');
+                lab.textContent = label;
+                cell.append(sig, lab);
+                return cell;
+            };
+            const renterCell = await makeCell('sig-renter-initial', 'Renter Initial / ކުއްޔަށް ހިފާ ފަރާތް');
+            const center = document.createElement('div');
+            center.className = 'pf-center';
+            center.innerHTML = 'Page <span class="pf-num"></span>';
+            const ownerCell = await makeCell('sig-owner-initial', 'Owner Initial / ވެރިފަރާތް');
+            footer.append(renterCell, center, ownerCell);
+            return footer;
+        }
+
+        async function collectBlocks() {
+            const blocks = [];
+            const doc = document.getElementById(currentLang === 'dv' ? 'doc-dv' : 'doc-en');
+
+            [...doc.children].forEach((ch, ci) => {
+                if(ch.tagName === 'OL') {
+                    const listId = 'list-' + ci;
+                    [...ch.children].forEach((li, i) => blocks.push({ li: true, listId, index: i, node: cleanClone(li) }));
+                } else {
+                    const node = cleanClone(ch);
+                    if(/^H[1-4]$/.test(ch.tagName)) node.dataset.keep = '1';
+                    blocks.push({ node });
+                }
+            });
+
+            // Declaration + signatures
+            const decl = cleanClone(document.getElementById('agreement-declaration'));
+            decl.dataset.keep = '1';
+            blocks.push({ node: decl });
+
+            const boxes = [];
+            for(const b of document.querySelectorAll('#main-signatures .signature-box')) boxes.push(await exportSigBox(b));
+            for(let i = 0; i < boxes.length; i += 2) {
+                const row = document.createElement('div');
+                row.className = 'signatures-grid';
+                boxes.slice(i, i + 2).forEach(b => row.appendChild(b));
+                blocks.push({ node: row });
+            }
+
+            // Attachments (ފޮޓޯ ހުރިނަމަ އަލަށް ޞަފްޙާއެއްގައި)
+            const attDefs = [
+                ['id-front-img', 'އައިޑީ ކާޑު (ކުރިމަތި) / ID Front'],
+                ['id-back-img', 'އައިޑީ ކާޑު (ފަހަތް) / ID Back'],
+                ['lic-front-img', 'ލައިސަންސް (ކުރިމަތި) / License Front'],
+                ['lic-back-img', 'ލައިސަންސް (ފަހަތް) / License Back']
+            ];
+            const atts = [];
+            for(const [id, label] of attDefs) {
+                const src = getUploadSrc(id);
+                if(!src) continue;
+                const im = await loadImg(src);
+                if(!im) continue;
+                const box = document.createElement('div');
+                box.className = 'x-att';
+                const lab = document.createElement('div');
+                lab.className = 'x-att-label';
+                lab.textContent = label;
+                box.append(lab, im);
+                atts.push(box);
+            }
+            if(atts.length) {
+                const h = document.createElement('h3');
+                h.textContent = 'ލިޔެކިޔުންތައް (އައިޑީ ކާޑު އަދި ލައިސަންސް) / Documents';
+                h.dataset.keep = '1';
+                blocks.push({ node: h, pageBreak: true });
+                for(let i = 0; i < atts.length; i += 2) {
+                    const row = document.createElement('div');
+                    row.className = 'x-att-row';
+                    atts.slice(i, i + 2).forEach(a => row.appendChild(a));
+                    blocks.push({ node: row });
+                }
+            }
+            return blocks;
+        }
+
+        async function buildPages(stage) {
+            const blocks = await collectBlocks();
+            const footerTpl = await buildFooterTemplate();
+            const pages = [];
+            let body;
+
+            function newPage() {
+                const page = document.createElement('div');
+                page.className = 'pdf-page' + (currentLang === 'en' ? ' en-version' : '');
+                const b = document.createElement('div');
+                b.className = 'pdf-body';
+                page.append(b, footerTpl.cloneNode(true));
+                stage.appendChild(page);
+                pages.push(page);
+                body = b;
+            }
+            const overflow = () => body.scrollHeight > body.clientHeight + 1;
+
+            function appendBlock(b) {
+                if(b.li) {
+                    let ol = body.lastElementChild;
+                    if(!ol || ol.tagName !== 'OL' || ol.dataset.list !== b.listId) {
+                        ol = document.createElement('ol');
+                        ol.start = b.index + 1;
+                        ol.dataset.list = b.listId;
+                        body.appendChild(ol);
+                    }
+                    ol.appendChild(b.node);
+                } else {
+                    body.appendChild(b.node);
+                }
+            }
+            function removeBlock(b) {
+                const parent = b.node.parentNode;
+                b.node.remove();
+                if(b.li && parent && parent.children.length === 0) parent.remove();
+            }
+
+            newPage();
+            for(const b of blocks) {
+                if(b.pageBreak && body.children.length) newPage();
+                appendBlock(b);
+                if(overflow()) {
+                    removeBlock(b);
+                    if(body.children.length) {
+                        // ސުރުޚީ ފަދަ ބައިތައް ދެން އަންނަ ބަޔާއެކު ގެންދާ
+                        const carry = [];
+                        while(body.children.length > 1 && body.lastElementChild.dataset.keep === '1') {
+                            carry.unshift(body.lastElementChild);
+                            body.lastElementChild.remove();
+                        }
+                        newPage();
+                        carry.forEach(n => body.appendChild(n));
+                    }
+                    appendBlock(b);
+                }
+            }
+
+            pages.forEach((p, i) => {
+                const n = p.querySelector('.pf-num');
+                if(n) n.textContent = `${i + 1} / ${pages.length}`;
+            });
+            return pages;
+        }
+
+        async function triggerPrintAndPDF() {
+            if(!window.html2canvas || !window.jspdf) {
+                alert('PDF ލައިބްރަރީ ލޯޑެއް ނުވޭ. އިންޓަނެޓް ކަނެކްޝަން ޗެކްކޮށް ޕޭޖް ރީލޯޑް ކުރައްވާ.');
+                return;
+            }
+            if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
+
+            const missing = [];
+            if(!getSigData('sig-owner-initial')) missing.push('ވެރިފަރާތް');
+            if(!getSigData('sig-renter-initial')) missing.push('ކުއްޔަށް ހިފާ ފަރާތް');
+            if(missing.length && !confirm(`ކޮންމެ ޞަފްޙާއެއްގެ ތިރީގައި ޖެހޭ ސޮއި (Initial) އަދި ނުކުރައްވައެވެ: ${missing.join('، ')}\n\nއެހެންނަމަވެސް PDF ހައްދަވަން ބޭނުންފުޅުތޯ؟`)) {
+                return;
+            }
+
+            showLoading('ތައްޔާރުކުރެވެނީ...');
+            const prevX = window.scrollX, prevY = window.scrollY;
+            let stage = null;
+
+            try {
+                if(document.fonts && document.fonts.ready) await document.fonts.ready;
+
+                stage = document.createElement('div');
+                stage.id = 'export-stage';
+                document.body.appendChild(stage);
+
+                const pages = await buildPages(stage);
+                window.scrollTo(0, 0);
+
+                const images = [];
+                for(let i = 0; i < pages.length; i++) {
+                    document.getElementById('loading-text').innerText = `ޞަފްޙާ ${i + 1} / ${pages.length} ތައްޔާރުކުރެވެނީ...`;
+                    const cv = await html2canvas(pages[i], {
+                        scale: 2,
+                        backgroundColor: '#ffffff',
+                        useCORS: true,
+                        logging: false
+                    });
+                    images.push(cv.toDataURL('image/jpeg', 0.92));
+                    cv.width = 0; cv.height = 0;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+                images.forEach((d, i) => {
+                    if(i > 0) pdf.addPage('a4', 'portrait');
+                    pdf.addImage(d, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+                });
+
+                const rid = (getFieldValue('renter-id') || 'agreement').replace(/[^\w-]/g, '') || 'agreement';
+                const dt = (getFieldValue('start-date') || '').replace(/\//g, '-');
+                const name = `Rasfahi_Agreement_${rid}${dt ? '_' + dt : ''}.pdf`;
+
+                if(exportState.url) URL.revokeObjectURL(exportState.url);
+                const blob = pdf.output('blob');
+                exportState = { blob, url: URL.createObjectURL(blob), name, file: null };
+                try { exportState.file = new File([blob], name, { type: 'application/pdf' }); } catch(_) {}
+
+                // ޕްރިންޓަށް ތައްޔާރުކުރުން
+                const pa = document.getElementById('print-area');
+                pa.innerHTML = '';
+                images.forEach(d => {
+                    const sheet = document.createElement('div');
+                    sheet.className = 'print-sheet';
+                    const im = new Image();
+                    im.src = d;
+                    sheet.appendChild(im);
+                    pa.appendChild(sheet);
+                });
+
+                const canShare = !!(exportState.file && navigator.canShare && navigator.canShare({ files: [exportState.file] }));
+                document.getElementById('btn-share-pdf').style.display = canShare ? 'block' : 'none';
+                document.getElementById('export-info').innerText = `${pages.length} ޞަފްޙާ — ${name}`;
+                document.getElementById('exportModal').style.display = 'flex';
+            } catch(err) {
+                console.error(err);
+                alert('PDF ހެދުމުގައި މައްސަލައެއް ދިމާވެއްޖެ. ޕޭޖް ރީލޯޑްކޮށް އަލުން މަސައްކަތް ކުރައްވާ.');
+            } finally {
+                if(stage) stage.remove();
+                window.scrollTo(prevX, prevY);
+                hideLoading();
+            }
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').style.display = 'none';
+        }
+
+        function downloadPDF() {
+            if(!exportState.url) return;
+            const a = document.createElement('a');
+            a.href = exportState.url;
+            a.download = exportState.name;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        async function sharePDF() {
+            if(!exportState.file) return;
+            try {
+                await navigator.share({ files: [exportState.file], title: exportState.name });
+            } catch(err) {
+                if(err && err.name !== 'AbortError') {
+                    console.error(err);
+                    alert('ޝެއަރ ނުކުރެވުނު. "PDF ޑައުންލޯޑް ކުރޭ" ބޭނުންކުރައްވާ.');
+                }
+            }
+        }
+
+        function openPDF() {
+            if(!exportState.url) return;
+            const w = window.open(exportState.url, '_blank');
+            if(!w) window.location.href = exportState.url;
+        }
+
+        function printPages() {
+            if(!document.getElementById('print-area').children.length) return;
+            window.print();
+        }
+
+        // ===============================================
+        // 8. Receipt
+        // ===============================================
         function openReceipt(index) {
             const r = rentersBank[index];
-            document.getElementById('rec-renter-name').innerText = r.renterName;
-            document.getElementById('rec-renter-id').innerText = r.id;
-            document.getElementById('rec-renter-mobile').innerText = r.mobile;
-            document.getElementById('rec-renter-address').innerText = r.address;
-            document.getElementById('rec-cycle').innerText = r.cycleReg + ' (' + r.cycleModel + ')';
-            document.getElementById('rec-start').innerText = r.startDate + ' ' + r.startTime;
-            document.getElementById('rec-end').innerText = r.endDate + ' ' + r.endTime;
-            document.getElementById('rec-price').innerText = r.price;
+            document.getElementById('rec-renter-name').innerText = r.renterName || '';
+            document.getElementById('rec-renter-id').innerText = r.id || '';
+            document.getElementById('rec-renter-mobile').innerText = r.mobile || '';
+            document.getElementById('rec-renter-address').innerText = r.address || '';
+            document.getElementById('rec-cycle').innerText = (r.cycleReg || '') + ' (' + (r.cycleModel || '') + ')';
+            document.getElementById('rec-start').innerText = (r.startDate || '') + ' ' + (r.startTime || '');
+            document.getElementById('rec-end').innerText = (r.endDate || '') + ' ' + (r.endTime || '');
+            document.getElementById('rec-price').innerText = r.price || '';
             
             document.getElementById('receiptModal').style.display = 'flex';
         }
@@ -1081,106 +1584,15 @@
                     const src = e.target.result;
                     document.getElementById('zaag-seal').src = src;
                     document.getElementById('seal-text').style.display = 'none';
-                    localStorage.setItem('zaagSeal', src);
+                    try { localStorage.setItem('zaagSeal', src); } catch(_) {}
                 }
                 reader.readAsDataURL(file);
             }
         }
 
-        function setupCanvas(canvasId) {
-            const canvas = document.getElementById(canvasId);
-            const ctx = canvas.getContext('2d');
-            let isDrawing = false;
-            
-            function applyCanvasStyles() {
-                ctx.lineWidth = 2.5; 
-                ctx.lineCap = 'round'; 
-                ctx.strokeStyle = '#0b1d3a'; 
-            }
-
-            function resize() {
-                const rect = canvas.getBoundingClientRect();
-                if(rect.width > 0 && rect.height > 0) {
-                    const temp = canvas.toDataURL();
-                    canvas.width = rect.width; 
-                    canvas.height = rect.height;
-                    applyCanvasStyles(); 
-                    const img = new Image(); 
-                    img.onload = () => ctx.drawImage(img, 0, 0); 
-                    img.src = temp;
-                }
-            }
-            
-            resize();
-            window.addEventListener('resize', resize);
-            setTimeout(resize, 500); 
-
-            function getCoordinates(e) {
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                let clientX, clientY;
-                
-                if (e.touches && e.touches.length > 0) {
-                    clientX = e.touches[0].clientX;
-                    clientY = e.touches[0].clientY;
-                } else if (e.changedTouches && e.changedTouches.length > 0) {
-                    clientX = e.changedTouches[0].clientX;
-                    clientY = e.changedTouches[0].clientY;
-                } else {
-                    clientX = e.clientX;
-                    clientY = e.clientY;
-                }
-                
-                return { 
-                    x: (clientX - rect.left) * scaleX, 
-                    y: (clientY - rect.top) * scaleY 
-                };
-            }
-
-            function startPosition(e) { 
-                e.preventDefault(); 
-                isDrawing = true; 
-                ctx.beginPath();
-                draw(e); 
-            }
-            
-            function endPosition(e) { 
-                if(e && e.cancelable) e.preventDefault();
-                isDrawing = false; 
-                ctx.beginPath(); 
-            }
-            
-            function draw(e) {
-                if (!isDrawing) return; 
-                if(e.cancelable) e.preventDefault();
-                
-                const { x, y } = getCoordinates(e);
-                ctx.lineTo(x, y); 
-                ctx.stroke(); 
-                ctx.beginPath(); 
-                ctx.moveTo(x, y);
-            }
-
-            canvas.addEventListener('mousedown', startPosition); 
-            canvas.addEventListener('mouseup', endPosition); 
-            canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('mouseleave', endPosition);
-
-            canvas.addEventListener('touchstart', startPosition, {passive: false}); 
-            canvas.addEventListener('touchend', endPosition, {passive: false}); 
-            canvas.addEventListener('touchcancel', endPosition, {passive: false});
-            canvas.addEventListener('touchmove', draw, {passive: false});
-        }
-
-        ['sig-owner', 'sig-renter', 'sig-wit1', 'sig-wit2', 'sig-owner-initial', 'sig-renter-initial'].forEach(setupCanvas);
-
-        function clearSignature(canvasId) {
-            const canvas = document.getElementById(canvasId);
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
+        // ===============================================
+        // 9. Chart
+        // ===============================================
         let dashChart;
         function updateChart(total, expiring, expired) {
             const ctx = document.getElementById('dashboardChart').getContext('2d');
@@ -1205,17 +1617,15 @@
         }
 
         window.onload = function() {
-            let savedSeal = localStorage.getItem('zaagSeal');
+            let savedSeal = null;
+            try { savedSeal = localStorage.getItem('zaagSeal'); } catch(_) {}
             if(savedSeal) { document.getElementById('zaag-seal').src = savedSeal; document.getElementById('seal-text').style.display = 'none'; }
             
-            if(!getFieldValue('owner-name')) setFieldValue('owner-name', 'ޢަލީ އިބްރާހީމް ދީދީ');
-            if(!getFieldValue('owner-id')) setFieldValue('owner-id', 'A011265');
-            if(!getFieldValue('owner-address')) setFieldValue('owner-address', 'ހިޔާ 8-05-02 ހުޅުމާލެ (މާލެސިޓީ)');
-            if(!getFieldValue('cycle-reg')) setFieldValue('cycle-reg', 'AA0O-P2245');
-            if(!getFieldValue('cycle-model')) setFieldValue('cycle-model', 'YAMAHA NMAX 155 cc');
-            if(!getFieldValue('cycle-color')) setFieldValue('cycle-color', 'BLUE');
-
-            document.getElementById('sig-owner-name-display').innerText = 'ޢަލީ އިބްރާހީމް ދީދީ';
+            Object.keys(OWNER_DEFAULTS).forEach(k => {
+                if(!getFieldValue(k)) setFieldValue(k, OWNER_DEFAULTS[k]);
+            });
+            document.getElementById('sig-owner-name-display').innerText = getFieldValue('owner-name') || OWNER_DEFAULTS['owner-name'];
+            SIG_IDS.forEach(id => sigPads[id] && sigPads[id].resize());
         };
     </script>
 </body>
