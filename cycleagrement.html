@@ -265,7 +265,14 @@
            ހަދައިގެން. ސްކްރީން ސައިޒަކާ ގުޅުމެއް ނެތް، ފޯނާއި
            ކޮމްޕިއުޓަރުގައި ފެންނާނީ އެއް ގޮތަކަށް.
            ========================================================= */
-        #export-stage { position: absolute; top: 0; left: -12000px; width: 794px; }
+        /* ތާރީޚް ކެލެންޑަރު: RTL ޕޭޖްގައި ސައިޑަށް ފައިބައިގެން މުޅި ޕޭޖް ހިޔޭ މައްސަލަ ހައްލު */
+        .flatpickr-calendar { direction: ltr; text-align: left; font-family: Arial, sans-serif; }
+        .flatpickr-calendar:not(.open):not(.inline) { display: none !important; }
+        html { overflow-x: clip; }
+
+        /* ޕޭޖް ސައިޑަށް ސްކްރޯލް ނުވާގޮތަށް (RTL ޕޭޖްގައި ކުރިން ބޭނުންކުރި left:-12000px ގެ ސަބަބުން މުޅި ޕޭޖް ސައިޑަށް ދިޔައީ) */
+        #export-holder { position: fixed; top: 0; left: 0; width: 1px; height: 1px; overflow: hidden; pointer-events: none; z-index: -1; }
+        #export-stage { position: absolute; top: 0; left: 0; width: 794px; direction: ltr; }
         .pdf-page {
             width: 794px; height: 1123px; background: #fff; position: relative; overflow: hidden;
             box-sizing: border-box; padding: 42px 56px 0 56px; border-top: 8px solid #0b1d3a;
@@ -1515,18 +1522,19 @@
             }
 
             showLoading('ތައްޔާރުކުރެވެނީ...');
-            const prevX = window.scrollX, prevY = window.scrollY;
-            let stage = null;
+            let holder = null;
 
             try {
                 if(document.fonts && document.fonts.ready) await document.fonts.ready;
 
-                stage = document.createElement('div');
+                holder = document.createElement('div');
+                holder.id = 'export-holder';
+                const stage = document.createElement('div');
                 stage.id = 'export-stage';
-                document.body.appendChild(stage);
+                holder.appendChild(stage);
+                document.body.appendChild(holder);
 
                 const pages = await buildPages(stage);
-                window.scrollTo(0, 0);
 
                 const images = [];
                 for(let i = 0; i < pages.length; i++) {
@@ -1578,8 +1586,10 @@
                 console.error(err);
                 alert('PDF ހެދުމުގައި މައްސަލައެއް ދިމާވެއްޖެ. ޕޭޖް ރީލޯޑްކޮށް އަލުން މަސައްކަތް ކުރައްވާ.');
             } finally {
-                if(stage) stage.remove();
-                window.scrollTo(prevX, prevY);
+                if(holder) holder.remove();
+                // ޕޭޖް ސައިޑަށް ސްކްރޯލްވެފައިވާނަމަ އަނބުރާ ތަނަށް
+                document.documentElement.scrollLeft = 0;
+                document.body.scrollLeft = 0;
                 hideLoading();
             }
         }
