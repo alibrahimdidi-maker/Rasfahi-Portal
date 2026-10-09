@@ -1285,28 +1285,82 @@
             return c;
         }
 
-        async function buildFooterTemplate() {
+        // ސޮއިގެ ވަށައިގެންވާ ހުސްތަން ކަނޑާލާ (ކަނުގައި ބޮޑުކޮށް ފެންނާނެ)
+        function trimSignature(srcCanvas) {
+            const w = srcCanvas.width, h = srcCanvas.height;
+            if(!w || !h) return null;
+            const d = srcCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+            let minX = w, minY = h, maxX = -1, maxY = -1;
+            for(let y = 0; y < h; y++) {
+                for(let x = 0; x < w; x++) {
+                    if(d[(y * w + x) * 4 + 3] > 10) {
+                        if(x < minX) minX = x; if(x > maxX) maxX = x;
+                        if(y < minY) minY = y; if(y > maxY) maxY = y;
+                    }
+                }
+            }
+            if(maxX < 0) return null;
+            const pad = 6;
+            minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+            maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+            const out = document.createElement('canvas');
+            out.width = maxX - minX + 1; out.height = maxY - minY + 1;
+            out.getContext('2d').drawImage(srcCanvas, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
+            return out;
+        }
+
+        // ކަނުގައި ޖަހާނީ އިނިޝިއަލް؛ އެ ނެތްނަމަ މައި ސޮއި
+        function getFooterSignature(role) {
+            const ids = role === 'renter' ? ['sig-renter-initial', 'sig-renter'] : ['sig-owner-initial', 'sig-owner'];
+            for(const id of ids) {
+                const pad = sigPads[id];
+                if(pad && pad.signed && !isCanvasBlank(pad.canvas)) {
+                    const t = trimSignature(pad.canvas);
+                    if(t) return t;
+                }
+            }
+            return null;
+        }
+
+        function buildFooterTemplate() {
             const footer = document.createElement('div');
             footer.className = 'pdf-footer';
-            const makeCell = async (sigId, label) => {
+            const makeCell = (role, label) => {
                 const cell = document.createElement('div');
                 cell.className = 'pf-cell';
                 const sig = document.createElement('div');
                 sig.className = 'pf-sig';
-                const data = getSigData(sigId);
-                if(data) { const im = await loadImg(data); if(im) sig.appendChild(im); }
+                sig.dataset.role = role;   // ސޮއި ޖަހަނީ ރެންޑަރ ކުރުމަށްފަހު
                 const lab = document.createElement('div');
                 lab.textContent = label;
                 cell.append(sig, lab);
                 return cell;
             };
-            const renterCell = await makeCell('sig-renter-initial', 'Renter Initial / ކުއްޔަށް ހިފާ ފަރާތް');
+            const renterCell = makeCell('renter', 'Renter / ކުއްޔަށް ހިފާ ފަރާތް');
             const center = document.createElement('div');
             center.className = 'pf-center';
             center.innerHTML = 'Page <span class="pf-num"></span>';
-            const ownerCell = await makeCell('sig-owner-initial', 'Owner Initial / ވެރިފަރާތް');
+            const ownerCell = makeCell('owner', 'Owner / ވެރިފަރާތް');
             footer.append(renterCell, center, ownerCell);
             return footer;
+        }
+
+        // ރެންޑަރ ކުރެވުނު ޞަފްޙާގެ ފޮޓޯގައި ސީދާ ސޮއި ކުރަހާ
+        function stampFooterSignatures(page, cv, sigs) {
+            const ctx = cv.getContext('2d');
+            const pr = page.getBoundingClientRect();
+            const sx = cv.width / pr.width, sy = cv.height / pr.height;
+            page.querySelectorAll('.pf-sig[data-role]').forEach(ph => {
+                const img = sigs[ph.dataset.role];
+                if(!img) return;
+                const r = ph.getBoundingClientRect();
+                const boxW = (r.width - 6) * sx, boxH = (r.height - 4) * sy;
+                const scale = Math.min(boxW / img.width, boxH / img.height);
+                const dw = img.width * scale, dh = img.height * scale;
+                const dx = (r.left - pr.left) * sx + ((r.width * sx) - dw) / 2;
+                const dy = (r.top - pr.top) * sy + (r.height * sy) - dh - 2 * sy;
+                ctx.drawImage(img, dx, dy, dw, dh);
+            });
         }
 
         async function collectBlocks() {
@@ -1376,7 +1430,7 @@
 
         async function buildPages(stage) {
             const blocks = await collectBlocks();
-            const footerTpl = await buildFooterTemplate();
+            const footerTpl = buildFooterTemplate();
             const pages = [];
             let body;
 
@@ -1446,10 +1500,11 @@
             }
             if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
 
+            const footerSigs = { renter: getFooterSignature('renter'), owner: getFooterSignature('owner') };
             const missing = [];
-            if(!getSigData('sig-owner-initial')) missing.push('ވެރިފަރާތް');
-            if(!getSigData('sig-renter-initial')) missing.push('ކުއްޔަށް ހިފާ ފަރާތް');
-            if(missing.length && !confirm(`ކޮންމެ ޞަފްޙާއެއްގެ ތިރީގައި ޖެހޭ ސޮއި (Initial) އަދި ނުކުރައްވައެވެ: ${missing.join('، ')}\n\nއެހެންނަމަވެސް PDF ހައްދަވަން ބޭނުންފުޅުތޯ؟`)) {
+            if(!footerSigs.renter) missing.push('ކުއްޔަށް ހިފާ ފަރާތް');
+            if(!footerSigs.owner) missing.push('ވެރިފަރާތް');
+            if(missing.length && !confirm(`ކޮންމެ ޞަފްޙާއެއްގެ ކަނުގައި ޖަހާނެ ސޮއިއެއް ނުފެނުނު: ${missing.join('، ')}\n(އިނިޝިއަލް ނުވަތަ މައި ސޮއި ކުރައްވާ)\n\nއެހެންނަމަވެސް PDF ހައްދަވަން ބޭނުންފުޅުތޯ؟`)) {
                 return;
             }
 
@@ -1476,6 +1531,7 @@
                         useCORS: true,
                         logging: false
                     });
+                    stampFooterSignatures(pages[i], cv, footerSigs);
                     images.push(cv.toDataURL('image/jpeg', 0.92));
                     cv.width = 0; cv.height = 0;
                 }
